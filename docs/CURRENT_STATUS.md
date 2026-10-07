@@ -24,7 +24,7 @@ The current 3D fixture is **not Live Twin truth**. It is intentionally a view fi
 
 ## Work in progress
 
-PR #57 implements the FastAPI/frontend integration scope for issue #8. It is not part of `main` yet and must be rebased/integrated with the 3D scene before merge.
+PR #57 implements the FastAPI/frontend integration scope for issue #8. It is not part of `main` yet. The branch has been reconciled with the current `main`, GitHub reports it as mergeable, it preserves the #56 3D scene, and it integrates `StoreStatus` through `AgentActivityPanel`.
 
 Its intended boundary is:
 - `GET /health`;
@@ -34,7 +34,7 @@ Its intended boundary is:
 - typed frontend API client/status UI;
 - fixture-backed reads as a scaffold, not Firestore Live Twin.
 
-Issue #58 tracks reproducible web installs and an executable CI build/test gate. Until #58 is complete, the web scaffold has local test/build evidence but no repository-level automated check on `main`.
+Issue #58 tracks the remaining reproducibility/CI work. PR #57 now commits `apps/web/package-lock.json`, so the dependency-lock input exists on that branch, but there is still no executable GitHub Actions build/test gate or check run on the current project baseline. #58 remains open until CI exists and is green.
 
 ## Not implemented yet
 
@@ -71,8 +71,8 @@ Gate status changes only when the corresponding issue contains reproducible evid
 
 ## Immediate critical path
 
-1. Finish/reconcile PR #57 with current `main`.
-2. Resolve #58 so web installs and CI are reproducible.
+1. Finish the remaining review fixes in PR #57 and merge only after the event-ID integrity issue is resolved.
+2. Resolve #58 by adding a green executable CI build/test gate; the lockfile portion is already present in PR #57.
 3. Complete Firestore (#6), Pub/Sub/BigQuery (#7), Gemini real read tool (#2), Cloud Run (#9).
 4. Pass Foundation Gate #10.
 5. Continue the autonomous path: Tool Registry → Observer → Investigator → Planner → Simulation → DCG → Executor → Verifier.
