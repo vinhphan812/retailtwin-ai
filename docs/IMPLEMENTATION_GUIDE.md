@@ -130,15 +130,21 @@ Add complete verification/replan, 2–3 candidates, polished Agent Activity/DCG 
 Only after stability: multi-agent ADK, advanced optimizer, customer heatmap, richer assets, rollback, vision or other enhancements.
 
 ## 9. Release gates
+## 8. Release-gate evidence
 
-**Foundation Gate** — web/API/Firestore/Gemini/PubSub/Cloud Run integrated.  
-**G02 Twin Control** — real agent tool changes Simulation Twin and 3D, not Live.  
-**G03 Autonomous** — event triggers AI without prompt.  
-**G04 Guard** — stale decision is blocked.  
-**G05 Live Commit** — valid guarded decision changes Live Twin and 3D.  
-**G06 Submission** — flagship scenario passes 20 consecutive E2E runs.
+```mermaid
+flowchart LR
+  F[Foundation] --> G2[G02 Twin Control] --> G3[G03 Autonomous] --> G4[G04 Guard]
+  G4 --> G5[G05 Live Commit] --> G6[G06 Submission]
+  classDef pending fill:#fff2cc,stroke:#9a6700
+  class F,G2,G3,G4,G5,G6 pending
+```
 
-Do not consider the project “demo ready” merely because individual services work.
+No gate is considered passed without repository-linked test, deployment, or run evidence. Current documentation describes acceptance criteria; it does not claim that Foundation or G02–G06 has passed.
+
+Gate definitions: Foundation integrates web/API/Firestore/Gemini/Pub/Sub/Cloud Run; G02 proves Simulation Twin control; G03 proves autonomous trigger; G04 proves stale blocking; G05 proves guarded Live Twin commit; G06 proves 20 consecutive E2E runs.
+
+Do not consider the project demo ready merely because individual services work.
 
 ## 10. Development conventions
 
