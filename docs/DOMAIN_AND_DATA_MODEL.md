@@ -181,6 +181,40 @@ flowchart LR
 
 Browser clients and Gemini may read approved views, propose plans, or invoke constrained tools. Neither may write Live Twin state directly; only the guarded Executor can apply an authorized action.
 
+## 10.1 Live Twin vs Simulation Twin isolation
+
+```mermaid
+flowchart LR
+  subgraph Simulation ["Simulation Twin (isolated branch)"]
+    R[Read Live Twin snapshot<br/>version N] --> SC[Clone to simulation state]
+    SC --> ACT[Apply candidate actions]
+    ACT --> KPI[KPI evaluation]
+    KPI --> D[Decision]
+  end
+
+  D --> G[DCG and authorization]
+  G --> X[Executor]
+
+  subgraph Live ["Live Twin (canonical truth)"]
+    X --> LT[Authorized live actions]
+    LT --> VER[Verification]
+  end
+
+  Browser -. "no direct write" .-> LT
+  Gemini -. "no direct write" .-> LT
+
+  classDef live fill:#ffe8d6,stroke:#c2410c
+  classDef sim fill:#e9d5ff,stroke:#6b21a8
+  classDef guarded fill:#d9f7e8,stroke:#16794a
+  class LT,VER,GuardedCommit live
+  class SC,ACT,KPI,D sim
+  class X,GuardedCommit guarded
+
+  note right of Browser<br/>read-only, propose, tools
+```
+
+Simulation path: `Live snapshot/version → clone → simulation actions → KPI → discard/retain result`.
+Live path: `Decision → DCG → authorization → Executor → Live state`.
 
 MVP does not need a perfect retail economics model. It needs a transparent, reproducible one.
 

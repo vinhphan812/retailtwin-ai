@@ -169,10 +169,33 @@ The checked-out `main` at the time of this audit contains the React Three Fiber 
 
 ```mermaid
 flowchart LR
-  A[Foundation] --> G2[G02 Twin Control] --> G3[G03 Autonomous] --> G4[G04 Guard]
-  G4 --> G5[G05 Live Commit] --> G6[G06 20-run submission]
+  subgraph Foundation ["Foundation"]
+    F[Foundation<br/>web + API + Firestore +<br/>Pub/Sub + Gemini + Cloud Run]
+  end
+
+  subgraph G02 ["G02 Twin Control"]
+    G2[G02 Twin Control<br/>Simulation Twin control]
+  end
+
+  subgraph G03 ["G03 Autonomous"]
+    G3[G03 Autonomous<br/>autonomous event trigger]
+  end
+
+  subgraph G04 ["G04 Guard"]
+    G4[G04 Guard<br/>stale blocking]
+  end
+
+  subgraph G05 ["G05 Live Commit"]
+    G5[G05 Live Commit<br/>guarded Live Twin commit]
+  end
+
+  subgraph G06 ["G06 Submission"]
+    G6[G06 Submission<br/>20 consecutive E2E runs]
+  end
+
+  F --> G2 --> G3 --> G4 --> G5 --> G6
   classDef pending fill:#fff2cc,stroke:#9a6700
-  class A,G2,G3,G4,G5,G6 pending
+  class F,G2,G3,G4,G5,G6 pending
 ```
 
 At audit time PR #59 is merged and PR #57 is also merged. PR #57 is not treated as evidence for the autonomous planner, simulation, guard or guarded commit gates.
