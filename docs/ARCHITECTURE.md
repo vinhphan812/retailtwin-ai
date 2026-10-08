@@ -59,6 +59,44 @@ flowchart LR
 
 The repository currently contains the React/R3F store scaffold (PR #56/#59 history); the end-to-end agent, guard, executor and cloud integrations are documented contracts, not evidence of completed gates. See `docs/CURRENT_STATUS.md`.
 
+## 2.1 Architecture end-to-end flow (planned vs implemented)
+
+```mermaid
+flowchart LR
+  subgraph Events ["Events"]
+    E[Store events<br/>POS / inventory / promotion]
+    PS[Pub/Sub]
+  end
+
+  E --> PS
+  PS --> O[Observer]
+  O --> I[Investigator]
+  I --> P[Gemini planner]
+  P --> S[Simulation Twin]
+  S --> K[KPI evaluator]
+  K --> G[Decision Context Guard]
+
+  G -- "ALLOW + authorization" --> X[Executor]
+  G -- REFRESH_REQUIRED --> P
+  G -- DENY --> F[Fail closed]
+  G -- HUMAN_REVIEW --> H[Human review]
+  H -.-> P
+
+  X --> L[Live Twin]
+  L --> V[3D view and verifier]
+
+  classDef implemented fill:#d9f7e8,stroke:#16794a
+  classDef planned fill:#fff2cc,stroke:#9a6700
+  classDef event fill:#eaf4fc,stroke:#3772a5
+  class E,PS event
+  class O,I,X implemented
+  class P,S,K,G planned
+  class V implemented
+  class F,H planned
+```
+
+Gate posture (per `docs/CURRENT_STATUS.md`): all gates **pending** — no linked test, deployment, or 20-run evidence was available in the checked-out repository.
+
 ## 2. Technology stack
 
 ### Frontend
