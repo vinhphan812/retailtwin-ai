@@ -203,7 +203,6 @@ flowchart LR
   Browser -. "no direct write" .-> LT
   Gemini -. "no direct write" .-> LT
 
-  note right of Browser: "no direct write"
   
   classDef live fill:#ffe8d6,stroke:#c2410c
   classDef sim fill:#e9d5ff,stroke:#6b21a8
