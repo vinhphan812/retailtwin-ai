@@ -17,7 +17,7 @@ def validate_example():
             occurred_at=datetime.now(pytz.utc),
             source="test-source"
         )
-        
+
         # Valid decision
         decision = Decision(
             decision_id="d1",
