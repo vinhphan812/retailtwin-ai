@@ -24,11 +24,11 @@ Implemented on `main`:
 - in-memory event intake: one `event_id` names one immutable normalized payload, an identical payload returns HTTP 200, and a different payload returns HTTP 409 `event_id_conflict`;
 - `POST /events` does not change inventory, does not write Live Twin state, and does not publish;
 - store-events backbone: pull subscription `store-events-analytics` on topic `store-events`, and BigQuery tables `retailtwin.sales_events`, `retailtwin.inventory_events`, and `retailtwin.agent_actions`;
-- deterministic `sale.completed` publisher. A replay of the same `event_id` is a duplicate and does not add a second row. `correlation_id` is kept on the message and the row;
+- deterministic `sale.completed` publisher. The lander claims each `event_id` in Firestore `store_event_claims` before it writes the derived BigQuery row. A replay of the same payload is a duplicate. A different payload is a conflict and does not replace the claim or the row. `correlation_id` is kept on the message and the row. A rejected message is quarantined before it is acknowledged;
 - ADR 0001, 0002, 0003, and 0005;
 - tracked `apps/web/package-lock.json`.
 
-The 3D scene and the API are **not Firestore Live Twin**. Issue #4 binds the scene to twin state. Issue #6 replaces `open_store` with Firestore and keeps the four routes. `infrastructure/gcp/verify-store-events.sh` checks the subscription and the three tables. The smoke command publishes `data/synthetic/sale-completed.json` and checks that a replay stays one row.
+The 3D scene and the API are **not Firestore Live Twin**. Issue #4 binds the scene to twin state. Issue #6 replaces `open_store` with Firestore and keeps the four routes. `store_event_claims` is an idempotency ledger for this backbone, not that Live Twin. `infrastructure/gcp/verify-store-events.sh` checks the subscription and the three tables. The smoke command publishes `data/synthetic/sale-completed.json` and checks that a replay stays one row.
 
 ## Google Cloud foundation
 
@@ -85,7 +85,7 @@ Gate status changes only when the corresponding issue contains reproducible evid
 ## Immediate critical path
 
 1. Resolve #58 with a green executable GitHub Actions CI build/test gate. The web lockfile is already on `main`. Issue #60 then adds the coverage baseline and threshold to that gate.
-2. Complete Firestore (#6), the Gemini real read tool (#2), and Cloud Run (#9). The store-events backbone (#7) lands `sale.completed` once in BigQuery and reports a replayed event id as a duplicate. It does not start the Observer.
+2. Complete Firestore (#6), the Gemini real read tool (#2), and Cloud Run (#9). The store-events backbone (#7) claims each `sale.completed` event id once, writes the derived BigQuery row, and reports a replayed event id as a duplicate. It does not start the Observer. Issue #6 still owns the Live Twin.
 3. Pass Foundation Gate #10. #10 stays open: Firestore, Gemini real tool use, and Cloud Run are still required. A store event does not yet start an investigation.
 4. Continue the autonomous path: Tool Registry → Observer → Investigator → Planner → Simulation → DCG → Executor → Verifier.
 5. Bind those state changes to the 3D Live/Simulation views.

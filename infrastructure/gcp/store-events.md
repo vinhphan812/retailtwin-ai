@@ -19,11 +19,13 @@ The message body is the normalized store event in [data/schemas/store-event.sche
 | `inventory.*` | `inventory_events` |
 | `agent.*` | `agent_actions` |
 
-Attributes `event_id`, `correlation_id`, `event_type`, and `store_id` copy the body. The ordering key is `event_id`. Ordered publish and pull use the `us-central1` Pub/Sub endpoint, because the global endpoint rejects an ordering key when the topic stores messages only in that region.
+Attributes are exactly `event_id`, `correlation_id`, `event_type`, and `store_id`, and each value matches the body. A missing, extra, or mismatched attribute is rejected. The ordering key is `event_id`. Ordered publish and pull use the `us-central1` Pub/Sub endpoint, because the global endpoint rejects an ordering key when the topic stores messages only in that region.
 
-One `event_id` is one stored row across the three tables. The same normalized payload is a duplicate and does not add a row. A different payload does not replace the stored row. `correlation_id` on the row is the published value.
+The event-id owner is the Firestore document `store_event_claims/{event_id}` in the existing `(default)` database. The lander creates it only when the document is absent. One create wins. The same normalized payload is a duplicate. A different payload does not replace the claim. BigQuery is derived history: the lander inserts the row after a non-conflicting claim, and a duplicate claim repairs a missing row. `correlation_id` on the row is the published value. These claim documents are not Live Twin state.
 
-The publisher emits `sale.completed` only. Inserts are BigQuery query jobs, not streaming inserts, so they stay on the on-demand query allowance. There is no reservation.
+The lander acknowledges inserted, duplicate, and conflict outcomes. A rejected message is written to `store_event_rejects` before it is acknowledged. If that write fails, the message stays unacknowledged. This command is the day-0 analytics lander. It is not the Observer and it does not attach a dead-letter topic.
+
+The publisher emits `sale.completed` only. Inserts are BigQuery query jobs, not streaming inserts, so they stay on the on-demand query allowance. There is no reservation. The query insert still uses `NOT EXISTS` as a repair, which is not the uniqueness owner.
 
 The committed fixture is [data/synthetic/sale-completed.json](../../data/synthetic/sale-completed.json): event `evt-sale-0001`, correlation `run-20261007-001`, store `store-001`, SKU `P001`, quantity 3.
 

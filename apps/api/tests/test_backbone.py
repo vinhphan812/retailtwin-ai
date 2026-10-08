@@ -1,15 +1,20 @@
 import base64
 import json
+import threading
 
 import pytest
 
 from retailtwin_api.backbone import (
     DEFAULT_FIXTURE,
     BackboneError,
+    MemoryLedger,
     MemoryPipe,
+    MemoryQuarantine,
     MemorySink,
+    PulledMessage,
     canonical_body,
     config_from_env,
+    deliver,
     format_attributes,
     handle_message,
     land,
@@ -19,7 +24,14 @@ from retailtwin_api.backbone import (
     row_to_event,
     run_trace,
 )
-from retailtwin_api.backbone_gcp import BigQuerySink, GcloudPipe, command_env, parse_pull_output
+from retailtwin_api.backbone_gcp import (
+    BigQuerySink,
+    FirestoreRest,
+    GcloudPipe,
+    HttpResponse,
+    command_env,
+    parse_pull_output,
+)
 from retailtwin_api.schemas import StoreEvent
 from retailtwin_api.settings import REPO_ROOT
 
@@ -28,10 +40,12 @@ class FakeRunner:
     def __init__(self, output: str = "") -> None:
         self.commands: list[list[str]] = []
         self.output = output
+        self._lock = threading.Lock()
 
     def run(self, args: list[str]) -> str:
-        self.commands.append(args)
-        return self.output
+        with self._lock:
+            self.commands.append(args)
+            return self.output
 
 
 def event() -> StoreEvent:
@@ -72,37 +86,47 @@ def test_schema_requires_the_correlation_id() -> None:
 def test_same_event_id_lands_once_and_a_replay_is_a_duplicate() -> None:
     sale = event()
     sink = MemorySink()
+    ledger = MemoryLedger()
 
-    first = land(sink, sale)
-    replay = land(sink, sale)
+    first = land(sink, sale, ledger)
+    replay = land(sink, sale, ledger)
 
     assert first.outcome == "inserted"
     assert replay.outcome == "duplicate"
     assert replay.event is not None
     assert replay.event.correlation_id == "run-20261007-001"
     assert sink.count("sales_events", sale.event_id) == 1
+    held = ledger.held(sale.event_id)
+    assert held is not None
+    assert held[0] == "sales_events"
+    assert held[1] == sale
 
 
 def test_a_different_payload_does_not_replace_the_stored_event() -> None:
     sale = event()
     sink = MemorySink()
-    land(sink, sale)
+    ledger = MemoryLedger()
+    land(sink, sale, ledger)
 
-    conflict = land(sink, sale.model_copy(update={"quantity": 9}))
+    conflict = land(sink, sale.model_copy(update={"quantity": 9}), ledger)
 
     assert conflict.outcome == "conflict"
     assert conflict.event is not None
     assert conflict.event.quantity == 3
     assert conflict.event.correlation_id == "run-20261007-001"
     assert sink.count("sales_events", sale.event_id) == 1
+    held = ledger.held(sale.event_id)
+    assert held is not None
+    assert held[1].quantity == 3
 
 
 def test_the_same_event_id_cannot_also_land_as_inventory() -> None:
     sale = event()
     sink = MemorySink()
-    land(sink, sale)
+    ledger = MemoryLedger()
+    land(sink, sale, ledger)
 
-    conflict = land(sink, sale.model_copy(update={"event_type": "inventory.adjusted"}))
+    conflict = land(sink, sale.model_copy(update={"event_type": "inventory.adjusted"}), ledger)
 
     assert conflict.outcome == "conflict"
     assert sink.count("inventory_events", sale.event_id) == 0
@@ -112,9 +136,18 @@ def test_the_same_event_id_cannot_also_land_as_inventory() -> None:
 def test_inventory_and_agent_events_use_their_own_tables() -> None:
     sale = event()
     sink = MemorySink()
+    ledger = MemoryLedger()
 
-    inventory = land(sink, sale.model_copy(update={"event_id": "evt-inv-0001", "event_type": "inventory.adjusted"}))
-    action = land(sink, sale.model_copy(update={"event_id": "evt-agent-0001", "event_type": "agent.action"}))
+    inventory = land(
+        sink,
+        sale.model_copy(update={"event_id": "evt-inv-0001", "event_type": "inventory.adjusted"}),
+        ledger,
+    )
+    action = land(
+        sink,
+        sale.model_copy(update={"event_id": "evt-agent-0001", "event_type": "agent.action"}),
+        ledger,
+    )
 
     assert inventory.table == "inventory_events"
     assert action.table == "agent_actions"
@@ -123,22 +156,53 @@ def test_inventory_and_agent_events_use_their_own_tables() -> None:
 def test_an_unknown_event_type_is_rejected() -> None:
     sale = event()
     sink = MemorySink()
+    ledger = MemoryLedger()
 
-    rejected = land(sink, sale.model_copy(update={"event_type": "promotion.started"}))
+    rejected = land(sink, sale.model_copy(update={"event_type": "promotion.started"}), ledger)
 
     assert rejected.outcome == "rejected"
     assert sink.count("sales_events", sale.event_id) == 0
+    assert ledger.held(sale.event_id) is None
 
 
 def test_an_attribute_that_disagrees_with_the_body_is_not_stored() -> None:
     sale = event()
     sink = MemorySink()
+    ledger = MemoryLedger()
+    attributes = message_attributes(sale)
+    attributes["correlation_id"] = "run-other"
 
-    rejected = handle_message(sink, canonical_body(sale), {"correlation_id": "run-other"})
+    rejected = handle_message(sink, canonical_body(sale), attributes, ledger)
 
     assert rejected.outcome == "rejected"
     assert rejected.reason == "attribute_mismatch"
     assert sink.count("sales_events", sale.event_id) == 0
+    assert ledger.held(sale.event_id) is None
+
+
+def test_missing_and_extra_attributes_are_rejected() -> None:
+    sale = event()
+    sink = MemorySink()
+    ledger = MemoryLedger()
+    full = message_attributes(sale)
+    missing_event = dict(full)
+    del missing_event["event_id"]
+    missing_correlation = dict(full)
+    del missing_correlation["correlation_id"]
+    cases = [
+        ({}, "missing_attribute"),
+        (missing_event, "missing_attribute"),
+        (missing_correlation, "missing_attribute"),
+        ({**full, "authorization": "allow"}, "unexpected_attribute"),
+    ]
+
+    for attributes, reason in cases:
+        rejected = handle_message(sink, canonical_body(sale), attributes, ledger)
+        assert rejected.outcome == "rejected"
+        assert rejected.reason == reason
+
+    assert sink.count("sales_events", sale.event_id) == 0
+    assert ledger.held(sale.event_id) is None
 
 
 def test_trace_preserves_the_correlation_id_and_detects_the_replay() -> None:
@@ -157,13 +221,169 @@ def test_trace_preserves_the_correlation_id_and_detects_the_replay() -> None:
 def test_trace_conflict_leaves_the_original_row() -> None:
     sale = event()
     sink = MemorySink()
-    land(sink, sale.model_copy(update={"quantity": 9}))
+    ledger = MemoryLedger()
+    changed = sale.model_copy(update={"quantity": 9})
+    land(sink, changed, ledger)
 
     with pytest.raises(BackboneError, match="First delivery was conflict"):
-        run_trace(sale, MemoryPipe(), sink, timeout_s=1)
+        run_trace(sale, MemoryPipe(), sink, ledger=ledger, timeout_s=1)
 
     assert sink.get("sales_events", sale.event_id).quantity == 9
     assert sink.count("sales_events", sale.event_id) == 1
+    held = ledger.held(sale.event_id)
+    assert held is not None
+    assert held[1].quantity == 9
+
+
+def test_a_duplicate_claim_repairs_a_missing_row() -> None:
+    sale = event()
+    ledger = MemoryLedger()
+    ledger.claim(sale, "sales_events")
+    sink = MemorySink()
+
+    landing = land(sink, sale, ledger)
+
+    assert landing.outcome == "duplicate"
+    assert sink.count("sales_events", sale.event_id) == 1
+
+
+def test_a_conflict_does_not_write_the_derived_row() -> None:
+    sale = event()
+    ledger = MemoryLedger()
+    ledger.claim(sale, "sales_events")
+    sink = MemorySink()
+
+    conflict = land(sink, sale.model_copy(update={"quantity": 9}), ledger)
+
+    assert conflict.outcome == "conflict"
+    assert sink.count("sales_events", sale.event_id) == 0
+
+
+def test_a_new_claim_keeps_an_existing_matching_row() -> None:
+    sale = event()
+    sink = MemorySink()
+    sink.insert("sales_events", sale)
+
+    landing = land(sink, sale, MemoryLedger())
+
+    assert landing.outcome == "duplicate"
+    assert sink.count("sales_events", sale.event_id) == 1
+
+
+def test_concurrent_claims_have_one_owner_and_one_row() -> None:
+    sale = event()
+    sink = MemorySink()
+    ledger = MemoryLedger()
+    barrier = threading.Barrier(8)
+    outcomes: list[str] = []
+    lock = threading.Lock()
+
+    def worker() -> None:
+        barrier.wait()
+        landing = land(sink, sale, ledger)
+        with lock:
+            outcomes.append(landing.outcome)
+
+    threads = [threading.Thread(target=worker) for _ in range(8)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert outcomes.count("inserted") == 1
+    assert outcomes.count("duplicate") == 7
+    assert sink.count("sales_events", sale.event_id) == 1
+    held = ledger.held(sale.event_id)
+    assert held is not None
+    assert held[1] == sale
+
+
+def test_concurrent_cross_table_claims_keep_one_owner() -> None:
+    sale = event()
+    inventory = sale.model_copy(update={"event_type": "inventory.adjusted"})
+    sink = MemorySink()
+    ledger = MemoryLedger()
+    barrier = threading.Barrier(8)
+    outcomes: list[tuple[str, str | None]] = []
+    lock = threading.Lock()
+
+    def worker(item: StoreEvent) -> None:
+        barrier.wait()
+        landing = land(sink, item, ledger)
+        with lock:
+            outcomes.append((landing.outcome, landing.table))
+
+    threads = [threading.Thread(target=worker, args=(sale,)) for _ in range(4)]
+    threads.extend(threading.Thread(target=worker, args=(inventory,)) for _ in range(4))
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert sum(1 for outcome, _table in outcomes if outcome == "inserted") == 1
+    assert sink.count("sales_events", sale.event_id) + sink.count("inventory_events", sale.event_id) == 1
+    held = ledger.held(sale.event_id)
+    assert held is not None
+    owner_table = held[0]
+    assert all(table == owner_table for outcome, table in outcomes if outcome in ("inserted", "duplicate"))
+    assert any(outcome == "conflict" for outcome, _table in outcomes)
+
+
+def test_accepted_outcomes_are_acked_and_not_quarantined() -> None:
+    sale = event()
+    sink = MemorySink()
+    ledger = MemoryLedger()
+    quarantine = MemoryQuarantine()
+    pipe = MemoryPipe()
+    attributes = message_attributes(sale)
+    messages = [
+        PulledMessage("a1", canonical_body(sale), attributes, ""),
+        PulledMessage("a2", canonical_body(sale), attributes, ""),
+        PulledMessage("a3", canonical_body(sale.model_copy(update={"quantity": 9})), dict(attributes), ""),
+    ]
+
+    outcomes = [deliver(pipe, sink, ledger, quarantine, message).outcome for message in messages]
+
+    assert outcomes == ["inserted", "duplicate", "conflict"]
+    assert pipe.acked == ["a1", "a2", "a3"]
+    assert quarantine.records == []
+    assert sink.get("sales_events", sale.event_id).quantity == 3
+
+
+def test_a_rejected_message_is_quarantined_before_it_is_acked() -> None:
+    pipe = MemoryPipe()
+
+    class OrderingQuarantine:
+        def __init__(self) -> None:
+            self.reasons: list[str] = []
+
+        def record(self, message: PulledMessage, reason: str) -> None:
+            assert pipe.acked == []
+            self.reasons.append(reason)
+
+    quarantine = OrderingQuarantine()
+    message = PulledMessage("bad", "not-json", {}, "")
+
+    landing = deliver(pipe, MemorySink(), MemoryLedger(), quarantine, message)
+
+    assert landing.outcome == "rejected"
+    assert landing.reason == "invalid_event"
+    assert quarantine.reasons == ["invalid_event"]
+    assert pipe.acked == ["bad"]
+
+
+def test_quarantine_failure_does_not_ack() -> None:
+    class FailingQuarantine:
+        def record(self, message: PulledMessage, reason: str) -> None:
+            raise BackboneError("quarantine unavailable")
+
+    pipe = MemoryPipe()
+    message = PulledMessage("bad", "{", {}, "")
+
+    with pytest.raises(BackboneError, match="quarantine unavailable"):
+        deliver(pipe, MemorySink(), MemoryLedger(), FailingQuarantine(), message)
+
+    assert pipe.acked == []
 
 
 def test_publisher_refuses_an_attribute_unsafe_correlation_id() -> None:
@@ -273,3 +493,201 @@ def test_config_refuses_another_project() -> None:
 
     with pytest.raises(BackboneError, match="us-central1"):
         config_from_env({"GCP_REGION": "us-east1"})
+
+
+class FakeFirestore:
+    """Enforces exists=false under a lock, the same way a commit precondition does."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self.docs: dict[str, dict[str, object]] = {}
+        self.rejects: list[dict[str, object]] = []
+        self.calls: list[tuple[str, str]] = []
+
+    def request(
+        self,
+        method: str,
+        url: str,
+        payload: bytes | None,
+        headers: dict[str, str],
+    ) -> HttpResponse:
+        assert headers["Authorization"] == "Bearer test-token"
+        assert "Bearer" not in (payload.decode("utf-8") if payload else "")
+        body = json.loads(payload) if payload else None
+        with self._lock:
+            self.calls.append((method, url))
+            if method == "POST" and url.endswith(":commit"):
+                write = body["writes"][0]
+                assert write["currentDocument"]["exists"] is False
+                name = write["update"]["name"]
+                assert "/databases/(default)/documents/store_event_claims/" in name
+                if name in self.docs:
+                    return HttpResponse(
+                        409,
+                        json.dumps({"error": {"code": 409, "status": "ALREADY_EXISTS", "message": "exists"}}),
+                    )
+                self.docs[name] = write["update"]["fields"]
+                return HttpResponse(200, json.dumps({"writeResults": [{}]}))
+            if method == "GET" and "/documents/store_event_claims/" in url:
+                event_id = url.rsplit("/", 1)[-1]
+                for name, fields in self.docs.items():
+                    if name.endswith("/" + event_id):
+                        return HttpResponse(200, json.dumps({"name": name, "fields": fields}))
+                return HttpResponse(404, json.dumps({"error": {"status": "NOT_FOUND", "message": "missing"}}))
+            if method == "POST" and url.endswith("/documents/store_event_rejects"):
+                self.rejects.append(body["fields"])
+                return HttpResponse(
+                    200,
+                    json.dumps(
+                        {
+                            "name": (
+                                "projects/retailtwin-ai-511002/databases/(default)"
+                                "/documents/store_event_rejects/auto"
+                            )
+                        }
+                    ),
+                )
+        return HttpResponse(500, json.dumps({"error": {"status": "INTERNAL", "message": "unhandled"}}))
+
+
+def _firestore(transport: FakeFirestore | None = None, output: str = "test-token\n") -> tuple[FirestoreRest, FakeFirestore]:
+    store = transport or FakeFirestore()
+    client = FirestoreRest(config_from_env({}), FakeRunner(output), store)
+    return client, store
+
+
+def test_the_default_firestore_transport_accepts_a_request() -> None:
+    client = FirestoreRest(config_from_env({}), FakeRunner("test-token\n"))
+
+    assert callable(client.transport.request)
+
+
+def test_firestore_claim_is_atomic_for_one_event_id() -> None:
+    sale = event()
+    client, store = _firestore()
+    barrier = threading.Barrier(8)
+    outcomes: list[str] = []
+    lock = threading.Lock()
+
+    def worker() -> None:
+        barrier.wait()
+        claim = client.claim(sale, "sales_events")
+        with lock:
+            outcomes.append(claim.outcome)
+
+    threads = [threading.Thread(target=worker) for _ in range(8)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert outcomes.count("inserted") == 1
+    assert outcomes.count("duplicate") == 7
+    assert len(store.docs) == 1
+    stored = next(iter(store.docs.values()))
+    assert stored["canonical"]["stringValue"] == canonical_body(sale)
+    assert stored["table"]["stringValue"] == "sales_events"
+    assert any(method == "GET" for method, _url in store.calls)
+
+
+def test_firestore_cross_table_race_keeps_one_document() -> None:
+    sale = event()
+    inventory = sale.model_copy(update={"event_type": "inventory.adjusted"})
+    client, store = _firestore()
+    barrier = threading.Barrier(8)
+    outcomes: list[str] = []
+    lock = threading.Lock()
+
+    def worker(item: StoreEvent, table: str) -> None:
+        barrier.wait()
+        claim = client.claim(item, table)
+        with lock:
+            outcomes.append(claim.outcome)
+
+    threads = [threading.Thread(target=worker, args=(sale, "sales_events")) for _ in range(4)]
+    threads.extend(threading.Thread(target=worker, args=(inventory, "inventory_events")) for _ in range(4))
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert outcomes.count("inserted") == 1
+    assert len(store.docs) == 1
+    assert set(outcomes) <= {"inserted", "duplicate", "conflict"}
+    assert "conflict" in outcomes
+
+
+def test_firestore_conflict_does_not_replace_the_claim() -> None:
+    sale = event()
+    client, store = _firestore()
+
+    first = client.claim(sale, "sales_events")
+    conflict = client.claim(sale.model_copy(update={"quantity": 9}), "sales_events")
+    replay = client.claim(sale, "sales_events")
+
+    assert first.outcome == "inserted"
+    assert conflict.outcome == "conflict"
+    assert conflict.event.quantity == 3
+    assert replay.outcome == "duplicate"
+    stored = next(iter(store.docs.values()))
+    assert stored["canonical"]["stringValue"] == canonical_body(sale)
+
+
+def test_firestore_invalid_argument_is_not_a_duplicate() -> None:
+    class Invalid:
+        def request(self, method: str, url: str, payload: bytes | None, headers: dict[str, str]) -> HttpResponse:
+            return HttpResponse(400, json.dumps({"error": {"status": "INVALID_ARGUMENT", "message": "bad"}}))
+
+    client = FirestoreRest(config_from_env({}), FakeRunner("test-token\n"), Invalid())
+
+    with pytest.raises(BackboneError, match="HTTP 400"):
+        client.claim(event(), "sales_events")
+
+
+def test_firestore_precondition_status_reads_the_existing_claim() -> None:
+    sale = event()
+    fields = {
+        "table": {"stringValue": "sales_events"},
+        "canonical": {"stringValue": canonical_body(sale)},
+    }
+
+    class Precondition:
+        def __init__(self) -> None:
+            self.gets = 0
+
+        def request(self, method: str, url: str, payload: bytes | None, headers: dict[str, str]) -> HttpResponse:
+            if method == "POST":
+                return HttpResponse(
+                    400,
+                    json.dumps({"error": {"status": "FAILED_PRECONDITION", "message": "exists"}}),
+                )
+            self.gets += 1
+            return HttpResponse(200, json.dumps({"fields": fields}))
+
+    transport = Precondition()
+    client = FirestoreRest(config_from_env({}), FakeRunner("test-token\n"), transport)
+
+    claim = client.claim(sale, "sales_events")
+
+    assert claim.outcome == "duplicate"
+    assert transport.gets == 1
+
+
+def test_firestore_quarantine_keeps_the_reason_and_a_failure_raises() -> None:
+    sale = event()
+    client, store = _firestore()
+    message = PulledMessage("ack", canonical_body(sale), message_attributes(sale), "")
+
+    client.record(message, "invalid_event")
+
+    assert store.rejects[0]["reason"]["stringValue"] == "invalid_event"
+    assert "authorization" not in store.rejects[0]["body"]["stringValue"]
+    assert store.rejects[0]["truncated"]["booleanValue"] is False
+
+    class Down:
+        def request(self, method: str, url: str, payload: bytes | None, headers: dict[str, str]) -> HttpResponse:
+            return HttpResponse(503, json.dumps({"error": {"status": "UNAVAILABLE", "message": "down"}}))
+
+    failing = FirestoreRest(config_from_env({}), FakeRunner("test-token\n"), Down())
+    with pytest.raises(BackboneError, match="HTTP 503"):
+        failing.record(message, "invalid_event")

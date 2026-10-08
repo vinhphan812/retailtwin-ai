@@ -10,9 +10,9 @@ Accepted
 
 Issue #7 needs an event backbone that can trigger and explain an autonomous run. The domain model already fixes the minimum store event: `event_id`, `correlation_id`, `event_type`, `store_id`, `sku`, `quantity`, `occurred_at`, and `source`. ADR 0003 keeps `POST /events` in process memory and does not publish. The foundation record ADR 0004, on the open cloud-foundation change, puts Pub/Sub topic `store-events` and an empty BigQuery dataset `retailtwin` in `us-central1` and leaves the subscription and the tables to this issue. This record is numbered 0005 so it does not take 0004.
 
-A replay of the same event id has to be visible as a duplicate. BigQuery has no unique constraint. Pub/Sub exactly-once delivery deduplicates a service message id, not a second publish of the same event. Streaming inserts and a Pub/Sub BigQuery subscription are billed outside the on-demand query allowance the foundation stays inside, and both would store a second row unless something else noticed.
+A replay of the same event id has to be visible as a duplicate. BigQuery has no unique constraint. A query-job `NOT EXISTS` insert stops a sequential replay, and two landers can both observe the id as absent and both insert. The same id can also race across the three tables. BigQuery transactions do not add that key. Pub/Sub exactly-once delivery deduplicates a service message id, not a second publish of the same event. Streaming inserts and a Pub/Sub BigQuery subscription are billed outside the on-demand query allowance the foundation stays inside, and both would store a second row unless something else noticed.
 
-Publishing from `POST /events` was set aside. That would replace the acceptance rule in ADR 0003 and would make the API process depend on Google Cloud credentials. A Pub/Sub schema registry entry was set aside too. The registry takes Avro or Protocol Buffer, which would be a second contract beside the JSON shape already in the domain model.
+Publishing from `POST /events` was set aside. That would replace the acceptance rule in ADR 0003 and would make the API process depend on Google Cloud credentials. A Pub/Sub schema registry entry was set aside too. The registry takes Avro or Protocol Buffer, which would be a second contract beside the JSON shape already in the domain model. A Pub/Sub dead-letter topic was set aside because attaching one would grant the Pub/Sub service agent a new IAM binding.
 
 ## Decision
 
@@ -26,9 +26,13 @@ Dataset `retailtwin` gains three day-partitioned tables, clustered by `store_id`
 - `inventory_events` receives `inventory.*`
 - `agent_actions` receives `agent.*`
 
-The day-0 publisher emits `sale.completed` only. The lander writes a row with a query job, not a streaming insert. `ingested_at` is the write time and is not part of identity.
+The day-0 publisher emits `sale.completed` only. The atomic owner of an `event_id` is the Firestore document `store_event_claims/{event_id}` in the existing `(default)` database in `us-central1`. The lander creates that document with a commit precondition that it does not exist. One create wins. The loser reads the document. The same normalized payload is a duplicate. A different payload or a different table is a conflict and does not replace the document. These documents are an idempotency ledger. They are not Live Twin state, and issue #6 still owns that store.
 
-One `event_id` is one stored event across those tables. The same normalized payload is a duplicate and does not add a row. A different payload is a conflict and does not replace the stored row. `correlation_id` on the stored row is the published `correlation_id`. An attribute that disagrees with the body is rejected and is not stored.
+BigQuery stays derived history. After a claim that is not a conflict, the lander writes a row with a query job, not a streaming insert. `ingested_at` is the write time and is not part of identity. A duplicate claim repairs a missing row and does not add another. A conflict does not write a row. A row that already matches the claim is left in place. `correlation_id` on the stored row is the published `correlation_id`.
+
+The message attributes are exactly `event_id`, `correlation_id`, `event_type`, and `store_id`, and each value matches the body. A missing attribute, an extra attribute, or a mismatched value is rejected and is not claimed.
+
+The lander acknowledges a message only after a terminal outcome. Inserted, duplicate, and conflict are terminal because the claim already recorded the decision. A rejected message is written to `store_event_rejects` before it is acknowledged. If that write fails, the message is not acknowledged. This command is the day-0 analytics lander. It is not the Observer.
 
 `POST /events` still does not publish. This path does not change inventory, write the Live Twin, or start the Observer.
 
@@ -38,10 +42,11 @@ One `event_id` is one stored event across those tables. The same normalized payl
 - Landing cost stays on the on-demand query allowance. No reservation and no streaming insert are added.
 - Ordered publish uses the `us-central1` Pub/Sub endpoint. The topic storage policy rejects an ordering key sent to the global endpoint.
 - The API still starts without Google Cloud credentials. ADR 0003 stays in force.
-- `retailtwin-api` remains the runtime publisher from the foundation decision. This record does not grant that account BigQuery write or subscription pull, and it does not create a key. The day-0 smoke command uses the operator's existing project credentials.
+- `retailtwin-api` remains the runtime publisher from the foundation decision. This record does not grant that account BigQuery write, subscription pull, or Firestore access, and it does not create a key. The day-0 smoke command uses the operator's existing project credentials.
 - `inventory_events` and `agent_actions` use the same envelope and stay empty until those event types are published. Product performance, simulation results, and the Observer remain later work.
-- Foundation gate #10 stays open. Firestore, Gemini, and Cloud Run are still required, and a store event does not yet start an investigation.
-- Duplicate detection is the lander. A second insert that bypasses the lander can add a row, because BigQuery does not enforce the key. The smoke check counts rows for the fixture event id.
+- The claim document is the uniqueness owner across processes. A BigQuery insert that bypasses the lander can still add a row, because those tables have no unique key. The lander does not overwrite that row. The smoke check counts rows for the fixture event id.
+- A rejected message is stored as a quarantine document before acknowledgement. That record is evidence for this lander. It does not start the Observer.
+- Foundation gate #10 stays open. The claim ledger is not the Firestore Live Twin. Issue #6, Gemini, and Cloud Run are still required, and a store event does not yet start an investigation.
 - Pull request: https://github.com/vinhphan812/retailtwin-ai/pull/63
 - Issue: https://github.com/vinhphan812/retailtwin-ai/issues/7
 - Supersedes:

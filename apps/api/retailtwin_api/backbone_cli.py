@@ -14,7 +14,7 @@ from retailtwin_api.backbone import (
     require_sale,
     run_trace,
 )
-from retailtwin_api.backbone_gcp import BigQuerySink, GcloudPipe, SubprocessRunner
+from retailtwin_api.backbone_gcp import BigQuerySink, FirestoreRest, GcloudPipe, SubprocessRunner
 from retailtwin_api.settings import REPO_ROOT
 
 
@@ -36,7 +36,8 @@ def main(argv: list[str] | None = None) -> int:
             pipe.publish(event)
             print(json.dumps({"published": event.event_id, "correlation_id": event.correlation_id}))
             return 0
-        report = run_trace(event, pipe, BigQuerySink(config, runner))
+        ledger = FirestoreRest(config, runner)
+        report = run_trace(event, pipe, BigQuerySink(config, runner), ledger=ledger, quarantine=ledger)
         print(json.dumps(report))
         return 0
     except BackboneError as exc:

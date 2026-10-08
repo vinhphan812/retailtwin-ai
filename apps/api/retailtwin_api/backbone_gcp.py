@@ -1,20 +1,33 @@
-"""Pub/Sub and BigQuery adapters. Landing uses query DML, not streaming inserts."""
+"""Pub/Sub, Firestore claim, and BigQuery adapters.
+
+The claim document is the event-id owner. BigQuery landing uses query DML,
+not streaming inserts.
+"""
 
 import base64
 import json
 import os
 import subprocess
+import threading
+import urllib.error
+import urllib.request
+from collections.abc import Mapping
+from datetime import datetime, timezone
 from typing import Protocol
+from urllib.parse import quote
 
 from retailtwin_api.backbone import (
     TABLES,
     BackboneConfig,
     BackboneError,
+    Claim,
     PulledMessage,
     canonical_body,
+    claim_id_ok,
     format_attributes,
     format_occurred_at,
     message_attributes,
+    parse_event,
     require_sale,
     row_to_event,
 )
@@ -264,3 +277,218 @@ def _decode_body(raw: object) -> str:
         return base64.b64decode(raw).decode("utf-8")
     except (ValueError, UnicodeError):
         return ""
+
+
+_CLAIM_COLLECTION = "store_event_claims"
+_REJECT_COLLECTION = "store_event_rejects"
+_BODY_CAP = 100_000
+_REASON_CAP = 500
+
+
+class HttpResponse:
+    def __init__(self, status: int, body: str) -> None:
+        self.status = status
+        self.body = body
+
+
+class HttpTransport(Protocol):
+    def request(
+        self,
+        method: str,
+        url: str,
+        payload: bytes | None,
+        headers: Mapping[str, str],
+    ) -> HttpResponse: ...
+
+
+class UrllibTransport:
+    def request(
+        self,
+        method: str,
+        url: str,
+        payload: bytes | None,
+        headers: Mapping[str, str],
+    ) -> HttpResponse:
+        request = urllib.request.Request(url, data=payload, headers=dict(headers), method=method)
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                return HttpResponse(response.status, response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            return HttpResponse(exc.code, exc.read().decode("utf-8", errors="replace"))
+        except urllib.error.URLError as exc:
+            reason = str(exc.reason)
+            if "Bearer" in reason:
+                reason = "request failed"
+            raise BackboneError(f"Firestore request failed. {reason}") from exc
+
+
+def _database_root(project: str) -> str:
+    return f"https://firestore.googleapis.com/v1/projects/{project}/databases/%28default%29"
+
+
+def _claim_name(project: str, event_id: str) -> str:
+    return f"projects/{project}/databases/(default)/documents/{_CLAIM_COLLECTION}/{event_id}"
+
+
+def _http_error(action: str, status: int, body: str) -> BackboneError:
+    message = ""
+    try:
+        payload = json.loads(body)
+    except json.JSONDecodeError:
+        payload = None
+    if isinstance(payload, dict):
+        error = payload.get("error")
+        if isinstance(error, dict) and isinstance(error.get("message"), str):
+            message = error["message"]
+    if not message:
+        message = body.strip()
+    detail = f"{action} failed with HTTP {status}."
+    if message:
+        detail = f"{detail} {message[:300]}"
+    return BackboneError(detail)
+
+
+def _precondition_failed(status: int, body: str) -> bool:
+    if status == 409:
+        return True
+    if status != 400:
+        return False
+    try:
+        payload = json.loads(body)
+    except json.JSONDecodeError:
+        return False
+    error = payload.get("error") if isinstance(payload, dict) else None
+    if not isinstance(error, dict):
+        return False
+    return error.get("status") in {"FAILED_PRECONDITION", "ALREADY_EXISTS"}
+
+
+def _string_field(fields: dict[str, object], name: str) -> str:
+    value = fields.get(name)
+    if not isinstance(value, dict):
+        raise BackboneError(f"Claim is missing {name}.")
+    text = value.get("stringValue")
+    if not isinstance(text, str):
+        raise BackboneError(f"Claim is missing {name}.")
+    return text
+
+
+class FirestoreRest:
+    """Compare-and-create claim and reject quarantine over the Firestore REST API.
+
+    The create uses currentDocument.exists=false. One caller wins. A loser
+    reads the stored document and classifies it. No Google client library.
+    """
+
+    def __init__(
+        self,
+        config: BackboneConfig,
+        runner: CommandRunner,
+        transport: HttpTransport | None = None,
+    ) -> None:
+        self.config = config.validated()
+        self.runner = runner
+        self.transport = transport or UrllibTransport()
+        self._token: str | None = None
+        self._token_lock = threading.Lock()
+
+    def claim(self, event: StoreEvent, table: str) -> Claim:
+        if table not in TABLES:
+            raise BackboneError(f"Unknown table {table}.")
+        if not claim_id_ok(event.event_id):
+            raise BackboneError("event_id cannot be used as a claim document.")
+        payload = {
+            "writes": [
+                {
+                    "update": {
+                        "name": _claim_name(self.config.project, event.event_id),
+                        "fields": {
+                            "event_id": {"stringValue": event.event_id},
+                            "table": {"stringValue": table},
+                            "canonical": {"stringValue": canonical_body(event)},
+                            "claimed_at": {
+                                "timestampValue": format_occurred_at(datetime.now(timezone.utc))
+                            },
+                        },
+                    },
+                    "currentDocument": {"exists": False},
+                }
+            ]
+        }
+        response = self._call("POST", f"{_database_root(self.config.project)}/documents:commit", payload)
+        if response.status == 200:
+            return Claim("inserted", table, event.model_copy(deep=True))
+        if _precondition_failed(response.status, response.body):
+            return self._classify_existing(event, table)
+        raise _http_error("Claiming the event id", response.status, response.body)
+
+    def record(self, message: PulledMessage, reason: str) -> None:
+        body = message.body
+        truncated = len(body) > _BODY_CAP
+        if truncated:
+            body = body[:_BODY_CAP]
+        reason_text = (reason or "rejected").strip() or "rejected"
+        if len(reason_text) > _REASON_CAP:
+            reason_text = reason_text[:_REASON_CAP]
+        payload = {
+            "fields": {
+                "reason": {"stringValue": reason_text},
+                "body": {"stringValue": body},
+                "attributes": {
+                    "stringValue": json.dumps(dict(message.attributes), sort_keys=True, separators=(",", ":"))
+                },
+                "received_at": {"timestampValue": format_occurred_at(datetime.now(timezone.utc))},
+                "truncated": {"booleanValue": truncated},
+            }
+        }
+        url = f"{_database_root(self.config.project)}/documents/{_REJECT_COLLECTION}"
+        response = self._call("POST", url, payload)
+        if response.status not in (200, 201):
+            raise _http_error("Quarantine", response.status, response.body)
+
+    def _classify_existing(self, event: StoreEvent, table: str) -> Claim:
+        stored_table, stored_canonical = self._read_claim(event.event_id)
+        try:
+            stored = parse_event(stored_canonical)
+        except BackboneError as exc:
+            raise BackboneError(f"Claim for {event.event_id} is unreadable.") from exc
+        if stored_table == table and stored == event:
+            return Claim("duplicate", stored_table, stored)
+        return Claim("conflict", stored_table, stored)
+
+    def _read_claim(self, event_id: str) -> tuple[str, str]:
+        url = (
+            f"{_database_root(self.config.project)}/documents/{_CLAIM_COLLECTION}/"
+            f"{quote(event_id, safe='')}"
+        )
+        response = self._call("GET", url, None)
+        if response.status != 200:
+            raise _http_error("Reading the event claim", response.status, response.body)
+        try:
+            payload = json.loads(response.body)
+        except json.JSONDecodeError as exc:
+            raise BackboneError("Event claim was not JSON.") from exc
+        fields = payload.get("fields") if isinstance(payload, dict) else None
+        if not isinstance(fields, dict):
+            raise BackboneError("Event claim has no fields.")
+        return _string_field(fields, "table"), _string_field(fields, "canonical")
+
+    def _call(self, method: str, url: str, payload: dict[str, object] | None) -> HttpResponse:
+        raw = None if payload is None else json.dumps(payload).encode("utf-8")
+        try:
+            return self.transport.request(method, url, raw, self._headers())
+        except (BackboneError, AssertionError):
+            raise
+        except Exception as exc:
+            raise BackboneError("Firestore request failed.") from exc
+
+    def _headers(self) -> dict[str, str]:
+        with self._token_lock:
+            if self._token is None:
+                raw = self.runner.run(["gcloud", "auth", "print-access-token", "--quiet"])
+                token = raw.strip()
+                if not token or any(char in token for char in "\n\r\t "):
+                    raise BackboneError("Could not read an access token.")
+                self._token = token
+            token = self._token
+        return {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}

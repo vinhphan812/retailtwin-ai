@@ -1,9 +1,14 @@
-"""Normalized store-event identity. One event_id lands once; a replay is a duplicate."""
+"""Normalized store-event identity.
+
+One event_id has one claim. BigQuery rows are derived history.
+A replay of the same payload is a duplicate.
+"""
 
 import json
 import os
 import re
 import sys
+import threading
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -24,7 +29,12 @@ ALLOWED_DATASET = "retailtwin"
 TABLES = ("sales_events", "inventory_events", "agent_actions")
 SALE_COMPLETED = "sale.completed"
 DEFAULT_FIXTURE = REPO_ROOT / "data" / "synthetic" / "sale-completed.json"
+REQUIRED_ATTRIBUTES = ("correlation_id", "event_id", "event_type", "store_id")
 _ATTRIBUTE_TEXT = re.compile(r"^[A-Za-z0-9_.:@+-]+$")
+_CLAIM_ID_LIMIT = 1500
+# Orders the derived-table write in this process. The claim document is the
+# owner across processes; this lock is not that guarantee.
+_LAND_LOCK = threading.Lock()
 
 
 class BackboneError(Exception):
@@ -79,6 +89,13 @@ class Landing:
 
 
 @dataclass(frozen=True)
+class Claim:
+    outcome: Literal["inserted", "duplicate", "conflict"]
+    table: str
+    event: StoreEvent
+
+
+@dataclass(frozen=True)
 class PulledMessage:
     ack_id: str
     body: str
@@ -92,6 +109,14 @@ class EventSink(Protocol):
     def insert(self, table: str, event: StoreEvent) -> None: ...
 
     def count(self, table: str, event_id: str) -> int: ...
+
+
+class ClaimLedger(Protocol):
+    def claim(self, event: StoreEvent, table: str) -> Claim: ...
+
+
+class Quarantine(Protocol):
+    def record(self, message: PulledMessage, reason: str) -> None: ...
 
 
 class EventPipe(Protocol):
@@ -152,6 +177,16 @@ def require_sale(event: StoreEvent) -> None:
         raise BackboneError("This publisher emits sale.completed only.")
 
 
+def claim_id_ok(event_id: str) -> bool:
+    if event_id in {".", ".."}:
+        return False
+    if len(event_id.encode("utf-8")) > _CLAIM_ID_LIMIT:
+        return False
+    if event_id.startswith("__") and event_id.endswith("__"):
+        return False
+    return _ATTRIBUTE_TEXT.fullmatch(event_id) is not None
+
+
 def message_attributes(event: StoreEvent) -> dict[str, str]:
     attributes = {
         "correlation_id": event.correlation_id,
@@ -169,14 +204,20 @@ def format_attributes(attributes: Mapping[str, str]) -> str:
     return ",".join(f"{key}={attributes[key]}" for key in sorted(attributes))
 
 
-def attributes_agree(event: StoreEvent, attributes: Mapping[str, str]) -> bool:
+def attribute_problem(event: StoreEvent, attributes: Mapping[str, str]) -> str | None:
     expected = {
         "correlation_id": event.correlation_id,
         "event_id": event.event_id,
         "event_type": event.event_type,
         "store_id": event.store_id,
     }
-    return all(attributes[key] == value for key, value in expected.items() if key in attributes)
+    if any(key not in attributes for key in REQUIRED_ATTRIBUTES):
+        return "missing_attribute"
+    if any(key not in expected for key in attributes):
+        return "unexpected_attribute"
+    if any(attributes[key] != value for key, value in expected.items()):
+        return "attribute_mismatch"
+    return None
 
 
 def row_to_event(row: Mapping[str, object]) -> StoreEvent:
@@ -199,25 +240,71 @@ class MemorySink:
 
     def __init__(self) -> None:
         self.rows: dict[str, dict[str, StoreEvent]] = {table: {} for table in TABLES}
+        self._lock = threading.Lock()
 
     def get(self, table: str, event_id: str) -> StoreEvent | None:
         self._known(table)
-        row = self.rows[table].get(event_id)
-        if row is None:
-            return None
-        return row.model_copy(deep=True)
+        with self._lock:
+            row = self.rows[table].get(event_id)
+            if row is None:
+                return None
+            return row.model_copy(deep=True)
 
     def insert(self, table: str, event: StoreEvent) -> None:
         self._known(table)
-        self.rows[table].setdefault(event.event_id, event.model_copy(deep=True))
+        with self._lock:
+            self.rows[table].setdefault(event.event_id, event.model_copy(deep=True))
 
     def count(self, table: str, event_id: str) -> int:
         self._known(table)
-        return int(event_id in self.rows[table])
+        with self._lock:
+            return int(event_id in self.rows[table])
 
     def _known(self, table: str) -> None:
         if table not in TABLES:
             raise BackboneError(f"Unknown table {table}.")
+
+
+class MemoryLedger:
+    """In-process compare-and-create claim. One event_id has one owner."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._claims: dict[str, tuple[str, StoreEvent]] = {}
+
+    def claim(self, event: StoreEvent, table: str) -> Claim:
+        if table not in TABLES:
+            raise BackboneError(f"Unknown table {table}.")
+        if not claim_id_ok(event.event_id):
+            raise BackboneError("event_id cannot be used as a claim document.")
+        with self._lock:
+            existing = self._claims.get(event.event_id)
+            if existing is None:
+                stored = event.model_copy(deep=True)
+                self._claims[event.event_id] = (table, stored)
+                return Claim("inserted", table, stored.model_copy(deep=True))
+            existing_table, stored = existing
+            if existing_table == table and stored == event:
+                return Claim("duplicate", existing_table, stored.model_copy(deep=True))
+            return Claim("conflict", existing_table, stored.model_copy(deep=True))
+
+    def held(self, event_id: str) -> tuple[str, StoreEvent] | None:
+        with self._lock:
+            existing = self._claims.get(event_id)
+            if existing is None:
+                return None
+            table, stored = existing
+            return table, stored.model_copy(deep=True)
+
+
+class MemoryQuarantine:
+    """Records rejected messages in process memory."""
+
+    def __init__(self) -> None:
+        self.records: list[tuple[PulledMessage, str]] = []
+
+    def record(self, message: PulledMessage, reason: str) -> None:
+        self.records.append((message, reason))
 
 
 class MemoryPipe:
@@ -262,39 +349,71 @@ def find_existing(sink: EventSink, event_id: str) -> tuple[str, StoreEvent] | No
     return found[0]
 
 
-def land(sink: EventSink, event: StoreEvent) -> Landing:
+def land(sink: EventSink, event: StoreEvent, ledger: ClaimLedger) -> Landing:
     table = table_for(event.event_type)
     if table is None:
         return Landing("rejected", None, None, "unsupported_event_type")
-    existing = find_existing(sink, event.event_id)
-    if existing is not None:
-        existing_table, stored = existing
-        if existing_table == table and stored == event:
-            return Landing("duplicate", stored, table)
-        return Landing("conflict", stored, existing_table)
-    sink.insert(table, event)
-    stored = sink.get(table, event.event_id)
-    if stored is None:
-        raise BackboneError(f"event_id {event.event_id} was not stored.")
-    if stored != event:
-        return Landing("conflict", stored, table)
-    return Landing("inserted", stored, table)
+    if not claim_id_ok(event.event_id):
+        return Landing("rejected", event, None, "unsafe_event_id")
+    with _LAND_LOCK:
+        claim = ledger.claim(event, table)
+        if claim.outcome == "conflict":
+            return Landing("conflict", claim.event, claim.table)
+        existing = find_existing(sink, event.event_id)
+        if existing is not None:
+            existing_table, stored = existing
+            if existing_table == table and stored == event:
+                return Landing("duplicate", stored, table)
+            return Landing("conflict", stored, existing_table)
+        sink.insert(table, event)
+        stored = sink.get(table, event.event_id)
+        if stored is None:
+            raise BackboneError(f"event_id {event.event_id} was not stored.")
+        if stored != event:
+            return Landing("conflict", stored, table)
+        if claim.outcome == "inserted":
+            return Landing("inserted", stored, table)
+        return Landing("duplicate", stored, table)
 
 
-def handle_message(sink: EventSink, body: str, attributes: Mapping[str, str]) -> Landing:
+def handle_message(
+    sink: EventSink,
+    body: str,
+    attributes: Mapping[str, str],
+    ledger: ClaimLedger,
+) -> Landing:
     try:
         event = parse_event(body)
     except BackboneError:
         return Landing("rejected", None, None, "invalid_event")
-    if not attributes_agree(event, attributes):
-        return Landing("rejected", event, None, "attribute_mismatch")
-    return land(sink, event)
+    problem = attribute_problem(event, attributes)
+    if problem is not None:
+        return Landing("rejected", event, None, problem)
+    return land(sink, event, ledger)
+
+
+def deliver(
+    pipe: EventPipe,
+    sink: EventSink,
+    ledger: ClaimLedger,
+    quarantine: Quarantine,
+    message: PulledMessage,
+) -> Landing:
+    landing = handle_message(sink, message.body, message.attributes, ledger)
+    if landing.outcome == "rejected":
+        quarantine.record(message, landing.reason or "rejected")
+    elif landing.outcome not in ("inserted", "duplicate", "conflict"):
+        raise BackboneError(f"Unknown landing outcome {landing.outcome}.")
+    pipe.ack(message.ack_id)
+    return landing
 
 
 def consume_matching(
     pipe: EventPipe,
     sink: EventSink,
     event: StoreEvent,
+    ledger: ClaimLedger,
+    quarantine: Quarantine,
     timeout_s: float,
 ) -> tuple[PulledMessage, Landing]:
     deadline = time.monotonic() + timeout_s
@@ -309,8 +428,7 @@ def consume_matching(
             continue
         matched: tuple[PulledMessage, Landing] | None = None
         for message in batch:
-            landing = handle_message(sink, message.body, message.attributes)
-            pipe.ack(message.ack_id)
+            landing = deliver(pipe, sink, ledger, quarantine, message)
             if _targets(message, event):
                 matched = (message, landing)
         if matched is not None:
@@ -322,11 +440,15 @@ def run_trace(
     event: StoreEvent,
     pipe: EventPipe,
     sink: EventSink,
+    ledger: ClaimLedger | None = None,
+    quarantine: Quarantine | None = None,
     timeout_s: float = 90.0,
 ) -> dict[str, object]:
     require_sale(event)
+    owner = ledger if ledger is not None else MemoryLedger()
+    holding = quarantine if quarantine is not None else MemoryQuarantine()
     pipe.publish(event)
-    first_message, first = consume_matching(pipe, sink, event, timeout_s)
+    first_message, first = consume_matching(pipe, sink, event, owner, holding, timeout_s)
     _require_correlation(first_message, event)
     if first.outcome not in ("inserted", "duplicate"):
         raise BackboneError(f"First delivery was {first.outcome}.")
@@ -336,7 +458,7 @@ def run_trace(
     if sink.count("sales_events", event.event_id) != 1:
         raise BackboneError("event_id landed more than once.")
     pipe.publish(event)
-    replay_message, replay = consume_matching(pipe, sink, event, timeout_s)
+    replay_message, replay = consume_matching(pipe, sink, event, owner, holding, timeout_s)
     _require_correlation(replay_message, event)
     if replay.outcome != "duplicate":
         raise BackboneError(f"Replay was {replay.outcome}.")
@@ -345,6 +467,10 @@ def run_trace(
     stored_after = find_existing(sink, event.event_id)
     if stored_after is None or stored_after[1] != event:
         raise BackboneError("Replay changed the stored event.")
+    held = owner.held(event.event_id) if isinstance(owner, MemoryLedger) else None
+    if isinstance(owner, MemoryLedger):
+        if held is None or held[0] != "sales_events" or held[1] != event:
+            raise BackboneError("Claim does not match the published event.")
     return {
         "event_id": event.event_id,
         "correlation_id": stored_after[1].correlation_id,
