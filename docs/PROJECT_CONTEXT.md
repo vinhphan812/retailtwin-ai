@@ -1,6 +1,6 @@
 # RetailTwin AI — Project Context and Product Specification
 
-> **Read this file first.** This document explains the product target: what RetailTwin AI is, why it exists, what problem it solves, and how the completed competition system is intended to behave. For what is actually implemented on `main` today, read `docs/CURRENT_STATUS.md` immediately after this file.
+> **Read this file first.** This document explains what RetailTwin AI is, why it exists, what problem it solves, how the system behaves, and what the team is building.
 
 ## 1. Executive summary
 
@@ -201,11 +201,9 @@ flowchart LR
 At audit time PR #59 is merged and PR #57 is also merged. PR #57 is not treated as evidence for the autonomous planner, simulation, guard or guarded commit gates.
 
 
-1. `docs/CURRENT_STATUS.md` — current implementation, open integration work and gate status.
-2. `docs/ARCHITECTURE.md` — target components, data flow, security and DCG.
-3. `docs/DOMAIN_AND_DATA_MODEL.md` — target entities, schemas, events and actions.
-4. `docs/IMPLEMENTATION_GUIDE.md` — role-by-role work and build order.
-5. `docs/DEVELOPMENT_WORKFLOW.md` — branch/PR/verification rules.
-6. `docs/DEMO_AND_ACCEPTANCE.md` — flagship demo and release gates.
-7. `docs/adr/` — architecture decision log. Pull requests name the ADR they track.
-8. GitHub Issues — executable work tickets and Definition of Done.
+1. `docs/ARCHITECTURE.md` — components, data flow, security and DCG.
+2. `docs/DOMAIN_AND_DATA_MODEL.md` — entities, schemas, events and actions.
+3. `docs/IMPLEMENTATION_GUIDE.md` — role-by-role work and build order.
+4. `docs/DEMO_AND_ACCEPTANCE.md` — flagship demo and release gates.
+5. `docs/adr/` — architecture decision log. Pull requests name the ADR they track.
+6. GitHub Issues — executable work tickets and Definition of Done.
