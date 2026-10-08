@@ -42,7 +42,7 @@ One `event_id` is one stored event across those tables. The same normalized payl
 - `inventory_events` and `agent_actions` use the same envelope and stay empty until those event types are published. Product performance, simulation results, and the Observer remain later work.
 - Foundation gate #10 stays open. Firestore, Gemini, and Cloud Run are still required, and a store event does not yet start an investigation.
 - Duplicate detection is the lander. A second insert that bypasses the lander can add a row, because BigQuery does not enforce the key. The smoke check counts rows for the fixture event id.
-- Pull request:
+- Pull request: https://github.com/vinhphan812/retailtwin-ai/pull/63
 - Issue: https://github.com/vinhphan812/retailtwin-ai/issues/7
 - Supersedes:
 - Superseded by:
