@@ -203,14 +203,14 @@ flowchart LR
   Browser -. "no direct write" .-> LT
   Gemini -. "no direct write" .-> LT
 
+  note right of Browser: "no direct write"
+  
   classDef live fill:#ffe8d6,stroke:#c2410c
   classDef sim fill:#e9d5ff,stroke:#6b21a8
   classDef guarded fill:#d9f7e8,stroke:#16794a
-  class LT,VER,GuardedCommit live
+  class LT,VER live
   class SC,ACT,KPI,D sim
-  class X,GuardedCommit guarded
-
-  note right of Browser<br/>read-only, propose, tools
+  class X guarded
 ```
 
 Simulation path: `Live snapshot/version → clone → simulation actions → KPI → discard/retain result`.
