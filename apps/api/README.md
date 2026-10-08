@@ -56,4 +56,4 @@ Copy the repository `.env.example` to `.env` only when you need to override a se
 | `STORE_FIXTURE_PATH` | `data/schemas/store-state.example.json` | Day-0 read model |
 | `LOG_LEVEL` | `INFO` | Log level |
 
-Accepted events log `event_id`, `correlation_id`, and `store_id`. The log is process memory only. Pub/Sub publishing is a later issue.
+Accepted events log `event_id`, `correlation_id`, and `store_id`. The log is process memory only. This route does not publish. The store-events backbone is a separate command, documented in [infrastructure/gcp/store-events.md](../../infrastructure/gcp/store-events.md).

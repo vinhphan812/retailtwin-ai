@@ -62,6 +62,8 @@ Suggested tables:
 - `agent_actions`;
 - `simulation_results`.
 
+Day-0 creates `sales_events`, `inventory_events`, and `agent_actions` in dataset `retailtwin`. The other tables stay later work. BigQuery rows are history. They are not a second Live Twin.
+
 BigQuery is analytical/history storage; it is not the source of immediate 3D Live Twin coordinates unless an API explicitly materializes those values.
 
 ## 5. Store event
@@ -82,6 +84,8 @@ Minimum normalized event:
 ```
 
 Events must be replayable in DEMO SCENARIO MODE and deduplicated by downstream consumers.
+
+The day-0 backbone publishes this JSON to Pub/Sub topic `store-events`. Subscription `store-events-analytics` lands `sale.completed` in `sales_events`, `inventory.*` in `inventory_events`, and `agent.*` in `agent_actions`. `occurred_at` is the event timestamp. `correlation_id` is copied onto the message attributes and the table row. The same `event_id` with the same normalized payload is a duplicate and does not add a row. A different payload does not replace the stored row. The schema file is `data/schemas/store-event.schema.json`. Landing an event does not change the Live Twin.
 
 ## 6. EvidenceBundle
 
