@@ -163,7 +163,20 @@ The strongest proof is the stale-context demonstration:
 **Verifier** — checks observed result after execution.  
 **Agent Activity** — user-visible evidence/action timeline, not hidden reasoning.
 
-## 11. Where to read next
+## 12. Current implementation status
+
+The checked-out `main` at the time of this audit contains the React Three Fiber store scaffold from merged PR #56. The backend, event loop, Gemini planner, simulation service, DCG, executor, Live Twin persistence, verifier and cloud deployment remain planned or under active issue/PR work. Do not infer completion from the target architecture below.
+
+```mermaid
+flowchart LR
+  A[Foundation] --> G2[G02 Twin Control] --> G3[G03 Autonomous] --> G4[G04 Guard]
+  G4 --> G5[G05 Live Commit] --> G6[G06 20-run submission]
+  classDef pending fill:#fff2cc,stroke:#9a6700
+  class A,G2,G3,G4,G5,G6 pending
+```
+
+At audit time PR #59 is merged and PR #57 is also merged. PR #57 is not treated as evidence for the autonomous planner, simulation, guard or guarded commit gates.
+
 
 1. `docs/ARCHITECTURE.md` — components, data flow, security and DCG.
 2. `docs/DOMAIN_AND_DATA_MODEL.md` — entities, schemas, events and actions.

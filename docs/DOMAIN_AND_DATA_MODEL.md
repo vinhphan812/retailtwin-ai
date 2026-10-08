@@ -165,7 +165,22 @@ Executor
 exact allowed live actions
 ```
 
-## 10. KPI model
+## 10. Live Twin / Simulation Twin isolation
+
+```mermaid
+flowchart LR
+  E[Event] --> R[Read Live Twin snapshot]
+  R --> S[Simulation Twin]
+  S --> K[KPI evaluation]
+  K --> D[Decision]
+  D --> G[DCG and authorization]
+  G --> X[Executor]
+  X --> L[Live Twin]
+  B[Browser / Gemini] -. no direct write .-> L
+```
+
+Browser clients and Gemini may read approved views, propose plans, or invoke constrained tools. Neither may write Live Twin state directly; only the guarded Executor can apply an authorized action.
+
 
 MVP does not need a perfect retail economics model. It needs a transparent, reproducible one.
 

@@ -117,7 +117,52 @@ At minimum test:
 - backend/tool timeout;
 - post-action verification mismatch.
 
-## 8. Judge-visible evidence
+## 8. Weekend Demand Surge sequence
+
+```mermaid
+sequenceDiagram
+  participant E as Event
+  participant O as Observer
+  participant P as Planner
+  participant S as Simulation
+  participant G as DCG
+  participant X as Executor
+  E->>O: Demand surge
+  O->>P: Investigate and plan
+  P->>S: Evaluate candidates
+  S-->>P: KPI results
+  Note over G: Deliberate stale-context mutation
+  P->>G: Submit decision for context N
+  G-->>P: REFRESH_REQUIRED
+  P->>P: Refresh evidence and replan
+  P->>S: Re-simulate replacement decision
+  S-->>G: Current decision for context N+1
+  G-->>X: ALLOW + exact authorization
+  X->>X: Guarded commit to Live Twin
+```
+
+The first decision must not receive usable authorization after the deliberate mutation. The replacement decision must pass DCG before commit.
+
+## 9. Decision Context Guard flow
+
+```mermaid
+stateDiagram-v2
+  [*] --> Proposed
+  Proposed --> Validate
+  Validate --> Denied: invalid or insufficient evidence
+  Validate --> RefreshRequired: context changed or stale
+  Validate --> Authorized: current + policy valid
+  Authorized --> Committed: Executor validates token
+  Authorized --> Denied: token invalid/expired
+  RefreshRequired --> Proposed: refresh and replan
+  Committed --> Verified
+  Denied --> [*]
+  Verified --> [*]
+```
+
+This is fail-closed: every validation failure ends without a Live Twin mutation.
+
+## 10. Judge-visible evidence
 
 The UI should show concise, factual activity such as:
 
