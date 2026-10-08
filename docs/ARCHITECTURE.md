@@ -85,16 +85,15 @@ flowchart LR
   H -.-> P
 
   X --> L[Live Twin]
-  L --> V[3D view and verifier]
+  L --> V[3D view]
+  V --> Z[Verifier]
 
   classDef implemented fill:#d9f7e8,stroke:#16794a
   classDef planned fill:#fff2cc,stroke:#9a6700
   classDef event fill:#eaf4fc,stroke:#3772a5
   class E,PS event
-  class O,I,X implemented
-  class P,S,K,G planned
   class V implemented
-  class F,H planned
+  class O,I,P,S,K,G,X,L,F,H,Z planned
 ```
 
 Gate posture (per `docs/CURRENT_STATUS.md`): all gates **pending** — no linked test, deployment, or 20-run evidence was available in the checked-out repository.

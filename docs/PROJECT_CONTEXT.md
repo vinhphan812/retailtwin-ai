@@ -165,7 +165,7 @@ The strongest proof is the stale-context demonstration:
 
 ## 12. Current implementation status
 
-The checked-out `main` at the time of this audit contains the React Three Fiber store scaffold from merged PR #56. The backend, event loop, Gemini planner, simulation service, DCG, executor, Live Twin persistence, verifier and cloud deployment remain planned or under active issue/PR work. Do not infer completion from the target architecture below.
+The current baseline is recorded in [CURRENT_STATUS.md](CURRENT_STATUS.md). It includes both the React Three Fiber store scaffold from merged PR #56 and the fixture-backed FastAPI/frontend API integration from merged PR #57. The autonomous event loop, Gemini planner, simulation service, DCG, guarded Executor, Firestore Live Twin persistence, verifier and Cloud Run deployment remain planned or under active issue/PR work. Do not infer completion from the target architecture below.
 
 ```mermaid
 flowchart LR
@@ -198,12 +198,15 @@ flowchart LR
   class F,G2,G3,G4,G5,G6 pending
 ```
 
-At audit time PR #59 is merged and PR #57 is also merged. PR #57 is not treated as evidence for the autonomous planner, simulation, guard or guarded commit gates.
+At audit time PR #59 and PR #57 are merged. PR #57 provides a fixture-backed API integration only; it is not evidence that the autonomous planner, simulation, guard, guarded commit or release gates are complete.
 
+## 13. Where to read next
 
-1. `docs/ARCHITECTURE.md` — components, data flow, security and DCG.
-2. `docs/DOMAIN_AND_DATA_MODEL.md` — entities, schemas, events and actions.
-3. `docs/IMPLEMENTATION_GUIDE.md` — role-by-role work and build order.
-4. `docs/DEMO_AND_ACCEPTANCE.md` — flagship demo and release gates.
-5. `docs/adr/` — architecture decision log. Pull requests name the ADR they track.
-6. GitHub Issues — executable work tickets and Definition of Done.
+1. `docs/CURRENT_STATUS.md` — authoritative current maturity, work in progress and release-gate status.
+2. `docs/ARCHITECTURE.md` — components, data flow, security and DCG.
+3. `docs/DOMAIN_AND_DATA_MODEL.md` — entities, schemas, events and actions.
+4. `docs/IMPLEMENTATION_GUIDE.md` — role-by-role work and build order.
+5. `docs/DEVELOPMENT_WORKFLOW.md` — issue, branch, PR and verification rules.
+6. `docs/DEMO_AND_ACCEPTANCE.md` — flagship demo and release gates.
+7. `docs/adr/` — architecture decision log. Pull requests name the ADR they track.
+8. GitHub Issues — executable work tickets and Definition of Done.

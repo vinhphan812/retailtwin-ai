@@ -4,13 +4,15 @@
 
 Before coding:
 1. Read `docs/PROJECT_CONTEXT.md`.
-2. Read `docs/ARCHITECTURE.md`.
-3. Read `docs/DOMAIN_AND_DATA_MODEL.md`.
-4. Read accepted records in `docs/adr/` that constrain the issue.
-5. Identify your role below.
-6. Open GitHub Issues filtered by your `role:*` label.
-7. Follow dependencies in the issue before implementing it.
-8. Do not add Competition-100 features while release gates are failing.
+2. Read `docs/CURRENT_STATUS.md` to distinguish current implementation from the target architecture.
+3. Read `docs/ARCHITECTURE.md`.
+4. Read `docs/DOMAIN_AND_DATA_MODEL.md`.
+5. Read `docs/DEVELOPMENT_WORKFLOW.md` before preparing a pull request.
+6. Read accepted records in `docs/adr/` that constrain the issue.
+7. Identify your role below.
+8. Open GitHub Issues filtered by your `role:*` label.
+9. Follow dependencies in the issue before implementing it.
+10. Do not add Competition-100 features while release gates are failing.
 
 ## 2. Critical path
 
