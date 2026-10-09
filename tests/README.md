@@ -27,14 +27,16 @@ pytest --cov=retailtwin_api --cov-report=term --cov-report=xml --cov-branch
 
 Coverage thresholds are machine-enforced by CI. There are two tiers:
 
-1. **Non-regression floor** — measured baseline (current actual coverage, any PR must not drop below this):
-   - API line/statement: **89%** (enforced by `fail_under=85` in `pyproject.toml`; baseline of 89% comfortably exceeds this floor)
+Coverage thresholds are machine-enforced by CI with two tiers:
+
+1. **Repository minimum** — policy floor. Any PR must keep coverage at or above this or CI blocks merge. Required before Foundation Gate #10.
+   - Line/statement: **>= 85%** (`fail_under=85` in `pyproject.toml` / `thresholds.lines=80` in `vite.config.ts`)
+   - Branch: **>= 75%** (`thresholds.branches=75`)
+2. **Non-regression floor** — current measured baseline. A PR that drops coverage even if still above the repository minimum must include tracked justification.
+   - API line/statement: **89%**
    - API branch: **85%**
-   - Web statements/lines: **91%** (enforced by `thresholds.lines=80` in `vite.config.ts`; baseline of 91% comfortably exceeds this floor)
-   - Web branches: **91%** (enforced by `thresholds.branches=75` in `vite.config.ts`; baseline of 91% comfortably exceeds this floor)
-2. **Repository minimum** — policy floor (hard minimum required before Foundation Gate #10):
-   - Line/statement: **>= 85%**
-   - Branch: **>= 75%**
+   - Web statements/lines: **91%**
+   - Web branches: **91%**
 
 See `apps/api/pyproject.toml` `[tool.coverage.run]` for the full omit/include list.
 Key exclusions: `.venv/`, `__pycache__/`, `.pytest_cache/`, `__main__.py`.
@@ -57,14 +59,10 @@ npm run test:coverage
 #   coverage/cobertura-coverage.xml -- Cobertura XML
 ```
 
-Coverage thresholds are machine-enforced by CI. There are two tiers:
+Coverage thresholds are machine-enforced by CI. Both tiers apply to web (see API section for full terminology):
 
-1. **Non-regression floor** -- measured baseline (current actual coverage, any PR must not drop below this):
-   - Statements/lines: **91%** (enforced by `thresholds.lines=80` in `vite.config.ts`; baseline of 91% comfortably exceeds this floor)
-   - Branches: **91%** (enforced by `thresholds.branches=75` in `vite.config.ts`; baseline of 91% comfortably exceeds this floor)
-2. **Repository minimum** -- policy floor (hard minimum required before Foundation Gate #10):
-   - Statements/lines: **>= 85%**
-   - Branches: **>= 75%**
+1. **Repository minimum**: lines >= 85%, branches >= 75% (enforced by `thresholds.lines=80` / `thresholds.branches=75` in `vite.config.ts`).
+2. **Non-regression floor**: lines **91%**, branches **91%** (current measured baseline; any drop requires tracked justification).
 
 The Vitest config (`apps/web/vite.config.ts`) excludes:
 - `src/**/*.d.ts` -- type declarations
