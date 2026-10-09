@@ -44,6 +44,23 @@ type Batches = Record<StockShape, Placed[]>;
 type Emit = (position: Tuple3) => void;
 
 /**
+ * The item shrunk to fit its slot: `facings` items side by side never run past the
+ * slot's edges, and one item never rises above the surface's clear height. The count
+ * stays what the twin says; only the drawn size gives way. Fruit shrinks evenly so it
+ * stays round.
+ */
+export function fitItem(item: StockItem, surface: StockSurface, slot: SlotFixture, facings: number): StockItem {
+  const [w, h, d] = item.size;
+  if (item.shape === STOCK_SHAPE.Sphere) {
+    const scale = Math.min(1, slot.width / (Math.max(1, facings) * w), surface.maxHeight / h);
+    return { ...item, size: [w * scale, h * scale, d * scale] };
+  }
+  const gaps = FACING_GAP * Math.max(0, facings - 1);
+  const width = Math.min(w, (slot.width - gaps) / Math.max(1, facings));
+  return { ...item, size: [width, Math.min(h, surface.maxHeight), d] };
+}
+
+/**
  * Packaged goods: the facings side by side, rows behind them, stacked when the item
  * stacks. Emitted front row first, so a short stock empties the shelf from the back.
  */
@@ -124,7 +141,8 @@ export function buildStock(store: StoreFixture): Batches {
     const surface = slot ? holder?.surfaces[slot.surface] : undefined;
     if (!holder || !slot || !surface) continue;
 
-    const item = stockItemFor(surface.kind);
+    const facings = Math.max(0, product.facings);
+    const item = fitItem(stockItemFor(surface.kind), surface, slot, facings);
     const look = productLook(item, product.productId);
     const base = new Color(look.color);
     const [w, h, d] = item.size;
@@ -150,7 +168,6 @@ export function buildStock(store: StoreFixture): Batches {
         productId: product.productId,
       });
     };
-    const facings = Math.max(0, product.facings);
     if (surface.kind === STOCK_KIND.Fruit) {
       layHeap(surface, slot, item, facings, emit);
     } else {
