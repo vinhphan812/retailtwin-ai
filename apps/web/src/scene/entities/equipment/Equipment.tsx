@@ -19,7 +19,7 @@ import { GlassDoorCooler } from "./GlassDoorCooler";
 import { OpenChiller } from "./OpenChiller";
 import { ProduceRack } from "./ProduceRack";
 
-function Model({ kind }: { kind: EquipmentKind }) {
+function Model({ kind, equipmentId }: { kind: EquipmentKind; equipmentId: string }) {
   switch (kind) {
     case EQUIPMENT_KIND.ProduceRack:
       return <ProduceRack />;
@@ -28,7 +28,7 @@ function Model({ kind }: { kind: EquipmentKind }) {
     case EQUIPMENT_KIND.OpenChiller:
       return <OpenChiller />;
     case EQUIPMENT_KIND.Checkout:
-      return <Checkout />;
+      return <Checkout checkoutId={equipmentId} />;
     case EQUIPMENT_KIND.CratePlastic:
       return <Crate variant="plastic" />;
     case EQUIPMENT_KIND.CrateWood:
@@ -62,7 +62,7 @@ export function Equipment({ equipment, products, interactive = true }: Equipment
       rotation={[0, equipment.rotationY, 0]}
       {...entityProps(equipment.equipmentId, ENTITY_TYPE.Equipment)}
     >
-      <Model kind={equipment.kind} />
+      <Model kind={equipment.kind} equipmentId={equipment.equipmentId} />
       {selectable ? <EquipmentHitBox equipment={equipment} /> : null}
       <SlotProducts slots={equipment.slots} products={products} />
     </group>

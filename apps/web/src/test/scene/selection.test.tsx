@@ -1,8 +1,8 @@
 import ReactThreeTestRenderer from "@react-three/test-renderer";
 import type { ThreeEvent } from "@react-three/fiber";
 import { Color, InstancedMesh, Mesh, MeshStandardMaterial, type Intersection, type Object3D } from "three";
-import { beforeEach, describe, expect, it } from "vitest";
-import { selectionColor } from "@/core/utils/theme";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { goodColor, selectionColor, warningColor } from "@/core/utils/theme";
 import { ENTITY_TYPE } from "@/enums/scene.enum";
 import { demoStoreState } from "@/fixtures/demoFixture";
 import { useSelectOnClick } from "@/hooks/selectEntity.hook";
@@ -11,13 +11,19 @@ import { StoreContents } from "@/scene/StoreScene";
 import { buildStock } from "@/scene/entities/stock/Stock";
 import { isSelected, selectedProductId, useUiStore } from "@/state/ui.store";
 
+// The app has no checkout data until apps/api serves it: CK01 open, CK02 paused, CK03 closed here.
+vi.mock("@/hooks/checkout.hook", async () => {
+  const { SAMPLE_CHECKOUTS } = await import("@/test/checkoutSample");
+  return { useCheckoutSummary: (id: string) => SAMPLE_CHECKOUTS[id] ?? null, useCheckoutTransactions: () => [] };
+});
+
 const store = toSceneStore(demoStoreState()).store;
 const glow = new Color(selectionColor());
 
 function meshesUnder(root: Object3D): Mesh[] {
   const meshes: Mesh[] = [];
   root.traverse((object) => {
-    // Hit boxes are hidden.
+    // Hit boxes are hidden, and a lane light keeps its status color.
     const mesh = object as Mesh;
     if (mesh.isMesh && (mesh.material as MeshStandardMaterial).visible && !mesh.userData.keepColor) meshes.push(mesh);
   });
@@ -85,8 +91,16 @@ describe("selection glow", () => {
 
   it("lights up a selected checkout, not a shelf with the same id type", async () => {
     const { find, select } = await render();
+    const lamp = () => find("CK01").getObjectByName("lane-lamp") as Mesh;
+    const before = lamp().material as MeshStandardMaterial;
     await select("CK01", ENTITY_TYPE.Equipment);
     expect(meshesUnder(find("CK01")).every(glows)).toBe(true);
+    // The lane light keeps telling the lane's status, and burns brighter.
+    const lit = lamp().material as MeshStandardMaterial;
+    expect(lit.emissive.equals(before.emissive)).toBe(true);
+    expect(lit.emissiveIntensity).toBeGreaterThan(before.emissiveIntensity);
+    await select(null);
+    expect(lamp().material).toBe(before);
     expect(meshesUnder(find("CK02")).some(glows)).toBe(false);
     // A product selected under the same id would not light the checkout.
     await select("CK01");
@@ -123,3 +137,13 @@ describe("fixture click", () => {
   });
 });
 
+describe("lane light", () => {
+  it("is lit green while open, amber while paused, and dark while closed or unknown", async () => {
+    const { find } = await render();
+    const lamp = (id: string) => (find(id).getObjectByName("lane-lamp") as Mesh).material as MeshStandardMaterial;
+    expect(find("CK01").getObjectByName("lane-light")!.userData.status).toBe("open");
+    expect(lamp("CK01").emissive.equals(new Color(goodColor()))).toBe(true);
+    expect(lamp("CK02").emissive.equals(new Color(warningColor()))).toBe(true);
+    expect(lamp("CK03").emissive.getHex()).toBe(0x000000);
+  });
+});
