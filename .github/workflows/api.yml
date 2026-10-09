@@ -49,7 +49,7 @@ jobs:
         run: pytest --cov=retailtwin_api --cov-report=term --cov-report=xml --cov-branch
 
       - name: Check branch coverage threshold
-        run: python ../.github/workflows/check_branch_threshold.py
+        run: python check_branch_threshold.py
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
