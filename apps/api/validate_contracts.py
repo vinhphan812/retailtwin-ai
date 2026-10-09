@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from retailtwin_api.contracts import Decision, Action, ActionType
 from retailtwin_api.schemas import StoreEvent
 import pytz
@@ -23,7 +23,7 @@ def validate_example():
             decision_id="d1",
             agent_id="a1",
             context_version="v1",
-            context_timestamp=datetime.now(),
+            context_timestamp=datetime.now(timezone.utc),
             evidence=[event],
             proposed_actions=[Action(action_id="act1", type=ActionType.CANDIDATE, payload={"foo": "bar"})],
             expected_impact={"score": 100}
