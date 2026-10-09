@@ -1,7 +1,9 @@
-import { AgentActivityOpenButton, AgentActivityPanel } from "@/components/layout/AgentActivityPanel";
+import {
+  AgentActivityOpenButton,
+  AgentActivityPanel,
+} from "@/components/layout/AgentActivityPanel";
 import { CameraHelp } from "@/components/layout/CameraHelp";
-// TODO(BE): restore with the lens switch below.
-// import { LensSwitcher } from "@/components/layout/LensSwitcher";
+import { LensSwitcher } from "@/components/layout/LensSwitcher";
 import { EntityInspector } from "@/components/twin/EntityInspector";
 import { TwinIssuesNotice } from "@/components/twin/TwinIssuesNotice";
 import { TwinStatusOverlay } from "@/components/twin/TwinStatusOverlay";
@@ -23,13 +25,11 @@ export function TwinPage() {
       <main className="viewport relative">
         <StoreScene />
         <TwinStatusOverlay />
-        {/*
-          TODO(BE): the Revenue and Promotions lenses read GET /revenue and GET /promotions, which apps/api
-          does not serve yet. The switch is their only way in, so it stays hidden until both routes exist.
-          <div className="lens-switcher">
-            <LensSwitcher />
-          </div>
-        */}
+        {/* TODO(BE): the Revenue and Promotions lenses read GET /revenue and GET /promotions, which apps/api
+          does not serve yet; until then they show their empty report and one toast. */}
+        <div className="lens-switcher">
+          <LensSwitcher />
+        </div>
         <div className="absolute bottom-4 left-4 z-10">
           <CameraHelp />
         </div>

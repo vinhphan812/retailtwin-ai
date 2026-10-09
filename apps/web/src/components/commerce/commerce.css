@@ -117,9 +117,8 @@
 .lens-switcher {
   position: absolute;
   top: 16px;
-  left: 50%;
+  left: 16px;
   z-index: 10;
-  transform: translateX(-50%);
 }
 
 @media (max-width: 640px) {
