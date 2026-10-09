@@ -24,11 +24,11 @@ Implemented on `main`:
 - in-memory event intake: one `event_id` names one immutable normalized payload, an identical payload returns HTTP 200, and a different payload returns HTTP 409 `event_id_conflict`;
 - `POST /events` does not change inventory, does not write Live Twin state, and does not publish;
 - store-events backbone: pull subscription `store-events-analytics` on topic `store-events`, and BigQuery tables `retailtwin.sales_events`, `retailtwin.inventory_events`, and `retailtwin.agent_actions`;
-- deterministic `sale.completed` publisher. The lander claims each `event_id` in Firestore `store_event_claims`. Only the lander that wins that document's landing lease writes the derived BigQuery row. A replay of the same payload is a duplicate. A different payload is a conflict and does not replace the claim or the row. `correlation_id` is kept on the message and the row. A rejected message is quarantined before it is acknowledged;
-- ADR 0001, 0002, 0003, and 0005;
+- deterministic `sale.completed` publisher. The lander claims each `event_id` in Firestore `store_event_claims`. The landing lease chooses who may submit the derived insert, and that insert uses one BigQuery job id for the claim generation, so a takeover joins the same job. A replay of the same payload is a duplicate. A different payload is a conflict and does not replace the claim or the row. `correlation_id` is kept on the message and the row. A rejected message is quarantined before it is acknowledged;
+- ADR 0001, 0002, 0003, 0004, 0005, 0006, and 0007;
 - tracked `apps/web/package-lock.json`.
 
-The 3D scene and the API are **not Firestore Live Twin**. Issue #4 binds the scene to twin state. Issue #6 replaces `open_store` with Firestore and keeps the four routes. `store_event_claims` is an idempotency ledger for this backbone, not that Live Twin. `infrastructure/gcp/verify-store-events.sh` checks the subscription and the three tables. The smoke command publishes `data/synthetic/sale-completed.json` and checks that a replay stays one row.
+The 3D scene and the API are **not Firestore Live Twin**. Issue #4, on `main` through PR #65, reads `GET /store` and places products on the static layout (ADR 0007). Issue #6 replaces `open_store` with Firestore and keeps the four routes. `store_event_claims` is an idempotency ledger for this backbone, not that Live Twin. `infrastructure/gcp/verify-store-events.sh` checks the subscription and the three tables. The smoke command publishes `data/synthetic/sale-completed.json` and checks that a replay stays one row.
 
 ## Google Cloud foundation
 
@@ -45,7 +45,7 @@ Issue #4 is on `main` through PR #65.
 - Tests cover the HTTP path from the committed seed to the scene: a P001 change in the seed redraws P001, and a reload rebuilds the same state.
 - Still open: a manual run against a live `apps/api`. Firestore stays with #6, so today the state comes from the JSON seed.
 
-Issue #58 remains open. The web lockfile is on `main`. An executable GitHub Actions build/test gate is not. #58 stays open until that gate exists and is green.
+Issue #58 is closed. The web build and test workflow is on `main`.
 
 Issue #60 remains open. Behavior tests exist. There is no coverage instrumentation or threshold, so a passing test count is not a coverage percentage. #60 owns that baseline and the CI coverage gate.
 
@@ -84,8 +84,8 @@ Gate status changes only when the corresponding issue contains reproducible evid
 
 ## Immediate critical path
 
-1. Resolve #58 with a green executable GitHub Actions CI build/test gate. The web lockfile is already on `main`. Issue #60 then adds the coverage baseline and threshold to that gate.
-2. Complete Firestore (#6), the Gemini real read tool (#2), and Cloud Run (#9). The store-events backbone (#7) claims each `sale.completed` event id once. Only the lander that wins the landing lease writes the derived BigQuery row, and a replayed event id is a duplicate. It does not start the Observer. Issue #6 still owns the Live Twin.
+1. Issue #58 is closed. The web build and test workflow is on `main`. Issue #60 adds the coverage baseline and threshold to that gate.
+2. Complete Firestore (#6), the Gemini real read tool (#2), and Cloud Run (#9). The store-events backbone (#7) claims each `sale.completed` event id once. The landing lease chooses who may submit the derived insert, and that insert uses one BigQuery job id for the claim generation. A replayed event id is a duplicate. It does not start the Observer. Issue #6 still owns the Live Twin.
 3. Pass Foundation Gate #10. #10 stays open: Firestore, Gemini real tool use, and Cloud Run are still required. A store event does not yet start an investigation.
 4. Continue the autonomous path: Tool Registry → Observer → Investigator → Planner → Simulation → DCG → Executor → Verifier.
 5. Bind those state changes to the 3D Live/Simulation views.

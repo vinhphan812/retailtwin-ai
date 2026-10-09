@@ -8,6 +8,7 @@ import pytest
 from retailtwin_api.backbone import (
     DEFAULT_FIXTURE,
     BackboneError,
+    InsertJobFailed,
     MemoryLedger,
     MemoryPipe,
     MemoryQuarantine,
@@ -18,6 +19,7 @@ from retailtwin_api.backbone import (
     deliver,
     format_attributes,
     handle_message,
+    insert_job_id,
     land,
     load_fixture,
     message_attributes,
@@ -55,10 +57,10 @@ class CountingSink(MemorySink):
         self.inserts = 0
         self._insert_lock = threading.Lock()
 
-    def insert(self, table: str, event: StoreEvent) -> None:
+    def insert(self, table: str, event: StoreEvent, job_id: str = "") -> None:
         with self._insert_lock:
             self.inserts += 1
-        super().insert(table, event)
+        super().insert(table, event, job_id)
 
 
 def event() -> StoreEvent:
@@ -465,13 +467,16 @@ def test_insert_uses_the_sales_table_and_keeps_the_correlation_parameter() -> No
     sale = event()
     runner = FakeRunner("")
 
-    BigQuerySink(config_from_env({}), runner).insert("sales_events", sale)
+    job_id = insert_job_id(sale.event_id, 1)
+    BigQuerySink(config_from_env({}), runner).insert("sales_events", sale, job_id)
 
     command = runner.commands[0]
     sql = command[-1]
     assert "INSERT INTO `retailtwin-ai-511002.retailtwin.sales_events`" in sql
     assert "WHERE NOT EXISTS" in sql
     assert "--parameter=correlation_id:STRING:run-20261007-001" in command
+    assert f"--job_id={job_id}" in command
+    assert command.index(f"--job_id={job_id}") < command.index("query")
     assert "streaming" not in sql.lower()
 
 
@@ -787,6 +792,173 @@ def test_two_landers_issue_one_bigquery_insert_for_a_missing_row() -> None:
     assert runner.inserts == 1
     assert sorted(outcomes) == ["duplicate", "duplicate"]
     assert not any(thread.is_alive() for thread in threads)
+
+
+def test_an_existing_job_id_is_joined_instead_of_inserted_again() -> None:
+    sale = event()
+    job_id = insert_job_id(sale.event_id, 1)
+    runner = _ScriptedRunner(
+        [
+            BackboneError(f"Already Exists: Job retailtwin-ai-511002:us-central1.{job_id}"),
+            "",
+            json.dumps({"status": {"state": "DONE"}}),
+        ]
+    )
+
+    BigQuerySink(config_from_env({}), runner).insert("sales_events", sale, job_id)
+
+    assert sum("query" in command for command in runner.commands) == 1
+    assert f"--job_id={job_id}" in runner.commands[0]
+    assert runner.commands[1][-1] == job_id
+    assert "wait" in runner.commands[1]
+    assert "show" in runner.commands[2]
+
+
+def test_a_finished_error_job_does_not_count_as_a_second_insert() -> None:
+    sale = event()
+    job_id = insert_job_id(sale.event_id, 1)
+    runner = _ScriptedRunner(
+        [
+            BackboneError(f"Already Exists: Job retailtwin-ai-511002:us-central1.{job_id}"),
+            "",
+            json.dumps({"status": {"state": "DONE", "errorResult": {"reason": "invalidQuery"}}}),
+        ]
+    )
+
+    with pytest.raises(InsertJobFailed):
+        BigQuerySink(config_from_env({}), runner).insert("sales_events", sale, job_id)
+
+    assert sum("query" in command for command in runner.commands) == 1
+
+
+def test_a_failed_insert_job_uses_the_next_generation() -> None:
+    sale = event()
+    ledger = MemoryLedger()
+    sink = _FailOnceSink()
+
+    landing = land(sink, sale, ledger)
+
+    assert landing.outcome == "inserted"
+    assert sink.jobs == [insert_job_id(sale.event_id, 1), insert_job_id(sale.event_id, 2)]
+    assert sink.count("sales_events", sale.event_id) == 1
+
+
+def test_an_expired_lease_joins_the_same_insert_job(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("retailtwin_api.backbone.LANDING_LEASE_S", 0.0)
+    sale = event()
+    ledger = MemoryLedger()
+    ledger.claim(sale, "sales_events")
+    sink = _SharedJobSink()
+    outcomes: list[str] = []
+    errors: list[str] = []
+    lock = threading.Lock()
+
+    def worker() -> None:
+        try:
+            landing = land(sink, sale, ledger, wait_s=2)
+        except BackboneError as exc:
+            with lock:
+                errors.append(str(exc))
+            return
+        with lock:
+            outcomes.append(landing.outcome)
+
+    threads = [threading.Thread(target=worker) for _ in range(2)]
+    try:
+        for thread in threads:
+            thread.start()
+        assert sink.started.wait(timeout=2)
+        time.sleep(0.1)
+        assert sink.executions == 1
+        assert set(sink.calls) == {insert_job_id(sale.event_id, 1)}
+    finally:
+        sink.allow.set()
+        for thread in threads:
+            thread.join(timeout=2)
+
+    assert errors == []
+    assert sink.executions == 1
+    assert sink.count("sales_events", sale.event_id) == 1
+    assert sorted(outcomes) == ["duplicate", "duplicate"]
+    assert not any(thread.is_alive() for thread in threads)
+
+
+def test_acquire_keeps_one_insert_generation_across_a_takeover() -> None:
+    sale = event()
+    client, store = _firestore()
+    assert client.claim(sale, "sales_events").outcome == "inserted"
+
+    lease = client.acquire_landing(sale.event_id)
+
+    assert lease is not None
+    assert lease.generation == 1
+    stored = next(iter(store.docs.values()))
+    assert stored["insert_generation"]["integerValue"] == "1"
+    nxt = client.fail_insert(sale.event_id, lease.fence, lease.generation)
+    assert nxt is not None
+    assert nxt.generation == 2
+    assert client.fail_insert(sale.event_id, lease.fence, lease.generation) is None
+    assert stored["insert_generation"]["integerValue"] == "2"
+
+
+class _ScriptedRunner:
+    def __init__(self, steps: list[object]) -> None:
+        self.steps = list(steps)
+        self.commands: list[list[str]] = []
+
+    def run(self, args: list[str]) -> str:
+        self.commands.append(args)
+        step = self.steps.pop(0)
+        if isinstance(step, Exception):
+            raise step
+        return str(step)
+
+
+class _FailOnceSink(MemorySink):
+    def __init__(self) -> None:
+        super().__init__()
+        self.jobs: list[str] = []
+
+    def insert(self, table: str, event: StoreEvent, job_id: str = "") -> None:
+        self.jobs.append(job_id)
+        if len(self.jobs) == 1:
+            raise InsertJobFailed(job_id)
+        super().insert(table, event, job_id)
+
+
+class _SharedJobSink(MemorySink):
+    """One BigQuery job id runs one insert. A second caller waits for that job."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.executions = 0
+        self.calls: list[str] = []
+        self.started = threading.Event()
+        self.allow = threading.Event()
+        self._jobs: dict[str, str] = {}
+        self._cv = threading.Condition()
+
+    def insert(self, table: str, event: StoreEvent, job_id: str = "") -> None:
+        with self._cv:
+            self.calls.append(job_id)
+            state = self._jobs.get(job_id)
+            if state == "done":
+                return
+            if state == "running":
+                while self._jobs.get(job_id) == "running":
+                    self._cv.wait(timeout=2)
+                if self._jobs.get(job_id) != "done":
+                    raise BackboneError("insert was not released")
+                return
+            self._jobs[job_id] = "running"
+            self.executions += 1
+            self.started.set()
+        if not self.allow.wait(timeout=2):
+            raise BackboneError("insert was not released")
+        super().insert(table, event, job_id)
+        with self._cv:
+            self._jobs[job_id] = "done"
+            self._cv.notify_all()
 
 
 class _GatedInsert:

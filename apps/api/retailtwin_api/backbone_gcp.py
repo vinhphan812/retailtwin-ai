@@ -23,6 +23,8 @@ from retailtwin_api.backbone import (
     BackboneConfig,
     BackboneError,
     Claim,
+    InsertJobFailed,
+    LandingLease,
     PulledMessage,
     canonical_body,
     claim_id_ok,
@@ -92,21 +94,35 @@ def event_parameters(event: StoreEvent) -> list[tuple[str, str, str]]:
     ]
 
 
+def _job_id_ok(job_id: str) -> bool:
+    if not job_id or len(job_id) > 1024:
+        return False
+    allowed = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-"
+    return all(char in allowed for char in job_id)
+
+
 def query_command(
     config: BackboneConfig,
     sql: str,
     parameters: list[tuple[str, str, str]],
+    job_id: str | None = None,
 ) -> list[str]:
     command = [
         "bq",
         "--quiet",
         f"--project_id={config.project}",
         f"--location={config.location}",
-        "query",
-        "--nouse_legacy_sql",
-        "--format=prettyjson",
-        f"--maximum_bytes_billed={_QUERY_BYTE_CAP}",
     ]
+    if job_id is not None:
+        command.append(f"--job_id={job_id}")
+    command.extend(
+        [
+            "query",
+            "--nouse_legacy_sql",
+            "--format=prettyjson",
+            f"--maximum_bytes_billed={_QUERY_BYTE_CAP}",
+        ]
+    )
     for name, type_name, value in parameters:
         command.append(parameter_flag(name, type_name, value))
     command.append(sql)
@@ -254,7 +270,9 @@ class BigQuerySink:
             raise BackboneError(f"Could not count {event_id} in {table}.")
         return int(rows[0]["row_count"])
 
-    def insert(self, table: str, event: StoreEvent) -> None:
+    def insert(self, table: str, event: StoreEvent, job_id: str) -> None:
+        if not _job_id_ok(job_id):
+            raise BackboneError("Insert job id is not a BigQuery job id.")
         target = qualified_table(self.config, table)
         sql = (
             "INSERT INTO "
@@ -265,7 +283,46 @@ class BigQuerySink:
             "FROM (SELECT 1) "
             f"WHERE NOT EXISTS (SELECT 1 FROM {target} WHERE event_id = @event_id)"
         )
-        self.runner.run(query_command(self.config, sql, event_parameters(event)))
+        try:
+            self.runner.run(query_command(self.config, sql, event_parameters(event), job_id))
+        except BackboneError as exc:
+            if "Already Exists" not in str(exc):
+                raise
+            self._join_existing_job(job_id)
+
+    def _join_existing_job(self, job_id: str) -> None:
+        self.runner.run(
+            [
+                "bq",
+                "--quiet",
+                f"--project_id={self.config.project}",
+                f"--location={self.config.location}",
+                "wait",
+                "--nofail_on_error",
+                job_id,
+            ]
+        )
+        raw = self.runner.run(
+            [
+                "bq",
+                "--quiet",
+                f"--project_id={self.config.project}",
+                f"--location={self.config.location}",
+                "show",
+                "--job=true",
+                "--format=prettyjson",
+                job_id,
+            ]
+        )
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise BackboneError("BigQuery job status was not JSON.") from exc
+        status = payload.get("status") if isinstance(payload, dict) else None
+        if not isinstance(status, dict) or status.get("state") != "DONE":
+            raise BackboneError("Insert job is still running.")
+        if status.get("errorResult"):
+            raise InsertJobFailed(job_id)
 
     def _rows(self, sql: str, parameters: list[tuple[str, str, str]]) -> list[dict[str, object]]:
         stdout = self.runner.run(query_command(self.config, sql, parameters))
@@ -398,6 +455,18 @@ def _timestamp_field(fields: dict[str, object], name: str) -> datetime | None:
     return parsed
 
 
+def _generation_field(fields: dict[str, object]) -> int:
+    value = fields.get("insert_generation")
+    if value is None:
+        return 1
+    if not isinstance(value, dict):
+        raise BackboneError("Claim has an unreadable insert generation.")
+    raw = value.get("integerValue")
+    if isinstance(raw, str) and raw.isdigit() and int(raw) >= 1:
+        return int(raw)
+    raise BackboneError("Claim has an unreadable insert generation.")
+
+
 def _lease_held(deadline: datetime | None) -> bool:
     # A landing claim with no readable deadline stays held. Do not steal it.
     if deadline is None:
@@ -425,6 +494,7 @@ class _ClaimSnapshot:
     canonical: str
     state: str
     deadline: datetime | None
+    generation: int
 
 
 class FirestoreRest:
@@ -478,7 +548,7 @@ class FirestoreRest:
             return self._classify_existing(event, table)
         raise _http_error("Claiming the event id", response.status, response.body)
 
-    def acquire_landing(self, event_id: str) -> str | None:
+    def acquire_landing(self, event_id: str) -> LandingLease | None:
         snapshot = self._read_snapshot(event_id)
         if snapshot.state == "landed":
             return None
@@ -487,6 +557,7 @@ class FirestoreRest:
         if snapshot.state not in {"claimed", "landing"}:
             raise BackboneError(f"Claim for {event_id} has an unknown state.")
         deadline = datetime.now(timezone.utc) + timedelta(seconds=LANDING_LEASE_S)
+        generation = snapshot.generation
         payload = {
             "writes": [
                 {
@@ -495,19 +566,47 @@ class FirestoreRest:
                         "fields": {
                             "state": {"stringValue": "landing"},
                             "landing_deadline": {"timestampValue": format_occurred_at(deadline)},
+                            "insert_generation": {"integerValue": str(generation)},
                         },
                     },
-                    "updateMask": {"fieldPaths": ["state", "landing_deadline"]},
+                    "updateMask": {"fieldPaths": ["state", "landing_deadline", "insert_generation"]},
                     "currentDocument": {"updateTime": snapshot.update_time},
                 }
             ]
         }
         response = self._call("POST", f"{_database_root(self.config.project)}/documents:commit", payload)
         if response.status == 200:
-            return _commit_update_time(response.body)
+            return LandingLease(_commit_update_time(response.body), generation)
         if _precondition_failed(response.status, response.body):
             return None
         raise _http_error("Acquiring the landing lease", response.status, response.body)
+
+    def fail_insert(self, event_id: str, fence: object, generation: int) -> LandingLease | None:
+        if not isinstance(fence, str) or not fence or generation < 1:
+            return None
+        deadline = datetime.now(timezone.utc) + timedelta(seconds=LANDING_LEASE_S)
+        nxt = generation + 1
+        payload = {
+            "writes": [
+                {
+                    "update": {
+                        "name": _claim_name(self.config.project, event_id),
+                        "fields": {
+                            "insert_generation": {"integerValue": str(nxt)},
+                            "landing_deadline": {"timestampValue": format_occurred_at(deadline)},
+                        },
+                    },
+                    "updateMask": {"fieldPaths": ["insert_generation", "landing_deadline"]},
+                    "currentDocument": {"updateTime": fence},
+                }
+            ]
+        }
+        response = self._call("POST", f"{_database_root(self.config.project)}/documents:commit", payload)
+        if response.status == 200:
+            return LandingLease(_commit_update_time(response.body), nxt)
+        if _precondition_failed(response.status, response.body):
+            return None
+        raise _http_error("Advancing the insert generation", response.status, response.body)
 
     def mark_landed(self, event_id: str, fence: object) -> None:
         self._transition(event_id, fence, "landed", "Marking the claim landed")
@@ -607,6 +706,7 @@ class FirestoreRest:
             canonical=_string_field(fields, "canonical"),
             state=state,
             deadline=_timestamp_field(fields, "landing_deadline"),
+            generation=_generation_field(fields),
         )
 
     def _call(self, method: str, url: str, payload: dict[str, object] | None) -> HttpResponse:

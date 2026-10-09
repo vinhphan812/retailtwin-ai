@@ -4,6 +4,7 @@ One event_id has one claim. BigQuery rows are derived history.
 A replay of the same payload is a duplicate.
 """
 
+import hashlib
 import json
 import os
 import re
@@ -38,6 +39,16 @@ _LANDING_WAIT_S = 5.0
 
 class BackboneError(Exception):
     """The store-event backbone cannot publish or land this event."""
+
+
+class InsertJobFailed(BackboneError):
+    """The BigQuery job for this generation finished with an error."""
+
+
+@dataclass(frozen=True)
+class LandingLease:
+    fence: object
+    generation: int
 
 
 @dataclass(frozen=True)
@@ -105,7 +116,7 @@ class PulledMessage:
 class EventSink(Protocol):
     def get(self, table: str, event_id: str) -> StoreEvent | None: ...
 
-    def insert(self, table: str, event: StoreEvent) -> None: ...
+    def insert(self, table: str, event: StoreEvent, job_id: str) -> None: ...
 
     def count(self, table: str, event_id: str) -> int: ...
 
@@ -113,7 +124,9 @@ class EventSink(Protocol):
 class ClaimLedger(Protocol):
     def claim(self, event: StoreEvent, table: str) -> Claim: ...
 
-    def acquire_landing(self, event_id: str) -> object | None: ...
+    def acquire_landing(self, event_id: str) -> LandingLease | None: ...
+
+    def fail_insert(self, event_id: str, fence: object, generation: int) -> LandingLease | None: ...
 
     def mark_landed(self, event_id: str, fence: object) -> None: ...
 
@@ -180,6 +193,23 @@ def load_fixture(path: Path) -> StoreEvent:
 def require_sale(event: StoreEvent) -> None:
     if event.event_type != SALE_COMPLETED:
         raise BackboneError("This publisher emits sale.completed only.")
+
+
+def insert_job_id(event_id: str, generation: int) -> str:
+    """One BigQuery job id for this event id and insert generation.
+
+    A later lander submits this same id. BigQuery then returns the existing
+    job instead of starting a second insert. The id is a hash so every allowed
+    event id fits the job-id alphabet and the 1024 character limit.
+    """
+
+    if not isinstance(generation, int) or isinstance(generation, bool) or generation < 1:
+        raise BackboneError("Insert generation must be positive.")
+    digest = hashlib.sha256(event_id.encode("utf-8")).hexdigest()
+    job_id = f"store-event-{digest}-{generation}"
+    if len(job_id) > 1024:
+        raise BackboneError("Insert job id is not a BigQuery job id.")
+    return job_id
 
 
 def claim_id_ok(event_id: str) -> bool:
@@ -255,8 +285,9 @@ class MemorySink:
                 return None
             return row.model_copy(deep=True)
 
-    def insert(self, table: str, event: StoreEvent) -> None:
+    def insert(self, table: str, event: StoreEvent, job_id: str = "") -> None:
         self._known(table)
+        del job_id
         with self._lock:
             self.rows[table].setdefault(event.event_id, event.model_copy(deep=True))
 
@@ -276,6 +307,7 @@ class _MemoryClaim:
         self.event = event
         self.state = "claimed"
         self.fence = 1
+        self.generation = 1
         self.deadline = 0.0
 
 
@@ -304,7 +336,7 @@ class MemoryLedger:
                 return Claim("duplicate", existing.table, existing.event.model_copy(deep=True))
             return Claim("conflict", existing.table, existing.event.model_copy(deep=True))
 
-    def acquire_landing(self, event_id: str) -> int | None:
+    def acquire_landing(self, event_id: str) -> LandingLease | None:
         with self._lock:
             record = self._claims.get(event_id)
             if record is None:
@@ -314,10 +346,22 @@ class MemoryLedger:
                 return None
             if record.state == "landing" and record.deadline > now:
                 return None
+            if record.generation < 1:
+                record.generation = 1
             record.state = "landing"
             record.fence += 1
             record.deadline = now + LANDING_LEASE_S
-            return record.fence
+            return LandingLease(record.fence, record.generation)
+
+    def fail_insert(self, event_id: str, fence: object, generation: int) -> LandingLease | None:
+        with self._lock:
+            record = self._require(event_id)
+            if record.state != "landing" or record.fence != fence or record.generation != generation:
+                return None
+            record.generation += 1
+            record.fence += 1
+            record.deadline = time.monotonic() + LANDING_LEASE_S
+            return LandingLease(record.fence, record.generation)
 
     def mark_landed(self, event_id: str, fence: object) -> None:
         with self._lock:
@@ -416,9 +460,9 @@ def land(
         return Landing("conflict", claim.event, claim.table)
     deadline = time.monotonic() + wait_s
     while True:
-        fence = ledger.acquire_landing(event.event_id)
-        if fence is not None:
-            return _write_derived(sink, event, ledger, table, claim, fence)
+        lease = ledger.acquire_landing(event.event_id)
+        if lease is not None:
+            return _write_derived(sink, event, ledger, table, claim, lease)
         existing = find_existing(sink, event.event_id)
         if existing is not None:
             return _existing_landing(existing, event, table)
@@ -444,31 +488,65 @@ def _write_derived(
     ledger: ClaimLedger,
     table: str,
     claim: Claim,
-    fence: object,
+    lease: LandingLease,
 ) -> Landing:
     existing = find_existing(sink, event.event_id)
     if existing is not None:
         existing_table, stored = existing
         if existing_table == table and stored == event:
-            ledger.mark_landed(event.event_id, fence)
+            _mark_or_duplicate(ledger, event.event_id, lease.fence)
             return Landing("duplicate", stored, table)
-        ledger.release_landing(event.event_id, fence)
+        ledger.release_landing(event.event_id, lease.fence)
         return Landing("conflict", stored, existing_table)
-    try:
-        sink.insert(table, event)
-    except Exception:
-        ledger.release_landing(event.event_id, fence)
-        raise
+    current = _insert_generation(sink, event, ledger, table, lease)
     stored = sink.get(table, event.event_id)
     if stored is None or stored != event:
-        ledger.release_landing(event.event_id, fence)
+        ledger.release_landing(event.event_id, current.fence)
         if stored is None:
             raise BackboneError(f"event_id {event.event_id} was not stored.")
         return Landing("conflict", stored, table)
-    ledger.mark_landed(event.event_id, fence)
+    if not _mark_or_duplicate(ledger, event.event_id, current.fence):
+        return Landing("duplicate", stored, table)
     if claim.outcome == "inserted":
         return Landing("inserted", stored, table)
     return Landing("duplicate", stored, table)
+
+
+def _insert_generation(
+    sink: EventSink,
+    event: StoreEvent,
+    ledger: ClaimLedger,
+    table: str,
+    lease: LandingLease,
+) -> LandingLease:
+    current = lease
+    retried = False
+    while True:
+        try:
+            sink.insert(table, event, insert_job_id(event.event_id, current.generation))
+            return current
+        except InsertJobFailed as exc:
+            if retried:
+                ledger.release_landing(event.event_id, current.fence)
+                raise BackboneError(f"Insert job for {event.event_id} failed.") from exc
+            nxt = ledger.fail_insert(event.event_id, current.fence, current.generation)
+            if nxt is None:
+                raise BackboneError("Lost the landing lease.") from exc
+            current = nxt
+            retried = True
+        except Exception:
+            ledger.release_landing(event.event_id, current.fence)
+            raise
+
+
+def _mark_or_duplicate(ledger: ClaimLedger, event_id: str, fence: object) -> bool:
+    try:
+        ledger.mark_landed(event_id, fence)
+    except BackboneError as exc:
+        if "Lost the landing lease." not in str(exc):
+            raise
+        return False
+    return True
 
 
 def handle_message(
