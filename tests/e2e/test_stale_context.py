@@ -51,15 +51,27 @@ class TestContextVersionReporting:
     def test_inventory_version_matches_store_version(
         self, client: TestClient
     ) -> None:
-        """All products must share the same store context_version."""
+        """All products share the same store context_version string prefix.
+
+        Note: the store-level context_version string and the per-product
+        integer version field are separate concepts.  The string tracks
+        decision context epochs; the integer tracks executor commit count.
+        This test verifies prefix consistency; commit-count comparison
+        belongs in executor commit tests.
+        """
         store_resp = client.get("/store")
+        assert store_resp.status_code == 200
         store_ctx = store_resp.json()["context_version"]
+        # Prefix must be consistent (store_id prefix, then colon + epoch)
+        assert store_ctx.startswith("store-001:")
         for sku in ("P001",):
             inv_resp = client.get(f"/inventory/{sku}")
-            # 404 means the SKU doesn't exist in this fixture; skip
             if inv_resp.status_code == 404:
                 continue
             assert inv_resp.status_code == 200
+            # Integer version field is independent of the store-level
+            # context_version string; no direct comparison is valid.
+            assert isinstance(inv_resp.json()["version"], int)
 
     def test_context_version_is_stable_without_mutation(self, client: TestClient) -> None:
         """Without Executor, context_version and inventory version cannot change."""
@@ -126,7 +138,7 @@ class TestStaleContextContract:
     def test_guard_health_endpoint_reports_fixture_status(
         self, client: TestClient
     ) -> None:
-        """Health endpoint is the DCG availability gate at day-0."""
+        """Health endpoint is the API availability preflight at day-0."""
         response = client.get("/health")
         assert response.status_code == 200
         body = response.json()
@@ -138,23 +150,32 @@ class TestStaleContextContract:
         self, run_id: str, env_info: dict
     ) -> None:
         """
-        Placeholder: documents the expected DCG behaviour.
+        Contract expectation: DCG must REJECT decisions with stale context_version.
 
-        Decision.context_version = "store-001:v99"
-        Current context_version  = "store-001:v1"
+        Scenario:
+          1. AI builds a decision while Live Twin context is at epoch v1
+          2. Live Twin state advances to epoch v2 (e.g. after Executor commit)
+          3. The decision's context_version is still "store-001:v1" (stale)
+          4. DCG must respond with REFRESH_REQUIRED and block Executor
 
-        Expected DCG outcome: REFRESH_REQUIRED or DENY
-        Executor must not commit without valid, fresh authorization.
+        The self-constructed dict below documents the expected contract;
+        it asserts only that the expected outcome is defined and that
+        the stale vs. current versions differ (making the decision invalid).
+        Until DCG and Executor are live, this is a contract-expectation test.
         """
-        # Simulate the DCG check using the store's real context_version
         import json
         dcg_check = {
             "run_id": run_id,
             "canonical_path": env_info["canonical_path"],
-            "decision_context_version": "store-001:v99",   # stale (v99 > current v1)
-            "current_context_version": "store-001:v1",     # live
+            # Decision built while Live Twin was at epoch v1
+            "decision_context_version": "store-001:v1",
+            # Live Twin has since advanced to epoch v2
+            "current_context_version": "store-001:v2",
             "expected_dcg_outcome": "REFRESH_REQUIRED",
-            "note": "DCG enforces this once the agent stack is live. Executor is stubbed.",
+            "note": (
+                "DCG enforces this once the agent stack is live. "
+                "Executor is stubbed. v1 < v2: the decision is stale."
+            ),
         }
         assert dcg_check["expected_dcg_outcome"] == "REFRESH_REQUIRED"
         assert dcg_check["decision_context_version"] != dcg_check["current_context_version"]
