@@ -16,6 +16,7 @@ import {
   PAN_BOUNDS,
 } from "@/constants/camera.constant";
 import { useFitCamera } from "@/hooks/fitCamera.hook";
+import { useFocusSelection } from "@/hooks/focusSelection.hook";
 import { useOrbitAroundPointer } from "@/hooks/orbitPoint.hook";
 import { Equipment } from "./entities/equipment/Equipment";
 import { Exterior } from "./entities/Exterior";
@@ -29,10 +30,11 @@ import { entityProps } from "./entities/entity";
 import { sceneOf, storeLayout } from "./layout";
 import type { ProductFixture, StoreFixture } from "@/types/scene.type";
 
-/** Keeps the camera framing the whole store as the canvas resizes, and orbits around the pointer. */
+/** Keeps the camera framing the whole store as the canvas resizes, orbits around the pointer, and flies to a selection. */
 function FrameCamera() {
   useFitCamera();
   useOrbitAroundPointer();
+  useFocusSelection();
   return null;
 }
 
