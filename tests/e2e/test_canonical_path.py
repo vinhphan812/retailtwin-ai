@@ -107,9 +107,9 @@ class TestCanonicalStages:
     def test_happy_path_event_through_health(
         self, client: TestClient, timer, caplog
     ) -> None:
-        """Smoke the full observable surface: health -> event -> inventory -> health."""
+        """Smoke the full observable surface: event -> inventory -> health."""
         with caplog.at_level(logging.INFO):
-            # Stage 1: EVENT intake
+            # Stage 1: EVENT intake (canonical path entry gate)
             with timer:
                 ev_resp = client.post("/events", json=make_event(event_id="smoke-evt-002"))
             ev_elapsed = timer.checkpoint("event_intake")
@@ -121,25 +121,25 @@ class TestCanonicalStages:
             inv_elapsed = timer.checkpoint("investigate")
             assert inv_resp.status_code == 200
 
-            # Stage 3: GUARD (health check = service availability gate)
+            # Stage 3: API availability preflight (health check)
             with timer:
                 hl_resp = client.get("/health")
-            hl_elapsed = timer.checkpoint("guard")
+            hl_elapsed = timer.checkpoint("preflight")
             assert hl_resp.status_code == 200
             assert hl_resp.json()["status"] == "ok"
 
         report = timer.report()
         assert report["stages"]["event_intake"] < 2.0, f"event_intake took {ev_elapsed}s"
         assert report["stages"]["investigate"] < 1.0, f"investigate took {inv_elapsed}s"
-        assert report["stages"]["guard"] < 1.0, f"guard took {hl_elapsed}s"
+        assert report["stages"]["preflight"] < 1.0, f"preflight took {hl_elapsed}s"
 
         # Correlation IDs are present in logs
         assert "smoke-evt-002" in caplog.text
 
-    def test_state_isolation_two_parallel_events(
+    def test_state_isolation_two_sequential_events(
         self, client: TestClient, timer
     ) -> None:
-        """Two simultaneous events produce distinct receipts (state isolation)."""
+        """Two events produce distinct receipts (event log isolation precondition)."""
         with timer:
             r1 = client.post("/events", json=make_event(event_id="smoke-evt-a", quantity=3))
             r2 = client.post("/events", json=make_event(event_id="smoke-evt-b", quantity=7))
@@ -182,5 +182,6 @@ class TestCanonicalStages:
             content = readme.read_text(encoding="utf-8")
             assert len(content) > 10, f"agents/{agent}/README.md is empty"
 
+        # env_info documents the target canonical path (contract presence check)
         assert env_info["canonical_path"] == "EVENT -> AI -> INVESTIGATE -> SIMULATE -> GUARD -> LIVE -> VERIFY"
         assert env_info["store_id"] == "store-001"
