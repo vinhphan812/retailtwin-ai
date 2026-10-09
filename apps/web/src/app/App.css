@@ -28,6 +28,12 @@
   --color-serious: #ec835a;
 }
 
+/* Read by the 3D scene at runtime (core/utils/theme.ts), not by any class, so always emitted. */
+@theme static {
+  /* Glow of the selected product, shelf, or equipment. */
+  --color-selection: #ffffff;
+}
+
 html,
 body,
 #root {

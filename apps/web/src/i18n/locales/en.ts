@@ -8,8 +8,8 @@ export const en = {
     pan: "Move around the store",
     zoomKey: "Scroll",
     zoom: "Zoom toward the cursor",
-    selectKey: "Click a product",
-    select: "Show its inventory",
+    selectKey: "Click",
+    select: "Select a product, shelf, or checkout and show its details",
     touch: "Touch: one finger to orbit, two fingers to zoom and move.",
   },
   notFound: {
@@ -83,7 +83,6 @@ export const en = {
       frozen: "Frozen food",
     },
     checkout: "Checkout",
-    productTag: "{{facings}} facings · {{shelf}} on shelf · {{backroom}} in backroom",
   },
   activity: {
     title: "Agent Activity",

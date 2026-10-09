@@ -27,7 +27,6 @@ import { SKY_COLOR } from "@/constants/scene.constant";
 import { ENTITY_TYPE } from "@/enums/scene.enum";
 import { entityProps } from "./entities/entity";
 import { sceneOf, storeLayout } from "./layout";
-import "./scene.css";
 import type { ProductFixture, StoreFixture } from "@/types/scene.type";
 
 /** Keeps the camera framing the whole store as the canvas resizes, and orbits around the pointer. */
@@ -39,14 +38,14 @@ function FrameCamera() {
 
 type StoreContentsProps = {
   store: StoreFixture;
-  showLabels?: boolean;
+  interactive?: boolean;
 };
 
 const NO_PRODUCTS: ProductFixture[] = [];
 
 export function StoreContents({
   store,
-  showLabels = true,
+  interactive = true,
 }: StoreContentsProps) {
   // One pass over the products instead of a filter per shelf and per slot.
   const byHolder = useMemo(
@@ -65,7 +64,7 @@ export function StoreContents({
           key={shelf.shelfId}
           shelf={shelf}
           products={productsOf(shelf.shelfId)}
-          showLabels={showLabels}
+          interactive={interactive}
         />
       ))}
       <Stock store={store} />
@@ -74,7 +73,7 @@ export function StoreContents({
           key={item.equipmentId}
           equipment={item}
           products={productsOf(item.equipmentId)}
-          showLabels={showLabels}
+          interactive={interactive}
         />
       ))}
     </group>
@@ -86,14 +85,14 @@ export function StoreContents({
  * cannot be loaded, the layout is drawn with empty shelves.
  */
 export function LiveStoreContents({
-  showLabels = true,
+  interactive = true,
 }: {
-  showLabels?: boolean;
+  interactive?: boolean;
 }) {
   const live = useTwinStore((state) => state.live);
   const store = useMemo(() => (live ? sceneOf(live).store : storeLayout), [live]);
 
-  return <StoreContents store={store} showLabels={showLabels} />;
+  return <StoreContents store={store} interactive={interactive} />;
 }
 
 const clearSelection = () => useUiStore.getState().select(null);

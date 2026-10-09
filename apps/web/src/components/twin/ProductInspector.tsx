@@ -5,12 +5,12 @@ import { inspectProduct } from "@/core/twin/twinIssues";
 import { INSPECTION_KIND } from "@/enums/twin.enum";
 import { useTwinIssues } from "@/hooks/twinIssues.hook";
 import { useTwinStore } from "@/state/twin.store";
-import { useUiStore } from "@/state/ui.store";
+import { selectedProductId, useUiStore } from "@/state/ui.store";
 
 /** Twin figures of the selected product. Click an item on a shelf, or open `/?product=P001`. */
 export function ProductInspector() {
   const { t } = useTranslation();
-  const productId = useUiStore((state) => state.selectedEntityId);
+  const productId = useUiStore(selectedProductId);
   const select = useUiStore((state) => state.select);
   const live = useTwinStore((state) => state.live);
   const issues = useTwinIssues();

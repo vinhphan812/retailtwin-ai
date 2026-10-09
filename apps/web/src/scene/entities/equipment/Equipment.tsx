@@ -1,13 +1,16 @@
-import { useTranslation } from "react-i18next";
-import { EQUIPMENT_LABEL } from "@/constants/scene.constant";
+import { useRef } from "react";
+import type { Group } from "three";
+import { EQUIPMENT_TITLE } from "@/constants/scene.constant";
 import { EQUIPMENT_SIZE } from "@/constants/dimensions.constant";
 import { ENTITY_TYPE, EQUIPMENT_KIND, type EquipmentKind } from "@/enums/scene.enum";
 import type { EquipmentFixture, ProductFixture } from "@/types/scene.type";
 import { toTuple } from "@/scene/utils/transform";
 import { entityProps } from "@/scene/entities/entity";
-import { LABEL_LIFT } from "@/constants/scene.constant";
 import { useHover } from "@/hooks/hover.hook";
-import { HoverHitBox, HoverLabel } from "@/scene/entities/HoverLabel";
+import { useSelectOnClick } from "@/hooks/selectEntity.hook";
+import { useSelectionGlow } from "@/hooks/selectionGlow.hook";
+import { isSelected, useUiStore } from "@/state/ui.store";
+import { HitBox } from "@/scene/entities/HitBox";
 import { SlotProducts } from "@/scene/entities/SlotProducts";
 import { Barrier } from "./Barrier";
 import { Checkout } from "./Checkout";
@@ -39,36 +42,35 @@ type EquipmentProps = {
   equipment: EquipmentFixture;
   /** Products whose shelfId is this equipment. */
   products: ProductFixture[];
-  showLabels?: boolean;
+  /** Takes the pointer: hover and click-to-select. Off in tests, which have no pointer. */
+  interactive?: boolean;
 };
 
-export function Equipment({ equipment, products, showLabels = true }: EquipmentProps) {
-  const label = showLabels ? EQUIPMENT_LABEL[equipment.kind] : undefined;
+/**
+ * One piece of equipment. Kinds with a card title (racks, coolers, chillers, checkouts)
+ * take the pointer: a click selects the equipment and lights it up.
+ */
+export function Equipment({ equipment, products, interactive = true }: EquipmentProps) {
+  const selectable = interactive && EQUIPMENT_TITLE[equipment.kind] !== undefined;
+  const ref = useRef<Group>(null);
+  const selected = useUiStore((state) => isSelected(state, equipment.equipmentId, ENTITY_TYPE.Equipment));
+  useSelectionGlow(ref, selected);
   return (
     <group
+      ref={ref}
       position={toTuple(equipment.position)}
       rotation={[0, equipment.rotationY, 0]}
       {...entityProps(equipment.equipmentId, ENTITY_TYPE.Equipment)}
     >
-      {label ? <Labelled equipment={equipment} title={label} /> : <Model kind={equipment.kind} />}
+      <Model kind={equipment.kind} />
+      {selectable ? <EquipmentHitBox equipment={equipment} /> : null}
       <SlotProducts slots={equipment.slots} products={products} />
     </group>
   );
 }
 
-type LabelKey = NonNullable<(typeof EQUIPMENT_LABEL)[EquipmentKind]>;
-
-function Labelled({ equipment, title }: { equipment: EquipmentFixture; title: LabelKey }) {
-  const { t } = useTranslation();
-  const [hovered, hoverHandlers] = useHover();
-  const size = EQUIPMENT_SIZE[equipment.kind];
-  return (
-    <group>
-      <Model kind={equipment.kind} />
-      <HoverHitBox size={size} handlers={hoverHandlers} />
-      {hovered ? (
-        <HoverLabel title={t(title)} entityId={equipment.equipmentId} position={[0, size[1] + LABEL_LIFT, 0]} />
-      ) : null}
-    </group>
-  );
+function EquipmentHitBox({ equipment }: { equipment: EquipmentFixture }) {
+  const [, hoverHandlers] = useHover();
+  const onClick = useSelectOnClick(equipment.equipmentId, ENTITY_TYPE.Equipment);
+  return <HitBox size={EQUIPMENT_SIZE[equipment.kind]} handlers={hoverHandlers} onClick={onClick} />;
 }
