@@ -85,7 +85,7 @@ Gate status changes only when the corresponding issue contains reproducible evid
 ## Immediate critical path
 
 1. Resolve #58 with a green executable GitHub Actions CI build/test gate. The web lockfile is already on `main`. Issue #60 then adds the coverage baseline and threshold to that gate.
-2. Complete Firestore (#6), the Gemini real read tool (#2), and Cloud Run (#9). The store-events backbone (#7) claims each `sale.completed` event id once, writes the derived BigQuery row, and reports a replayed event id as a duplicate. It does not start the Observer. Issue #6 still owns the Live Twin.
+2. Complete Firestore (#6), the Gemini real read tool (#2), and Cloud Run (#9). The store-events backbone (#7) claims each `sale.completed` event id once. Only the lander that wins the landing lease writes the derived BigQuery row, and a replayed event id is a duplicate. It does not start the Observer. Issue #6 still owns the Live Twin.
 3. Pass Foundation Gate #10. #10 stays open: Firestore, Gemini real tool use, and Cloud Run are still required. A store event does not yet start an investigation.
 4. Continue the autonomous path: Tool Registry → Observer → Investigator → Planner → Simulation → DCG → Executor → Verifier.
 5. Bind those state changes to the 3D Live/Simulation views.

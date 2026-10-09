@@ -114,7 +114,7 @@ This role owns integration quality, not only presentation.
 
 ## 7. Current implementation note
 
-The phases below are delivery targets, not claims that those components already exist. `docs/CURRENT_STATUS.md` is authoritative for repository maturity. As of 2026-10-08, `main` has the view-only 3D scaffold from issue #3, the fixture-backed FastAPI plus frontend integration from issue #8, and the store-events backbone from issue #7. `POST /events` stays in memory and does not publish. `sale.completed` is claimed once in Firestore `store_event_claims` and then written to BigQuery. A replay is a duplicate. The API is not Firestore Live Twin, and a store event does not yet start the Observer. Issue #58, Firestore (#6), the Gemini read tool (#2), Cloud Run (#9), and Foundation Gate #10 through G06 remain open.
+The phases below are delivery targets, not claims that those components already exist. `docs/CURRENT_STATUS.md` is authoritative for repository maturity. As of 2026-10-08, `main` has the view-only 3D scaffold from issue #3, the fixture-backed FastAPI plus frontend integration from issue #8, and the store-events backbone from issue #7. `POST /events` stays in memory and does not publish. `sale.completed` is claimed once in Firestore `store_event_claims`. Only the lander that wins that document's landing lease writes the derived BigQuery row. A replay is a duplicate. The API is not Firestore Live Twin, and a store event does not yet start the Observer. Issue #58, Firestore (#6), the Gemini read tool (#2), Cloud Run (#9), and Foundation Gate #10 through G06 remain open.
 
 ## 8. Build phases
 
