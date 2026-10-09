@@ -44,24 +44,7 @@ POS / Inventory / Promotion / Demo Events
                         Verifier
 ```
 
-## 2. Current component flow
-
-```mermaid
-flowchart LR
-  E[Event] --> O[Observer] --> I[Investigator] --> P[Gemini planner]
-  P --> S[Simulation Twin] --> K[KPI] --> G[DCG]
-  G -->|ALLOW| X[Executor] --> L[Live Twin] --> V[3D and verifier]
-  G -->|REFRESH_REQUIRED| R[Refresh and replan] --> P
-  G -->|DENY| D[Fail closed]
-  classDef implemented fill:#d9f7e8,stroke:#16794a
-  classDef planned fill:#fff2cc,stroke:#9a6700
-  class V implemented
-  class E,O,I,P,S,K,G,X,L planned
-```
-
-The repository currently contains the React/R3F store scaffold (PR #56/#59 history); the end-to-end agent, guard, executor and cloud integrations are documented contracts, not evidence of completed gates. See `docs/CURRENT_STATUS.md`.
-
-## 2.1 Architecture end-to-end flow (planned vs implemented)
+## 2. Architecture end-to-end flow (planned vs implemented)
 
 ```mermaid
 flowchart LR
