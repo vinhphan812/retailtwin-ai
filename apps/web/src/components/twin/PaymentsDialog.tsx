@@ -7,6 +7,7 @@ import { PAYMENT_METHODS, type PaymentMethod } from "@/enums/checkout.enum";
 import { ENTITY_TYPE } from "@/enums/scene.enum";
 import { useCheckoutTransactions } from "@/hooks/checkout.hook";
 import { useUiStore } from "@/state/ui.store";
+import { DemoBadge } from "./DemoBadge";
 import type { CheckoutTransaction } from "@/types/checkout.type";
 
 const ALL = "all";
@@ -65,6 +66,7 @@ export function PaymentsDialog({ isOpen, onClose, checkoutId, businessDate }: Pa
       onClose={onClose}
       title={t("checkout.payments.title", { id: checkoutId })}
       subtitle={t("checkout.payments.subtitle", { date: format.day(`${businessDate}T12:00:00Z`) })}
+      badges={<DemoBadge />}
       summary={
         <dl className="dialog-summary">
           <div>

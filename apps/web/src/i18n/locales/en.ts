@@ -65,6 +65,8 @@ export const en = {
   },
   checkout: {
     noData: "Checkout figures are not available yet.",
+    demo: "Demo data",
+    demoHint: "Made up for ?twin=demo; apps/api does not serve checkouts yet.",
     status: {
       open: "Open",
       paused: "Paused",

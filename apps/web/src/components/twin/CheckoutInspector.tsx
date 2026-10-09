@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { format } from "@/core/utils/format";
 import { CHECKOUT_STATUS, type CheckoutStatus } from "@/enums/checkout.enum";
 import { useCheckoutSummary } from "@/hooks/checkout.hook";
+import { DemoBadge } from "./DemoBadge";
 import { Figures, InspectorCard } from "./InspectorCard";
 import { PaymentsDialog } from "./PaymentsDialog";
 
@@ -21,9 +22,12 @@ export function CheckoutInspector({ checkoutId, title }: { checkoutId: string; t
   const [paymentsOpen, setPaymentsOpen] = useState(false);
 
   const badges = summary ? (
-    <Chip size="sm" variant="flat" color={STATUS_COLOR[summary.status]}>
-      {t(`checkout.status.${summary.status}`)}
-    </Chip>
+    <>
+      <Chip size="sm" variant="flat" color={STATUS_COLOR[summary.status]}>
+        {t(`checkout.status.${summary.status}`)}
+      </Chip>
+      <DemoBadge />
+    </>
   ) : null;
 
   return (

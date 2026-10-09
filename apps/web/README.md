@@ -105,10 +105,24 @@ Every build reads `apiSource` by default: the Live Twin from `GET /store` on `VI
 | (none) | `apiSource`: `GET /store`, polled every 5 s, backing off to 60 s while it fails |
 | `fixture` | `fixtureSource`: empty shelves, no live updates |
 | `memory` | empty shelves in memory, editable from the browser console: `twin.add()` adds the API fixture's P001, then `twin.patch("P001", { facings: 5 })`, `twin.patch("P001", null)`, `twin.state()` |
+| `demo` | the same editable twin, stocked with the demo store, plus demo data where `apps/api` serves none yet: checkout figures, payments and receipts, Revenue and Promotions reports, and anomalies (`twin.anomalies()`). All of it lives in `fixtures/demo/` and is marked **Demo data** where it shows; see *Demo data* below |
 | `slow` | the snapshot takes 4 s |
 | `offline` | the snapshot fails after 1.2 s |
 | `flaky` | the live feed drops 3 s after loading |
 
+
+### Demo data
+
+`?twin=demo` (development builds only, `isDemoMode`) turns on made-up data for the demo, all in `fixtures/demo/`:
+
+| File | What | Read by |
+| --- | --- | --- |
+| `store.ts` | a product on every kind of fixture that holds stock, some out of stock or low | the twin source |
+| `checkouts.ts` | three lanes (open, paused, closed) and today's sales with receipt lines, from a fixed price list | `useCheckoutSummary`, `useCheckoutTransactions` |
+| `commerce.ts` | Revenue for every window (today adds up the checkout sales) and Promotions in every status | `useRevenue`, `usePromotions` through `demoClient` |
+| `anomalies.ts` | open anomalies that agree with the demo store's stock | `twin.anomalies()` in the console |
+
+The figures agree with each other: a lane's card adds up its sales, each sale its receipt lines, and today's revenue the lanes. Everything else still reads `apps/api`. Without `?twin=demo`, and in tests, none of it is used. The whole demo is one commit, so it can be reverted on its own.
 ## Source layout
 
 ```text
@@ -214,6 +228,7 @@ Vitest runs in the `node` environment. Scene tests use `@react-three/test-render
 | `scene/camera/cameraFrame.test.ts` | every shelf corner stays in frame on desktop and on a 390px canvas |
 | `state/*.test.ts` | twin store and run store |
 | `components/**`, `app/App.test.tsx` | StoreStatus, AgentActivityPanel, LensSwitcher (revenue and promotions reads), routing |
+| `fixtures/demo/*.test.ts*` | demo mode is on only under `?twin=demo`; the demo store, anomalies, checkouts, revenue, and promotions add up; the lenses read them in demo mode |
 | `stockedState.test.ts` | the stocked test store (`stockedState.ts`) passes the contract and places every product; out-of-stock products draw no items |
 | `fixtures/commerceFixture.test.ts`, `i18n/`, `core/utils/` | empty commerce reports, English messages and issue reasons, formatters and utils |
 
