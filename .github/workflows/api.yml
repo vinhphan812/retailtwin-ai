@@ -51,6 +51,9 @@ jobs:
       - name: Check branch coverage threshold
         run: python check_branch_threshold.py
 
+      - name: Enforce critical-path coverage policy
+        run: python ../.github/workflows/enforce_critical_path_coverage.py
+
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
