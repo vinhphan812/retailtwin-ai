@@ -2,7 +2,7 @@ import { AgentActivityOpenButton, AgentActivityPanel } from "@/components/layout
 import { CameraHelp } from "@/components/layout/CameraHelp";
 // TODO(BE): restore with the lens switch below.
 // import { LensSwitcher } from "@/components/layout/LensSwitcher";
-import { ProductInspector } from "@/components/twin/ProductInspector";
+import { EntityInspector } from "@/components/twin/EntityInspector";
 import { TwinIssuesNotice } from "@/components/twin/TwinIssuesNotice";
 import { TwinStatusOverlay } from "@/components/twin/TwinStatusOverlay";
 import { pickSource } from "@/core/twin/devSources";
@@ -34,7 +34,7 @@ export function TwinPage() {
           <CameraHelp />
         </div>
         <AgentActivityOpenButton />
-        <ProductInspector />
+        <EntityInspector />
         <TwinIssuesNotice />
       </main>
       <AgentActivityPanel />
