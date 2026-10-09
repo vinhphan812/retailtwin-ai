@@ -20,9 +20,12 @@ export const en = {
   twin: {
     loading: "Loading Digital Twin…",
     loadFailed: "Could not load the Digital Twin",
+    loadFailedHint: "The store API did not answer. Check that it is running, then try again.",
     retry: "Try again",
     stale: "Connection lost – showing old data",
+    staleHint: "The store below is the last state received. Live updates are paused.",
     reconnecting: "Reconnecting…",
+    reconnectingHint: "Reading the latest store state.",
     reconnect: "Reconnect",
     unreadableUpdate: "Unreadable update",
     feedLost: "Live updates disconnected",
