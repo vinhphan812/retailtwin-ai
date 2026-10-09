@@ -2,9 +2,8 @@ import { createApiSource } from "@/core/api/sources/apiSource";
 import { fixtureSource, fixtureStoreState } from "@/core/api/sources/fixtureSource";
 import { createMemoryTwin, patchProduct } from "@/core/api/sources/memorySource";
 import type { TwinSource } from "@/core/api/sources/TwinSource";
-import type { ProductInventory, StoreResponse } from "@/types/twin.type";
+import type { ProductInventory } from "@/types/twin.type";
 import { FIXTURE_P001 } from "@/constants/twin.constant";
-import { demoStoreState } from "@/fixtures/demoFixture";
 
 /** A twin that cannot be reached: loads for a while, then fails. */
 const unreachableSource: TwinSource = {
@@ -40,12 +39,11 @@ const DEV_SOURCES: Record<string, TwinSource> = {
 
 /**
  * An editable twin for checking live updates by hand, driven from the browser console.
- * It starts from `initial` (empty shelves by default): `twin.add()` puts the API fixture's
- * P001 on A01-S01, `twin.patch("P001", { facings: 5 })` changes it, `twin.patch("P001", null)`
- * removes it.
+ * It starts with empty shelves: `twin.add()` puts the API fixture's P001 on A01-S01,
+ * `twin.patch("P001", { facings: 5 })` changes it, `twin.patch("P001", null)` removes it.
  */
-function memoryTwinSource(initial: StoreResponse = fixtureStoreState()): TwinSource {
-  const twin = createMemoryTwin(initial);
+function memoryTwinSource(): TwinSource {
+  const twin = createMemoryTwin(fixtureStoreState());
   Object.assign(window, {
     twin: {
       add: (product: ProductInventory = FIXTURE_P001) =>
@@ -59,14 +57,13 @@ function memoryTwinSource(initial: StoreResponse = fixtureStoreState()): TwinSou
 }
 
 /**
- * The Live Twin from apps/api. While developing, `?twin=fixture|memory|demo|offline|slow|flaky`
+ * The Live Twin from apps/api. While developing, `?twin=fixture|memory|offline|slow|flaky`
  * swaps in a local twin instead.
  */
 export function pickSource(): TwinSource {
   if (import.meta.env.DEV) {
     const mode = new URLSearchParams(window.location.search).get("twin") ?? "";
     if (mode === "memory") return memoryTwinSource();
-    if (mode === "demo") return memoryTwinSource(demoStoreState());
     if (mode in DEV_SOURCES) return DEV_SOURCES[mode];
   }
   return createApiSource();

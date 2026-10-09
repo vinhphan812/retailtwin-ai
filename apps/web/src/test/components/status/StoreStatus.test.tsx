@@ -10,7 +10,7 @@ import { TWIN_STATUS } from "@/enums/twin.enum";
 import { useTwinStore } from "@/state/twin.store";
 import { selectedProductId, useUiStore } from "@/state/ui.store";
 import { STORE_STATUS_ROWS } from "@/constants/app.constant";
-import { demoStoreState } from "@/fixtures/demoFixture";
+import { stockedStoreState } from "@/test/stockedState";
 
 vi.mock("@/core/notify", () => ({
   notify: { error: vi.fn(), warning: vi.fn(), success: vi.fn() },
@@ -158,7 +158,7 @@ test("retries health on the next open after a failed read", async () => {
 });
 
 test("lists products one per line, out and low stock first, and opens the rest in a dialog", async () => {
-  const many: StoreResponse = { ...store, products: demoStoreState().products };
+  const many: StoreResponse = { ...store, products: stockedStoreState().products };
   useTwinStore.setState({ live: many, status: TWIN_STATUS.Ready });
   useUiStore.getState().select(null);
   render(<StoreStatus client={client()} />);

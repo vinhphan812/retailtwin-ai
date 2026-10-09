@@ -7,7 +7,7 @@ import { productLook, stockItemFor } from "@/scene/entities/stock/catalog";
 import { surfaceMatrix, surfacesOf } from "@/scene/entities/stock/surfaces";
 import { entityMatrix } from "@/scene/utils/transform";
 import { ENTITY_TYPE, STOCK_KIND } from "@/enums/scene.enum";
-import { demoStoreState } from "@/fixtures/demoFixture";
+import { stockedStoreState } from "@/test/stockedState";
 import type { StoreFixture } from "@/types/scene.type";
 
 function positions(batches: ReturnType<typeof buildStock>) {
@@ -122,12 +122,12 @@ describe("items stay inside their slot", () => {
 
   const EPS = 1e-6;
 
-  it("for every product of the demo store, at any number of facings", () => {
-    const demo = toSceneStore(demoStoreState()).store;
+  it("for every product of the stocked store, at any number of facings", () => {
+    const stocked = toSceneStore(stockedStoreState()).store;
     for (const facings of [1, 2, 3, 5, 8]) {
       const store = {
-        ...demo,
-        products: demo.products.map((product) => ({ ...product, facings, shelfQuantity: 10_000 })),
+        ...stocked,
+        products: stocked.products.map((product) => ({ ...product, facings, shelfQuantity: 10_000 })),
       };
       const drawn = extents(store);
       expect(drawn.length).toBeGreaterThan(0);

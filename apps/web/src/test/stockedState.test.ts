@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { parseStoreState } from "@/core/api/validate";
-import { demoStoreState } from "@/fixtures/demoFixture";
+import { stockedStoreState } from "@/test/stockedState";
 import { toSceneStore } from "@/scene/layout";
 import { buildStock } from "@/scene/entities/stock/Stock";
 import { FIXTURE_P001 } from "@/constants/twin.constant";
 
-describe("demo store state", () => {
+describe("stocked store state", () => {
   it("passes the GET /store contract and places every product", () => {
-    const { state, issues } = parseStoreState(demoStoreState());
+    const { state, issues } = parseStoreState(stockedStoreState());
     expect(issues).toEqual([]);
     const scene = toSceneStore(state);
     expect(scene.issues).toEqual([]);
@@ -15,11 +15,11 @@ describe("demo store state", () => {
   });
 
   it("keeps P001 as the API fixture serves it", () => {
-    expect(demoStoreState().products.find((product) => product.sku === "P001")).toEqual(FIXTURE_P001);
+    expect(stockedStoreState().products.find((product) => product.sku === "P001")).toEqual(FIXTURE_P001);
   });
 
   it("draws items for every product that has stock, and none for a stockout", () => {
-    const state = demoStoreState();
+    const state = stockedStoreState();
     const batches = buildStock(toSceneStore(state).store);
     const drawn = new Set(Object.values(batches).flatMap((items) => items.map((item) => item.productId)));
     for (const product of state.products) {
@@ -28,8 +28,8 @@ describe("demo store state", () => {
   });
 
   it("returns a new object per call", () => {
-    const state = demoStoreState();
+    const state = stockedStoreState();
     state.products[0].facings = 99;
-    expect(demoStoreState().products[0].facings).toBe(FIXTURE_P001.facings);
+    expect(stockedStoreState().products[0].facings).toBe(FIXTURE_P001.facings);
   });
 });

@@ -4,7 +4,7 @@ import { Color, InstancedMesh, Mesh, MeshStandardMaterial, type Intersection, ty
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { goodColor, selectionColor, warningColor } from "@/core/utils/theme";
 import { ENTITY_TYPE } from "@/enums/scene.enum";
-import { demoStoreState } from "@/fixtures/demoFixture";
+import { stockedStoreState } from "@/test/stockedState";
 import { useSelectOnClick } from "@/hooks/selectEntity.hook";
 import { toSceneStore } from "@/scene/layout";
 import { StoreContents } from "@/scene/StoreScene";
@@ -17,7 +17,7 @@ vi.mock("@/hooks/checkout.hook", async () => {
   return { useCheckoutSummary: (id: string) => SAMPLE_CHECKOUTS[id] ?? null, useCheckoutTransactions: () => [] };
 });
 
-const store = toSceneStore(demoStoreState()).store;
+const store = toSceneStore(stockedStoreState()).store;
 const glow = new Color(selectionColor());
 
 function meshesUnder(root: Object3D): Mesh[] {
@@ -64,7 +64,7 @@ describe("selection glow", () => {
     expect(find("stock-selected-box")).toBeUndefined();
 
     await select("P002");
-    const p002 = demoStoreState().products.find((product) => product.sku === "P002")!;
+    const p002 = stockedStoreState().products.find((product) => product.sku === "P002")!;
     const overlay = find("stock-selected-box") as InstancedMesh;
     expect(overlay.count).toBe(p002.shelf_quantity);
     expect(glows(overlay)).toBe(true);

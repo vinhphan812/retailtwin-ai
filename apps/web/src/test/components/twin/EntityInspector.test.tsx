@@ -4,7 +4,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { EntityInspector } from "@/components/twin/EntityInspector";
 import { ENTITY_TYPE } from "@/enums/scene.enum";
 import { TWIN_STATUS } from "@/enums/twin.enum";
-import { demoStoreState } from "@/fixtures/demoFixture";
+import { stockedStoreState } from "@/test/stockedState";
 import { useTwinStore } from "@/state/twin.store";
 import { selectedProductId, useUiStore } from "@/state/ui.store";
 import { format } from "@/core/utils/format";
@@ -20,7 +20,7 @@ vi.mock("@/hooks/checkout.hook", async () => {
 });
 
 beforeEach(() => {
-  useTwinStore.setState({ live: demoStoreState(), issues: [], status: TWIN_STATUS.Ready });
+  useTwinStore.setState({ live: stockedStoreState(), issues: [], status: TWIN_STATUS.Ready });
   useUiStore.getState().select(null);
 });
 

@@ -2,9 +2,9 @@ import { FIXTURE_P001 } from "@/constants/twin.constant";
 import type { ProductInventory, StoreResponse } from "@/types/twin.type";
 
 /**
- * A stocked store for checking selection and highlights by hand (`?twin=demo`) and in
- * tests: P001 from the API fixture and a product on every kind of fixture that holds
- * stock, some of them out of stock or low. Dev and test only, never Live Twin truth.
+ * `GET /store` for a stocked store: P001 from the API fixture and a product on every kind
+ * of fixture that holds stock, some of them out of stock or low. Test data only; the app
+ * shows no products until the API sends them.
  */
 
 const STORE_ID = FIXTURE_P001.store_id;
@@ -39,7 +39,7 @@ const PRODUCTS: ProductRow[] = [
 ];
 
 /** `GET /store` with P001 from the API fixture and a product on every kind of fixture. */
-export function demoStoreState(): StoreResponse {
+export function stockedStoreState(): StoreResponse {
   const products: ProductInventory[] = [
     { ...FIXTURE_P001 },
     ...PRODUCTS.map(

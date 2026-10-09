@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import { patchProduct } from "@/core/api/sources/memorySource";
 import { findFixture, fixtureStock, stockState } from "@/core/twin/fixtureStock";
 import { STOCK_STATE } from "@/enums/stock.enum";
-import { demoStoreState } from "@/fixtures/demoFixture";
+import { stockedStoreState } from "@/test/stockedState";
 
 describe("fixtureStock", () => {
   it("sums up what the twin has on a shelf, in slot order", () => {
-    const stock = fixtureStock("A01", demoStoreState())!;
+    const stock = fixtureStock("A01", stockedStoreState())!;
     expect(stock.products.map((product) => product.productId)).toEqual(["P001", "P002", "P003"]);
     expect(stock.slotCount).toBe(72);
     expect(stock.unitsOnShelf).toBe(8 + 10 + 0);
@@ -16,13 +16,13 @@ describe("fixtureStock", () => {
   });
 
   it("works for display equipment, and is empty for a fixture with no products", () => {
-    expect(fixtureStock("OC01", demoStoreState())).toMatchObject({ outCount: 1, unitsOnShelf: 0 });
-    expect(fixtureStock("C03", demoStoreState())).toMatchObject({ products: [], unitsOnShelf: 0 });
-    expect(fixtureStock("NOPE", demoStoreState())).toBeNull();
+    expect(fixtureStock("OC01", stockedStoreState())).toMatchObject({ outCount: 1, unitsOnShelf: 0 });
+    expect(fixtureStock("C03", stockedStoreState())).toMatchObject({ products: [], unitsOnShelf: 0 });
+    expect(fixtureStock("NOPE", stockedStoreState())).toBeNull();
   });
 
   it("follows the twin and leaves out products the scene cannot place", () => {
-    const moved = patchProduct(demoStoreState(), "P002", { slot_id: "A01-S99" });
+    const moved = patchProduct(stockedStoreState(), "P002", { slot_id: "A01-S99" });
     expect(fixtureStock("A01", moved)!.products.map((product) => product.productId)).toEqual(["P001", "P003"]);
   });
 

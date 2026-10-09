@@ -105,7 +105,6 @@ Every build reads `apiSource` by default: the Live Twin from `GET /store` on `VI
 | (none) | `apiSource`: `GET /store`, polled every 5 s, backing off to 60 s while it fails |
 | `fixture` | `fixtureSource`: empty shelves, no live updates |
 | `memory` | empty shelves in memory, editable from the browser console: `twin.add()` adds the API fixture's P001, then `twin.patch("P001", { facings: 5 })`, `twin.patch("P001", null)`, `twin.state()` |
-| `demo` | the same editable twin, stocked from `fixtures/demoFixture.ts`: P001 plus a product on every kind of fixture, some out of stock or low. |
 | `slow` | the snapshot takes 4 s |
 | `offline` | the snapshot fails after 1.2 s |
 | `flaky` | the live feed drops 3 s after loading |
@@ -163,7 +162,6 @@ src/
   fixtures/
     storeFixture.ts         the static layout: gondolas and equipment, no products
     commerceFixture.ts      empty revenue and promotions reports, shown until a read lands
-    demoFixture.ts          a stocked store, for ?twin=demo and tests
   constants/                <area>.constant.ts: camera, dimensions, scene, twin, app, i18n, commerce
   enums/                    <area>.enum.ts: as-const value sets and their types
   types/                    <domain>.type.ts: twin, api, agent, anomaly, revenue, promotion, scene
@@ -216,7 +214,7 @@ Vitest runs in the `node` environment. Scene tests use `@react-three/test-render
 | `scene/camera/cameraFrame.test.ts` | every shelf corner stays in frame on desktop and on a 390px canvas |
 | `state/*.test.ts` | twin store and run store |
 | `components/**`, `app/App.test.tsx` | StoreStatus, AgentActivityPanel, LensSwitcher (revenue and promotions reads), routing |
-| `fixtures/demoFixture.test.ts` | the demo store passes the contract and places every product; out-of-stock products draw no items |
+| `stockedState.test.ts` | the stocked test store (`stockedState.ts`) passes the contract and places every product; out-of-stock products draw no items |
 | `fixtures/commerceFixture.test.ts`, `i18n/`, `core/utils/` | empty commerce reports, English messages and issue reasons, formatters and utils |
 
 ## Maturity
