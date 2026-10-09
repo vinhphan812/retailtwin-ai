@@ -25,12 +25,15 @@ pytest --cov=retailtwin_api --cov-report=term --cov-report=xml --cov-branch
 # Open: apps/api/htmlcov/index.html
 ```
 
-Coverage thresholds (two-step):
-1. **Non-regression floor** — measured baseline (no new regressions below this):
-   - Line/statement: **89%**
-   - Branch: **85%**
-2. **Target threshold** — required before Foundation Gate #10:
-   - Line/statement: **>= 80%**
+Coverage thresholds are machine-enforced by CI. There are two tiers:
+
+1. **Non-regression floor** — measured baseline (current actual coverage, any PR must not drop below this):
+   - API line/statement: **89%** (enforced by `fail_under=85` in `pyproject.toml`; baseline of 89% comfortably exceeds this floor)
+   - API branch: **85%**
+   - Web statements/lines: **91%** (enforced by `thresholds.lines=80` in `vite.config.ts`; baseline of 91% comfortably exceeds this floor)
+   - Web branches: **91%** (enforced by `thresholds.branches=75` in `vite.config.ts`; baseline of 91% comfortably exceeds this floor)
+2. **Repository minimum** — policy floor (hard minimum required before Foundation Gate #10):
+   - Line/statement: **>= 85%**
    - Branch: **>= 75%**
 
 See `apps/api/pyproject.toml` `[tool.coverage.run]` for the full omit/include list.
@@ -54,12 +57,13 @@ npm run test:coverage
 #   coverage/cobertura-coverage.xml -- Cobertura XML
 ```
 
-Coverage thresholds (two-step):
-1. **Non-regression floor** -- measured baseline:
-   - Statements/lines: **91%**
-   - Branches: **91%**
-2. **Target threshold** -- required before Foundation Gate #10:
-   - Statements/lines: **>= 80%**
+Coverage thresholds are machine-enforced by CI. There are two tiers:
+
+1. **Non-regression floor** -- measured baseline (current actual coverage, any PR must not drop below this):
+   - Statements/lines: **91%** (enforced by `thresholds.lines=80` in `vite.config.ts`; baseline of 91% comfortably exceeds this floor)
+   - Branches: **91%** (enforced by `thresholds.branches=75` in `vite.config.ts`; baseline of 91% comfortably exceeds this floor)
+2. **Repository minimum** -- policy floor (hard minimum required before Foundation Gate #10):
+   - Statements/lines: **>= 85%**
    - Branches: **>= 75%**
 
 The Vitest config (`apps/web/vite.config.ts`) excludes:
@@ -67,19 +71,23 @@ The Vitest config (`apps/web/vite.config.ts`) excludes:
 - `src/**/types.ts` -- type-only modules
 - `src/*-env.d.ts` -- ambient environment declarations
 
-### Critical-path modules (future)
+### Critical-path modules
 
-When the following modules are implemented, they are subject to elevated thresholds
-(line >= 90%, branch >= 85%):
+When the following modules are implemented they are subject to elevated thresholds
+(line >= 90%, branch >= 85%) via explicit per-path `fail_under` or `thresholds`
+configuration in the respective project config:
 
-- `guard/decision-context-guard/` -- Decision Context Guard
-- `services/executor/` -- Executor
+- `guard/decision-context-guard/` -- Decision Context Guard / No-Stale-Commit
+- `services/executor/` -- Executor mutation boundary
 - `services/twin/` -- Digital Twin mutation paths
 - `services/simulation/` -- Simulation Twin
-- `services/verifier/` -- Verifier
-- Event idempotency (`apps/api/retailtwin_api/events.py`)
+- `services/verifier/` -- Verifier / recovery
+- Event idempotency/conflicts (`apps/api/retailtwin_api/events.py`)
 
-Until those modules exist, the non-regression floor applies to `apps/api` as a whole.
+**Enforcement policy:** Any PR that adds a new file under one of these paths must
+include a `fail_under` or `thresholds` update for that path before merging.
+Until those modules exist, the non-regression floor applies to `apps/api` as a
+whole.
 
 ## CI
 

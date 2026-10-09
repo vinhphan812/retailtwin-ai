@@ -61,5 +61,6 @@ jobs:
           echo "## Web Coverage" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          cat apps/web/coverage/coverage-summary.json 2>/dev/null || echo "(run npm test:coverage locally for details)"
+          # Read the text summary produced by @vitest/coverage-v8 (always generated)
+          cat apps/web/coverage/coverage-summary.json 2>/dev/null || cat apps/web/coverage/text-summary.txt 2>/dev/null || echo "(run npm run test:coverage locally for details)"
           echo '```' >> $GITHUB_STEP_SUMMARY
