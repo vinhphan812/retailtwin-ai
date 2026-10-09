@@ -240,6 +240,7 @@ export const en = {
     lookingUp: "Looking up…",
     enterSku: "Enter a SKU.",
     lookupFailed: "Inventory lookup failed.",
+    notInStore: "{{sku}} is not in this store.",
     result: "{{sku}} on {{shelf}} / {{slot}}: {{onShelf}} on shelf, {{backroom}} in the backroom.",
     products: "Products",
     location: "Location",

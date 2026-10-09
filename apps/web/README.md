@@ -18,6 +18,18 @@ npm run build   # tsc --noEmit, then vite build
 
 Set `VITE_API_BASE_URL` to the API origin. The default is `http://127.0.0.1:8000`. Put it in `apps/web/.env.local`, and do not commit that file.
 
+> **API calls are off for now (`TODO(BE)`).** The app sends no request to `apps/api`. Each call is commented out where it was made, with a `TODO(BE)` naming its route, so it can be switched back once the BE is ready:
+>
+> | Route | Where it is commented out | Until then |
+> | --- | --- | --- |
+> | `GET http://127.0.0.1:8000/store` | `pickSource` (`core/twin/devSources.ts`) | `fixtureSource`: the layout with empty shelves, or a `?twin=` source |
+> | `GET http://127.0.0.1:8000/health` | `StoreStatus` (`components/status/StoreStatus.tsx`) | no health line |
+> | `GET http://127.0.0.1:8000/inventory/{sku}` | `StoreStatus` | the lookup reads the live store the scene already has |
+> | `GET http://127.0.0.1:8000/revenue?period=` | `commerceClient` (`hooks/commerce.hook.ts`) | the empty report, or the demo report under `?twin=demo` |
+> | `GET http://127.0.0.1:8000/promotions` | `commerceClient` | the same |
+>
+> `createClient` and `apiSource` are unchanged and still tested; only their use is off.
+
 ## What is on screen
 
 `/` is `TwinPage`. Any other path shows `NotFoundPage`.
@@ -33,7 +45,7 @@ Set `VITE_API_BASE_URL` to the API origin. The default is `http://127.0.0.1:8000
     - a checkout (`CheckoutInspector`): status, cashier, shift start, and today's revenue, transactions, average basket, items scanned, queue, and last sale, then **View payments**, which opens `PaymentsDialog`: today's sales at that lane, newest first, with totals, filtered by payment method or a search. Clicking a sale opens its receipt under it (SKU, quantity, unit price, line total); a SKU there selects the product in the 3D view and closes the dialog. `apps/api` serves no checkout data yet (`TODO(BE)`): `useCheckoutSummary` and `useCheckoutTransactions` return nothing, so the card says the figures are not available and has no payments button. The proposed shapes are `CheckoutSummary`, `CheckoutTransaction`, and `CheckoutLine` (`types/checkout.type.ts`).
   - `TwinIssuesNotice`: products the scene left out, with the reason for each.
 - **Agent Activity panel**: a side panel with a fixed width of 380px (`PANEL_WIDTH`). You can close it and open it again, and the open state is saved per browser. Each lens shows different content:
-  - **Operations**: `StoreStatus` and the agent activity timeline from `run.store`. `StoreStatus` shows product, low, and out-of-stock totals, then the first products one per line (out and low stock first). Clicking a line selects that product in the 3D view. **Show all** opens `ProductsDialog`: every product with shelf, slot, facings, stock, and version, filtered by stock state or a search; clicking a row selects the product and closes the dialog. `StoreStatus` reads `GET /health` once, shows the live store that the scene already polls (it does not call `GET /store` itself), and looks up `GET /inventory/{sku}`.
+  - **Operations**: `StoreStatus` and the agent activity timeline from `run.store`. `StoreStatus` shows product, low, and out-of-stock totals, then the first products one per line (out and low stock first). Clicking a line selects that product in the 3D view. **Show all** opens `ProductsDialog`: every product with shelf, slot, facings, stock, and version, filtered by stock state or a search; clicking a row selects the product and closes the dialog. Given a client, `StoreStatus` reads `GET /health` once, shows the live store that the scene already polls (it does not call `GET /store` itself), and looks up `GET /inventory/{sku}`. The app gives it none for now (`TODO(BE)`): no health line, and the lookup reads the live store.
   - **Revenue**: metric tiles, a revenue chart, category share, and the best and worst SKUs (`useRevenue`).
   - **Promotions**: promotion cards by status (`usePromotions`).
   - Opening either lens reads its route from `apps/api`. See *Revenue and promotions* below.
@@ -75,7 +87,7 @@ TwinSource ──connectTwin──▶ parseStoreState ──▶ twin.store.live 
                                           TwinIssuesNotice, EntityInspector
 ```
 
-1. `TwinPage` picks a `TwinSource` (`pickSource`) and passes it to `useTwinSource`. By default this is `apiSource`, which reads `GET /store` from `apps/api`.
+1. `TwinPage` picks a `TwinSource` (`pickSource`) and passes it to `useTwinSource`. By default this is `apiSource`, which reads `GET /store` from `apps/api`; it is `fixtureSource` while the API calls are off (`TODO(BE)`).
 2. `connectTwin` loads `snapshot()`, then follows `subscribe()`. `apiSource` has no push channel yet, so it polls `GET /store` every 5 s (`TWIN_POLL_MS`). It does not poll while the tab is hidden. Each failed read doubles the wait, up to 60 s (`TWIN_POLL_MAX_MS`), and a good read brings it back to 5 s. An outage is reported once. The next readable state ends it, and the stale banner goes away.
 3. Each payload is checked by `parseStoreState` against the `GET /store` contract (`StoreResponse` in `types/twin.type.ts`, matching `apps/api`):
    - If the payload is not a store response, the first load fails. After the first state, the feed is marked stale instead.
@@ -94,15 +106,15 @@ A product's entity id is its `sku`.
 
 `useRevenue` and `usePromotions` read the route the first time a lens (or a period) opens, then cache the result, so switching lenses does not call the API again. The lens shows the empty report (`emptyRevenue`, `emptyPromotions`) until the read lands. A failed read shows one toast and is retried the next time the lens opens.
 
-`apps/api` does not serve either route yet (`TODO(BE)` on the types). Picking either lens reads its route, which fails today: the lens shows its empty report and one toast.
+`apps/api` does not serve either route yet (`TODO(BE)` on the types), so `commerceClient` reads neither for now: the lens shows its empty report, or the demo report under `?twin=demo`.
 
 ### Twin sources
 
-Every build reads `apiSource` by default: the Live Twin from `GET /store` on `VITE_API_BASE_URL`. In development, `?twin=` swaps in a local source:
+`apiSource` (the Live Twin from `GET /store` on `VITE_API_BASE_URL`) is the default once the API calls come back; for now every build reads `fixtureSource`. In development, `?twin=` swaps in a local source:
 
 | `?twin=` | Source |
 | --- | --- |
-| (none) | `apiSource`: `GET /store`, polled every 5 s, backing off to 60 s while it fails |
+| (none) | `fixtureSource` for now (`TODO(BE)`); then `apiSource`: `GET /store`, polled every 5 s, backing off to 60 s while it fails |
 | `fixture` | `fixtureSource`: empty shelves, no live updates |
 | `memory` | empty shelves in memory, editable from the browser console: `twin.add()` adds the API fixture's P001, then `twin.patch("P001", { facings: 5 })`, `twin.patch("P001", null)`, `twin.state()` |
 | `demo` | the same editable twin, stocked with the demo store, plus demo data where `apps/api` serves none yet: checkout figures, payments and receipts, Revenue and Promotions reports, and anomalies (`twin.anomalies()`). All of it lives in `fixtures/demo/` and is marked **Demo data** where it shows; see *Demo data* below |

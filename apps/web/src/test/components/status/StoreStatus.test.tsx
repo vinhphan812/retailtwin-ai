@@ -205,3 +205,19 @@ test("selects a product in the 3D view from its line", async () => {
   expect(selectedProductId(useUiStore.getState())).toBe("P001");
   expect(row.getAttribute("aria-pressed")).toBe("true");
 });
+
+test("without a client, calls no API and looks a SKU up in the live store", async () => {
+  render(<StoreStatus />);
+  expect(await screen.findByRole("heading", { name: "store-001" })).toBeTruthy();
+  expect(screen.queryByText(/^API /)).toBeNull();
+  expect(screen.queryByText("Loading store…")).toBeNull();
+
+  fireEvent.change(screen.getByRole("textbox", { name: "SKU" }), { target: { value: "p001" } });
+  fireEvent.click(screen.getByRole("button", { name: "Look up inventory" }));
+  expect(screen.getByText("P001 on A01 / A01-S01: 8 on shelf, 42 in the backroom.")).toBeTruthy();
+
+  fireEvent.change(screen.getByRole("textbox", { name: "SKU" }), { target: { value: "P017" } });
+  fireEvent.click(screen.getByRole("button", { name: "Look up inventory" }));
+  expect(notify.error).toHaveBeenCalledWith("Inventory lookup failed.", "P017 is not in this store.");
+  expect(fetch).not.toHaveBeenCalled();
+});

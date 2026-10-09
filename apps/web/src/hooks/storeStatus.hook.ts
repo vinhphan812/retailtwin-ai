@@ -36,19 +36,22 @@ function loadHealth(client: RetailTwinClient): Promise<HealthResponse | null> {
 
 /**
  * API health (read once per client), the live store the scene already polls from
- * `GET /store`, and a SKU lookup form. Failures show as toasts.
+ * `GET /store`, and a SKU lookup form. Failures show as toasts. Without a client
+ * nothing calls the API: there is no health line, and a SKU is looked up in the live
+ * store the scene already has.
  */
-export function useStoreStatus(client: RetailTwinClient) {
+export function useStoreStatus(client?: RetailTwinClient) {
   const { t } = useTranslation();
   const store = useTwinStore((state) => state.live);
   const storeLoading = useTwinStore((state) => state.status === TWIN_STATUS.Loading);
-  const [health, setHealth] = useState<HealthResponse | null>(() => healthLoaded.get(client) ?? null);
-  const [loading, setLoading] = useState(() => !healthLoaded.has(client));
+  const [health, setHealth] = useState<HealthResponse | null>(() => (client && healthLoaded.get(client)) ?? null);
+  const [loading, setLoading] = useState(() => client !== undefined && !healthLoaded.has(client));
   const [sku, setSku] = useState("");
   const [inventory, setInventory] = useState<ProductInventory | null>(null);
   const [lookupPending, setLookupPending] = useState(false);
 
   useEffect(() => {
+    if (!client) return;
     let cancelled = false;
     void loadHealth(client).then((result) => {
       if (cancelled) return;
@@ -66,6 +69,12 @@ export function useStoreStatus(client: RetailTwinClient) {
     if (!query) {
       setInventory(null);
       notify.warning(t("storeStatus.enterSku"));
+      return;
+    }
+    if (!client) {
+      const found = store?.products.find((product) => product.sku.toLowerCase() === query.toLowerCase()) ?? null;
+      setInventory(found);
+      if (!found) notify.error(t("storeStatus.lookupFailed"), t("storeStatus.notInStore", { sku: query }));
       return;
     }
     setLookupPending(true);
