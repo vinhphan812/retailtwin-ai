@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { StoreStatus } from "../status/StoreStatus";
+import { StoreStatus } from "../components/status/StoreStatus";
 import { AgentEvent } from "../events/types";
 import { createAgentEventStore } from "../events/store";
 import { Timeline } from "../timeline/Timeline";
