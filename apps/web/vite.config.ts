@@ -43,8 +43,9 @@ export default defineConfig({
       // Repository minimum: >= 80% line / >= 75% branch.
       // CI fails when coverage drops below these values.
       thresholds: {
-        lines: 80,
+        lines: 85,
         branches: 75,
+        functions: 80,
       },
       // Explicitly enforce non-zero exit when thresholds are violated.
       // Required because Vitest 2.x does not always propagate coverage

@@ -30,8 +30,11 @@ Coverage thresholds are machine-enforced by CI. There are two tiers:
 Coverage thresholds are machine-enforced by CI with two tiers:
 
 1. **Repository minimum** — policy floor. Any PR must keep coverage at or above this or CI blocks merge. Required before Foundation Gate #10.
-   - Line/statement: **>= 85%** (`fail_under=85` in `pyproject.toml` / `thresholds.lines=80` in `vite.config.ts`)
-   - Branch: **>= 75%** (`thresholds.branches=75`)
+   - API line/statement: **>= 85%** (`fail_under=85` in `pyproject.toml`)
+   - API branch: **>= 75%** (checked via `check_branch_threshold.py`)
+   - Web line/statement: **>= 85%** (`thresholds.lines=85` in `vite.config.ts`)
+   - Web branch: **>= 75%** (`thresholds.branches=75` in `vite.config.ts`)
+   - Web functions: **>= 80%** (`thresholds.functions=80` in `vite.config.ts`)
 2. **Non-regression floor** — current measured baseline. A PR that drops coverage even if still above the repository minimum must include tracked justification.
    - API line/statement: **89%**
    - API branch: **85%**
@@ -61,7 +64,7 @@ npm run test:coverage
 
 Coverage thresholds are machine-enforced by CI. Both tiers apply to web (see API section for full terminology):
 
-1. **Repository minimum**: lines >= 85%, branches >= 75% (enforced by `thresholds.lines=80` / `thresholds.branches=75` in `vite.config.ts`).
+1. **Repository minimum**: lines >= 85%, branches >= 75%, functions >= 80% (enforced by `thresholds.lines=85` / `thresholds.branches=75` / `thresholds.functions=80` in `vite.config.ts`).
 2. **Non-regression floor**: lines **91%**, branches **91%** (current measured baseline; any drop requires tracked justification).
 
 The Vitest config (`apps/web/vite.config.ts`) excludes:
