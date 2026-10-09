@@ -24,13 +24,16 @@ Set `VITE_API_BASE_URL` to the API origin. The default is `http://127.0.0.1:8000
 
 - **3D view** (`StoreScene`): the store room, its fixtures, and the stock that twin state puts on them.
 - **Overlays on the 3D view**:
-  - `LensSwitcher` (top): Operations, Revenue, or Promotions. Picking a lens opens the side panel on it. Commented out in `TwinPage` (`TODO(BE)`) until `apps/api` serves the revenue and promotions routes, so the panel shows Operations only.
+  - `LensSwitcher` (top left): Operations, Revenue, or Promotions. Picking a lens opens the side panel on it. Revenue and Promotions read routes `apps/api` does not serve yet (`TODO(BE)`), so they show their empty report until it does.
   - `CameraHelp` (bottom left): lists the camera gestures.
   - `TwinStatusOverlay`: a spinner while the first state loads, then a small banner for problems (load failed, connection lost), with a retry button. The store always stays on screen: with empty shelves until a state arrives, then the last state. Errors also show as a toast.
-  - `ProductInspector`: the twin figures of the selected product.
+  - `EntityInspector`: the details card of the selected entity, bottom left:
+    - a product (`ProductInspector`): its twin figures;
+    - a gondola or display equipment (`FixtureInspector`): products, slots used, units on the shelf and in the backroom, low and out-of-stock counts, and each product with its stock state. All from twin state (`fixtureStock`). A SKU in the list selects that product;
+    - a checkout (`CheckoutInspector`): status, cashier, shift start, and today's revenue, transactions, average basket, items scanned, queue, and last sale, then **View payments**, which opens `PaymentsDialog`: today's sales at that lane, newest first, with totals, filtered by payment method or a search. Clicking a sale opens its receipt under it (SKU, quantity, unit price, line total); a SKU there selects the product in the 3D view and closes the dialog. `apps/api` serves no checkout data yet (`TODO(BE)`): `useCheckoutSummary` and `useCheckoutTransactions` return nothing, so the card says the figures are not available and has no payments button. The proposed shapes are `CheckoutSummary`, `CheckoutTransaction`, and `CheckoutLine` (`types/checkout.type.ts`).
   - `TwinIssuesNotice`: products the scene left out, with the reason for each.
 - **Agent Activity panel**: a side panel with a fixed width of 380px (`PANEL_WIDTH`). You can close it and open it again, and the open state is saved per browser. Each lens shows different content:
-  - **Operations**: `StoreStatus` and the agent activity timeline from `run.store`. `StoreStatus` reads `GET /health` once, shows the live store that the scene already polls (it does not call `GET /store` itself), and looks up `GET /inventory/{sku}`.
+  - **Operations**: `StoreStatus` and the agent activity timeline from `run.store`. `StoreStatus` shows product, low, and out-of-stock totals, then the first products one per line (out and low stock first). Clicking a line selects that product in the 3D view. **Show all** opens `ProductsDialog`: every product with shelf, slot, facings, stock, and version, filtered by stock state or a search; clicking a row selects the product and closes the dialog. `StoreStatus` reads `GET /health` once, shows the live store that the scene already polls (it does not call `GET /store` itself), and looks up `GET /inventory/{sku}`.
   - **Revenue**: metric tiles, a revenue chart, category share, and the best and worst SKUs (`useRevenue`).
   - **Promotions**: promotion cards by status (`usePromotions`).
   - Opening either lens reads its route from `apps/api`. See *Revenue and promotions* below.
@@ -47,18 +50,19 @@ Errors and network changes show as HeroUI toasts (`core/notify.ts`). When the br
   - The lawn and sky outside are an `Exterior` plane plus the background color and fog.
 - **Fixtures**: listed in `fixtures/storeFixture.ts`:
   - 9 double-sided gondolas, `A01`–`C03`.
-  - 3 checkouts, `CK01`–`CK03`, with lane barriers `BR01`–`BR07`.
+  - 3 checkouts, `CK01`–`CK03`, with lane barriers `BR01`–`BR07`. Each checkout has a lane light on a pole at its belt end: green while the lane is open, amber while paused, dark while closed. The status comes from `useCheckoutSummary`, like the checkout card, so every light is dark until `apps/api` serves checkouts (`TODO(BE)`).
   - 3 glass-door coolers (`GDC`) and 3 open chillers (`OC`) on the right wall.
-  - 3 produce racks (`PR`) and a tiered display of wooden crates (`CW`) along the glass wall.
-  - Plastic backstock crates (`CP`).
-- **Slots**: every display surface of a fixture is split into slots, named `<fixtureId>-S01`, `-S02`, and so on (`slotsFor`). Checkouts, barriers, and plastic crates have no slots.
-- **Stock**: `Stock` draws every product in the store as a few instanced meshes. It draws one item per unit of `shelf_quantity`, front row first, up to what the facings hold. Gondolas, coolers, and chillers show boxes. Produce racks and wooden crates show heaps of fruit. Twin state has no product looks, so each product's color and height come from its id (`stock/catalog.ts`).
-- **Hover and selection**: hovering a fixture shows a label with its category and id. Clicking an item selects its product and opens `ProductInspector`. Opening `/?product=P001` selects that product on load. Clicking empty space clears the selection.
+  - 3 produce racks (`PR`) and a tiered display of wooden crates (`CW`) along the glass wall. The crates are decor: they hold no stock.
+  - Plastic backstock crates (`CP`), also decor.
+- **Slots**: every display surface of a fixture is split into slots, named `<fixtureId>-S01`, `-S02`, and so on (`slotsFor`). Checkouts, barriers, and crates have no slots, so a product put on one is reported as an unknown shelf.
+- **Stock**: `Stock` draws every product in the store as a few instanced meshes. It draws one item per unit of `shelf_quantity`, front row first, up to what the facings hold. When the facings are wider than their slot, or an item is taller than the deck's clear height, the items are drawn smaller (`fitItem`), so stock never runs past its slot into the frame. The count still follows twin state. Gondolas, coolers, and chillers show boxes. Produce racks show heaps of fruit. Twin state has no product looks, so each product's color and height come from its id (`stock/catalog.ts`).
+- **Selection**: fixtures show no labels; the pointer turns into a hand over a selectable one. Clicking an item selects its product: its items glow (`Stock` draws them again in the `--color-selection` theme color, read by `themeColor`) and its card opens. Clicking a gondola or equipment with a card (rack, cooler, chiller, checkout) selects it, lights up its parts (`useSelectionGlow`), and opens its card; a click on one of its own items still selects the product. A press that moves more than `CLICK_SLOP_PX` is a camera drag and selects nothing. Opening `/?product=P001` selects that product on load. Clicking empty space clears the selection.
 - **Camera** (`CameraControls`):
   - Left drag orbits around the point under the cursor (`useOrbitAroundPointer`). That point is clamped to the zoom range, so a click never moves the camera.
   - Right drag (or two fingers) pans inside the store bounds.
   - The wheel zooms toward the cursor.
   - On every resize, `useFitCamera` fits the whole store into the canvas and limits zoom-out to 1.4× that distance.
+  - On every new selection, `useFocusSelection` flies the camera to it (`scene/camera/focus.ts`): a product's slot from the side its stock faces, a little above, at the minimum zoom; a piece of equipment centered and fitted, seen from its front (into the room); a gondola the same, from the side the camera is on. The camera always stays inside the walls, and rises (up to `FOCUS_MAX_ELEVATION`) until no other fixture blocks its line of sight, so a slot across a 1.3 m aisle is seen over the next gondola. With the side panel open, the target lands in the middle of the part of the canvas the panel leaves visible (a focal offset, `panelOffset`). Once per selection, so twin updates never move the camera; a `?product=` selection is focused when the twin arrives. The flight is slower than a wheel step (`FOCUS_SMOOTH_TIME`) and instant under reduced motion.
 - **Shadows**: the shadow map is redrawn only when stock changes or a wall hides or shows (`StaticShadows`), not on every frame of an orbit.
 
 ## Data flow
@@ -68,7 +72,7 @@ TwinSource ──connectTwin──▶ parseStoreState ──▶ twin.store.live 
                                   │                                  │
                                   └──── issues ─────────┬────────────┘
                                                         ▼
-                                          TwinIssuesNotice, ProductInspector
+                                          TwinIssuesNotice, EntityInspector
 ```
 
 1. `TwinPage` picks a `TwinSource` (`pickSource`) and passes it to `useTwinSource`. By default this is `apiSource`, which reads `GET /store` from `apps/api`.
@@ -90,7 +94,7 @@ A product's entity id is its `sku`.
 
 `useRevenue` and `usePromotions` read the route the first time a lens (or a period) opens, then cache the result, so switching lenses does not call the API again. The lens shows the empty report (`emptyRevenue`, `emptyPromotions`) until the read lands. A failed read shows one toast and is retried the next time the lens opens.
 
-`apps/api` does not serve either route yet (`TODO(BE)` on the types). The lens switch is the only way into either lens, so `TwinPage` keeps it commented out and neither route is read. Uncomment it once both routes exist.
+`apps/api` does not serve either route yet (`TODO(BE)` on the types). Picking either lens reads its route, which fails today: the lens shows its empty report and one toast.
 
 ### Twin sources
 
@@ -101,6 +105,7 @@ Every build reads `apiSource` by default: the Live Twin from `GET /store` on `VI
 | (none) | `apiSource`: `GET /store`, polled every 5 s, backing off to 60 s while it fails |
 | `fixture` | `fixtureSource`: empty shelves, no live updates |
 | `memory` | empty shelves in memory, editable from the browser console: `twin.add()` adds the API fixture's P001, then `twin.patch("P001", { facings: 5 })`, `twin.patch("P001", null)`, `twin.state()` |
+| `demo` | the same editable twin, stocked from `fixtures/demoFixture.ts`: P001 plus a product on every kind of fixture, some out of stock or low. |
 | `slow` | the snapshot takes 4 s |
 | `offline` | the snapshot fails after 1.2 s |
 | `flaky` | the live feed drops 3 s after loading |
@@ -119,11 +124,12 @@ src/
   pages/                    TwinPage, NotFoundPage
   components/
     layout/                 AgentActivityPanel, LensSwitcher, CameraHelp, lens.ts
-    twin/                   TwinStatusOverlay, TwinIssuesNotice, ProductInspector
+    twin/                   TwinStatusOverlay, TwinIssuesNotice, EntityInspector and its cards
     status/                 StoreStatus (API health, store, and SKU lookup)
     revenue/                RevenuePanel, RevenueChart, CategoryShare, SkuList
     promotions/             PromotionsPanel, PromotionCard
     commerce/               shared panel parts: MetricTile, AnimatedNumber, Segmented
+    common/                 ListDialog: a fixed-size dialog of a filtered table that alone scrolls
     icons.tsx               line icons
   core/
     api/
@@ -150,16 +156,17 @@ src/
     camera/cameraFrame.ts   fit-the-store camera distance for an aspect ratio
     utils/transform.ts      fixture matrices, footprints, tilt
     entities/               Floor, Walls, Glazing, Exterior, Shelf, Slot, SlotProducts, Product,
-                            HoverLabel, entity.ts (name + userData), woodTexture.ts
+                            HitBox, entity.ts (name + userData), woodTexture.ts
       equipment/            Checkout, Barrier, GlassDoorCooler, OpenChiller, ProduceRack, Crate,
                             Equipment (dispatch by kind), parts.tsx (shared box parts and materials)
       stock/                Stock (instanced items), catalog.ts (looks), surfaces.ts (display surfaces)
   fixtures/
     storeFixture.ts         the static layout: gondolas and equipment, no products
     commerceFixture.ts      empty revenue and promotions reports, shown until a read lands
+    demoFixture.ts          a stocked store, for ?twin=demo and tests
   constants/                <area>.constant.ts: camera, dimensions, scene, twin, app, i18n, commerce
   enums/                    <area>.enum.ts: as-const value sets and their types
-  types/                    <domain>.type.ts: twin, api, agent, revenue, promotion, scene
+  types/                    <domain>.type.ts: twin, api, agent, anomaly, revenue, promotion, scene
   i18n/                     i18next setup, English only; locales/en.ts (also the source of the key types)
   test/                     Vitest suites, mirroring the src/ folders
 ```
@@ -201,10 +208,15 @@ Vitest runs in the `node` environment. Scene tests use `@react-three/test-render
 | `core/twin/twinConnection.test.ts` | load states, out-of-order snapshot and updates, feed drop and recovery, unreadable payloads |
 | `scene/layout.test.ts` | placement from state; unknown shelf, wrong slot, and taken slot are reported |
 | `scene/StoreScene.test.tsx` | scene objects are named with their entity ids |
+| `core/twin/fixtureStock.test.ts` | a fixture's stock totals and states follow the twin |
+| `components/twin/EntityInspector.test.tsx` | product, shelf, and checkout cards; a SKU in a shelf's list selects it; Close clears the selection |
+| `scene/selection.test.tsx` | product, shelf, and checkout selection glow and clear again; a fixture click leaves its own items to the product; drags select nothing |
 | `scene/entities/stock/Stock.test.ts` | stock is deterministic, follows facings and quantity, and fills the front row first |
+| `scene/camera/focus.test.ts` | the camera faces a product's slot from its stock's side (far side, equipment too), sees wall equipment from inside the room and a gondola from the camera's side, and never ends up behind a wall |
 | `scene/camera/cameraFrame.test.ts` | every shelf corner stays in frame on desktop and on a 390px canvas |
 | `state/*.test.ts` | twin store and run store |
 | `components/**`, `app/App.test.tsx` | StoreStatus, AgentActivityPanel, LensSwitcher (revenue and promotions reads), routing |
+| `fixtures/demoFixture.test.ts` | the demo store passes the contract and places every product; out-of-stock products draw no items |
 | `fixtures/commerceFixture.test.ts`, `i18n/`, `core/utils/` | empty commerce reports, English messages and issue reasons, formatters and utils |
 
 ## Maturity
@@ -216,5 +228,5 @@ Vitest runs in the `node` environment. Scene tests use `@react-three/test-render
   3. Restart the API. Within 5 s the scene redraws P001. A page reload rebuilds the same state.
 - With the API stopped, the page shows a toast and a small "Could not load" banner over the store with empty shelves. When the API comes back, the next poll loads the store.
 - `StoreStatus` also calls the API (issue #8).
-- Revenue and promotions read `GET /revenue` and `GET /promotions`, which `apps/api` does not serve yet (`TODO(BE)`). The lens switch is commented out in `TwinPage` until they do.
+- Revenue and promotions read `GET /revenue` and `GET /promotions`, which `apps/api` does not serve yet (`TODO(BE)`). The lens switch shows them anyway; they stay empty until the routes exist.
 - Issue #58 stays open until a GitHub Actions CI gate runs `npm ci`, the build, and the tests.
