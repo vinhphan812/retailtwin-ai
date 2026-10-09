@@ -32,9 +32,8 @@ DEFAULT_FIXTURE = REPO_ROOT / "data" / "synthetic" / "sale-completed.json"
 REQUIRED_ATTRIBUTES = ("correlation_id", "event_id", "event_type", "store_id")
 _ATTRIBUTE_TEXT = re.compile(r"^[A-Za-z0-9_.:@+-]+$")
 _CLAIM_ID_LIMIT = 1500
-# Orders the derived-table write in this process. The claim document is the
-# owner across processes; this lock is not that guarantee.
-_LAND_LOCK = threading.Lock()
+LANDING_LEASE_S = 120.0
+_LANDING_WAIT_S = 5.0
 
 
 class BackboneError(Exception):
@@ -113,6 +112,12 @@ class EventSink(Protocol):
 
 class ClaimLedger(Protocol):
     def claim(self, event: StoreEvent, table: str) -> Claim: ...
+
+    def acquire_landing(self, event_id: str) -> object | None: ...
+
+    def mark_landed(self, event_id: str, fence: object) -> None: ...
+
+    def release_landing(self, event_id: str, fence: object) -> None: ...
 
 
 class Quarantine(Protocol):
@@ -265,12 +270,24 @@ class MemorySink:
             raise BackboneError(f"Unknown table {table}.")
 
 
+class _MemoryClaim:
+    def __init__(self, table: str, event: StoreEvent) -> None:
+        self.table = table
+        self.event = event
+        self.state = "claimed"
+        self.fence = 1
+        self.deadline = 0.0
+
+
 class MemoryLedger:
-    """In-process compare-and-create claim. One event_id has one owner."""
+    """In-process model of the claim document.
+
+    The lock covers one compare-and-swap. It is not a process-wide land lock.
+    """
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._claims: dict[str, tuple[str, StoreEvent]] = {}
+        self._claims: dict[str, _MemoryClaim] = {}
 
     def claim(self, event: StoreEvent, table: str) -> Claim:
         if table not in TABLES:
@@ -281,20 +298,54 @@ class MemoryLedger:
             existing = self._claims.get(event.event_id)
             if existing is None:
                 stored = event.model_copy(deep=True)
-                self._claims[event.event_id] = (table, stored)
+                self._claims[event.event_id] = _MemoryClaim(table, stored)
                 return Claim("inserted", table, stored.model_copy(deep=True))
-            existing_table, stored = existing
-            if existing_table == table and stored == event:
-                return Claim("duplicate", existing_table, stored.model_copy(deep=True))
-            return Claim("conflict", existing_table, stored.model_copy(deep=True))
+            if existing.table == table and existing.event == event:
+                return Claim("duplicate", existing.table, existing.event.model_copy(deep=True))
+            return Claim("conflict", existing.table, existing.event.model_copy(deep=True))
+
+    def acquire_landing(self, event_id: str) -> int | None:
+        with self._lock:
+            record = self._claims.get(event_id)
+            if record is None:
+                raise BackboneError(f"event_id {event_id} has no claim.")
+            now = time.monotonic()
+            if record.state == "landed":
+                return None
+            if record.state == "landing" and record.deadline > now:
+                return None
+            record.state = "landing"
+            record.fence += 1
+            record.deadline = now + LANDING_LEASE_S
+            return record.fence
+
+    def mark_landed(self, event_id: str, fence: object) -> None:
+        with self._lock:
+            record = self._require(event_id)
+            if record.state != "landing" or record.fence != fence:
+                raise BackboneError("Lost the landing lease.")
+            record.state = "landed"
+
+    def release_landing(self, event_id: str, fence: object) -> None:
+        with self._lock:
+            record = self._require(event_id)
+            if record.state != "landing" or record.fence != fence:
+                return
+            record.state = "claimed"
+            record.deadline = 0.0
 
     def held(self, event_id: str) -> tuple[str, StoreEvent] | None:
         with self._lock:
-            existing = self._claims.get(event_id)
-            if existing is None:
+            record = self._claims.get(event_id)
+            if record is None:
                 return None
-            table, stored = existing
-            return table, stored.model_copy(deep=True)
+            return record.table, record.event.model_copy(deep=True)
+
+    def _require(self, event_id: str) -> _MemoryClaim:
+        record = self._claims.get(event_id)
+        if record is None:
+            raise BackboneError(f"event_id {event_id} has no claim.")
+        return record
 
 
 class MemoryQuarantine:
@@ -349,31 +400,75 @@ def find_existing(sink: EventSink, event_id: str) -> tuple[str, StoreEvent] | No
     return found[0]
 
 
-def land(sink: EventSink, event: StoreEvent, ledger: ClaimLedger) -> Landing:
+def land(
+    sink: EventSink,
+    event: StoreEvent,
+    ledger: ClaimLedger,
+    wait_s: float = _LANDING_WAIT_S,
+) -> Landing:
     table = table_for(event.event_type)
     if table is None:
         return Landing("rejected", None, None, "unsupported_event_type")
     if not claim_id_ok(event.event_id):
         return Landing("rejected", event, None, "unsafe_event_id")
-    with _LAND_LOCK:
-        claim = ledger.claim(event, table)
-        if claim.outcome == "conflict":
-            return Landing("conflict", claim.event, claim.table)
+    claim = ledger.claim(event, table)
+    if claim.outcome == "conflict":
+        return Landing("conflict", claim.event, claim.table)
+    deadline = time.monotonic() + wait_s
+    while True:
+        fence = ledger.acquire_landing(event.event_id)
+        if fence is not None:
+            return _write_derived(sink, event, ledger, table, claim, fence)
         existing = find_existing(sink, event.event_id)
         if existing is not None:
-            existing_table, stored = existing
-            if existing_table == table and stored == event:
-                return Landing("duplicate", stored, table)
-            return Landing("conflict", stored, existing_table)
+            return _existing_landing(existing, event, table)
+        if time.monotonic() >= deadline:
+            raise BackboneError("Another lander holds the landing lease.")
+        time.sleep(min(0.02, max(0.0, deadline - time.monotonic())))
+
+
+def _existing_landing(
+    existing: tuple[str, StoreEvent],
+    event: StoreEvent,
+    table: str,
+) -> Landing:
+    existing_table, stored = existing
+    if existing_table == table and stored == event:
+        return Landing("duplicate", stored, table)
+    return Landing("conflict", stored, existing_table)
+
+
+def _write_derived(
+    sink: EventSink,
+    event: StoreEvent,
+    ledger: ClaimLedger,
+    table: str,
+    claim: Claim,
+    fence: object,
+) -> Landing:
+    existing = find_existing(sink, event.event_id)
+    if existing is not None:
+        existing_table, stored = existing
+        if existing_table == table and stored == event:
+            ledger.mark_landed(event.event_id, fence)
+            return Landing("duplicate", stored, table)
+        ledger.release_landing(event.event_id, fence)
+        return Landing("conflict", stored, existing_table)
+    try:
         sink.insert(table, event)
-        stored = sink.get(table, event.event_id)
+    except Exception:
+        ledger.release_landing(event.event_id, fence)
+        raise
+    stored = sink.get(table, event.event_id)
+    if stored is None or stored != event:
+        ledger.release_landing(event.event_id, fence)
         if stored is None:
             raise BackboneError(f"event_id {event.event_id} was not stored.")
-        if stored != event:
-            return Landing("conflict", stored, table)
-        if claim.outcome == "inserted":
-            return Landing("inserted", stored, table)
-        return Landing("duplicate", stored, table)
+        return Landing("conflict", stored, table)
+    ledger.mark_landed(event.event_id, fence)
+    if claim.outcome == "inserted":
+        return Landing("inserted", stored, table)
+    return Landing("duplicate", stored, table)
 
 
 def handle_message(

@@ -28,7 +28,9 @@ Dataset `retailtwin` gains three day-partitioned tables, clustered by `store_id`
 
 The day-0 publisher emits `sale.completed` only. The atomic owner of an `event_id` is the Firestore document `store_event_claims/{event_id}` in the existing `(default)` database in `us-central1`. The lander creates that document with a commit precondition that it does not exist. One create wins. The loser reads the document. The same normalized payload is a duplicate. A different payload or a different table is a conflict and does not replace the document. These documents are an idempotency ledger. They are not Live Twin state, and issue #6 still owns that store.
 
-BigQuery stays derived history. After a claim that is not a conflict, the lander writes a row with a query job, not a streaming insert. `ingested_at` is the write time and is not part of identity. A duplicate claim repairs a missing row and does not add another. A conflict does not write a row. A row that already matches the claim is left in place. `correlation_id` on the stored row is the published `correlation_id`.
+BigQuery stays derived history. The lander writes a row with a query job, not a streaming insert. `ingested_at` is the write time and is not part of identity. A conflict does not write a row. `correlation_id` on the stored row is the published `correlation_id`.
+
+Only one lander may insert that row. The claim document moves `claimed → landing → landed`. The move to `landing` is a compare-and-update on the document update time and holds a 120 second lease. The lander that wins the lease re-reads BigQuery and inserts only when the row is missing. A duplicate that does not win the lease does not insert. After the lease expires, one later lander may take it and insert only if the row is still missing. A row that already matches the claim is left in place, and the claim is marked `landed`. The query still includes `NOT EXISTS`, and that clause is not the uniqueness mechanism. A Python process lock is not the guarantee.
 
 The message attributes are exactly `event_id`, `correlation_id`, `event_type`, and `store_id`, and each value matches the body. A missing attribute, an extra attribute, or a mismatched value is rejected and is not claimed.
 
@@ -44,7 +46,7 @@ The lander acknowledges a message only after a terminal outcome. Inserted, dupli
 - The API still starts without Google Cloud credentials. ADR 0003 stays in force.
 - `retailtwin-api` remains the runtime publisher from the foundation decision. This record does not grant that account BigQuery write, subscription pull, or Firestore access, and it does not create a key. The day-0 smoke command uses the operator's existing project credentials.
 - `inventory_events` and `agent_actions` use the same envelope and stay empty until those event types are published. Product performance, simulation results, and the Observer remain later work.
-- The claim document is the uniqueness owner across processes. A BigQuery insert that bypasses the lander can still add a row, because those tables have no unique key. The lander does not overwrite that row. The smoke check counts rows for the fixture event id.
+- The claim document is the event-id owner across processes. The landing lease is the owner of the derived insert. A BigQuery insert that bypasses the lander can still add a row, because those tables have no unique key. The lander does not overwrite that row. The smoke check counts rows for the fixture event id.
 - A rejected message is stored as a quarantine document before acknowledgement. That record is evidence for this lander. It does not start the Observer.
 - Foundation gate #10 stays open. The claim ledger is not the Firestore Live Twin. Issue #6, Gemini, and Cloud Run are still required, and a store event does not yet start an investigation.
 - Pull request: https://github.com/vinhphan812/retailtwin-ai/pull/63

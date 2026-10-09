@@ -12,11 +12,13 @@ import threading
 import urllib.error
 import urllib.request
 from collections.abc import Mapping
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from typing import Protocol
 from urllib.parse import quote
 
 from retailtwin_api.backbone import (
+    LANDING_LEASE_S,
     TABLES,
     BackboneConfig,
     BackboneError,
@@ -364,20 +366,73 @@ def _precondition_failed(status: int, body: str) -> bool:
 
 
 def _string_field(fields: dict[str, object], name: str) -> str:
-    value = fields.get(name)
-    if not isinstance(value, dict):
-        raise BackboneError(f"Claim is missing {name}.")
-    text = value.get("stringValue")
-    if not isinstance(text, str):
+    text = _optional_string(fields, name)
+    if text is None:
         raise BackboneError(f"Claim is missing {name}.")
     return text
+
+
+def _optional_string(fields: dict[str, object], name: str) -> str | None:
+    value = fields.get(name)
+    if not isinstance(value, dict):
+        return None
+    text = value.get("stringValue")
+    if not isinstance(text, str):
+        return None
+    return text
+
+
+def _timestamp_field(fields: dict[str, object], name: str) -> datetime | None:
+    value = fields.get(name)
+    if not isinstance(value, dict):
+        return None
+    text = value.get("timestampValue")
+    if not isinstance(text, str) or not text:
+        return None
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise BackboneError(f"Claim has an unreadable {name}.") from exc
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def _lease_held(deadline: datetime | None) -> bool:
+    # A landing claim with no readable deadline stays held. Do not steal it.
+    if deadline is None:
+        return True
+    return deadline > datetime.now(timezone.utc)
+
+
+def _commit_update_time(body: str) -> str:
+    try:
+        payload = json.loads(body)
+    except json.JSONDecodeError as exc:
+        raise BackboneError("Landing lease commit was not JSON.") from exc
+    results = payload.get("writeResults") if isinstance(payload, dict) else None
+    if isinstance(results, list) and results and isinstance(results[0], dict):
+        stamp = results[0].get("updateTime")
+        if isinstance(stamp, str) and stamp:
+            return stamp
+    raise BackboneError("Landing lease commit did not return an update time.")
+
+
+@dataclass(frozen=True)
+class _ClaimSnapshot:
+    update_time: str
+    table: str
+    canonical: str
+    state: str
+    deadline: datetime | None
 
 
 class FirestoreRest:
     """Compare-and-create claim and reject quarantine over the Firestore REST API.
 
-    The create uses currentDocument.exists=false. One caller wins. A loser
-    reads the stored document and classifies it. No Google client library.
+    Identity uses currentDocument.exists=false. The derived-row write uses a
+    separate compare-and-update from claimed to landing. One lander holds that
+    lease. No Google client library.
     """
 
     def __init__(
@@ -406,6 +461,7 @@ class FirestoreRest:
                             "event_id": {"stringValue": event.event_id},
                             "table": {"stringValue": table},
                             "canonical": {"stringValue": canonical_body(event)},
+                            "state": {"stringValue": "claimed"},
                             "claimed_at": {
                                 "timestampValue": format_occurred_at(datetime.now(timezone.utc))
                             },
@@ -421,6 +477,43 @@ class FirestoreRest:
         if _precondition_failed(response.status, response.body):
             return self._classify_existing(event, table)
         raise _http_error("Claiming the event id", response.status, response.body)
+
+    def acquire_landing(self, event_id: str) -> str | None:
+        snapshot = self._read_snapshot(event_id)
+        if snapshot.state == "landed":
+            return None
+        if snapshot.state == "landing" and _lease_held(snapshot.deadline):
+            return None
+        if snapshot.state not in {"claimed", "landing"}:
+            raise BackboneError(f"Claim for {event_id} has an unknown state.")
+        deadline = datetime.now(timezone.utc) + timedelta(seconds=LANDING_LEASE_S)
+        payload = {
+            "writes": [
+                {
+                    "update": {
+                        "name": _claim_name(self.config.project, event_id),
+                        "fields": {
+                            "state": {"stringValue": "landing"},
+                            "landing_deadline": {"timestampValue": format_occurred_at(deadline)},
+                        },
+                    },
+                    "updateMask": {"fieldPaths": ["state", "landing_deadline"]},
+                    "currentDocument": {"updateTime": snapshot.update_time},
+                }
+            ]
+        }
+        response = self._call("POST", f"{_database_root(self.config.project)}/documents:commit", payload)
+        if response.status == 200:
+            return _commit_update_time(response.body)
+        if _precondition_failed(response.status, response.body):
+            return None
+        raise _http_error("Acquiring the landing lease", response.status, response.body)
+
+    def mark_landed(self, event_id: str, fence: object) -> None:
+        self._transition(event_id, fence, "landed", "Marking the claim landed")
+
+    def release_landing(self, event_id: str, fence: object) -> None:
+        self._transition(event_id, fence, "claimed", "Releasing the landing lease", optional=True)
 
     def record(self, message: PulledMessage, reason: str) -> None:
         body = message.body
@@ -447,16 +540,45 @@ class FirestoreRest:
             raise _http_error("Quarantine", response.status, response.body)
 
     def _classify_existing(self, event: StoreEvent, table: str) -> Claim:
-        stored_table, stored_canonical = self._read_claim(event.event_id)
+        snapshot = self._read_snapshot(event.event_id)
         try:
-            stored = parse_event(stored_canonical)
+            stored = parse_event(snapshot.canonical)
         except BackboneError as exc:
             raise BackboneError(f"Claim for {event.event_id} is unreadable.") from exc
-        if stored_table == table and stored == event:
-            return Claim("duplicate", stored_table, stored)
-        return Claim("conflict", stored_table, stored)
+        if snapshot.table == table and stored == event:
+            return Claim("duplicate", snapshot.table, stored)
+        return Claim("conflict", snapshot.table, stored)
 
-    def _read_claim(self, event_id: str) -> tuple[str, str]:
+    def _transition(
+        self,
+        event_id: str,
+        fence: object,
+        state: str,
+        action: str,
+        optional: bool = False,
+    ) -> None:
+        if not isinstance(fence, str) or not fence:
+            raise BackboneError("Lost the landing lease.")
+        payload = {
+            "writes": [
+                {
+                    "update": {
+                        "name": _claim_name(self.config.project, event_id),
+                        "fields": {"state": {"stringValue": state}},
+                    },
+                    "updateMask": {"fieldPaths": ["state"]},
+                    "currentDocument": {"updateTime": fence},
+                }
+            ]
+        }
+        response = self._call("POST", f"{_database_root(self.config.project)}/documents:commit", payload)
+        if response.status == 200:
+            return
+        if optional and _precondition_failed(response.status, response.body):
+            return
+        raise _http_error(action, response.status, response.body)
+
+    def _read_snapshot(self, event_id: str) -> _ClaimSnapshot:
         url = (
             f"{_database_root(self.config.project)}/documents/{_CLAIM_COLLECTION}/"
             f"{quote(event_id, safe='')}"
@@ -468,10 +590,24 @@ class FirestoreRest:
             payload = json.loads(response.body)
         except json.JSONDecodeError as exc:
             raise BackboneError("Event claim was not JSON.") from exc
-        fields = payload.get("fields") if isinstance(payload, dict) else None
+        if not isinstance(payload, dict):
+            raise BackboneError("Event claim was not JSON.")
+        fields = payload.get("fields")
         if not isinstance(fields, dict):
             raise BackboneError("Event claim has no fields.")
-        return _string_field(fields, "table"), _string_field(fields, "canonical")
+        update_time = payload.get("updateTime")
+        if not isinstance(update_time, str) or not update_time:
+            raise BackboneError("Event claim is missing an update time.")
+        state = _optional_string(fields, "state") or "claimed"
+        if state not in {"claimed", "landing", "landed"}:
+            raise BackboneError(f"Claim for {event_id} has an unknown state.")
+        return _ClaimSnapshot(
+            update_time=update_time,
+            table=_string_field(fields, "table"),
+            canonical=_string_field(fields, "canonical"),
+            state=state,
+            deadline=_timestamp_field(fields, "landing_deadline"),
+        )
 
     def _call(self, method: str, url: str, payload: dict[str, object] | None) -> HttpResponse:
         raw = None if payload is None else json.dumps(payload).encode("utf-8")

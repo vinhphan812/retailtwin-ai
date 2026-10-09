@@ -24,7 +24,7 @@ Implemented on `main`:
 - in-memory event intake: one `event_id` names one immutable normalized payload, an identical payload returns HTTP 200, and a different payload returns HTTP 409 `event_id_conflict`;
 - `POST /events` does not change inventory, does not write Live Twin state, and does not publish;
 - store-events backbone: pull subscription `store-events-analytics` on topic `store-events`, and BigQuery tables `retailtwin.sales_events`, `retailtwin.inventory_events`, and `retailtwin.agent_actions`;
-- deterministic `sale.completed` publisher. The lander claims each `event_id` in Firestore `store_event_claims` before it writes the derived BigQuery row. A replay of the same payload is a duplicate. A different payload is a conflict and does not replace the claim or the row. `correlation_id` is kept on the message and the row. A rejected message is quarantined before it is acknowledged;
+- deterministic `sale.completed` publisher. The lander claims each `event_id` in Firestore `store_event_claims`. Only the lander that wins that document's landing lease writes the derived BigQuery row. A replay of the same payload is a duplicate. A different payload is a conflict and does not replace the claim or the row. `correlation_id` is kept on the message and the row. A rejected message is quarantined before it is acknowledged;
 - ADR 0001, 0002, 0003, and 0005;
 - tracked `apps/web/package-lock.json`.
 

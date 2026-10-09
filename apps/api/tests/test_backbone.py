@@ -1,6 +1,7 @@
 import base64
 import json
 import threading
+import time
 
 import pytest
 
@@ -46,6 +47,18 @@ class FakeRunner:
         with self._lock:
             self.commands.append(args)
             return self.output
+
+
+class CountingSink(MemorySink):
+    def __init__(self) -> None:
+        super().__init__()
+        self.inserts = 0
+        self._insert_lock = threading.Lock()
+
+    def insert(self, table: str, event: StoreEvent) -> None:
+        with self._insert_lock:
+            self.inserts += 1
+        super().insert(table, event)
 
 
 def event() -> StoreEvent:
@@ -272,7 +285,7 @@ def test_a_new_claim_keeps_an_existing_matching_row() -> None:
 
 def test_concurrent_claims_have_one_owner_and_one_row() -> None:
     sale = event()
-    sink = MemorySink()
+    sink = CountingSink()
     ledger = MemoryLedger()
     barrier = threading.Barrier(8)
     outcomes: list[str] = []
@@ -290,8 +303,10 @@ def test_concurrent_claims_have_one_owner_and_one_row() -> None:
     for thread in threads:
         thread.join()
 
-    assert outcomes.count("inserted") == 1
-    assert outcomes.count("duplicate") == 7
+    assert len(outcomes) == 8
+    assert set(outcomes) <= {"inserted", "duplicate"}
+    assert outcomes.count("inserted") <= 1
+    assert sink.inserts == 1
     assert sink.count("sales_events", sale.event_id) == 1
     held = ledger.held(sale.event_id)
     assert held is not None
@@ -301,7 +316,7 @@ def test_concurrent_claims_have_one_owner_and_one_row() -> None:
 def test_concurrent_cross_table_claims_keep_one_owner() -> None:
     sale = event()
     inventory = sale.model_copy(update={"event_type": "inventory.adjusted"})
-    sink = MemorySink()
+    sink = CountingSink()
     ledger = MemoryLedger()
     barrier = threading.Barrier(8)
     outcomes: list[tuple[str, str | None]] = []
@@ -320,7 +335,8 @@ def test_concurrent_cross_table_claims_keep_one_owner() -> None:
     for thread in threads:
         thread.join()
 
-    assert sum(1 for outcome, _table in outcomes if outcome == "inserted") == 1
+    assert len(outcomes) == 8
+    assert sink.inserts == 1
     assert sink.count("sales_events", sale.event_id) + sink.count("inventory_events", sale.event_id) == 1
     held = ledger.held(sale.event_id)
     assert held is not None
@@ -501,8 +517,14 @@ class FakeFirestore:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self.docs: dict[str, dict[str, object]] = {}
+        self.times: dict[str, str] = {}
         self.rejects: list[dict[str, object]] = []
         self.calls: list[tuple[str, str]] = []
+        self._clock = 0
+
+    def _tick(self) -> str:
+        self._clock += 1
+        return f"t{self._clock}"
 
     def request(
         self,
@@ -518,21 +540,43 @@ class FakeFirestore:
             self.calls.append((method, url))
             if method == "POST" and url.endswith(":commit"):
                 write = body["writes"][0]
-                assert write["currentDocument"]["exists"] is False
+                precondition = write.get("currentDocument") or {}
                 name = write["update"]["name"]
                 assert "/databases/(default)/documents/store_event_claims/" in name
-                if name in self.docs:
-                    return HttpResponse(
-                        409,
-                        json.dumps({"error": {"code": 409, "status": "ALREADY_EXISTS", "message": "exists"}}),
-                    )
-                self.docs[name] = write["update"]["fields"]
-                return HttpResponse(200, json.dumps({"writeResults": [{}]}))
+                if precondition.get("exists") is False:
+                    if name in self.docs:
+                        return HttpResponse(
+                            409,
+                            json.dumps({"error": {"code": 409, "status": "ALREADY_EXISTS", "message": "exists"}}),
+                        )
+                    self.docs[name] = write["update"]["fields"]
+                    stamp = self._tick()
+                    self.times[name] = stamp
+                    return HttpResponse(200, json.dumps({"writeResults": [{"updateTime": stamp}]}))
+                stamp = precondition.get("updateTime")
+                if isinstance(stamp, str):
+                    if self.times.get(name) != stamp:
+                        return HttpResponse(
+                            400,
+                            json.dumps({"error": {"code": 400, "status": "FAILED_PRECONDITION", "message": "stale"}}),
+                        )
+                    fields = self.docs[name]
+                    incoming = write["update"]["fields"]
+                    mask = (write.get("updateMask") or {}).get("fieldPaths") or []
+                    for path in mask:
+                        fields[path] = incoming[path]
+                    new_stamp = self._tick()
+                    self.times[name] = new_stamp
+                    return HttpResponse(200, json.dumps({"writeResults": [{"updateTime": new_stamp}]}))
+                return HttpResponse(400, json.dumps({"error": {"status": "INVALID_ARGUMENT", "message": "precondition"}}))
             if method == "GET" and "/documents/store_event_claims/" in url:
                 event_id = url.rsplit("/", 1)[-1]
                 for name, fields in self.docs.items():
                     if name.endswith("/" + event_id):
-                        return HttpResponse(200, json.dumps({"name": name, "fields": fields}))
+                        return HttpResponse(
+                            200,
+                            json.dumps({"name": name, "fields": fields, "updateTime": self.times[name]}),
+                        )
                 return HttpResponse(404, json.dumps({"error": {"status": "NOT_FOUND", "message": "missing"}}))
             if method == "POST" and url.endswith("/documents/store_event_rejects"):
                 self.rejects.append(body["fields"])
@@ -662,7 +706,7 @@ def test_firestore_precondition_status_reads_the_existing_claim() -> None:
                     json.dumps({"error": {"status": "FAILED_PRECONDITION", "message": "exists"}}),
                 )
             self.gets += 1
-            return HttpResponse(200, json.dumps({"fields": fields}))
+            return HttpResponse(200, json.dumps({"fields": fields, "updateTime": "t1"}))
 
     transport = Precondition()
     client = FirestoreRest(config_from_env({}), FakeRunner("test-token\n"), transport)
@@ -691,3 +735,100 @@ def test_firestore_quarantine_keeps_the_reason_and_a_failure_raises() -> None:
     failing = FirestoreRest(config_from_env({}), FakeRunner("test-token\n"), Down())
     with pytest.raises(BackboneError, match="HTTP 503"):
         failing.record(message, "invalid_event")
+
+
+def test_a_duplicate_without_the_lease_does_not_insert() -> None:
+    sale = event()
+    ledger = MemoryLedger()
+    ledger.claim(sale, "sales_events")
+    fence = ledger.acquire_landing(sale.event_id)
+    sink = CountingSink()
+
+    with pytest.raises(BackboneError, match="landing lease"):
+        land(sink, sale, ledger, wait_s=0)
+
+    assert fence is not None
+    assert sink.inserts == 0
+
+
+def test_two_landers_issue_one_bigquery_insert_for_a_missing_row() -> None:
+    sale = event()
+    client, _store = _firestore()
+    assert client.claim(sale, "sales_events").outcome == "inserted"
+    runner = _GatedInsert(sale)
+    sink = BigQuerySink(config_from_env({}), runner)
+    outcomes: list[str] = []
+    errors: list[str] = []
+    lock = threading.Lock()
+
+    def worker() -> None:
+        try:
+            landing = land(sink, sale, client, wait_s=2)
+        except BackboneError as exc:
+            with lock:
+                errors.append(str(exc))
+            return
+        with lock:
+            outcomes.append(landing.outcome)
+
+    threads = [threading.Thread(target=worker) for _ in range(2)]
+    try:
+        for thread in threads:
+            thread.start()
+        assert runner.started.wait(timeout=2)
+        time.sleep(0.1)
+        assert runner.inserts == 1
+    finally:
+        runner.allow.set()
+        for thread in threads:
+            thread.join(timeout=2)
+
+    assert errors == []
+    assert runner.inserts == 1
+    assert sorted(outcomes) == ["duplicate", "duplicate"]
+    assert not any(thread.is_alive() for thread in threads)
+
+
+class _GatedInsert:
+    """Holds the BigQuery insert open so a second lander can race it."""
+
+    def __init__(self, sale: StoreEvent) -> None:
+        self.sale = sale
+        self.inserts = 0
+        self.started = threading.Event()
+        self.allow = threading.Event()
+        self._lock = threading.Lock()
+        self._wrote = False
+
+    def run(self, args: list[str]) -> str:
+        sql = args[-1]
+        if "INSERT INTO" in sql:
+            with self._lock:
+                self.inserts += 1
+            self.started.set()
+            if not self.allow.wait(timeout=2):
+                raise BackboneError("insert was not released")
+            with self._lock:
+                self._wrote = True
+            return ""
+        if "sales_events" in sql and "SELECT" in sql:
+            with self._lock:
+                wrote = self._wrote
+            if not wrote:
+                return "[]"
+            sale = self.sale
+            return json.dumps(
+                [
+                    {
+                        "event_id": sale.event_id,
+                        "correlation_id": sale.correlation_id,
+                        "event_type": sale.event_type,
+                        "store_id": sale.store_id,
+                        "sku": sale.sku,
+                        "quantity": str(sale.quantity),
+                        "occurred_at": "2026-10-07T08:01:00.000000Z",
+                        "source": sale.source,
+                    }
+                ]
+            )
+        return "[]"
