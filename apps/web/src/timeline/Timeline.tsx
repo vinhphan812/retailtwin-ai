@@ -1,4 +1,3 @@
-import React from "react";
 import { AgentEvent } from "../events/types";
 import "./Timeline.css";
 

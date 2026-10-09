@@ -6,7 +6,7 @@ import { AgentEvent } from '../events/types';
 describe('Timeline', () => {
   it('renders with empty events array', () => {
     const { container } = render(<Timeline events={[]} />);
-    expect(container.firstChild?.className).toBe('agent-timeline');
+    expect((container.firstChild as Element | null)?.className).toBe('agent-timeline');
     expect(container.firstChild?.childNodes).toHaveLength(0);
   });
 
