@@ -33,9 +33,12 @@ export const SELECTION_GLOW = 0.55;
 export const SELECTION_STATUS_BOOST = 2.2;
 /** Emissive strength of a selected product's items, which are small and need more. */
 export const SELECTION_ITEM_GLOW = 0.8;
-/** Emissive strength and opacity of the halo around a product with an open anomaly. */
-export const ANOMALY_HALO_GLOW = 0.9;
-export const ANOMALY_HALO_OPACITY = 0.45;
+/** Emissive strength and opacity of the halo around a product with an open anomaly, at rest. */
+export const ANOMALY_HALO_GLOW = 1.4;
+export const ANOMALY_HALO_OPACITY = 0.68;
+/** The halo pulses this many times a second, by this share of its rest value. */
+export const ANOMALY_PULSE_HZ = 1.1;
+export const ANOMALY_PULSE_DEPTH = 0.45;
 /** A press that moves the pointer more than this many pixels is a camera drag, not a click. */
 export const CLICK_SLOP_PX = 4;
 

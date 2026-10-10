@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { ANOMALY_SEVERITIES, type AnomalySeverity } from "@/enums/anomaly.enum";
 import type { AnomaliesResponse, Anomaly } from "@/types/anomaly.type";
 
 type AnomalyStore = {
@@ -31,4 +32,15 @@ export const useAnomalyStore = create<AnomalyStore>()((set) => ({
 /** Open anomalies on one product, oldest first. */
 export function anomaliesOf(anomalies: Anomaly[], sku: string) {
   return anomalies.filter((anomaly) => anomaly.sku === sku);
+}
+
+/** Each product with open anomalies and the worst severity among them. */
+export function worstSeverities(anomalies: Anomaly[]): Map<string, AnomalySeverity> {
+  const rank = (severity: AnomalySeverity) => ANOMALY_SEVERITIES.indexOf(severity);
+  const worst = new Map<string, AnomalySeverity>();
+  for (const { sku, severity } of anomalies) {
+    const current = worst.get(sku);
+    if (!current || rank(severity) > rank(current)) worst.set(sku, severity);
+  }
+  return worst;
 }

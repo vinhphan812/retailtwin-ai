@@ -1,5 +1,5 @@
 import type { Intersection } from "three";
-import type { ThreeEvent } from "@react-three/fiber";
+import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import { useLayoutEffect, useMemo, useRef } from "react";
 import {
   BoxGeometry,
@@ -14,8 +14,10 @@ import {
   type InstancedMesh,
 } from "three";
 import { selectedProductId, useUiStore } from "@/state/ui.store";
-import { useAnomalyStore } from "@/state/anomaly.store";
-import { ANOMALY_HALO_GLOW, ANOMALY_HALO_OPACITY, SELECTION_ITEM_GLOW } from "@/constants/scene.constant";
+import { useAnomalyStore, worstSeverities } from "@/state/anomaly.store";
+import { ANOMALY_SEVERITIES, type AnomalySeverity } from "@/enums/anomaly.enum";
+import { prefersReducedMotion } from "@/core/utils/motion";
+import { ANOMALY_HALO_GLOW, ANOMALY_HALO_OPACITY, ANOMALY_PULSE_DEPTH, ANOMALY_PULSE_HZ, SELECTION_ITEM_GLOW } from "@/constants/scene.constant";
 import { anomalyColor, selectionColor } from "@/core/utils/theme";
 import { ENTITY_TYPE, STOCK_KIND } from "@/enums/scene.enum";
 import { isDrag } from "@/scene/utils/pointer";
@@ -65,20 +67,34 @@ function selectedItemMaterial() {
 const SELECTED_SCALE = new Matrix4().makeScale(1.04, 1.04, 1.04);
 
 /**
- * A see-through shell around each item of a product with an open anomaly. It sits
- * outside the selection glow, so a selected product with an anomaly shows both.
+ * A see-through shell around each item of a product with an open anomaly, in its worst
+ * severity's color. It sits outside the selection glow, so a selected product with an
+ * anomaly shows both. One material per severity, made on first use; `pulseHalos` breathes them.
  */
-let anomalyMaterial: MeshStandardMaterial | null = null;
-function anomalyHaloMaterial() {
-  anomalyMaterial ??= new MeshStandardMaterial({
-    color: anomalyColor(),
-    emissive: anomalyColor(),
-    emissiveIntensity: ANOMALY_HALO_GLOW,
-    transparent: true,
-    opacity: ANOMALY_HALO_OPACITY,
-    depthWrite: false,
-  });
-  return anomalyMaterial;
+const haloMaterials = new Map<AnomalySeverity, MeshStandardMaterial>();
+function anomalyHaloMaterial(severity: AnomalySeverity) {
+  let material = haloMaterials.get(severity);
+  if (!material) {
+    material = new MeshStandardMaterial({
+      color: anomalyColor(severity),
+      emissive: anomalyColor(severity),
+      emissiveIntensity: ANOMALY_HALO_GLOW,
+      transparent: true,
+      opacity: ANOMALY_HALO_OPACITY,
+      depthWrite: false,
+    });
+    haloMaterials.set(severity, material);
+  }
+  return material;
+}
+
+/** Brightens and dims every halo together; `wave` runs from -1 to 1. */
+function pulseHalos(wave: number) {
+  const factor = 1 + ANOMALY_PULSE_DEPTH * wave;
+  for (const material of haloMaterials.values()) {
+    material.opacity = Math.min(0.9, ANOMALY_HALO_OPACITY * factor);
+    material.emissiveIntensity = ANOMALY_HALO_GLOW * factor;
+  }
 }
 const ANOMALY_SCALE = new Matrix4().makeScale(1.12, 1.12, 1.12);
 
@@ -352,9 +368,11 @@ const haloMatrix = (item: Placed) =>
 /** Items of products with an open anomaly, inside their halo. Takes no pointer events and casts no shadow. */
 function AnomalyMesh({
   shape,
+  severity,
   items,
 }: {
   shape: StockShape;
+  severity: AnomalySeverity;
   items: Placed[];
 }) {
   const ref = useInstances(items, haloMatrix);
@@ -362,8 +380,8 @@ function AnomalyMesh({
   return (
     <instancedMesh
       ref={ref}
-      args={[GEOMETRY[shape], anomalyHaloMaterial(), items.length]}
-      name={`stock-anomaly-${shape}`}
+      args={[GEOMETRY[shape], anomalyHaloMaterial(severity), items.length]}
+      name={`stock-anomaly-${severity}-${shape}`}
       renderOrder={1}
     />
   );
@@ -390,9 +408,16 @@ export function Stock({ store }: { store: StoreFixture }) {
     [batches, productId],
   );
   const anomalous = useMemo(() => {
-    const skus = new Set(anomalies.map((anomaly) => anomaly.sku));
-    return pick(batches, (id) => skus.has(id));
+    const worst = worstSeverities(anomalies);
+    return ANOMALY_SEVERITIES.map((severity) => ({
+      severity,
+      batches: pick(batches, (id) => worst.get(id) === severity),
+    }));
   }, [batches, anomalies]);
+  const pulse = useMemo(() => !prefersReducedMotion(), []);
+  useFrame(({ clock }) => {
+    if (pulse && anomalies.length) pulseHalos(Math.sin(clock.elapsedTime * Math.PI * 2 * ANOMALY_PULSE_HZ));
+  });
 
   return (
     <group name="stock">
@@ -406,13 +431,16 @@ export function Stock({ store }: { store: StoreFixture }) {
           items={selected[shape]}
         />
       ))}
-      {SHAPES.map((shape) => (
-        <AnomalyMesh
-          key={`anomaly-${shape}`}
-          shape={shape}
-          items={anomalous[shape]}
-        />
-      ))}
+      {anomalous.flatMap(({ severity, batches: items }) =>
+        SHAPES.map((shape) => (
+          <AnomalyMesh
+            key={`anomaly-${severity}-${shape}`}
+            shape={shape}
+            severity={severity}
+            items={items[shape]}
+          />
+        )),
+      )}
     </group>
   );
 }

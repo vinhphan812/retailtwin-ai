@@ -57,9 +57,13 @@ describe("anomaly halo", () => {
   async function renderScene() {
     const renderer = await ReactThreeTestRenderer.create(<StoreContents store={store} />);
     unmount = () => renderer.unmount();
-    const halos = () =>
-      SHAPES.map((shape) => renderer.scene.instance.getObjectByName(`stock-anomaly-${shape}`) as InstancedMesh | undefined)
-        .filter((mesh) => mesh !== undefined);
+    const halos = () => {
+      const found: InstancedMesh[] = [];
+      renderer.scene.instance.traverse((object) => {
+        if (object.name.startsWith("stock-anomaly-")) found.push(object as InstancedMesh);
+      });
+      return found;
+    };
     const glows = () =>
       SHAPES.map((shape) => renderer.scene.instance.getObjectByName(`stock-selected-${shape}`) as InstancedMesh | undefined)
         .filter((mesh) => mesh !== undefined);
@@ -78,7 +82,8 @@ describe("anomaly halo", () => {
     await run(() => useAnomalyStore.getState().raise(stockoutOnP001()));
     expect(count(halos())).toBe(p001.shelf_quantity);
     const material = halos()[0].material as MeshStandardMaterial;
-    expect(material.emissive.equals(new Color(anomalyColor()))).toBe(true);
+    expect(material.emissive.equals(new Color(anomalyColor(ANOMALY_SEVERITY.High)))).toBe(true);
+    expect(halos()[0].name).toBe(`stock-anomaly-${ANOMALY_SEVERITY.High}-${halos()[0].name.split("-").at(-1)}`);
     expect(halos()[0].castShadow).toBe(false);
     expect(count(glows())).toBe(p001.shelf_quantity);
 
@@ -94,6 +99,16 @@ describe("anomaly halo", () => {
       useAnomalyStore.getState().raise({ ...stockoutOnP001(), anomaly_id: "anm-gone", sku: "P999" });
     });
     expect(count(halos())).toBe(p004.shelf_quantity);
+  });
+
+  it("colors a halo by the product's worst open severity", async () => {
+    const { halos, run } = await renderScene();
+    const low = anomalyFor(p001, ANOMALY_KIND.SalesDrop, ANOMALY_SEVERITY.Low, state.context_version);
+    await run(() => useAnomalyStore.getState().raise(low));
+    expect(halos().every((mesh) => mesh.name.startsWith(`stock-anomaly-${ANOMALY_SEVERITY.Low}-`))).toBe(true);
+    await run(() => useAnomalyStore.getState().raise(stockoutOnP001()));
+    expect(halos().every((mesh) => mesh.name.startsWith(`stock-anomaly-${ANOMALY_SEVERITY.High}-`))).toBe(true);
+    expect(count(halos())).toBe(p001.shelf_quantity);
   });
 });
 

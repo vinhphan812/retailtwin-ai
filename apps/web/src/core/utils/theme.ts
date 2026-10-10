@@ -1,3 +1,5 @@
+import { ANOMALY_SEVERITY, type AnomalySeverity } from "@/enums/anomaly.enum";
+
 /**
  * A color of the App.css `@theme` palette, for code that cannot use CSS, such as
  * three.js materials. Read once per token, so call it after the stylesheet has
@@ -25,5 +27,12 @@ export const warningColor = () => themeColor("--color-warning", "#fab219");
 /** Glow color of the selected entity, from the `--color-selection` theme token. */
 export const selectionColor = () => themeColor("--color-selection", "#ffffff");
 
-/** Halo color of a product with an open anomaly, from the `--color-anomaly` theme token. */
-export const anomalyColor = () => themeColor("--color-anomaly", "#ec835a");
+const ANOMALY_FALLBACK: Record<AnomalySeverity, string> = {
+  [ANOMALY_SEVERITY.High]: "#ff4d3d",
+  [ANOMALY_SEVERITY.Medium]: "#ff9f1a",
+  [ANOMALY_SEVERITY.Low]: "#f2d34b",
+};
+
+/** Halo color of an anomaly of `severity`, from the `--color-anomaly-<severity>` theme tokens. */
+export const anomalyColor = (severity: AnomalySeverity) =>
+  themeColor(`--color-anomaly-${severity}`, ANOMALY_FALLBACK[severity]);

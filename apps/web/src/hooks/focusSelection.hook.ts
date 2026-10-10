@@ -7,11 +7,9 @@ import { ENTITY_TYPE } from "@/enums/scene.enum";
 import { fixtureFocus, productFocus, type FocusView } from "@/scene/camera/focus";
 import { sceneOf, storeLayout } from "@/scene/layout";
 import { usePanelStore } from "@/state/panel.store";
+import { prefersReducedMotion } from "@/core/utils/motion";
 import { useTwinStore } from "@/state/twin.store";
 import { useUiStore } from "@/state/ui.store";
-
-const prefersReducedMotion = () =>
-  typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
 
 /** The open Agent Activity panel covers this many pixels on the right of the canvas, gap included. */
 const PANEL_COVER_PX = PANEL_WIDTH + 24;
