@@ -200,6 +200,9 @@ src/
 ## Rules
 
 - **Read only.** A `TwinSource` never writes. The Zustand stores are copies of backend state, not the source of truth.
+- **Made-up data and dev tools are labeled.** What the 3D view and the panels show must come from the twin and `apps/api`, never from state the UI made up (issue #22). Two labels mark the exceptions, and anything new of either kind takes the matching one:
+  - **Demo data** (`DemoBadge`) marks *figures* from `fixtures/demo/`, shown only under `?twin=demo` where `apps/api` serves none yet: checkout figures, payments, Revenue and Promotions reports.
+  - **DEV** marks a *control* that exists only in development builds (`import.meta.env.DEV`) and is not an operator feature, such as the anomaly simulator (`canSimulateAnomalies`). Production builds leave it out.
 - **Layout is static** until the twin serves geometry (docs/adr/0007). Positions live in `fixtures/storeFixture.ts`. Sizes in meters live in `constants/dimensions.constant.ts`, not inline in meshes.
 - **Naming**:
   - Shared data types go in `types/<domain>.type.ts`.
@@ -259,5 +262,5 @@ Vitest runs in the `node` environment. Scene tests use `@react-three/test-render
 - With the API stopped, the page shows a toast and a small "Could not load" banner over the store with empty shelves. When the API comes back, the next poll loads the store.
 - `StoreStatus` also calls the API (issue #8).
 - Revenue and promotions read `GET /revenue` and `GET /promotions`, which `apps/api` does not serve yet (`TODO(BE)`). The lens switch shows them anyway; they stay empty until the routes exist.
-- Issue #22: selection, highlight, details cards, camera focus, Agent Activity focus, and the anomaly halo are done on the FE. It stays open until `apps/api` serves anomalies (and their events) and checkout data. To check by hand: `npm run dev`, open `/?twin=demo`, select P001, open **Details**, press **DEV · Simulate**, then **Raise** (or run `twin.raise("P001")` in the console); P001 gets a halo and its card lists the stockout. `twin.resolve("P001")` clears it.
+- Issue #22: selection, highlight, details cards, the product details dialog, camera focus, and the anomaly halo are done on the FE. A product can be selected from the 3D view, a shelf's card, the Agent Activity timeline, a SKU lookup, Revenue's SKU lists, and a promotion's products. It stays open until `apps/api` serves anomalies (and their events) and checkout data. To check by hand: `npm run dev`, open `/?twin=demo`, select P001, open **Details**, press **DEV · Simulate**, then **Raise** (or run `twin.raise("P001")` in the console); P001 gets a halo and its card lists the stockout. `twin.resolve("P001")` clears it.
 - Issue #58 stays open until a GitHub Actions CI gate runs `npm ci`, the build, and the tests.
