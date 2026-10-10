@@ -43,20 +43,20 @@ export CLOUDSDK_BILLING_QUOTA_PROJECT="$PROJECT"
 
 echo "Project:  ${PROJECT}"
 echo "Region:   ${REGION}"
-echo "Account:  $(gcloud config get-value account 2>/dev/null)"
+echo "Account:  $(gcloud.cmd config get-value account 2>/dev/null)"
 echo
 echo "This will not create service-account keys, Firestore documents, Pub/Sub"
 echo "subscriptions, Secret Manager versions, Cloud Run services, or Vertex calls."
 echo
 
-billing_enabled="$(gcloud billing projects describe "$PROJECT" --format='value(billingEnabled)')" \
+billing_enabled="$(gcloud.cmd billing projects describe "$PROJECT" --format='value(billingEnabled)')" \
   || die "Cannot read billing for ${PROJECT}."
 if [[ "$billing_enabled" != "True" ]]; then
   die "Billing is disabled on ${PROJECT}. Free tier still requires a linked billing account. retailtwin-ai is the project without billing."
 fi
 
 echo "Enabling required APIs"
-gcloud services enable \
+gcloud.cmd services enable \
   --project="$PROJECT" \
   aiplatform.googleapis.com \
   run.googleapis.com \
@@ -80,11 +80,11 @@ ensure_service_account() {
   local display="$2"
   local description="$3"
   local email="${sa_id}@${PROJECT}.iam.gserviceaccount.com"
-  if gcloud iam service-accounts describe "$email" --project="$PROJECT" >/dev/null 2>&1; then
+  if gcloud.cmd iam service-accounts describe "$email" --project="$PROJECT" >/dev/null 2>&1; then
     echo "Service account exists: ${email}"
   else
     echo "Creating service account: ${email}"
-    gcloud iam service-accounts create "$sa_id" \
+    gcloud.cmd iam service-accounts create "$sa_id" \
       --project="$PROJECT" \
       --display-name="$display" \
       --description="$description"
@@ -94,7 +94,7 @@ ensure_service_account() {
 bind_project_role() {
   local member="$1"
   local role="$2"
-  gcloud projects add-iam-policy-binding "$PROJECT" \
+  gcloud.cmd projects add-iam-policy-binding "$PROJECT" \
     --member="$member" \
     --role="$role" \
     --quiet >/dev/null
@@ -113,11 +113,11 @@ bind_project_role "serviceAccount:${API_SA}" "roles/logging.logWriter"
 bind_project_role "serviceAccount:${AGENT_SA}" "roles/aiplatform.user"
 
 echo "Firestore database ${DATABASE}"
-if gcloud firestore databases describe --project="$PROJECT" --database="$DATABASE" >/dev/null 2>&1; then
+if gcloud.cmd firestore databases describe --project="$PROJECT" --database="$DATABASE" >/dev/null 2>&1; then
   echo "Firestore database already exists"
 else
   # Standard edition gets the one free database. PITR and backups are billed.
-  gcloud firestore databases create \
+  gcloud.cmd firestore databases create \
     --project="$PROJECT" \
     --database="$DATABASE" \
     --location="$REGION" \
@@ -127,17 +127,17 @@ else
 fi
 
 echo "Pub/Sub topic ${TOPIC}"
-if gcloud pubsub topics describe "$TOPIC" --project="$PROJECT" >/dev/null 2>&1; then
+if gcloud.cmd pubsub topics describe "$TOPIC" --project="$PROJECT" >/dev/null 2>&1; then
   echo "Topic already exists"
 else
-  gcloud pubsub topics create "$TOPIC" \
+  gcloud.cmd pubsub topics create "$TOPIC" \
     --project="$PROJECT" \
     --message-storage-policy-allowed-regions="$REGION" \
     --labels=app=retailtwin,cost=free-tier
 fi
 topic_updated=0
 for _try in 1 2 3 4 5; do
-  if gcloud pubsub topics update "$TOPIC" \
+  if gcloud.cmd pubsub topics update "$TOPIC" \
       --project="$PROJECT" \
       --message-storage-policy-allowed-regions="$REGION" \
       >/dev/null; then
@@ -150,14 +150,14 @@ done
 if [[ "$topic_updated" -ne 1 ]]; then
   die "Could not limit ${TOPIC} message storage to ${REGION}."
 fi
-gcloud pubsub topics add-iam-policy-binding "$TOPIC" \
+gcloud.cmd pubsub topics add-iam-policy-binding "$TOPIC" \
   --project="$PROJECT" \
   --member="serviceAccount:${API_SA}" \
   --role="roles/pubsub.publisher" \
   --quiet >/dev/null
 
 echo "BigQuery dataset ${DATASET}"
-if bq --project_id="$PROJECT" show --dataset "${PROJECT}:${DATASET}" >/dev/null 2>&1; then
+if bq.cmd --project_id="$PROJECT" show --dataset "${PROJECT}:${DATASET}" >/dev/null 2>&1; then
   echo "Dataset already exists"
 else
   bq --project_id="$PROJECT" --location="$REGION" mk \
