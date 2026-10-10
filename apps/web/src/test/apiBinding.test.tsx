@@ -12,7 +12,7 @@ import type { StoreResponse } from "@/types/twin.type";
 // Toasts need the HeroUI provider and a DOM; this test only follows the data.
 vi.mock("@/core/notify", () => ({
   errorMessage: String,
-  notify: { error: vi.fn(), warning: vi.fn(), success: vi.fn() },
+  notify: { error: vi.fn(), warning: vi.fn(), info: vi.fn(), success: vi.fn() },
 }));
 
 type Seed = typeof seed;
