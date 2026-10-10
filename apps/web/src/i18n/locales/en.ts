@@ -80,6 +80,7 @@ export const en = {
       high: "high",
     },
     simulate: {
+      toggle: "Simulate",
       title: "Simulate an anomaly",
       dev: "DEV",
       hint: "Raises an anomaly event as the detector would. Production reads anomalies from the anomaly API only.",

@@ -1,5 +1,5 @@
 import { Button, Chip, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from "@heroui/react";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertIcon, PromotionIcon } from "@/components/icons";
 import { discountOf } from "@/components/promotions/PromotionCard";
@@ -26,14 +26,19 @@ const STATE_COLOR: Record<StockState, "success" | "warning" | "danger"> = {
   [STOCK_STATE.Out]: "danger",
 };
 
-/** One section of the dialog: a small heading, an optional count, then its content. */
-function Section({ title, count, children }: { title: string; count?: number; children: ReactNode }) {
+type SectionProps = { title: string; count?: number; action?: ReactNode; children: ReactNode };
+
+/** One section of the dialog: a small heading, an optional count and action, then its content. */
+function Section({ title, count, action, children }: SectionProps) {
   return (
     <section className="details-section" aria-label={title}>
-      <h3 className="activity-section-title">
-        {title}
-        {count === undefined ? null : <span className="activity-count">{count}</span>}
-      </h3>
+      <div className="details-section-head">
+        <h3 className="activity-section-title">
+          {title}
+          {count === undefined ? null : <span className="activity-count">{count}</span>}
+        </h3>
+        {action}
+      </div>
       {children}
     </section>
   );
@@ -109,6 +114,9 @@ export function ProductDetailsDialog() {
   const live = useTwinStore((state) => state.live);
   const allAnomalies = useAnomalyStore((state) => state.anomalies);
   const { promotions } = usePromotions();
+  const [simulating, setSimulating] = useState(false);
+  // Each product opens with the simulator folded away.
+  useEffect(() => setSimulating(false), [sku]);
 
   const product = sku ? live?.products.find((candidate) => candidate.sku === sku) : undefined;
   const anomalies = sku ? anomaliesOf(allAnomalies, sku) : [];
@@ -159,9 +167,26 @@ export function ProductDetailsDialog() {
                   <Section title={t("productDetails.twin")}>
                     <StockTiles product={product} state={state} />
                   </Section>
-                  <Section title={t("productDetails.anomalies")} count={anomalies.length}>
+                  <Section
+                    title={t("productDetails.anomalies")}
+                    count={anomalies.length}
+                    action={
+                      canSimulateAnomalies() ? (
+                        <button
+                          type="button"
+                          className="anomaly-simulator-toggle"
+                          aria-expanded={simulating}
+                          title={t("anomaly.simulate.hint")}
+                          onClick={() => setSimulating((open) => !open)}
+                        >
+                          <span className="anomaly-simulator-badge">{t("anomaly.simulate.dev")}</span>
+                          {t("anomaly.simulate.toggle")}
+                        </button>
+                      ) : null
+                    }
+                  >
                     <AnomalyRows anomalies={anomalies} contextVersion={live.context_version} />
-                    {canSimulateAnomalies() ? (
+                    {simulating && canSimulateAnomalies() ? (
                       <AnomalySimulator
                         product={product}
                         contextVersion={live.context_version}

@@ -134,9 +134,14 @@ describe("anomaly simulator", () => {
     useUiStore.getState().showDetails("P004");
     renderPage();
     const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).queryByRole("form", { name: "Simulate an anomaly" })).toBeNull();
+    const toggle = within(dialog).getByRole("button", { name: "DEV Simulate" });
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
     const form = within(dialog).getByRole("form", { name: "Simulate an anomaly" });
     expect(within(form).getByRole("button", { name: "Clear" }).hasAttribute("disabled")).toBe(true);
     expect(dialog.textContent).toContain("No open anomalies.");
+    expect(within(form).getByRole("radio", { name: "high" }).getAttribute("data-severity")).toBe("high");
 
     fireEvent.click(within(within(form).getByRole("radiogroup", { name: "Anomaly kind" })).getByRole("radio", { name: "Sales drop" }));
     fireEvent.click(within(within(form).getByRole("radiogroup", { name: "Severity" })).getByRole("radio", { name: "low" }));

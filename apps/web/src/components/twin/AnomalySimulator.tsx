@@ -15,6 +15,8 @@ import type { ProductInventory } from "@/types/twin.type";
 type ChoiceProps<T extends string> = {
   label: string;
   options: readonly { value: T; label: string }[];
+  /** Set as `data-<name>` on each chip, so CSS can color a chip by its value. */
+  tone?: string;
   value: T;
   onChange: (value: T) => void;
 };
@@ -23,7 +25,7 @@ type ChoiceProps<T extends string> = {
  * A row of radio chips. Static, unlike `Segmented`, whose sliding thumb measures its
  * layout and lands off target while the dialog around it scales in.
  */
-function Choice<T extends string>({ label, options, value, onChange }: ChoiceProps<T>) {
+function Choice<T extends string>({ label, options, value, onChange, tone }: ChoiceProps<T>) {
   return (
     <div className="anomaly-simulator-field">
       <span>{label}</span>
@@ -35,6 +37,7 @@ function Choice<T extends string>({ label, options, value, onChange }: ChoicePro
             role="radio"
             aria-checked={option.value === value}
             className="anomaly-simulator-choice"
+            {...(tone ? { [`data-${tone}`]: option.value } : {})}
             onClick={() => onChange(option.value)}
           >
             {option.label}
@@ -66,41 +69,45 @@ export function AnomalySimulator({ product, contextVersion, hasAnomalies }: Anom
     <form
       className="anomaly-simulator"
       aria-label={t("anomaly.simulate.title")}
+      title={t("anomaly.simulate.hint")}
       onSubmit={(event) => {
         event.preventDefault();
         simulateAnomaly(product, kind, severity, contextVersion);
       }}
     >
-      <header className="anomaly-simulator-head">
-        <span className="anomaly-simulator-badge">{t("anomaly.simulate.dev")}</span>
-        <h4>{t("anomaly.simulate.title")}</h4>
-      </header>
-      <p className="anomaly-simulator-hint">{t("anomaly.simulate.hint")}</p>
-      <Choice
-        label={t("anomaly.simulate.kind")}
-        value={kind}
-        onChange={setKind}
-        options={ANOMALY_KINDS.map((value) => ({ value, label: t(`anomaly.kind.${value}`) }))}
-      />
-      <Choice
-        label={t("anomaly.simulate.severity")}
-        value={severity}
-        onChange={setSeverity}
-        options={ANOMALY_SEVERITIES.map((value) => ({ value, label: t(`anomaly.severity.${value}`) }))}
-      />
+      <div className="anomaly-simulator-fields">
+        <Choice
+          label={t("anomaly.simulate.kind")}
+          value={kind}
+          onChange={setKind}
+          options={ANOMALY_KINDS.map((value) => ({ value, label: t(`anomaly.kind.${value}`) }))}
+        />
+        <Choice
+          label={t("anomaly.simulate.severity")}
+          value={severity}
+          onChange={setSeverity}
+          tone="severity"
+          options={ANOMALY_SEVERITIES.map((value) => ({ value, label: t(`anomaly.severity.${value}`) }))}
+        />
+      </div>
       <div className="anomaly-simulator-actions">
-        <Button type="submit" size="sm" radius="sm" color="warning" variant="flat" className="cursor-pointer px-4 font-semibold">
-          {t("anomaly.simulate.raise")}
-        </Button>
         <Button
           size="sm"
           radius="sm"
           variant="light"
           isDisabled={!hasAnomalies}
-          className="cursor-pointer"
+          className="cursor-pointer text-ink-muted"
           onPress={() => resolveAnomalies(product.sku)}
         >
           {t("anomaly.simulate.resolve")}
+        </Button>
+        <Button
+          type="submit"
+          size="sm"
+          radius="sm"
+          className="cursor-pointer bg-warning px-4 font-semibold text-canvas data-[hover=true]:opacity-90"
+        >
+          {t("anomaly.simulate.raise")}
         </Button>
       </div>
     </form>
