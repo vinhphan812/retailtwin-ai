@@ -82,10 +82,13 @@ describe("product details dialog", () => {
 
     const dialog = await screen.findByRole("dialog");
     expect(dialog.textContent).toContain("Product P004");
-    expect(within(dialog).getByRole("region", { name: "In the Digital Twin" }).textContent).toContain(
-      `${p004.shelf_id} / ${p004.slot_id}`,
-    );
-    expect(within(dialog).getByRole("list", { name: "Open anomalies" }).textContent).toContain("Low stock · medium");
+    expect(dialog.textContent).toContain(`Shelf ${p004.shelf_id} · slot ${p004.slot_id}`);
+    const stock = within(dialog).getByRole("region", { name: "In the Digital Twin" });
+    expect(stock.textContent).toContain(`${p004.shelf_quantity}of ${p004.facings} facings`);
+    expect(stock.textContent).toContain(String(p004.backroom_quantity));
+    const anomalies = within(dialog).getByRole("list", { name: "Open anomalies" });
+    expect(anomalies.textContent).toContain("Low stock");
+    expect(anomalies.textContent).toContain("medium");
     const promotions = within(dialog).getByRole("region", { name: "Promotions" });
     expect(promotions.textContent).toContain("Pasta night bundle");
     expect(promotions.textContent).not.toContain("Breakfast week");
@@ -121,22 +124,31 @@ describe("product details dialog", () => {
 });
 
 describe("anomaly simulator", () => {
-  it("raises an anomaly of the chosen kind and severity on the product, then clears it", () => {
+  it("lives in the details dialog, not on the product card", () => {
     useUiStore.getState().select("P004");
     renderPage();
-    const card = screen.getByLabelText("Product P004");
-    fireEvent.click(within(card).getByRole("button", { name: "Simulate anomaly" }));
+    expect(within(screen.getByLabelText("Product P004")).queryByRole("form", { name: "Simulate an anomaly" })).toBeNull();
+  });
 
-    const form = within(card).getByRole("form", { name: "Simulate an anomaly" });
+  it("raises an anomaly of the chosen kind and severity on the product, then clears it", async () => {
+    useUiStore.getState().showDetails("P004");
+    renderPage();
+    const dialog = await screen.findByRole("dialog");
+    const form = within(dialog).getByRole("form", { name: "Simulate an anomaly" });
     expect(within(form).getByRole("button", { name: "Clear" }).hasAttribute("disabled")).toBe(true);
-    fireEvent.change(within(form).getByRole("combobox", { name: "Anomaly kind" }), { target: { value: ANOMALY_KIND.SalesDrop } });
-    fireEvent.change(within(form).getByRole("combobox", { name: "Severity" }), { target: { value: ANOMALY_SEVERITY.Low } });
+    expect(dialog.textContent).toContain("No open anomalies.");
+
+    fireEvent.click(within(within(form).getByRole("radiogroup", { name: "Anomaly kind" })).getByRole("radio", { name: "Sales drop" }));
+    fireEvent.click(within(within(form).getByRole("radiogroup", { name: "Severity" })).getByRole("radio", { name: "low" }));
     fireEvent.click(within(form).getByRole("button", { name: "Raise" }));
 
     expect(useAnomalyStore.getState().anomalies).toMatchObject([
       { sku: "P004", kind: ANOMALY_KIND.SalesDrop, severity: ANOMALY_SEVERITY.Low, context_version: state.context_version },
     ]);
-    expect(within(card).getByRole("list", { name: "Open anomalies" }).textContent).toContain("Sales drop · low");
+    const rows = within(dialog).getByRole("list", { name: "Open anomalies" });
+    expect(rows.textContent).toContain("Sales drop");
+    expect(rows.textContent).toContain("low");
+    expect(dialog.textContent).toContain("1 anomaly");
 
     fireEvent.click(within(form).getByRole("button", { name: "Clear" }));
     expect(useAnomalyStore.getState().anomalies).toHaveLength(0);

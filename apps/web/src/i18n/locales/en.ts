@@ -80,9 +80,9 @@ export const en = {
       high: "high",
     },
     simulate: {
-      toggle: "Simulate anomaly",
       title: "Simulate an anomaly",
-      hint: "Development only. Raises an anomaly event as the detector would; production reads them from the anomaly API.",
+      dev: "DEV",
+      hint: "Raises an anomaly event as the detector would. Production reads anomalies from the anomaly API only.",
       kind: "Anomaly kind",
       severity: "Severity",
       raise: "Raise",
@@ -91,7 +91,10 @@ export const en = {
   },
   productDetails: {
     title: "Product {{sku}}",
-    subtitle: "{{shelf}} / {{slot}} · twin {{contextVersion}}",
+    subtitle: "Shelf {{shelf}} · slot {{slot}} · twin {{contextVersion}}",
+    ofFacings: "of {{facings}} facings",
+    anomalyCount_one: "{{count}} anomaly",
+    anomalyCount_other: "{{count}} anomalies",
     twin: "In the Digital Twin",
     stockState: "Stock state",
     anomalies: "Open anomalies",

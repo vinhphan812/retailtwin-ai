@@ -12,6 +12,39 @@ import {
 } from "@/enums/anomaly.enum";
 import type { ProductInventory } from "@/types/twin.type";
 
+type ChoiceProps<T extends string> = {
+  label: string;
+  options: readonly { value: T; label: string }[];
+  value: T;
+  onChange: (value: T) => void;
+};
+
+/**
+ * A row of radio chips. Static, unlike `Segmented`, whose sliding thumb measures its
+ * layout and lands off target while the dialog around it scales in.
+ */
+function Choice<T extends string>({ label, options, value, onChange }: ChoiceProps<T>) {
+  return (
+    <div className="anomaly-simulator-field">
+      <span>{label}</span>
+      <div role="radiogroup" aria-label={label} className="anomaly-simulator-choices">
+        {options.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={option.value === value}
+            className="anomaly-simulator-choice"
+            onClick={() => onChange(option.value)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 type AnomalySimulatorProps = {
   product: ProductInventory;
   contextVersion: string;
@@ -31,42 +64,32 @@ export function AnomalySimulator({ product, contextVersion, hasAnomalies }: Anom
 
   return (
     <form
-      className="flex flex-col gap-2 rounded-md border border-dashed border-line p-2"
+      className="anomaly-simulator"
       aria-label={t("anomaly.simulate.title")}
       onSubmit={(event) => {
         event.preventDefault();
         simulateAnomaly(product, kind, severity, contextVersion);
       }}
     >
-      <p className="text-xs text-default-500">{t("anomaly.simulate.hint")}</p>
-      <div className="flex gap-2">
-        <select
-          className="text-field min-w-0 flex-1"
-          aria-label={t("anomaly.simulate.kind")}
-          value={kind}
-          onChange={(event) => setKind(event.target.value as AnomalyKind)}
-        >
-          {ANOMALY_KINDS.map((value) => (
-            <option key={value} value={value}>
-              {t(`anomaly.kind.${value}`)}
-            </option>
-          ))}
-        </select>
-        <select
-          className="text-field min-w-0 flex-1"
-          aria-label={t("anomaly.simulate.severity")}
-          value={severity}
-          onChange={(event) => setSeverity(event.target.value as AnomalySeverity)}
-        >
-          {ANOMALY_SEVERITIES.map((value) => (
-            <option key={value} value={value}>
-              {t(`anomaly.severity.${value}`)}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="flex gap-2">
-        <Button type="submit" size="sm" radius="sm" color="warning" variant="flat" className="flex-1 cursor-pointer font-semibold">
+      <header className="anomaly-simulator-head">
+        <span className="anomaly-simulator-badge">{t("anomaly.simulate.dev")}</span>
+        <h4>{t("anomaly.simulate.title")}</h4>
+      </header>
+      <p className="anomaly-simulator-hint">{t("anomaly.simulate.hint")}</p>
+      <Choice
+        label={t("anomaly.simulate.kind")}
+        value={kind}
+        onChange={setKind}
+        options={ANOMALY_KINDS.map((value) => ({ value, label: t(`anomaly.kind.${value}`) }))}
+      />
+      <Choice
+        label={t("anomaly.simulate.severity")}
+        value={severity}
+        onChange={setSeverity}
+        options={ANOMALY_SEVERITIES.map((value) => ({ value, label: t(`anomaly.severity.${value}`) }))}
+      />
+      <div className="anomaly-simulator-actions">
+        <Button type="submit" size="sm" radius="sm" color="warning" variant="flat" className="cursor-pointer px-4 font-semibold">
           {t("anomaly.simulate.raise")}
         </Button>
         <Button
@@ -74,7 +97,7 @@ export function AnomalySimulator({ product, contextVersion, hasAnomalies }: Anom
           radius="sm"
           variant="light"
           isDisabled={!hasAnomalies}
-          className="flex-1 cursor-pointer"
+          className="cursor-pointer"
           onPress={() => resolveAnomalies(product.sku)}
         >
           {t("anomaly.simulate.resolve")}
