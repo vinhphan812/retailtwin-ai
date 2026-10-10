@@ -52,13 +52,20 @@ A billing administrator created this budget. An operator account can use the pro
 ## Apply and check
 
 ```bash
+# Unix / macOS
 CONFIRM_GCP_BOOTSTRAP=yes infrastructure/gcp/bootstrap.sh
-infrastructure/gcp/verify.sh
+bash infrastructure/gcp/verify.sh
+
+# Windows (use the Python scripts directly)
+python infrastructure/gcp/bootstrap.py
+python infrastructure/gcp/verify.py
 ```
 
-`bootstrap.sh` is idempotent. It accepts only `retailtwin-ai-511002` and refuses every other project id before it calls `gcloud`. It also refuses a project with billing disabled and a region other than `us-central1`. It binds roles only on `retailtwin-api` and `retailtwin-agent`. It does not create keys, documents, subscriptions, secrets, Cloud Run services, or Vertex calls.
+`bootstrap.sh` and `bootstrap.py` are idempotent. They accept only `retailtwin-ai-511002` and refuse every other project id before calling `gcloud`. They also refuse a project with billing disabled and a region other than `us-central1`. They bind roles only on `retailtwin-api` and `retailtwin-agent`. They do not create keys, documents, subscriptions, secrets, Cloud Run services, or Vertex calls.
 
-`verify.sh` exits 0 when the foundation and the budget both match. It exits 2 when only the budget is missing. It exits 1 for any other mismatch.
+`verify.sh` / `verify.py` exit 0 when the foundation and the budget both match. They exit 2 when only the budget is missing (needs a billing admin). They exit 1 for any other mismatch.
+
+On Windows, `verify.py` is preferred: `verify.sh` calls `gcloud` as a shell script which requires a Unix `python3` in PATH; `verify.py` calls `gcloud.cmd` directly.
 
 ## Later issues
 
