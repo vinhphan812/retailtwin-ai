@@ -37,3 +37,9 @@ export type Simulation = {
   /** The proposed store: Live at `base_context_version` with `actions` applied. Never Live truth. */
   state: StoreResponse;
 };
+
+/** One row of `GET /simulations?status=open`. TODO(BE): FE proposal (#26). */
+export type SimulationSummary = Pick<Simulation, "simulation_id" | "store_id" | "base_context_version" | "status">;
+
+/** `GET /simulations?status=open`. TODO(BE): FE proposal (#26). */
+export type SimulationsResponse = { simulations: SimulationSummary[] };

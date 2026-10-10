@@ -1,4 +1,5 @@
 import { createApiSource } from "@/core/api/sources/apiSource";
+import { createSimulationSource, type SimulationSource } from "@/core/api/sources/simulationSource";
 import { fixtureSource, fixtureStoreState } from "@/core/api/sources/fixtureSource";
 import { createMemoryTwin, patchProduct } from "@/core/api/sources/memorySource";
 import type { TwinSource } from "@/core/api/sources/TwinSource";
@@ -86,21 +87,33 @@ function memoryTwinSource(initial: StoreResponse = fixtureStoreState()): TwinSou
   return twin.source;
 }
 
+/** The `?twin=` dev twin picked in the URL, or "" for apps/api. Always "" in a production build. */
+function devTwinMode(): string {
+  if (!import.meta.env.DEV) return "";
+  const mode = new URLSearchParams(window.location.search).get("twin") ?? "";
+  return mode === "memory" || mode === "demo" || mode in DEV_SOURCES ? mode : "";
+}
+
+/**
+ * The open simulation from apps/api, read alongside the apps/api Live Twin. A `?twin=`
+ * dev twin has none: there `twin.simulate()` and the demo fixture fill it instead.
+ */
+export function pickSimulationSource(): SimulationSource | null {
+  return devTwinMode() ? null : createSimulationSource();
+}
+
 /**
  * The Live Twin from apps/api. While developing, `?twin=fixture|memory|demo|offline|slow|flaky`
  * swaps in a local twin instead. `demo` is the stocked demo store (fixtures/demo) with an
  * open demo simulation, and turns on the other demo data too (`isDemoMode`). A production build always reads apps/api.
  */
 export function pickSource(): TwinSource {
-  if (import.meta.env.DEV) {
-    const mode = new URLSearchParams(window.location.search).get("twin") ?? "";
-    if (mode === "memory") return memoryTwinSource();
-    if (mode === "demo") {
-      useAnomalyStore.getState().setAll(demoAnomalies());
-      useTwinStore.getState().setSimulation(demoSimulation());
-      return memoryTwinSource(demoStoreState());
-    }
-    if (mode in DEV_SOURCES) return DEV_SOURCES[mode];
+  const mode = devTwinMode();
+  if (mode === "memory") return memoryTwinSource();
+  if (mode === "demo") {
+    useAnomalyStore.getState().setAll(demoAnomalies());
+    useTwinStore.getState().setSimulation(demoSimulation());
+    return memoryTwinSource(demoStoreState());
   }
-  return createApiSource();
+  return mode ? DEV_SOURCES[mode] : createApiSource();
 }

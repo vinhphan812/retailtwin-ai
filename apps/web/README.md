@@ -98,6 +98,7 @@ A product's entity id is its `sku`.
 - `activeState(twin, viewMode)` (`useActiveState`) is the state on screen: the proposal in the Simulation view, Live otherwise, and Live whenever no simulation is open. The scene (`TwinStoreContents`), the camera focus, the product and fixture cards, the details dialog, and `TwinIssuesNotice` read it. Store status, Revenue, and Promotions keep reading Live.
 - Anomalies describe Live, so the Simulation view shows no halos and no anomaly lists (`useShownAnomalies`).
 - A commit never touches `live` from the UI. Live changes only when the live feed brings a newer `context_version`. The simulation is then closed, and the view goes back to Live.
+- With apps/api, `simulationSource` (`core/api/sources/simulationSource.ts`, through `useSimulationSource`) fills `simulation`: it reads `GET /simulations?status=open`, then `GET /simulations/{simulation_id}` for the first pending or evaluated run, checks it with `parseSimulation`, and polls like `apiSource` (every 5 s, backing off to 60 s while reads fail). A read of the same run that is not newer is dropped, a failed read keeps the last run without a toast, and once no run is open `simulation` goes back to null. `apps/api` serves neither route yet (`TODO(BE)`), so until it does no simulation opens and the Simulation switch stays off. Under a `?twin=` dev twin there is no simulation source; the console and the demo fixture fill it instead.
 
 ### Revenue and promotions
 
@@ -249,6 +250,7 @@ Vitest runs in the `node` environment. Scene tests use `@react-three/test-render
 | `state/*.test.ts` | twin store and run store (the anomaly store is in `scene/anomaly.test.tsx`); issue #26: a simulation never changes Live, and the state on screen follows the view mode |
 | `simulationBinding.test.tsx` | issue #26: the scene draws Live, then the proposal in the Simulation view (without halos), then Live again; the demo simulation places every product |
 | `components/layout/ViewModeSwitch.test.tsx` | issue #26: Simulation cannot be picked with no simulation open; the banner names the run and its base, warns once Live moves on, and the view goes back to Live when the simulation closes |
+| `core/api/sources/simulationSource.test.ts` | issue #26: `parseSimulation` checks the run like `GET /store`; the source reads the open run, drops stale reads, keeps the last run on a failure and backs off, and goes to null once the run closes |
 | `core/twin/memorySimulation.test.ts` | issue #26: opening and discarding leave Live alone; a commit reaches Live only through the live feed, and is refused once Live has moved on |
 | `components/twin/ProductDetails.test.tsx` | the details dialog opens from the product card and a shelf's list, shows the product's twin figures, its anomalies, and only the promotions it is in; **Show in the store** selects it, and a promotion opens the Promotions lens on it; the lens shows every status again, flashes that card, and clears the request |
 | `components/commerce/productLinks.test.tsx` | Revenue SKU rows and promotion products select their product; a promotion SKU the twin lacks cannot be selected |

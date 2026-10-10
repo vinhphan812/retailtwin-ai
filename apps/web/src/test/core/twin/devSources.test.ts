@@ -4,7 +4,7 @@ import { cleanup, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApiSource } from "@/core/api/sources/apiSource";
 import { isDemoMode } from "@/core/twin/demoMode";
-import { pickSource } from "@/core/twin/devSources";
+import { pickSimulationSource, pickSource } from "@/core/twin/devSources";
 import { DemoBadge } from "@/components/twin/DemoBadge";
 import { demoStoreState } from "@/fixtures/demo/store";
 import { useCheckoutSummary, useCheckoutTransactions } from "@/hooks/checkout.hook";
@@ -73,5 +73,24 @@ describe("pickSource", () => {
     expect(useCheckoutSummary("CK01")).toBeNull();
     expect(useCheckoutTransactions("CK01", true)).toEqual([]);
     expect(render(createElement(DemoBadge)).container.innerHTML).toBe("");
+  });
+});
+
+describe("pickSimulationSource", () => {
+  it("reads simulations from apps/api alongside the apps/api Live Twin", () => {
+    at("/");
+    expect(pickSimulationSource()).not.toBeNull();
+    at("/?twin=unknown");
+    expect(pickSimulationSource()).not.toBeNull();
+    vi.stubEnv("DEV", false);
+    at("/?twin=demo");
+    expect(pickSimulationSource()).not.toBeNull();
+  });
+
+  it("leaves simulations to the console and the demo fixture under a ?twin= dev twin", () => {
+    for (const mode of ["demo", "memory", "fixture", "offline", "slow", "flaky"]) {
+      at(`/?twin=${mode}`);
+      expect(pickSimulationSource()).toBeNull();
+    }
   });
 });

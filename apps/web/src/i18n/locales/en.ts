@@ -171,6 +171,7 @@ export const en = {
     notObject: "not an object",
     missingField: "missing {{field}}",
     productsNotArray: "products is not an array",
+    invalidField: "invalid {{field}}",
   },
   errors: {
     unknown: "Unknown error",

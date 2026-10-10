@@ -10,16 +10,19 @@ import { ProductDetailsDialog } from "@/components/twin/ProductDetailsDialog";
 import { SimulationBanner } from "@/components/twin/SimulationBanner";
 import { TwinIssuesNotice } from "@/components/twin/TwinIssuesNotice";
 import { TwinStatusOverlay } from "@/components/twin/TwinStatusOverlay";
-import { pickSource } from "@/core/twin/devSources";
+import { pickSimulationSource, pickSource } from "@/core/twin/devSources";
 import { useNetworkStatus } from "@/hooks/networkStatus.hook";
 import { useProductParam } from "@/hooks/productParam.hook";
+import { useSimulationSource } from "@/hooks/simulationSource.hook";
 import { useTwinSource } from "@/hooks/twinSource.hook";
 import { StoreScene } from "@/scene/StoreScene";
 
 const source = pickSource();
+const simulationSource = pickSimulationSource();
 
 export function TwinPage() {
   useTwinSource(source);
+  useSimulationSource(simulationSource);
   useNetworkStatus();
   useProductParam();
 
