@@ -32,6 +32,8 @@
 @theme static {
   /* Glow of the selected product, shelf, or equipment. */
   --color-selection: #ffffff;
+  /* Halo of a product with an open anomaly. */
+  --color-anomaly: #ec835a;
 }
 
 html,

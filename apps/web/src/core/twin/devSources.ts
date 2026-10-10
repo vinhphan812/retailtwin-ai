@@ -5,7 +5,9 @@ import { createMemoryTwin, patchProduct } from "@/core/api/sources/memorySource"
 import type { TwinSource } from "@/core/api/sources/TwinSource";
 import type { ProductInventory, StoreResponse } from "@/types/twin.type";
 import { FIXTURE_P001 } from "@/constants/twin.constant";
-import { demoAnomalies } from "@/fixtures/demo/anomalies";
+import { ANOMALY_KIND, ANOMALY_SEVERITY, type AnomalyKind, type AnomalySeverity } from "@/enums/anomaly.enum";
+import { anomalyFor, demoAnomalies } from "@/fixtures/demo/anomalies";
+import { useAnomalyStore } from "@/state/anomaly.store";
 import { demoStoreState } from "@/fixtures/demo/store";
 
 /** A twin that cannot be reached: loads for a while, then fails. */
@@ -45,6 +47,8 @@ const DEV_SOURCES: Record<string, TwinSource> = {
  * It starts from `initial`, empty shelves by default: `twin.add()` puts the API fixture's
  * P001 on A01-S01, `twin.patch("P001", { facings: 5 })` changes it, `twin.patch("P001", null)`
  * removes it, and `twin.anomalies()` lists the demo anomalies of the current state.
+ * `twin.raise("P001")` raises an anomaly event on a product (a stockout unless told
+ * otherwise), and `twin.resolve("P001")` closes its anomalies again.
  */
 function memoryTwinSource(initial: StoreResponse = fixtureStoreState()): TwinSource {
   const twin = createMemoryTwin(initial);
@@ -56,6 +60,22 @@ function memoryTwinSource(initial: StoreResponse = fixtureStoreState()): TwinSou
         twin.update((state) => patchProduct(state, sku, patch)).context_version,
       state: twin.current,
       anomalies: () => demoAnomalies(twin.current()),
+      raise: (
+        sku: string,
+        kind: AnomalyKind = ANOMALY_KIND.Stockout,
+        severity: AnomalySeverity = ANOMALY_SEVERITY.High,
+      ) => {
+        const state = twin.current();
+        const product = state.products.find((candidate) => candidate.sku === sku);
+        if (!product) throw new Error(`${sku} is not in the twin`);
+        const anomaly = anomalyFor(product, kind, severity, state.context_version, new Date().toISOString());
+        useAnomalyStore.getState().raise(anomaly);
+        return anomaly.anomaly_id;
+      },
+      resolve: (sku: string) => {
+        const { anomalies, resolve } = useAnomalyStore.getState();
+        anomalies.filter((anomaly) => anomaly.sku === sku).forEach((anomaly) => resolve(anomaly.anomaly_id));
+      },
     },
   });
   return twin.source;
@@ -71,7 +91,10 @@ export function pickSource(): TwinSource {
   if (import.meta.env.DEV) {
     const mode = new URLSearchParams(window.location.search).get("twin") ?? "";
     if (mode === "memory") return memoryTwinSource();
-    if (mode === "demo") return memoryTwinSource(demoStoreState());
+    if (mode === "demo") {
+      useAnomalyStore.getState().setAll(demoAnomalies());
+      return memoryTwinSource(demoStoreState());
+    }
     if (mode in DEV_SOURCES) return DEV_SOURCES[mode];
   }
   // TODO(BE): read the Live Twin from apps/api again once it is ready to serve the store:

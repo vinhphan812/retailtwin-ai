@@ -14,8 +14,9 @@ import {
   type InstancedMesh,
 } from "three";
 import { selectedProductId, useUiStore } from "@/state/ui.store";
-import { SELECTION_ITEM_GLOW } from "@/constants/scene.constant";
-import { selectionColor } from "@/core/utils/theme";
+import { useAnomalyStore } from "@/state/anomaly.store";
+import { ANOMALY_HALO_GLOW, ANOMALY_HALO_OPACITY, SELECTION_ITEM_GLOW } from "@/constants/scene.constant";
+import { anomalyColor, selectionColor } from "@/core/utils/theme";
 import { ENTITY_TYPE, STOCK_KIND } from "@/enums/scene.enum";
 import { isDrag } from "@/scene/utils/pointer";
 import type {
@@ -62,6 +63,24 @@ function selectedItemMaterial() {
 }
 /** The glowing copy is a little larger, so it covers the item without z-fighting. */
 const SELECTED_SCALE = new Matrix4().makeScale(1.04, 1.04, 1.04);
+
+/**
+ * A see-through shell around each item of a product with an open anomaly. It sits
+ * outside the selection glow, so a selected product with an anomaly shows both.
+ */
+let anomalyMaterial: MeshStandardMaterial | null = null;
+function anomalyHaloMaterial() {
+  anomalyMaterial ??= new MeshStandardMaterial({
+    color: anomalyColor(),
+    emissive: anomalyColor(),
+    emissiveIntensity: ANOMALY_HALO_GLOW,
+    transparent: true,
+    opacity: ANOMALY_HALO_OPACITY,
+    depthWrite: false,
+  });
+  return anomalyMaterial;
+}
+const ANOMALY_SCALE = new Matrix4().makeScale(1.12, 1.12, 1.12);
 
 const FACING_GAP = 0.008;
 const ROW_GAP = 0.005;
@@ -327,20 +346,53 @@ function SelectedMesh({
   );
 }
 
-/** All products in the store as one instanced mesh per primitive shape. Click an item to select its product. */
+const haloMatrix = (item: Placed) =>
+  new Matrix4().multiplyMatrices(item.matrix, ANOMALY_SCALE);
+
+/** Items of products with an open anomaly, inside their halo. Takes no pointer events and casts no shadow. */
+function AnomalyMesh({
+  shape,
+  items,
+}: {
+  shape: StockShape;
+  items: Placed[];
+}) {
+  const ref = useInstances(items, haloMatrix);
+  if (items.length === 0) return null;
+  return (
+    <instancedMesh
+      ref={ref}
+      args={[GEOMETRY[shape], anomalyHaloMaterial(), items.length]}
+      name={`stock-anomaly-${shape}`}
+      renderOrder={1}
+    />
+  );
+}
+
+/** The items of `batches` whose product passes `keep`, per shape. */
+function pick(batches: Batches, keep: (productId: string) => boolean) {
+  return Object.fromEntries(
+    SHAPES.map((shape) => [shape, batches[shape].filter((item) => keep(item.productId))]),
+  ) as Batches;
+}
+
+/**
+ * All products in the store as one instanced mesh per primitive shape. Click an item to
+ * select its product. The selected product glows, and a product with an open anomaly
+ * gets a halo; only products in the twin state are drawn, so a stale anomaly shows nothing.
+ */
 export function Stock({ store }: { store: StoreFixture }) {
   const batches = useMemo(() => buildStock(store), [store]);
   const productId = useUiStore(selectedProductId);
+  const anomalies = useAnomalyStore((state) => state.anomalies);
   const selected = useMemo(
-    () =>
-      Object.fromEntries(
-        SHAPES.map((shape) => [
-          shape,
-          batches[shape].filter((item) => item.productId === productId),
-        ]),
-      ) as Batches,
+    () => pick(batches, (id) => id === productId),
     [batches, productId],
   );
+  const anomalous = useMemo(() => {
+    const skus = new Set(anomalies.map((anomaly) => anomaly.sku));
+    return pick(batches, (id) => skus.has(id));
+  }, [batches, anomalies]);
 
   return (
     <group name="stock">
@@ -352,6 +404,13 @@ export function Stock({ store }: { store: StoreFixture }) {
           key={`selected-${shape}`}
           shape={shape}
           items={selected[shape]}
+        />
+      ))}
+      {SHAPES.map((shape) => (
+        <AnomalyMesh
+          key={`anomaly-${shape}`}
+          shape={shape}
+          items={anomalous[shape]}
         />
       ))}
     </group>

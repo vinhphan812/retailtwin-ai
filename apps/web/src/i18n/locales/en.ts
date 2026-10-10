@@ -63,6 +63,21 @@ export const en = {
       out: "Out",
     },
   },
+  anomaly: {
+    list: "Open anomalies",
+    detected: "since {{time}}",
+    olderState: "read from an older twin state",
+    kind: {
+      stockout: "Stockout",
+      low_stock: "Low stock",
+      sales_drop: "Sales drop",
+    },
+    severity: {
+      low: "low",
+      medium: "medium",
+      high: "high",
+    },
+  },
   checkout: {
     noData: "Checkout figures are not available yet.",
     demo: "Demo data",

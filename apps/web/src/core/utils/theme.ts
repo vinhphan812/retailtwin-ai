@@ -24,3 +24,6 @@ export const warningColor = () => themeColor("--color-warning", "#fab219");
 
 /** Glow color of the selected entity, from the `--color-selection` theme token. */
 export const selectionColor = () => themeColor("--color-selection", "#ffffff");
+
+/** Halo color of a product with an open anomaly, from the `--color-anomaly` theme token. */
+export const anomalyColor = () => themeColor("--color-anomaly", "#ec835a");

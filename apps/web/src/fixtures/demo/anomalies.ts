@@ -18,6 +18,7 @@ export function anomalyFor(
   kind: AnomalyKind,
   severity: AnomalySeverity,
   contextVersion: string,
+  detectedAt: string = DETECTED_AT,
 ): Anomaly {
   return {
     anomaly_id: `anm-${product.sku}-${kind}`,
@@ -27,7 +28,7 @@ export function anomalyFor(
     slot_id: product.slot_id,
     kind,
     severity,
-    detected_at: DETECTED_AT,
+    detected_at: detectedAt,
     context_version: contextVersion,
     correlation_id: CORRELATION_ID,
   };
