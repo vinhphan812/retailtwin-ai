@@ -18,7 +18,7 @@ npm run build   # tsc --noEmit, then vite build
 
 Set `VITE_API_BASE_URL` to the API origin. The default is `http://127.0.0.1:8000`. Put it in `apps/web/.env.local`, and do not commit that file.
 
-> **Source policy.** Every build reads `apps/api` by default: the Live Twin (`GET /store`), `GET /health`, `GET /inventory/{sku}`, and the Revenue and Promotions routes. Only a development build swaps in a local twin or demo data, and only under `?twin=` (see *Twin sources*). A failed API read never falls back to demo data. Routes `apps/api` does not serve yet (`/revenue`, `/promotions`, anomalies, checkouts; `TODO(BE)`) leave their panel empty.
+> **Source policy.** Every build reads `apps/api` by default: the Live Twin (`GET /store`), `GET /health`, `GET /inventory/{sku}`, and the Revenue and Promotions routes. Only a development build swaps in a local twin or demo data, and only under `?twin=` (see *Twin sources*). `?twin=demo` calls no API at all. A failed API read never falls back to demo data. Routes `apps/api` does not serve yet (`/revenue`, `/promotions`, anomalies, checkouts; `TODO(BE)`) leave their panel empty.
 
 ## What is on screen
 
@@ -96,7 +96,7 @@ A product's entity id is its `sku`.
 | Revenue | `GET /revenue?period=today\|7d\|30d` | `RevenueSummary` (`types/revenue.type.ts`) | `client.revenue(period)` |
 | Promotions | `GET /promotions` | `PromotionsSummary` (`types/promotion.type.ts`) | `client.promotions()` |
 
-`useRevenue` and `usePromotions` read the route the first time a lens (or a period) opens, then cache the result, so switching lenses does not call the API again. The lens shows the empty report (`emptyRevenue`, `emptyPromotions`) until the read lands. A failed read shows one toast and is retried the next time the lens opens.
+`useRevenue` and `usePromotions` read the route the first time a lens (or a period, or a product's details dialog for promotions) opens, never on page load, then cache the result, so switching lenses does not call the API again. The lens shows the empty report (`emptyRevenue`, `emptyPromotions`) until the read lands. A failed read shows one toast and is retried the next time the lens opens.
 
 `apps/api` does not serve either route yet (`TODO(BE)` on the types), so outside `?twin=demo` the read fails with one toast and the lens keeps its empty report. Under `?twin=demo`, `commerceClient` reads the demo report instead.
 

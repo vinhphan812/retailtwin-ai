@@ -90,6 +90,61 @@ function AnomalyRows({ anomalies, contextVersion }: { anomalies: Anomaly[]; cont
 }
 
 /**
+ * The promotions a product is in, from `GET /promotions`. Its own component so the
+ * read happens only while the dialog is open, not when the page loads.
+ */
+function ProductPromotions({ sku, onView }: { sku: string; onView: (promotionId: string) => void }) {
+  const { t } = useTranslation();
+  const { promotions } = usePromotions();
+  const inPromotions = promotions.filter((promotion) => promotion.skus.includes(sku));
+
+  return (
+    <Section title={t("productDetails.promotions")} count={inPromotions.length}>
+      {inPromotions.length ? (
+        <ul className="details-promotions">
+          {inPromotions.map((promotion) => (
+            <li key={promotion.id}>
+              <button
+                type="button"
+                className="promotion-card details-promotion"
+                data-status={promotion.status}
+                aria-label={t("productDetails.viewPromotion", { name: promotion.name })}
+                onClick={() => onView(promotion.id)}
+              >
+                <span className="promotion-card-head">
+                  <span className="promotion-status">
+                    <span className="promotion-status-dot" aria-hidden />
+                    {t(`promotions.status.${promotion.status}`)}
+                  </span>
+                  <span className="promotion-kind">
+                    {t(`promotions.kind.${promotion.kind}`, { value: discountOf(promotion) })}
+                  </span>
+                </span>
+                <span className="promotion-name">{promotion.name}</span>
+                <span className="details-promotion-foot">
+                  <span className="promotion-meta">
+                    {t("promotions.dates", { start: format.day(promotion.starts_at), end: format.day(promotion.ends_at) })}{" "}
+                    · {t("promotions.skus", { count: promotion.skus.length })}
+                  </span>
+                  <span className="details-promotion-go" aria-hidden>
+                    {t("productDetails.view")} →
+                  </span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="details-empty">
+          <PromotionIcon className="h-4 w-4" />
+          {t("productDetails.noPromotions")}
+        </p>
+      )}
+    </Section>
+  );
+}
+
+/**
  * Everything about one product in a centered dialog: its stock in the twin, its open
  * anomalies, and the promotions it is in. Opened by **Details** on the product card or
  * on a shelf's product list (`showDetails`). Every figure comes from the live state, the
@@ -104,11 +159,9 @@ export function ProductDetailsDialog() {
   const openPanel = usePanelStore((state) => state.setOpen);
   const live = useTwinStore((state) => state.live);
   const allAnomalies = useAnomalyStore((state) => state.anomalies);
-  const { promotions } = usePromotions();
 
   const product = sku ? live?.products.find((candidate) => candidate.sku === sku) : undefined;
   const anomalies = sku ? anomaliesOf(allAnomalies, sku) : [];
-  const inPromotions = sku ? promotions.filter((promotion) => promotion.skus.includes(sku)) : [];
   const close = () => showDetails(null);
   /** Opens the Promotions lens on one promotion, with this product selected so it stands out there and in 3D. */
   const viewPromotion = (promotionId: string) => {
@@ -171,48 +224,7 @@ export function ProductDetailsDialog() {
                   {t("inspector.missing")}
                 </Chip>
               )}
-              <Section title={t("productDetails.promotions")} count={inPromotions.length}>
-                {inPromotions.length ? (
-                  <ul className="details-promotions">
-                    {inPromotions.map((promotion) => (
-                      <li key={promotion.id}>
-                        <button
-                          type="button"
-                          className="promotion-card details-promotion"
-                          data-status={promotion.status}
-                          aria-label={t("productDetails.viewPromotion", { name: promotion.name })}
-                          onClick={() => viewPromotion(promotion.id)}
-                        >
-                          <span className="promotion-card-head">
-                            <span className="promotion-status">
-                              <span className="promotion-status-dot" aria-hidden />
-                              {t(`promotions.status.${promotion.status}`)}
-                            </span>
-                            <span className="promotion-kind">
-                              {t(`promotions.kind.${promotion.kind}`, { value: discountOf(promotion) })}
-                            </span>
-                          </span>
-                          <span className="promotion-name">{promotion.name}</span>
-                          <span className="details-promotion-foot">
-                            <span className="promotion-meta">
-                              {t("promotions.dates", { start: format.day(promotion.starts_at), end: format.day(promotion.ends_at) })}{" "}
-                              · {t("promotions.skus", { count: promotion.skus.length })}
-                            </span>
-                            <span className="details-promotion-go" aria-hidden>
-                              {t("productDetails.view")} →
-                            </span>
-                          </span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="details-empty">
-                    <PromotionIcon className="h-4 w-4" />
-                    {t("productDetails.noPromotions")}
-                  </p>
-                )}
-              </Section>
+              <ProductPromotions sku={sku} onView={viewPromotion} />
             </ModalBody>
             <ModalFooter className="border-t border-line">
               <Button size="sm" radius="sm" variant="light" className="ml-auto cursor-pointer" onPress={close}>

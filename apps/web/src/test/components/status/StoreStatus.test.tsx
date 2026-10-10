@@ -224,3 +224,17 @@ test("reads GET /health from apps/api by default", async () => {
   await waitFor(() => expect(notify.error).toHaveBeenCalledWith("The API request failed.", expect.anything()));
   expect(vi.mocked(fetch).mock.calls.map(([url]) => new URL(String(url)).pathname)).toContain("/health");
 });
+
+test("under ?twin=demo, calls no API and looks a SKU up in the demo store", async () => {
+  window.history.replaceState(null, "", "/?twin=demo");
+  render(<StoreStatus />);
+  expect(await screen.findByRole("heading", { name: "store-001" })).toBeTruthy();
+  expect(screen.queryByText(/^API /)).toBeNull();
+
+  fireEvent.change(screen.getByRole("textbox", { name: "SKU" }), { target: { value: "p001" } });
+  fireEvent.click(screen.getByRole("button", { name: "Look up inventory" }));
+  expect(screen.getByText("P001 on A01 / A01-S01: 8 on shelf, 42 in the backroom.")).toBeTruthy();
+  expect(selectedProductId(useUiStore.getState())).toBe("P001");
+  expect(fetch).not.toHaveBeenCalled();
+  window.history.replaceState(null, "", "/");
+});

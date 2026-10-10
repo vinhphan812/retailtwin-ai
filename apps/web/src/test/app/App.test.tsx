@@ -35,6 +35,9 @@ test("reads apps/api by default, and shows an API failure without crashing", asy
   const paths = fetchMock.mock.calls.map(([url]) => new URL(String(url)).pathname);
   expect(paths).toContain("/store");
   expect(paths).toContain("/health");
+  // Revenue and promotions are read when their lens (or a product's details) opens, not on load.
+  expect(paths).not.toContain("/promotions");
+  expect(paths).not.toContain("/revenue");
   expect(screen.getByRole("heading", { name: "Agent Activity" })).toBeTruthy();
   expect(screen.getByRole("main")).toBeTruthy();
   expect(screen.getByRole("textbox", { name: "SKU" })).toBeTruthy();
@@ -48,4 +51,20 @@ test("shows the lens switch with all three lenses, Operations first", () => {
   expect(screen.getByRole("radio", { name: "Operations" }).getAttribute("aria-checked")).toBe("true");
   expect(screen.getByRole("radio", { name: "Revenue" })).toBeTruthy();
   expect(screen.getByRole("radio", { name: "Promotions" })).toBeTruthy();
+});
+
+test("calls no API under ?twin=demo", async () => {
+  const fetchMock = vi.fn(async () => new Response("{}", { status: 404 }));
+  vi.stubGlobal("fetch", fetchMock);
+  window.history.replaceState(null, "", "/?twin=demo");
+  // The page picks its twin source when it loads, so load it again under the demo URL.
+  vi.resetModules();
+  const { App: DemoApp } = await import("@/app/App");
+
+  render(<DemoApp />);
+
+  expect(await screen.findByRole("heading", { name: "Agent Activity" })).toBeTruthy();
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  expect(fetchMock).not.toHaveBeenCalled();
+  window.history.replaceState(null, "", "/");
 });

@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { STORE_STATUS_ROWS } from "@/constants/app.constant";
 import { defaultClient } from "@/core/api/client";
+import { isDemoMode } from "@/core/twin/demoMode";
 import { productRows } from "@/core/twin/productRows";
 import { format } from "@/core/utils/format";
 import { ENTITY_TYPE } from "@/enums/scene.enum";
@@ -14,11 +15,14 @@ import { ProductsDialog } from "./ProductsDialog";
 import "./StoreStatus.css";
 
 type StoreStatusProps = {
-  /** Reads health and SKU lookups; apps/api by default. */
+  /**
+   * Reads health and SKU lookups; apps/api by default. Under `?twin=demo` there is none:
+   * no health line, and a SKU is looked up in the demo store the scene already has.
+   */
   client?: RetailTwinClient;
 };
 
-export function StoreStatus({ client = defaultClient }: StoreStatusProps) {
+export function StoreStatus({ client = isDemoMode() ? undefined : defaultClient }: StoreStatusProps) {
   const { t } = useTranslation();
   const { health, store, loading, sku, setSku, inventory, lookupPending, onLookup } = useStoreStatus(client);
   const select = useUiStore((state) => state.select);
