@@ -67,6 +67,11 @@
   color: var(--color-ink);
 }
 
+.segmented-option:disabled {
+  color: var(--color-ink-faint);
+  cursor: not-allowed;
+}
+
 .segmented-option[data-selected="true"] {
   color: var(--color-panel);
   cursor: default;
@@ -113,12 +118,15 @@
   border-radius: 999px;
 }
 
-/* Lens switch: centered over the 3D view, icons only on narrow screens. */
+/* Lens and view-mode switches: top left over the 3D view, icons only on narrow screens. */
 .lens-switcher {
   position: absolute;
   top: 16px;
   left: 16px;
   z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 @media (max-width: 640px) {

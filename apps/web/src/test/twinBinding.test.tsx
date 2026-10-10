@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sampleStoreState } from "./sampleState";
 import { createMemoryTwin, patchProduct, type MemoryTwin } from "@/core/api/sources/memorySource";
 import type { TwinSource } from "@/core/api/sources/TwinSource";
-import { LiveStoreContents } from "@/scene/StoreScene";
+import { TwinStoreContents } from "@/scene/StoreScene";
 import { useTwinStore } from "@/state/twin.store";
 import { inspectProduct, twinIssues } from "@/core/twin/twinIssues";
 import { useTwinSource } from "@/hooks/twinSource.hook";
@@ -18,7 +18,7 @@ vi.mock("@/core/notify", () => ({
 /** The page's data path without the canvas: source → twin store → scene graph. */
 function LiveScene({ source }: { source: TwinSource }) {
   useTwinSource(source);
-  return <LiveStoreContents interactive={false} />;
+  return <TwinStoreContents interactive={false} />;
 }
 
 type Renderer = Awaited<ReturnType<typeof ReactThreeTestRenderer.create>>;

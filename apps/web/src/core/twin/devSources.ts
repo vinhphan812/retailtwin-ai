@@ -9,6 +9,10 @@ import { demoAnomalies } from "@/fixtures/demo/anomalies";
 import { resolveAnomalies, simulateAnomaly } from "./simulateAnomaly";
 import { useAnomalyStore } from "@/state/anomaly.store";
 import { demoStoreState } from "@/fixtures/demo/store";
+import { demoSimulation } from "@/fixtures/demo/simulation";
+import { useTwinStore } from "@/state/twin.store";
+import type { SimulationAction } from "@/types/simulation.type";
+import { commitSimulation, discardSimulation, openSimulation } from "./memorySimulation";
 
 /** A twin that cannot be reached: loads for a while, then fails. */
 const unreachableSource: TwinSource = {
@@ -49,6 +53,9 @@ const DEV_SOURCES: Record<string, TwinSource> = {
  * removes it, and `twin.anomalies()` lists the demo anomalies of the current state.
  * `twin.raise("P001")` raises an anomaly event on a product (a stockout unless told
  * otherwise), and `twin.resolve("P001")` closes its anomalies again.
+ * `twin.simulate()` opens a simulation of the demo actions on the current state (or of the
+ * actions passed in), `twin.commit()` commits it to Live as a guarded commit would, and
+ * `twin.discard()` drops it.
  */
 function memoryTwinSource(initial: StoreResponse = fixtureStoreState()): TwinSource {
   const twin = createMemoryTwin(initial);
@@ -71,6 +78,9 @@ function memoryTwinSource(initial: StoreResponse = fixtureStoreState()): TwinSou
         return simulateAnomaly(product, kind, severity, state.context_version);
       },
       resolve: resolveAnomalies,
+      simulate: (...actions: SimulationAction[]) => openSimulation(twin, actions.length ? actions : undefined),
+      commit: () => commitSimulation(twin),
+      discard: discardSimulation,
     },
   });
   return twin.source;
@@ -78,8 +88,8 @@ function memoryTwinSource(initial: StoreResponse = fixtureStoreState()): TwinSou
 
 /**
  * The Live Twin from apps/api. While developing, `?twin=fixture|memory|demo|offline|slow|flaky`
- * swaps in a local twin instead. `demo` is the stocked demo store (fixtures/demo), and
- * turns on the other demo data too (`isDemoMode`). A production build always reads apps/api.
+ * swaps in a local twin instead. `demo` is the stocked demo store (fixtures/demo) with an
+ * open demo simulation, and turns on the other demo data too (`isDemoMode`). A production build always reads apps/api.
  */
 export function pickSource(): TwinSource {
   if (import.meta.env.DEV) {
@@ -87,6 +97,7 @@ export function pickSource(): TwinSource {
     if (mode === "memory") return memoryTwinSource();
     if (mode === "demo") {
       useAnomalyStore.getState().setAll(demoAnomalies());
+      useTwinStore.getState().setSimulation(demoSimulation());
       return memoryTwinSource(demoStoreState());
     }
     if (mode in DEV_SOURCES) return DEV_SOURCES[mode];

@@ -8,6 +8,8 @@ export type SegmentOption<T extends string> = {
   icon?: ReactNode;
   /** Small count after the label, such as how many promotions have a status. */
   badge?: number;
+  /** Shown but not pickable, by click or by arrow key. */
+  disabled?: boolean;
 };
 
 type SegmentedProps<T extends string> = {
@@ -32,7 +34,10 @@ export function Segmented<T extends string>({ label, options, value, onChange, l
     const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key];
     if (!step) return;
     event.preventDefault();
-    const next = (index + step + options.length) % options.length;
+    let next = index;
+    do next = (next + step + options.length) % options.length;
+    while (options[next].disabled && next !== index);
+    if (next === index) return;
     onChange(options[next].value);
     buttons.current[next]?.focus();
   };
@@ -54,6 +59,7 @@ export function Segmented<T extends string>({ label, options, value, onChange, l
             // The glass switch hides its labels on small screens; elsewhere the label is on show.
             title={variant === "glass" ? option.label : undefined}
             tabIndex={selected ? 0 : -1}
+            disabled={option.disabled}
             className="segmented-option"
             data-selected={selected}
             onClick={() => onChange(option.value)}

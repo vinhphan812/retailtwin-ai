@@ -198,6 +198,26 @@ export const en = {
     close: "Close the {{title}} panel",
     open: "Open the {{title}} panel",
   },
+  viewMode: {
+    label: "Twin view",
+    live: "Live",
+    simulation: "Simulation",
+    noSimulation: "Simulation (none open)",
+  },
+  simulation: {
+    label: "Simulation view",
+    title: "SIMULATION",
+    notExecuted: "Proposed store, not executed",
+    run: "{{id}} ({{status}})",
+    basedOn: "from Live {{version}}",
+    liveMoved: "Live is now {{version}}",
+    status: {
+      pending: "pending",
+      evaluated: "evaluated",
+      committed: "committed",
+      rejected: "rejected",
+    },
+  },
   lens: {
     label: "View",
     operations: "Operations",
