@@ -43,3 +43,16 @@ htmlcov/
 # 3D generated/cache
 assets/3d/generated/
 *.blend1
+
+# Local agent / GitNexus tooling
+.claude/
+
+# Coverage artifacts
+.coverage
+coverage.xml
+**/.coverage
+**/coverage.xml
+
+# Local AI-agent instruction files, if generated
+AGENTS.md
+CLAUDE.md
