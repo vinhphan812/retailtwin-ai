@@ -15,3 +15,5 @@ export const ANOMALY_SEVERITY = {
   High: "high",
 } as const;
 export type AnomalySeverity = (typeof ANOMALY_SEVERITY)[keyof typeof ANOMALY_SEVERITY];
+export const ANOMALY_KINDS: readonly AnomalyKind[] = Object.values(ANOMALY_KIND);
+export const ANOMALY_SEVERITIES: readonly AnomalySeverity[] = Object.values(ANOMALY_SEVERITY);

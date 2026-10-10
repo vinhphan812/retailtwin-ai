@@ -1,5 +1,6 @@
 import { Button, Chip } from "@heroui/react";
 import { useTranslation } from "react-i18next";
+import { InfoIcon } from "@/components/icons";
 import { fixtureStock } from "@/core/twin/fixtureStock";
 import { format } from "@/core/utils/format";
 import { ENTITY_TYPE } from "@/enums/scene.enum";
@@ -22,12 +23,14 @@ type FixtureInspectorProps = {
 
 /**
  * What the twin has on the selected shelf or display equipment: totals, then each
- * product with its stock state. Every figure comes from the live state.
+ * product with its stock state. Every figure comes from the live state. A product's
+ * SKU selects it; its info button opens its details dialog.
  */
 export function FixtureInspector({ fixtureId, title }: FixtureInspectorProps) {
   const { t } = useTranslation();
   const live = useTwinStore((state) => state.live);
   const select = useUiStore((state) => state.select);
+  const showDetails = useUiStore((state) => state.showDetails);
   const stock = live ? fixtureStock(fixtureId, live) : null;
 
   return (
@@ -72,6 +75,18 @@ export function FixtureInspector({ fixtureId, title }: FixtureInspectorProps) {
                     <Chip size="sm" variant="flat" color={STATE_COLOR[product.state]}>
                       {t(`inspector.state.${product.state}`)}
                     </Chip>
+                    <Button
+                      isIconOnly
+                      size="sm"
+                      variant="light"
+                      radius="sm"
+                      aria-label={t("inspector.detailsOf", { sku: product.productId })}
+                      title={t("inspector.detailsOf", { sku: product.productId })}
+                      className="h-6 w-6 min-w-0 shrink-0 cursor-pointer text-default-500"
+                      onPress={() => showDetails(product.productId)}
+                    >
+                      <InfoIcon className="h-4 w-4" />
+                    </Button>
                   </li>
                 ))}
               </ul>

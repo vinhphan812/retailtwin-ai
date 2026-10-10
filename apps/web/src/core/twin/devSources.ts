@@ -6,7 +6,8 @@ import type { TwinSource } from "@/core/api/sources/TwinSource";
 import type { ProductInventory, StoreResponse } from "@/types/twin.type";
 import { FIXTURE_P001 } from "@/constants/twin.constant";
 import { ANOMALY_KIND, ANOMALY_SEVERITY, type AnomalyKind, type AnomalySeverity } from "@/enums/anomaly.enum";
-import { anomalyFor, demoAnomalies } from "@/fixtures/demo/anomalies";
+import { demoAnomalies } from "@/fixtures/demo/anomalies";
+import { resolveAnomalies, simulateAnomaly } from "./simulateAnomaly";
 import { useAnomalyStore } from "@/state/anomaly.store";
 import { demoStoreState } from "@/fixtures/demo/store";
 
@@ -68,14 +69,9 @@ function memoryTwinSource(initial: StoreResponse = fixtureStoreState()): TwinSou
         const state = twin.current();
         const product = state.products.find((candidate) => candidate.sku === sku);
         if (!product) throw new Error(`${sku} is not in the twin`);
-        const anomaly = anomalyFor(product, kind, severity, state.context_version, new Date().toISOString());
-        useAnomalyStore.getState().raise(anomaly);
-        return anomaly.anomaly_id;
+        return simulateAnomaly(product, kind, severity, state.context_version);
       },
-      resolve: (sku: string) => {
-        const { anomalies, resolve } = useAnomalyStore.getState();
-        anomalies.filter((anomaly) => anomaly.sku === sku).forEach((anomaly) => resolve(anomaly.anomaly_id));
-      },
+      resolve: resolveAnomalies,
     },
   });
   return twin.source;

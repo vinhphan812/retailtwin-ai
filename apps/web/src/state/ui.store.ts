@@ -9,10 +9,14 @@ type UiStore = {
   viewMode: ViewMode;
   /** Operations, revenue, or promotions: picks the panel's content. */
   lens: Lens;
+  /** The product whose details dialog is open, or null. */
+  detailsSku: string | null;
   /** Selects an entity, a product unless told otherwise; `null` clears the selection. */
   select: (entityId: string | null, entityType?: EntityType) => void;
   setViewMode: (mode: ViewMode) => void;
   setLens: (lens: Lens) => void;
+  /** Opens the details dialog of a product; `null` closes it. */
+  showDetails: (sku: string | null) => void;
 };
 
 export const useUiStore = create<UiStore>()((set) => ({
@@ -20,10 +24,12 @@ export const useUiStore = create<UiStore>()((set) => ({
   selectedEntityType: null,
   viewMode: VIEW_MODE.Live,
   lens: LENS.Operations,
+  detailsSku: null,
   select: (selectedEntityId, entityType = ENTITY_TYPE.Product) =>
     set({ selectedEntityId, selectedEntityType: selectedEntityId ? entityType : null }),
   setViewMode: (viewMode) => set({ viewMode }),
   setLens: (lens) => set({ lens }),
+  showDetails: (detailsSku) => set({ detailsSku }),
 }));
 
 /** True while `entityId` is the selected entity of `entityType`. */

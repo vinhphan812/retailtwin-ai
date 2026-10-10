@@ -5,6 +5,7 @@ import {
 import { CameraHelp } from "@/components/layout/CameraHelp";
 import { LensSwitcher } from "@/components/layout/LensSwitcher";
 import { EntityInspector } from "@/components/twin/EntityInspector";
+import { ProductDetailsDialog } from "@/components/twin/ProductDetailsDialog";
 import { TwinIssuesNotice } from "@/components/twin/TwinIssuesNotice";
 import { TwinStatusOverlay } from "@/components/twin/TwinStatusOverlay";
 import { pickSource } from "@/core/twin/devSources";
@@ -35,6 +36,7 @@ export function TwinPage() {
         </div>
         <AgentActivityOpenButton />
         <EntityInspector />
+        <ProductDetailsDialog />
         <TwinIssuesNotice />
       </main>
       <AgentActivityPanel />

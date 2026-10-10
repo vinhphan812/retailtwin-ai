@@ -1,50 +1,31 @@
-import { Chip } from "@heroui/react";
+import { Button, Chip } from "@heroui/react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { issueReason } from "@/core/api/validate";
-import { format } from "@/core/utils/format";
-import { ANOMALY_SEVERITY } from "@/enums/anomaly.enum";
+import { canSimulateAnomalies } from "@/core/twin/simulateAnomaly";
 import { inspectProduct } from "@/core/twin/twinIssues";
 import { INSPECTION_KIND } from "@/enums/twin.enum";
 import { useTwinIssues } from "@/hooks/twinIssues.hook";
 import { anomaliesOf, useAnomalyStore } from "@/state/anomaly.store";
 import { useTwinStore } from "@/state/twin.store";
-import type { Anomaly } from "@/types/anomaly.type";
+import { useUiStore } from "@/state/ui.store";
+import { AnomalyList } from "./AnomalyList";
+import { AnomalySimulator } from "./AnomalySimulator";
 import { Figures, InspectorCard } from "./InspectorCard";
 
-const SEVERITY_COLOR = {
-  [ANOMALY_SEVERITY.Low]: "default",
-  [ANOMALY_SEVERITY.Medium]: "warning",
-  [ANOMALY_SEVERITY.High]: "danger",
-} as const;
-
-/** The product's open anomalies. One read from an older twin state says so. */
-function Anomalies({ anomalies, contextVersion }: { anomalies: Anomaly[]; contextVersion: string }) {
-  const { t } = useTranslation();
-  if (anomalies.length === 0) return null;
-  return (
-    <ul className="flex flex-col gap-1" aria-label={t("anomaly.list")}>
-      {anomalies.map((anomaly) => (
-        <li key={anomaly.anomaly_id} className="flex flex-wrap items-center gap-2">
-          <Chip size="sm" variant="flat" color={SEVERITY_COLOR[anomaly.severity]}>
-            {t(`anomaly.kind.${anomaly.kind}`)} · {t(`anomaly.severity.${anomaly.severity}`)}
-          </Chip>
-          <span className="text-default-500">{t("anomaly.detected", { time: format.hour(anomaly.detected_at) })}</span>
-          {anomaly.context_version !== contextVersion ? (
-            <span className="text-default-500">{t("anomaly.olderState")}</span>
-          ) : null}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-/** Twin figures and open anomalies of the selected product. Click an item on a shelf, or open `/?product=P001`. */
+/**
+ * Twin figures and open anomalies of the selected product. Click an item on a shelf, or
+ * open `/?product=P001`. **Details** opens the product's dialog; in development builds,
+ * **Simulate anomaly** raises or clears an anomaly on it.
+ */
 export function ProductInspector({ productId }: { productId: string }) {
   const { t } = useTranslation();
   const live = useTwinStore((state) => state.live);
   const issues = useTwinIssues();
   const inspection = inspectProduct(productId, live, issues);
   const anomalies = anomaliesOf(useAnomalyStore((state) => state.anomalies), productId);
+  const showDetails = useUiStore((state) => state.showDetails);
+  const [simulating, setSimulating] = useState(false);
 
   return (
     <InspectorCard title={productId} label={t("inspector.label", { sku: productId })}>
@@ -63,7 +44,7 @@ export function ProductInspector({ productId }: { productId: string }) {
         </div>
       ) : null}
       {inspection.kind === INSPECTION_KIND.Ok && live ? (
-        <Anomalies anomalies={anomalies} contextVersion={live.context_version} />
+        <AnomalyList anomalies={anomalies} contextVersion={live.context_version} />
       ) : null}
       {inspection.kind === INSPECTION_KIND.Ok ? (
         <Figures
@@ -75,6 +56,40 @@ export function ProductInspector({ productId }: { productId: string }) {
             [t("inspector.version"), inspection.product.version],
           ]}
         />
+      ) : null}
+      {inspection.kind === INSPECTION_KIND.Ok && live ? (
+        <div className="mt-3 flex flex-col gap-2">
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              radius="sm"
+              variant="flat"
+              className="flex-1 cursor-pointer font-semibold"
+              onPress={() => showDetails(productId)}
+            >
+              {t("inspector.details")}
+            </Button>
+            {canSimulateAnomalies() ? (
+              <Button
+                size="sm"
+                radius="sm"
+                variant={simulating ? "solid" : "light"}
+                aria-expanded={simulating}
+                className="flex-1 cursor-pointer"
+                onPress={() => setSimulating((open) => !open)}
+              >
+                {t("anomaly.simulate.toggle")}
+              </Button>
+            ) : null}
+          </div>
+          {simulating && canSimulateAnomalies() ? (
+            <AnomalySimulator
+              product={inspection.product}
+              contextVersion={live.context_version}
+              hasAnomalies={anomalies.length > 0}
+            />
+          ) : null}
+        </div>
       ) : null}
     </InspectorCard>
   );
