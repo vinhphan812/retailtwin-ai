@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { parseStoreState } from "@/core/api/validate";
 import { isDemoMode } from "@/core/twin/demoMode";
-import { ANOMALY_KIND } from "@/enums/anomaly.enum";
+import { ANOMALY_KIND, ANOMALY_SEVERITIES } from "@/enums/anomaly.enum";
 import { PAYMENT_METHODS } from "@/enums/checkout.enum";
 import { demoAnomalies } from "@/fixtures/demo/anomalies";
 import { DEMO_PRICES, demoCheckout, demoTransactions } from "@/fixtures/demo/checkouts";
@@ -52,6 +52,15 @@ describe("demo anomalies", () => {
       if (anomaly.kind === ANOMALY_KIND.LowStock) expect(product.shelf_quantity).toBeLessThan(product.facings);
     }
     expect(anomalies.some((anomaly) => anomaly.sku === "P001")).toBe(false);
+  });
+
+  it("put a visible halo on the shelves at every severity", () => {
+    const state = demoStoreState();
+    const { anomalies } = demoAnomalies(state);
+    const onShelf = (sku: string) => state.products.find((item) => item.sku === sku)!.shelf_quantity;
+    for (const severity of ANOMALY_SEVERITIES) {
+      expect(anomalies.some((anomaly) => anomaly.severity === severity && onShelf(anomaly.sku) > 0)).toBe(true);
+    }
   });
 });
 

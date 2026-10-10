@@ -1,4 +1,4 @@
-/* Product details dialog: stock tiles, anomaly rows, the anomaly simulator, promotions. */
+/* Product details dialog: stock tiles, anomaly rows, promotions. */
 .details-section {
   display: flex;
   flex-direction: column;
@@ -142,133 +142,6 @@
   color: var(--color-ink-muted);
 }
 
-/* Section heading with an action on the right, such as the simulator toggle. */
-.details-section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-/* Toggle of the development-only anomaly simulator. */
-.anomaly-simulator-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 2px 8px 2px 4px;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-ink-muted);
-  background: none;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.anomaly-simulator-toggle:hover,
-.anomaly-simulator-toggle[aria-expanded="true"] {
-  color: var(--color-ink);
-  background: var(--color-card);
-  border-color: var(--color-line);
-}
-
-.anomaly-simulator-badge {
-  padding: 1px 5px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: var(--color-warning);
-  background: color-mix(in srgb, var(--color-warning) 14%, transparent);
-  border-radius: 4px;
-}
-
-/* The simulator: kind and severity on one row, actions on the right. */
-.anomaly-simulator {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px 16px;
-  align-items: flex-end;
-  justify-content: space-between;
-  padding: 10px 12px;
-  background: var(--color-card);
-  border: 1px solid var(--color-line);
-  border-radius: 8px;
-}
-
-.anomaly-simulator-fields {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 20px;
-}
-
-.anomaly-simulator-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 11px;
-  color: var(--color-ink-muted);
-}
-
-.anomaly-simulator-choices {
-  display: inline-flex;
-  padding: 2px;
-  background: var(--color-panel);
-  border: 1px solid var(--color-line);
-  border-radius: 8px;
-}
-
-.anomaly-simulator-choice {
-  --tone: var(--color-accent);
-  padding: 3px 10px;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-ink-muted);
-  background: none;
-  border: 0;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.anomaly-simulator-choice:hover {
-  color: var(--color-ink);
-}
-
-/* Severities are lower case in running text ("Stockout · high"); the chips start with a capital. */
-.anomaly-simulator-choice[data-severity] {
-  text-transform: capitalize;
-}
-
-.anomaly-simulator-choice[data-severity="low"] {
-  --tone: var(--color-ink-soft);
-}
-
-.anomaly-simulator-choice[data-severity="medium"] {
-  --tone: var(--color-warning);
-}
-
-.anomaly-simulator-choice[data-severity="high"] {
-  --tone: var(--color-serious);
-}
-
-.anomaly-simulator-choice[aria-checked="true"] {
-  color: var(--tone);
-  background: color-mix(in srgb, var(--tone) 16%, var(--color-card));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone) 45%, transparent);
-}
-
-.anomaly-simulator-choice:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 1px;
-}
-
-.anomaly-simulator-actions {
-  display: flex;
-  gap: 6px;
-  margin-left: auto;
-}
-
 @media (max-width: 560px) {
   .details-tiles {
     grid-template-columns: repeat(3, 1fr);
@@ -285,10 +158,5 @@
   .details-anomaly-meta {
     grid-column: 2 / -1;
     justify-self: start;
-  }
-
-  .anomaly-simulator-actions {
-    width: 100%;
-    justify-content: flex-end;
   }
 }

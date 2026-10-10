@@ -41,6 +41,9 @@ const ANOMALIES: [sku: string, kind: AnomalyKind, severity: AnomalySeverity][] =
   ["P007", ANOMALY_KIND.LowStock, ANOMALY_SEVERITY.High],
   ["P010", ANOMALY_KIND.Stockout, ANOMALY_SEVERITY.High],
   ["P012", ANOMALY_KIND.SalesDrop, ANOMALY_SEVERITY.Low],
+  // Shelves full but not selling, so their halos show at every severity.
+  ["P009", ANOMALY_KIND.SalesDrop, ANOMALY_SEVERITY.Medium],
+  ["P006", ANOMALY_KIND.SalesDrop, ANOMALY_SEVERITY.High],
 ];
 
 /** Open anomalies of `state`; a product that left the state takes its anomaly with it. */

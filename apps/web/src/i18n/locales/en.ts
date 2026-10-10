@@ -79,16 +79,6 @@ export const en = {
       medium: "medium",
       high: "high",
     },
-    simulate: {
-      toggle: "Simulate",
-      title: "Simulate an anomaly",
-      dev: "DEV",
-      hint: "Raises an anomaly event as the detector would. Production reads anomalies from the anomaly API only.",
-      kind: "Anomaly kind",
-      severity: "Severity",
-      raise: "Raise",
-      resolve: "Clear",
-    },
   },
   productDetails: {
     title: "Product {{sku}}",
