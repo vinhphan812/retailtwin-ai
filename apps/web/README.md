@@ -40,12 +40,12 @@ Set `VITE_API_BASE_URL` to the API origin. The default is `http://127.0.0.1:8000
   - `CameraHelp` (bottom left): lists the camera gestures.
   - `TwinStatusOverlay`: a spinner while the first state loads, then a small banner for problems (load failed, connection lost), with a retry button. The store always stays on screen: with empty shelves until a state arrives, then the last state. Errors also show as a toast.
   - `EntityInspector`: the details card of the selected entity, bottom left:
-    - a product (`ProductInspector`): its twin figures;
+    - a product (`ProductInspector`): its twin figures, and its open anomalies (kind, severity, since when), noting one read from an older twin state than the one shown;
     - a gondola or display equipment (`FixtureInspector`): products, slots used, units on the shelf and in the backroom, low and out-of-stock counts, and each product with its stock state. All from twin state (`fixtureStock`). A SKU in the list selects that product;
     - a checkout (`CheckoutInspector`): status, cashier, shift start, and today's revenue, transactions, average basket, items scanned, queue, and last sale, then **View payments**, which opens `PaymentsDialog`: today's sales at that lane, newest first, with totals, filtered by payment method or a search. Clicking a sale opens its receipt under it (SKU, quantity, unit price, line total); a SKU there selects the product in the 3D view and closes the dialog. `apps/api` serves no checkout data yet (`TODO(BE)`): `useCheckoutSummary` and `useCheckoutTransactions` return nothing, so the card says the figures are not available and has no payments button. The proposed shapes are `CheckoutSummary`, `CheckoutTransaction`, and `CheckoutLine` (`types/checkout.type.ts`).
   - `TwinIssuesNotice`: products the scene left out, with the reason for each.
 - **Agent Activity panel**: a side panel with a fixed width of 380px (`PANEL_WIDTH`). You can close it and open it again, and the open state is saved per browser. Each lens shows different content:
-  - **Operations**: `StoreStatus` and the agent activity timeline from `run.store`. `StoreStatus` shows product, low, and out-of-stock totals, then the first products one per line (out and low stock first). Clicking a line selects that product in the 3D view. **Show all** opens `ProductsDialog`: every product with shelf, slot, facings, stock, and version, filtered by stock state or a search; clicking a row selects the product and closes the dialog. Given a client, `StoreStatus` reads `GET /health` once, shows the live store that the scene already polls (it does not call `GET /store` itself), and looks up `GET /inventory/{sku}`. The app gives it none for now (`TODO(BE)`): no health line, and the lookup reads the live store.
+  - **Operations**: `StoreStatus` and the agent activity timeline from `run.store`. A SKU in the timeline selects that product, so the scene lights it up and flies the camera to it. `StoreStatus` shows product, low, and out-of-stock totals, then the first products one per line (out and low stock first). Clicking a line selects that product in the 3D view. **Show all** opens `ProductsDialog`: every product with shelf, slot, facings, stock, and version, filtered by stock state or a search; clicking a row selects the product and closes the dialog. Given a client, `StoreStatus` reads `GET /health` once, shows the live store that the scene already polls (it does not call `GET /store` itself), and looks up `GET /inventory/{sku}`. The app gives it none for now (`TODO(BE)`): no health line, and the lookup reads the live store.
   - **Revenue**: metric tiles, a revenue chart, category share, and the best and worst SKUs (`useRevenue`).
   - **Promotions**: promotion cards by status (`usePromotions`).
   - Opening either lens reads its route from `apps/api`. See *Revenue and promotions* below.
@@ -69,6 +69,7 @@ Errors and network changes show as HeroUI toasts (`core/notify.ts`). When the br
 - **Slots**: every display surface of a fixture is split into slots, named `<fixtureId>-S01`, `-S02`, and so on (`slotsFor`). Checkouts, barriers, and crates have no slots, so a product put on one is reported as an unknown shelf.
 - **Stock**: `Stock` draws every product in the store as a few instanced meshes. It draws one item per unit of `shelf_quantity`, front row first, up to what the facings hold. When the facings are wider than their slot, or an item is taller than the deck's clear height, the items are drawn smaller (`fitItem`), so stock never runs past its slot into the frame. The count still follows twin state. Gondolas, coolers, and chillers show boxes. Produce racks show heaps of fruit. Twin state has no product looks, so each product's color and height come from its id (`stock/catalog.ts`).
 - **Selection**: fixtures show no labels; the pointer turns into a hand over a selectable one. Clicking an item selects its product: its items glow (`Stock` draws them again in the `--color-selection` theme color, read by `themeColor`) and its card opens. Clicking a gondola or equipment with a card (rack, cooler, chiller, checkout) selects it, lights up its parts (`useSelectionGlow`), and opens its card; a click on one of its own items still selects the product. A press that moves more than `CLICK_SLOP_PX` is a camera drag and selects nothing. Opening `/?product=P001` selects that product on load. Clicking empty space clears the selection.
+- **Anomalies**: every product with an open anomaly in `anomaly.store` gets a see-through halo around its items in the `--color-anomaly` theme color (`Stock`'s `AnomalyMesh`), selected or not; it sits outside the selection glow, so a selected product with an anomaly shows both. Only products in the twin state are drawn, so an anomaly on a SKU the twin lacks shows nothing. `anomaly.store` takes `setAll` (a `GET /anomalies` response), `raise` (an anomaly event; same `anomaly_id` replaces), and `resolve`. The contract is `Anomaly` and `AnomaliesResponse` in `types/anomaly.type.ts`, the FE's proposal. `apps/api` serves no anomalies yet (`TODO(BE)`), so only `?twin=demo` and tests fill the store.
 - **Camera** (`CameraControls`):
   - Left drag orbits around the point under the cursor (`useOrbitAroundPointer`). That point is clamped to the zoom range, so a click never moves the camera.
   - Right drag (or two fingers) pans inside the store bounds.
@@ -117,7 +118,7 @@ A product's entity id is its `sku`.
 | (none) | `fixtureSource` for now (`TODO(BE)`); then `apiSource`: `GET /store`, polled every 5 s, backing off to 60 s while it fails |
 | `fixture` | `fixtureSource`: empty shelves, no live updates |
 | `memory` | empty shelves in memory, editable from the browser console: `twin.add()` adds the API fixture's P001, then `twin.patch("P001", { facings: 5 })`, `twin.patch("P001", null)`, `twin.state()` |
-| `demo` | the same editable twin, stocked with the demo store, plus demo data where `apps/api` serves none yet: checkout figures, payments and receipts, Revenue and Promotions reports, and anomalies (`twin.anomalies()`). All of it lives in `fixtures/demo/` and is marked **Demo data** where it shows; see *Demo data* below |
+| `demo` | the same editable twin, stocked with the demo store, plus demo data where `apps/api` serves none yet: checkout figures, payments and receipts, Revenue and Promotions reports, and anomalies (`twin.anomalies()`; `twin.raise("P001")` raises an anomaly event on a product, `twin.resolve("P001")` closes it). All of it lives in `fixtures/demo/` and is marked **Demo data** where it shows; see *Demo data* below |
 | `slow` | the snapshot takes 4 s |
 | `offline` | the snapshot fails after 1.2 s |
 | `flaky` | the live feed drops 3 s after loading |
@@ -132,7 +133,7 @@ A product's entity id is its `sku`.
 | `store.ts` | a product on every kind of fixture that holds stock, some out of stock or low | the twin source |
 | `checkouts.ts` | three lanes (open, paused, closed) and today's sales with receipt lines, from a fixed price list | `useCheckoutSummary`, `useCheckoutTransactions` |
 | `commerce.ts` | Revenue for every window (today adds up the checkout sales) and Promotions in every status | `useRevenue`, `usePromotions` through `demoClient` |
-| `anomalies.ts` | open anomalies that agree with the demo store's stock | `twin.anomalies()` in the console |
+| `anomalies.ts` | open anomalies that agree with the demo store's stock | `anomaly.store` on load; `twin.anomalies()`, `twin.raise()` in the console |
 
 The figures agree with each other: a lane's card adds up its sales, each sale its receipt lines, and today's revenue the lanes. Everything else still reads `apps/api`. Without `?twin=demo`, and in tests, none of it is used. The whole demo is one commit, so it can be reverted on its own.
 ## Source layout
@@ -235,11 +236,12 @@ Vitest runs in the `node` environment. Scene tests use `@react-three/test-render
 | `core/twin/fixtureStock.test.ts` | a fixture's stock totals and states follow the twin |
 | `components/twin/EntityInspector.test.tsx` | product, shelf, and checkout cards; a SKU in a shelf's list selects it; Close clears the selection |
 | `scene/selection.test.tsx` | product, shelf, and checkout selection glow and clear again; a fixture click leaves its own items to the product; drags select nothing |
+| `scene/anomaly.test.tsx` | issue #22: with P001 selected, an anomaly event puts a halo around exactly its items and keeps the selection glow, and resolving removes it; the card shows the anomaly next to P001's twin figures and flags an older state |
 | `scene/entities/stock/Stock.test.ts` | stock is deterministic, follows facings and quantity, and fills the front row first |
 | `scene/camera/focus.test.ts` | the camera faces a product's slot from its stock's side (far side, equipment too), sees wall equipment from inside the room and a gondola from the camera's side, and never ends up behind a wall |
 | `scene/camera/cameraFrame.test.ts` | every shelf corner stays in frame on desktop and on a 390px canvas |
-| `state/*.test.ts` | twin store and run store |
-| `components/**`, `app/App.test.tsx` | StoreStatus, AgentActivityPanel, LensSwitcher (revenue and promotions reads), routing |
+| `state/*.test.ts` | twin store and run store (the anomaly store is in `scene/anomaly.test.tsx`) |
+| `components/**`, `app/App.test.tsx` | StoreStatus, AgentActivityPanel (a timeline SKU selects its product), LensSwitcher (revenue and promotions reads), routing |
 | `fixtures/demo/*.test.ts*` | demo mode is on only under `?twin=demo`; the demo store, anomalies, checkouts, revenue, and promotions add up; the lenses read them in demo mode |
 | `stockedState.test.ts` | the stocked test store (`stockedState.ts`) passes the contract and places every product; out-of-stock products draw no items |
 | `fixtures/commerceFixture.test.ts`, `i18n/`, `core/utils/` | empty commerce reports, English messages and issue reasons, formatters and utils |
@@ -254,4 +256,5 @@ Vitest runs in the `node` environment. Scene tests use `@react-three/test-render
 - With the API stopped, the page shows a toast and a small "Could not load" banner over the store with empty shelves. When the API comes back, the next poll loads the store.
 - `StoreStatus` also calls the API (issue #8).
 - Revenue and promotions read `GET /revenue` and `GET /promotions`, which `apps/api` does not serve yet (`TODO(BE)`). The lens switch shows them anyway; they stay empty until the routes exist.
+- Issue #22: selection, highlight, details cards, camera focus, Agent Activity focus, and the anomaly halo are done on the FE. It stays open until `apps/api` serves anomalies (and their events) and checkout data. To check by hand: `npm run dev`, open `/?twin=demo`, select P001, then run `twin.raise("P001")` in the console; P001 gets a halo and its card lists the stockout. `twin.resolve("P001")` clears it.
 - Issue #58 stays open until a GitHub Actions CI gate runs `npm ci`, the build, and the tests.
