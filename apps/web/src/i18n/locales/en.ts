@@ -158,6 +158,7 @@ export const en = {
     empty: "No agent activity yet.",
     timeline: "Agent activity timeline",
     section: "Activity",
+    selectProduct: "Show {{sku}} in the store",
   },
   panel: {
     close: "Close the {{title}} panel",
