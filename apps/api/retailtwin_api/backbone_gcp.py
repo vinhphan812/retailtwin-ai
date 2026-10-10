@@ -4,6 +4,8 @@ The claim document is the event-id owner. BigQuery landing uses query DML,
 not streaming inserts.
 """
 
+from __future__ import annotations
+
 import base64
 import json
 import os

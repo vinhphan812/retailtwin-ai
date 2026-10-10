@@ -4,6 +4,8 @@ One event_id has one claim. BigQuery rows are derived history.
 A replay of the same payload is a duplicate.
 """
 
+from __future__ import annotations
+
 import hashlib
 import json
 import os
