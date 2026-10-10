@@ -170,16 +170,16 @@ class DemoOrchestrator:
             assert self._dcg_cls is not None, "setup() must be called before reset()"
             assert self._exec_cls is not None, "setup() must be called before reset()"
             assert self._verif_cls is not None, "setup() must be called before reset()"
-            twin = self._twin_cls("store-001")
+            twin = self._twin_cls("store-001")  # type: ignore[misc]
             twin.reset(self._fixtures)
             assert self._sim_cls is not None
-            sim = self._sim_cls(twin)
+            sim = self._sim_cls(twin)  # type: ignore[misc]
             assert self._dcg_cls is not None
-            dcg = self._dcg_cls(twin)
+            dcg = self._dcg_cls(twin)  # type: ignore[misc]
             assert self._exec_cls is not None
-            exec_agent = self._exec_cls(twin)
+            exec_agent = self._exec_cls(twin)  # type: ignore[misc]
             assert self._verif_cls is not None
-            verif = self._verif_cls(twin, sim)
+            verif = self._verif_cls(twin, sim)  # type: ignore[misc]
 
             self._twin = twin
             self._simulation = sim
