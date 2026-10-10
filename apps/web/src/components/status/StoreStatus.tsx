@@ -2,8 +2,7 @@ import { Button } from "@heroui/react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { STORE_STATUS_ROWS } from "@/constants/app.constant";
-// TODO(BE): bring back as the default client below.
-// import { defaultClient } from "@/core/api/client";
+import { defaultClient } from "@/core/api/client";
 import { productRows } from "@/core/twin/productRows";
 import { format } from "@/core/utils/format";
 import { ENTITY_TYPE } from "@/enums/scene.enum";
@@ -15,15 +14,11 @@ import { ProductsDialog } from "./ProductsDialog";
 import "./StoreStatus.css";
 
 type StoreStatusProps = {
-  /** Reads health and SKU lookups from apps/api. Without one, nothing calls the API. */
+  /** Reads health and SKU lookups; apps/api by default. */
   client?: RetailTwinClient;
 };
 
-// TODO(BE): read from apps/api again once it is ready:
-//   GET http://127.0.0.1:8000/health
-//   GET http://127.0.0.1:8000/inventory/{sku}
-// export function StoreStatus({ client = defaultClient }: StoreStatusProps) {
-export function StoreStatus({ client }: StoreStatusProps) {
+export function StoreStatus({ client = defaultClient }: StoreStatusProps) {
   const { t } = useTranslation();
   const { health, store, loading, sku, setSku, inventory, lookupPending, onLookup } = useStoreStatus(client);
   const select = useUiStore((state) => state.select);

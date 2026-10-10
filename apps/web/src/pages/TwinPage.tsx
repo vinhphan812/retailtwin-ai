@@ -26,8 +26,8 @@ export function TwinPage() {
       <main className="viewport relative">
         <StoreScene />
         <TwinStatusOverlay />
-        {/* TODO(BE): the Revenue and Promotions lenses do not call GET /revenue and GET /promotions yet
-          (see commerceClient); until apps/api serves them they show their empty report, or the demo data under ?twin=demo. */}
+        {/* TODO(BE): apps/api does not serve GET /revenue and GET /promotions yet; until it does the
+          Revenue and Promotions lenses show their empty report and a toast, or the demo data under ?twin=demo. */}
         <div className="lens-switcher">
           <LensSwitcher />
         </div>

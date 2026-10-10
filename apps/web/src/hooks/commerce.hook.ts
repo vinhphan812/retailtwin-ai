@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import i18n from "@/i18n";
-// TODO(BE): bring back in commerceClient below.
-// import { defaultClient } from "@/core/api/client";
+import { defaultClient } from "@/core/api/client";
 import { isDemoMode } from "@/core/twin/demoMode";
 import { demoClient } from "@/fixtures/demo/commerce";
 import { notify } from "@/core/notify";
@@ -14,15 +13,11 @@ import { storeFixture } from "@/fixtures/storeFixture";
 import { useTwinStore } from "@/state/twin.store";
 
 /**
- * The client the lenses read: the demo data under `?twin=demo`, otherwise none, and
- * the lenses keep their empty report.
+ * The client the lenses read: the demo data under `?twin=demo`, otherwise apps/api.
+ * A failed read never falls back to demo data; the lens keeps its empty report.
  */
-function commerceClient(): RetailTwinClient | undefined {
-  // TODO(BE): read from apps/api once it serves these:
-  //   GET http://127.0.0.1:8000/revenue?period=today|7d|30d
-  //   GET http://127.0.0.1:8000/promotions
-  // return isDemoMode() ? demoClient : defaultClient;
-  return isDemoMode() ? demoClient : undefined;
+function commerceClient(): RetailTwinClient {
+  return isDemoMode() ? demoClient : defaultClient;
 }
 
 /** The store the live twin reports, or the fixture's until it loads. */

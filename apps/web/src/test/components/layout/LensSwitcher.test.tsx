@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MotionGlobalConfig } from "framer-motion";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { LENS } from "@/enums/ui.enum";
@@ -14,7 +14,7 @@ vi.mock("@/core/notify", () => ({
   notify: { error: vi.fn(), warning: vi.fn(), success: vi.fn() },
 }));
 
-/** apps/api does not serve the revenue and promotions routes yet, and the lenses do not call them. */
+/** apps/api does not serve the revenue and promotions routes yet. */
 const fetchMock = vi.fn(async (_url: RequestInfo | URL) => new Response("{}", { status: 404 }));
 const requested = () => fetchMock.mock.calls.map(([url]) => new URL(String(url)).pathname + new URL(String(url)).search);
 
@@ -42,26 +42,26 @@ function renderShell() {
   );
 }
 
-// TODO(BE): expect GET /revenue?period= and GET /promotions again once commerceClient reads apps/api.
-test("opening revenue shows zeros for each period without calling the API", async () => {
+test("opening revenue reads GET /revenue for the period, and shows zeros until it lands", async () => {
   renderShell();
   fireEvent.click(screen.getByRole("radio", { name: "Revenue" }));
 
   expect(await screen.findByRole("heading", { name: "Revenue", level: 1 })).toBeTruthy();
   expect(screen.getByRole("radio", { name: "Today" }).getAttribute("aria-checked")).toBe("true");
   expect(screen.getByText("No sales in this period yet.")).toBeTruthy();
+  await waitFor(() => expect(requested()).toContain("/revenue?period=today"));
 
   fireEvent.click(screen.getByRole("radio", { name: "7 days" }));
   expect(screen.getByRole("heading", { name: "Revenue by day" })).toBeTruthy();
-  expect(requested()).toEqual([]);
+  await waitFor(() => expect(requested()).toContain("/revenue?period=7d"));
 });
 
-test("opening promotions says there are none without calling the API", async () => {
+test("opening promotions reads GET /promotions, and says when there are none", async () => {
   renderShell();
   fireEvent.click(screen.getByRole("radio", { name: "Promotions" }));
 
   expect(await screen.findByText("No promotions yet.")).toBeTruthy();
-  expect(requested()).toEqual([]);
+  await waitFor(() => expect(requested()).toContain("/promotions"));
   const filter = screen.getByRole("radiogroup", { name: "Filter by status" });
   fireEvent.click(within(filter).getByRole("radio", { name: /In review/ }));
   expect(await screen.findByText("No promotions with this status.")).toBeTruthy();

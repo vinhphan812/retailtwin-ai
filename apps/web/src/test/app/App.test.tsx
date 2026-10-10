@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { notify } from "@/core/notify";
 import { App } from "@/app/App";
@@ -18,23 +18,27 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-// TODO(BE): while apps/api is off (see pickSource, StoreStatus, commerceClient) the app makes no
-// request. Bring back "the app shows an API failure without crashing" when the reads come back.
-test("calls no API while apps/api is off, and still shows the panel", async () => {
-  const fetchMock = vi.fn(async () => {
+test("reads apps/api by default, and shows an API failure without crashing", async () => {
+  const fetchMock = vi.fn(async (_url: RequestInfo | URL): Promise<Response> => {
     throw new TypeError("offline");
   });
   vi.stubGlobal("fetch", fetchMock);
 
   render(<App />);
 
-  expect(await screen.findByRole("heading", { name: "Agent Activity" })).toBeTruthy();
+  await waitFor(() => {
+    expect(notify.error).toHaveBeenCalledWith(
+      "The API request failed.",
+      expect.objectContaining({ message: "The API is unreachable." }),
+    );
+  });
+  const paths = fetchMock.mock.calls.map(([url]) => new URL(String(url)).pathname);
+  expect(paths).toContain("/store");
+  expect(paths).toContain("/health");
+  expect(screen.getByRole("heading", { name: "Agent Activity" })).toBeTruthy();
   expect(screen.getByRole("main")).toBeTruthy();
   expect(screen.getByRole("textbox", { name: "SKU" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Look up inventory" })).toBeTruthy();
-  await new Promise((resolve) => setTimeout(resolve, 50));
-  expect(fetchMock).not.toHaveBeenCalled();
-  expect(notify.error).not.toHaveBeenCalled();
 });
 
 test("shows the lens switch with all three lenses, Operations first", () => {

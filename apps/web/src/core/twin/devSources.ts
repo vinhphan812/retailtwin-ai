@@ -1,5 +1,4 @@
-// TODO(BE): bring back with the createApiSource() call in pickSource.
-// import { createApiSource } from "@/core/api/sources/apiSource";
+import { createApiSource } from "@/core/api/sources/apiSource";
 import { fixtureSource, fixtureStoreState } from "@/core/api/sources/fixtureSource";
 import { createMemoryTwin, patchProduct } from "@/core/api/sources/memorySource";
 import type { TwinSource } from "@/core/api/sources/TwinSource";
@@ -78,10 +77,9 @@ function memoryTwinSource(initial: StoreResponse = fixtureStoreState()): TwinSou
 }
 
 /**
- * The Live Twin. While developing, `?twin=fixture|memory|demo|offline|slow|flaky`
+ * The Live Twin from apps/api. While developing, `?twin=fixture|memory|demo|offline|slow|flaky`
  * swaps in a local twin instead. `demo` is the stocked demo store (fixtures/demo), and
- * turns on the other demo data too (`isDemoMode`). The apps/api twin is off for now:
- * every other URL gets the layout with empty shelves.
+ * turns on the other demo data too (`isDemoMode`). A production build always reads apps/api.
  */
 export function pickSource(): TwinSource {
   if (import.meta.env.DEV) {
@@ -93,8 +91,5 @@ export function pickSource(): TwinSource {
     }
     if (mode in DEV_SOURCES) return DEV_SOURCES[mode];
   }
-  // TODO(BE): read the Live Twin from apps/api again once it is ready to serve the store:
-  //   GET http://127.0.0.1:8000/store  (polled, see createApiSource)
-  // return createApiSource();
-  return fixtureSource;
+  return createApiSource();
 }
