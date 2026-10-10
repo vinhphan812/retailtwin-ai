@@ -204,3 +204,101 @@ These are evidence/action summaries, not model chain-of-thought.
 - reproducible flagship scenario;
 - G06 passed;
 - final release/tag created.
+
+## 12. MVP demo controller runbook
+
+The MVP demo controller is a deterministic in-process orchestrator for the
+Weekend Demand Surge flagship scenario.  It runs entirely within the FastAPI
+process and requires no external infrastructure (no Pub/Sub, Firestore, or Gemini).
+
+### Starting the API server
+
+```bash
+cd apps/api
+python -m uvicorn retailtwin_api.main:app --reload
+```
+
+API available at `http://127.0.0.1:8000`.
+
+### Demo controller API
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/demo/reset` | Reset TwinService to demo fixtures |
+| POST | `/demo/start` | Run the autonomous loop once |
+| GET  | `/demo/status` | Current phase, verdict, timeline |
+| GET  | `/demo/timeline` | Full event timeline |
+
+Query parameters:
+- `seed: int` (optional) — random seed (reserved, non-functional in MVP)
+- `stale_context_test: bool` (default `false`) — set `true` to simulate stale-context rejection
+
+### Happy-path run (DCG returns ALLOW)
+
+```bash
+# 1. Reset to initial state
+curl -X POST http://127.0.0.1:8000/demo/reset
+# {"run_id": "...", "phase": "idle", "context_version": "...", "slots_loaded": 5}
+
+# 2. Run the autonomous loop
+curl -X POST http://127.0.0.1:8000/demo/start
+# {"run_id": "...", "phase": "complete", "dcg_verdict": "ALLOW",
+#   "executor_committed": true, "verifier_outcome": "PASS"}
+
+# 3. Check final status
+curl http://127.0.0.1:8000/demo/status | python -m json.tool
+```
+
+Expected outcome:
+- `dcg_verdict`: `ALLOW`
+- `executor_committed`: `true`
+- `verifier_outcome`: `PASS`
+- Timeline shows phases: `reset → event → simulate → dcg → execute → verify`
+
+### Stale-context run (DCG returns REFRESH_REQUIRED)
+
+```bash
+curl -X POST http://127.0.0.1:8000/demo/reset
+curl -X POST "http://127.0.0.1:8000/demo/start?stale_context_test=true"
+# {"dcg_verdict": "REFRESH_REQUIRED", "executor_committed": false}
+```
+
+Expected outcome:
+- `dcg_verdict`: `REFRESH_REQUIRED`
+- `executor_committed`: `false`
+- `verifier_outcome`: `FAIL`
+
+### Architecture summary
+
+```
+apps/api/retailtwin_api/
+  demo.py        DemoOrchestrator, DemoPhase, TimelineEvent, setup_demo()
+  routes.py      /demo/reset, /demo/start, /demo/status, /demo/timeline
+
+services/twin/__init__.py   TwinService (in-memory mutable store)
+services/simulation/
+  __init__.py              SimulationService (clone/apply/evaluate)
+  kpi.py                   KPI scoring (availability + efficiency)
+guard/decision_context_guard/__init__.py   DCG (5 validation gates)
+agents/executor/__init__.py    ExecutorAgent (only DCG-authorized writes)
+agents/verifier/__init__.py    VerifierAgent (post-action KPI comparison)
+```
+
+### Service wiring (setup_demo)
+
+At app startup, `setup_demo()` injects the concrete service classes into the
+orchestrator so the same API runs in both test (in-process) and production
+(FastAPI worker) modes without changing the route handlers.
+
+### Test evidence
+
+```bash
+python -m pytest apps/api/tests/test_demo_controller.py -v
+python -m pytest apps/api/tests/test_dcg.py -v
+python -m pytest apps/api/tests/test_executor.py -v
+python -m pytest apps/api/tests/test_twin_service.py -v
+python -m pytest apps/api/tests/ tests/e2e/ -v
+```
+
+Expected: 157 passed across the full suite.
+

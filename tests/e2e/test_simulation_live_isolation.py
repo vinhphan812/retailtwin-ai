@@ -87,7 +87,7 @@ class TestSimulationServiceContract:
         """Decision Context Guard contract is defined."""
         import pathlib
         repo_root = pathlib.Path(__file__).parent.parent.parent
-        dcg_dir = repo_root / "guard" / "decision-context-guard"
+        dcg_dir = repo_root / "guard" / "decision_context_guard"
         assert dcg_dir.exists()
         contract = dcg_dir / "contract.schema.json"
         assert contract.exists()
@@ -113,7 +113,7 @@ class TestExecutorIsolation:
         """DCG README documents ALLOW / DENY / REFRESH_REQUIRED outcomes."""
         import pathlib
         repo_root = pathlib.Path(__file__).parent.parent.parent
-        guard_dir = repo_root / "guard" / "decision-context-guard"
+        guard_dir = repo_root / "guard" / "decision_context_guard"
         readme = guard_dir / "README.md"
         assert readme.exists()
         content = readme.read_text(encoding="utf-8")
