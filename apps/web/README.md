@@ -18,17 +18,7 @@ npm run build   # tsc --noEmit, then vite build
 
 Set `VITE_API_BASE_URL` to the API origin. The default is `http://127.0.0.1:8000`. Put it in `apps/web/.env.local`, and do not commit that file.
 
-> **API calls are off for now (`TODO(BE)`).** The app sends no request to `apps/api`. Each call is commented out where it was made, with a `TODO(BE)` naming its route, so it can be switched back once the BE is ready:
->
-> | Route | Where it is commented out | Until then |
-> | --- | --- | --- |
-> | `GET http://127.0.0.1:8000/store` | `pickSource` (`core/twin/devSources.ts`) | `fixtureSource`: the layout with empty shelves, or a `?twin=` source |
-> | `GET http://127.0.0.1:8000/health` | `StoreStatus` (`components/status/StoreStatus.tsx`) | no health line |
-> | `GET http://127.0.0.1:8000/inventory/{sku}` | `StoreStatus` | the lookup reads the live store the scene already has |
-> | `GET http://127.0.0.1:8000/revenue?period=` | `commerceClient` (`hooks/commerce.hook.ts`) | the empty report, or the demo report under `?twin=demo` |
-> | `GET http://127.0.0.1:8000/promotions` | `commerceClient` | the same |
->
-> `createClient` and `apiSource` are unchanged and still tested; only their use is off.
+> **Source policy.** Every build reads `apps/api` by default: the Live Twin (`GET /store`), `GET /health`, `GET /inventory/{sku}`, and the Revenue and Promotions routes. Only a development build swaps in a local twin or demo data, and only under `?twin=` (see *Twin sources*). A failed API read never falls back to demo data. Routes `apps/api` does not serve yet (`/revenue`, `/promotions`, anomalies, checkouts; `TODO(BE)`) leave their panel empty.
 
 ## What is on screen
 
@@ -89,7 +79,7 @@ TwinSource ──connectTwin──▶ parseStoreState ──▶ twin.store.live 
                                           TwinIssuesNotice, EntityInspector
 ```
 
-1. `TwinPage` picks a `TwinSource` (`pickSource`) and passes it to `useTwinSource`. By default this is `apiSource`, which reads `GET /store` from `apps/api`; it is `fixtureSource` while the API calls are off (`TODO(BE)`).
+1. `TwinPage` picks a `TwinSource` (`pickSource`) and passes it to `useTwinSource`. By default this is `apiSource`, which reads `GET /store` from `apps/api`.
 2. `connectTwin` loads `snapshot()`, then follows `subscribe()`. `apiSource` has no push channel yet, so it polls `GET /store` every 5 s (`TWIN_POLL_MS`). It does not poll while the tab is hidden. Each failed read doubles the wait, up to 60 s (`TWIN_POLL_MAX_MS`), and a good read brings it back to 5 s. An outage is reported once. The next readable state ends it, and the stale banner goes away.
 3. Each payload is checked by `parseStoreState` against the `GET /store` contract (`StoreResponse` in `types/twin.type.ts`, matching `apps/api`):
    - If the payload is not a store response, the first load fails. After the first state, the feed is marked stale instead.
@@ -108,15 +98,15 @@ A product's entity id is its `sku`.
 
 `useRevenue` and `usePromotions` read the route the first time a lens (or a period) opens, then cache the result, so switching lenses does not call the API again. The lens shows the empty report (`emptyRevenue`, `emptyPromotions`) until the read lands. A failed read shows one toast and is retried the next time the lens opens.
 
-`apps/api` does not serve either route yet (`TODO(BE)` on the types), so `commerceClient` reads neither for now: the lens shows its empty report, or the demo report under `?twin=demo`.
+`apps/api` does not serve either route yet (`TODO(BE)` on the types), so outside `?twin=demo` the read fails with one toast and the lens keeps its empty report. Under `?twin=demo`, `commerceClient` reads the demo report instead.
 
 ### Twin sources
 
-`apiSource` (the Live Twin from `GET /store` on `VITE_API_BASE_URL`) is the default once the API calls come back; for now every build reads `fixtureSource`. In development, `?twin=` swaps in a local source:
+`apiSource` (the Live Twin from `GET /store` on `VITE_API_BASE_URL`) is the default, and the only source of a production build. In development, `?twin=` swaps in a local source:
 
 | `?twin=` | Source |
 | --- | --- |
-| (none) | `fixtureSource` for now (`TODO(BE)`); then `apiSource`: `GET /store`, polled every 5 s, backing off to 60 s while it fails |
+| (none) | `apiSource`: `GET /store`, polled every 5 s, backing off to 60 s while it fails |
 | `fixture` | `fixtureSource`: empty shelves, no live updates |
 | `memory` | empty shelves in memory, editable from the browser console: `twin.add()` adds the API fixture's P001, then `twin.patch("P001", { facings: 5 })`, `twin.patch("P001", null)`, `twin.state()` |
 | `demo` | the same editable twin, stocked with the demo store, plus demo data where `apps/api` serves none yet: checkout figures, payments and receipts, Revenue and Promotions reports, and anomalies (`twin.anomalies()`; `twin.raise("P001")` raises an anomaly event on a product, `twin.resolve("P001")` closes it). All of it lives in `fixtures/demo/` and is marked **Demo data** where it shows; see *Demo data* below |
