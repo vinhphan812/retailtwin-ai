@@ -4,8 +4,13 @@ import i18n from "@/i18n";
 import { notify } from "@/core/notify";
 import type { HealthResponse, RetailTwinClient } from "@/types/api.type";
 import type { ProductInventory } from "@/types/twin.type";
+import { ENTITY_TYPE } from "@/enums/scene.enum";
 import { TWIN_STATUS } from "@/enums/twin.enum";
 import { useTwinStore } from "@/state/twin.store";
+import { useUiStore } from "@/state/ui.store";
+
+/** A found product is selected, so the camera flies to it and its card opens. */
+const show = (product: ProductInventory) => useUiStore.getState().select(product.sku, ENTITY_TYPE.Product);
 
 const healthLoads = new WeakMap<RetailTwinClient, Promise<HealthResponse | null>>();
 const healthLoaded = new WeakMap<RetailTwinClient, HealthResponse>();
@@ -36,7 +41,8 @@ function loadHealth(client: RetailTwinClient): Promise<HealthResponse | null> {
 
 /**
  * API health (read once per client), the live store the scene already polls from
- * `GET /store`, and a SKU lookup form. Failures show as toasts. Without a client
+ * `GET /store`, and a SKU lookup form. A product found by the lookup is selected in the
+ * 3D view. Failures show as toasts. Without a client
  * nothing calls the API: there is no health line, and a SKU is looked up in the live
  * store the scene already has.
  */
@@ -74,12 +80,15 @@ export function useStoreStatus(client?: RetailTwinClient) {
     if (!client) {
       const found = store?.products.find((product) => product.sku.toLowerCase() === query.toLowerCase()) ?? null;
       setInventory(found);
-      if (!found) notify.error(t("storeStatus.lookupFailed"), t("storeStatus.notInStore", { sku: query }));
+      if (found) show(found);
+      else notify.error(t("storeStatus.lookupFailed"), t("storeStatus.notInStore", { sku: query }));
       return;
     }
     setLookupPending(true);
     try {
-      setInventory(await client.inventory(query));
+      const found = await client.inventory(query);
+      setInventory(found);
+      show(found);
     } catch (error) {
       setInventory(null);
       notify.error(t("storeStatus.lookupFailed"), error);

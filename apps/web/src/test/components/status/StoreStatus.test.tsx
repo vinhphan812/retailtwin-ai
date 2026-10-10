@@ -54,6 +54,7 @@ function client(overrides: Partial<RetailTwinClient> = {}): RetailTwinClient {
 beforeEach(() => {
   // The store comes from the scene's live twin, which polls GET /store.
   useTwinStore.setState({ live: store, status: TWIN_STATUS.Ready });
+  useUiStore.getState().select(null);
   vi.stubGlobal("fetch", vi.fn(async () => {
     throw new TypeError("offline");
   }));
@@ -110,6 +111,18 @@ test("shows an inventory error without dropping the store", async () => {
     );
   });
   expect(screen.getByRole("heading", { name: "store-001" })).toBeTruthy();
+});
+
+test("selects the product GET /inventory/{sku} finds", async () => {
+  const api = client();
+  render(<StoreStatus client={api} />);
+  await screen.findByRole("heading", { name: "store-001" });
+
+  fireEvent.change(screen.getByRole("textbox", { name: "SKU" }), { target: { value: "P001" } });
+  fireEvent.click(screen.getByRole("button", { name: "Look up inventory" }));
+
+  await waitFor(() => expect(selectedProductId(useUiStore.getState())).toBe("P001"));
+  expect(api.inventory).toHaveBeenCalledWith("P001");
 });
 
 test("asks for a SKU before calling the API", async () => {
@@ -215,6 +228,8 @@ test("without a client, calls no API and looks a SKU up in the live store", asyn
   fireEvent.change(screen.getByRole("textbox", { name: "SKU" }), { target: { value: "p001" } });
   fireEvent.click(screen.getByRole("button", { name: "Look up inventory" }));
   expect(screen.getByText("P001 on A01 / A01-S01: 8 on shelf, 42 in the backroom.")).toBeTruthy();
+  // The found product is selected, so the camera flies to it and its card opens.
+  expect(selectedProductId(useUiStore.getState())).toBe("P001");
 
   fireEvent.change(screen.getByRole("textbox", { name: "SKU" }), { target: { value: "P017" } });
   fireEvent.click(screen.getByRole("button", { name: "Look up inventory" }));
