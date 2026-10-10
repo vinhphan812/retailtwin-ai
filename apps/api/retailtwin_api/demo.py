@@ -18,12 +18,6 @@ if TYPE_CHECKING:
     from fastapi import FastAPI
     from starlette.requests import Request
 
-    from agents.executor import ExecutorAgent
-    from agents.verifier import VerifierAgent
-    from guard.decision_context_guard import DCG
-    from services.simulation import SimulationService
-    from services.twin import TwinService
-
 # ---------------------------------------------------------------------------
 # Domain models
 # ---------------------------------------------------------------------------
@@ -110,11 +104,11 @@ class DemoOrchestrator:
         self._run_id: str | None = None
         self._started_at: datetime | None = None
         self._completed_at: datetime | None = None
-        self._twin: TwinService | None = None
-        self._simulation: SimulationService | None = None
-        self._dcg: DCG | None = None
-        self._executor: ExecutorAgent | None = None
-        self._verifier: VerifierAgent | None = None
+        self._twin: "TwinService | None" = None
+        self._simulation: "SimulationService | None" = None
+        self._dcg: "DCG | None" = None
+        self._executor: "ExecutorAgent | None" = None
+        self._verifier: "VerifierAgent | None" = None
         self._timeline: list[TimelineEvent] = []
         self._decision_id: str | None = None
         self._dcg_verdict: str | None = None
@@ -170,11 +164,11 @@ class DemoOrchestrator:
             exec_agent = self._exec_cls(twin)
             verif = self._verif_cls(twin, sim)
 
-            self._twin = cast(TwinService, twin)
-            self._simulation = cast(SimulationService, sim)
-            self._dcg = cast(DCG, dcg)
-            self._executor = cast(ExecutorAgent, exec_agent)
-            self._verifier = cast(VerifierAgent, verif)
+            self._twin = cast("TwinService", twin)
+            self._simulation = cast("SimulationService", sim)
+            self._dcg = cast("DCG", dcg)
+            self._executor = cast("ExecutorAgent", exec_agent)
+            self._verifier = cast("VerifierAgent", verif)
 
             self._timeline.append(
                 TimelineEvent(
