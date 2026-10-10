@@ -142,6 +142,48 @@
   color: var(--color-ink-muted);
 }
 
+/* A promotion the product is in: the whole card opens it in the Promotions lens. */
+.details-promotion {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.details-promotion:hover,
+.details-promotion:focus-visible {
+  background: color-mix(in srgb, var(--color-accent) 6%, var(--color-card));
+  border-color: var(--color-line-strong);
+  outline: none;
+}
+
+.details-promotion .promotion-name {
+  display: block;
+}
+
+.details-promotion-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.details-promotion-go {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-ink-muted);
+  white-space: nowrap;
+}
+
+.details-promotion:hover .details-promotion-go,
+.details-promotion:focus-visible .details-promotion-go {
+  color: var(--color-accent);
+}
+
 @media (max-width: 560px) {
   .details-tiles {
     grid-template-columns: repeat(3, 1fr);

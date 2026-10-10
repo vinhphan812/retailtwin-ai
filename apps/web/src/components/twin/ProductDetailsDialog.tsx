@@ -7,7 +7,6 @@ import { stockState } from "@/core/twin/fixtureStock";
 import { format } from "@/core/utils/format";
 import { ENTITY_TYPE } from "@/enums/scene.enum";
 import { STOCK_STATE, type StockState } from "@/enums/stock.enum";
-import { LENS } from "@/enums/ui.enum";
 import { usePromotions } from "@/hooks/commerce.hook";
 import { anomaliesOf, useAnomalyStore } from "@/state/anomaly.store";
 import { usePanelStore } from "@/state/panel.store";
@@ -94,14 +93,14 @@ function AnomalyRows({ anomalies, contextVersion }: { anomalies: Anomaly[]; cont
  * Everything about one product in a centered dialog: its stock in the twin, its open
  * anomalies, and the promotions it is in. Opened by **Details** on the product card or
  * on a shelf's product list (`showDetails`). Every figure comes from the live state, the
- * anomaly store, and `GET /promotions`.
+ * anomaly store, and `GET /promotions`. A promotion opens the Promotions lens on it.
  */
 export function ProductDetailsDialog() {
   const { t } = useTranslation();
   const sku = useUiStore((state) => state.detailsSku);
   const showDetails = useUiStore((state) => state.showDetails);
   const select = useUiStore((state) => state.select);
-  const setLens = useUiStore((state) => state.setLens);
+  const focusPromotion = useUiStore((state) => state.focusPromotion);
   const openPanel = usePanelStore((state) => state.setOpen);
   const live = useTwinStore((state) => state.live);
   const allAnomalies = useAnomalyStore((state) => state.anomalies);
@@ -111,6 +110,13 @@ export function ProductDetailsDialog() {
   const anomalies = sku ? anomaliesOf(allAnomalies, sku) : [];
   const inPromotions = sku ? promotions.filter((promotion) => promotion.skus.includes(sku)) : [];
   const close = () => showDetails(null);
+  /** Opens the Promotions lens on one promotion, with this product selected so it stands out there and in 3D. */
+  const viewPromotion = (promotionId: string) => {
+    if (product) select(product.sku, ENTITY_TYPE.Product);
+    focusPromotion(promotionId);
+    openPanel(true);
+    close();
+  };
   const state = product ? stockState({ facings: product.facings, shelfQuantity: product.shelf_quantity }) : null;
 
   return (
@@ -169,21 +175,34 @@ export function ProductDetailsDialog() {
                 {inPromotions.length ? (
                   <ul className="details-promotions">
                     {inPromotions.map((promotion) => (
-                      <li key={promotion.id} className="promotion-card" data-status={promotion.status}>
-                        <header className="promotion-card-head">
-                          <span className="promotion-status">
-                            <span className="promotion-status-dot" aria-hidden />
-                            {t(`promotions.status.${promotion.status}`)}
+                      <li key={promotion.id}>
+                        <button
+                          type="button"
+                          className="promotion-card details-promotion"
+                          data-status={promotion.status}
+                          aria-label={t("productDetails.viewPromotion", { name: promotion.name })}
+                          onClick={() => viewPromotion(promotion.id)}
+                        >
+                          <span className="promotion-card-head">
+                            <span className="promotion-status">
+                              <span className="promotion-status-dot" aria-hidden />
+                              {t(`promotions.status.${promotion.status}`)}
+                            </span>
+                            <span className="promotion-kind">
+                              {t(`promotions.kind.${promotion.kind}`, { value: discountOf(promotion) })}
+                            </span>
                           </span>
-                          <span className="promotion-kind">
-                            {t(`promotions.kind.${promotion.kind}`, { value: discountOf(promotion) })}
+                          <span className="promotion-name">{promotion.name}</span>
+                          <span className="details-promotion-foot">
+                            <span className="promotion-meta">
+                              {t("promotions.dates", { start: format.day(promotion.starts_at), end: format.day(promotion.ends_at) })}{" "}
+                              · {t("promotions.skus", { count: promotion.skus.length })}
+                            </span>
+                            <span className="details-promotion-go" aria-hidden>
+                              {t("productDetails.view")} →
+                            </span>
                           </span>
-                        </header>
-                        <h4 className="promotion-name">{promotion.name}</h4>
-                        <p className="promotion-meta">
-                          {t("promotions.dates", { start: format.day(promotion.starts_at), end: format.day(promotion.ends_at) })}{" "}
-                          · {t("promotions.skus", { count: promotion.skus.length })}
-                        </p>
+                        </button>
                       </li>
                     ))}
                   </ul>
@@ -196,22 +215,7 @@ export function ProductDetailsDialog() {
               </Section>
             </ModalBody>
             <ModalFooter className="border-t border-line">
-              {inPromotions.length ? (
-                <Button
-                  size="sm"
-                  radius="sm"
-                  variant="light"
-                  className="mr-auto cursor-pointer"
-                  onPress={() => {
-                    setLens(LENS.Promotions);
-                    openPanel(true);
-                    close();
-                  }}
-                >
-                  {t("productDetails.openPromotions")}
-                </Button>
-              ) : null}
-              <Button size="sm" radius="sm" variant="light" className="cursor-pointer" onPress={close}>
+              <Button size="sm" radius="sm" variant="light" className="ml-auto cursor-pointer" onPress={close}>
                 {t("productDetails.close")}
               </Button>
               {product ? (

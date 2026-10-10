@@ -11,12 +11,16 @@ type UiStore = {
   lens: Lens;
   /** The product whose details dialog is open, or null. */
   detailsSku: string | null;
+  /** The promotion the Promotions lens should scroll to and flash, until it has. */
+  focusedPromotionId: string | null;
   /** Selects an entity, a product unless told otherwise; `null` clears the selection. */
   select: (entityId: string | null, entityType?: EntityType) => void;
   setViewMode: (mode: ViewMode) => void;
   setLens: (lens: Lens) => void;
   /** Opens the details dialog of a product; `null` closes it. */
   showDetails: (sku: string | null) => void;
+  /** Switches to the Promotions lens on one promotion; `null` once it has been shown. */
+  focusPromotion: (promotionId: string | null) => void;
 };
 
 export const useUiStore = create<UiStore>()((set) => ({
@@ -25,11 +29,14 @@ export const useUiStore = create<UiStore>()((set) => ({
   viewMode: VIEW_MODE.Live,
   lens: LENS.Operations,
   detailsSku: null,
+  focusedPromotionId: null,
   select: (selectedEntityId, entityType = ENTITY_TYPE.Product) =>
     set({ selectedEntityId, selectedEntityType: selectedEntityId ? entityType : null }),
   setViewMode: (viewMode) => set({ viewMode }),
   setLens: (lens) => set({ lens }),
   showDetails: (detailsSku) => set({ detailsSku }),
+  focusPromotion: (focusedPromotionId) =>
+    set(focusedPromotionId ? { focusedPromotionId, lens: LENS.Promotions } : { focusedPromotionId }),
 }));
 
 /** True while `entityId` is the selected entity of `entityType`. */

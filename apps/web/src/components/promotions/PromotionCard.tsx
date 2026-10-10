@@ -73,14 +73,22 @@ function PromotionProducts({ skus }: { skus: string[] }) {
   );
 }
 
-/** One promotion: status, discount, dates, its products in the store, and what it earned. */
-export function PromotionCard({ promotion }: { promotion: Promotion }) {
+/** The element id of a promotion's card, so the lens can scroll to it. */
+export const promotionCardId = (promotionId: string) => `promotion-${promotionId}`;
+
+/** One promotion: status, discount, dates, its products in the store, and what it earned. `focused` flashes it. */
+export function PromotionCard({ promotion, focused = false }: { promotion: Promotion; focused?: boolean }) {
   const { t } = useTranslation();
   const discount = discountOf(promotion);
   const progress = elapsed(promotion);
 
   return (
-    <article className="promotion-card" data-status={promotion.status}>
+    <article
+      id={promotionCardId(promotion.id)}
+      className="promotion-card"
+      data-status={promotion.status}
+      data-focused={focused || undefined}
+    >
       <header className="promotion-card-head">
         <span className="promotion-status">
           <span className="promotion-status-dot" aria-hidden />

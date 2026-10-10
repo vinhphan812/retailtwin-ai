@@ -475,6 +475,18 @@
   border-radius: 8px;
 }
 
+/* Opened from a product's details: a ring that pulses, then fades. */
+.promotion-card[data-focused] {
+  animation: promotion-focus 0.8s ease-in-out 3;
+  box-shadow: 0 0 0 2px var(--color-accent);
+}
+
+@keyframes promotion-focus {
+  50% {
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--color-accent) 35%, transparent);
+  }
+}
+
 .promotion-card[data-status="active"] {
   --status: var(--color-good);
 }
@@ -630,6 +642,10 @@ button.promotion-product[aria-pressed="true"] {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .promotion-card[data-focused] {
+    animation: none;
+  }
+
   .promotion-card[data-status="active"] .promotion-status-dot {
     animation: none;
   }

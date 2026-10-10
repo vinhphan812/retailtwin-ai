@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { MotionGlobalConfig } from "framer-motion";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EntityInspector } from "@/components/twin/EntityInspector";
 import { ProductDetailsDialog } from "@/components/twin/ProductDetailsDialog";
+import { PromotionsPanel } from "@/components/promotions/PromotionsPanel";
 import { ANOMALY_KIND, ANOMALY_SEVERITY } from "@/enums/anomaly.enum";
 import { ENTITY_TYPE } from "@/enums/scene.enum";
 import { TWIN_STATUS } from "@/enums/twin.enum";
@@ -40,13 +42,15 @@ vi.mock("@/hooks/commerce.hook", async () => {
   return { usePromotions: () => summary };
 });
 
+MotionGlobalConfig.skipAnimations = true;
+
 const state = stockedStoreState();
 const p004 = state.products.find((product) => product.sku === "P004")!;
 
 beforeEach(() => {
   useTwinStore.setState({ live: state, issues: [], status: TWIN_STATUS.Ready });
   useAnomalyStore.setState({ anomalies: [] });
-  useUiStore.setState({ lens: LENS.Operations, detailsSku: null });
+  useUiStore.setState({ lens: LENS.Operations, detailsSku: null, focusedPromotionId: null });
   useUiStore.getState().select(null);
   usePanelStore.setState({ open: false });
 });
@@ -105,11 +109,13 @@ describe("product details dialog", () => {
     await waitFor(() => expect(useUiStore.getState().detailsSku).toBeNull());
   });
 
-  it("opens the Promotions lens from a product's promotions", async () => {
+  it("opens the Promotions lens on a promotion of the product, with the product selected", async () => {
     useUiStore.getState().showDetails("P004");
     renderPage();
-    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Open in Promotions" }));
-    expect(useUiStore.getState().lens).toBe(LENS.Promotions);
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "View Pasta night bundle in Promotions" }));
+    expect(useUiStore.getState()).toMatchObject({ lens: LENS.Promotions, focusedPromotionId: "promo-1", detailsSku: null });
+    expect(selectedProductId(useUiStore.getState())).toBe("P004");
     expect(usePanelStore.getState().open).toBe(true);
   });
 
@@ -119,6 +125,20 @@ describe("product details dialog", () => {
     const dialog = await screen.findByRole("dialog");
     expect(dialog.textContent).toContain("Not in any promotion.");
     expect(dialog.textContent).toContain("No open anomalies.");
-    expect(within(dialog).queryByRole("button", { name: "Open in Promotions" })).toBeNull();
+    expect(within(dialog).queryByRole("button", { name: /in Promotions$/ })).toBeNull();
+  });
+});
+
+describe("promotions lens", () => {
+  it("flashes the promotion it was opened on, and shows every status so the card is there", async () => {
+    render(<PromotionsPanel />);
+    fireEvent.click(screen.getByRole("radio", { name: "Draft" }));
+    await waitFor(() => expect(document.getElementById("promotion-promo-1")).toBeNull());
+
+    act(() => useUiStore.getState().focusPromotion("promo-1"));
+    await waitFor(() => expect(document.getElementById("promotion-promo-1")?.hasAttribute("data-focused")).toBe(true));
+    expect(screen.getByRole("radio", { name: "All" }).getAttribute("aria-checked")).toBe("true");
+    expect(useUiStore.getState().focusedPromotionId).toBeNull();
+    expect(document.getElementById("promotion-promo-2")?.hasAttribute("data-focused")).toBe(false);
   });
 });
