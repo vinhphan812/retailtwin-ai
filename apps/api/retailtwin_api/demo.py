@@ -165,11 +165,20 @@ class DemoOrchestrator:
             self._error = None
 
             # Initialize services
+            assert self._twin_cls is not None, "setup() must be called before reset()"
+            assert self._sim_cls is not None, "setup() must be called before reset()"
+            assert self._dcg_cls is not None, "setup() must be called before reset()"
+            assert self._exec_cls is not None, "setup() must be called before reset()"
+            assert self._verif_cls is not None, "setup() must be called before reset()"
             twin = self._twin_cls("store-001")
             twin.reset(self._fixtures)
+            assert self._sim_cls is not None
             sim = self._sim_cls(twin)
+            assert self._dcg_cls is not None
             dcg = self._dcg_cls(twin)
+            assert self._exec_cls is not None
             exec_agent = self._exec_cls(twin)
+            assert self._verif_cls is not None
             verif = self._verif_cls(twin, sim)
 
             self._twin = twin
