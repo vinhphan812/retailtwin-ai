@@ -210,6 +210,7 @@ export const en = {
     slowSkus: "Slow sellers holding shelf space",
     skusEmpty: "No product data yet.",
     skuLine: "{{units}} units · {{facings}} facings",
+    selectProduct: "Show {{sku}} {{name}} in the store",
   },
   promotions: {
     title: "Promotions",
@@ -238,6 +239,10 @@ export const en = {
     skus: "{{count}} SKUs",
     empty: "No promotions yet.",
     emptyFiltered: "No promotions with this status.",
+    products: "Products in this promotion",
+    selectProduct: "Show {{sku}} in the store",
+    onShelf: "{{onShelf}}/{{facings}} on shelf",
+    notInStore: "Not in the store",
   },
   commerce: {
     loadFailed: "Could not load the sales figures.",
