@@ -125,12 +125,17 @@ class InMemoryTwinService:
             if slot_id not in self._slots:
                 raise KeyError(f"Slot {slot_id} does not exist")
             slot = self._slots[slot_id]
+            
+            # Inventory invariant: replenishment decrements backroom
+            if slot.backroom_quantity < quantity:
+                raise ValueError(f"Insufficient backroom quantity for slot {slot_id}")
+                
             self._slots[slot_id] = SlotState(
                 slot_id=slot.slot_id,
                 sku=slot.sku,
                 facings=slot.facings,
                 shelf_quantity=slot.shelf_quantity + quantity,
-                backroom_quantity=slot.backroom_quantity,
+                backroom_quantity=slot.backroom_quantity - quantity,
             )
             self._version += 1
 
