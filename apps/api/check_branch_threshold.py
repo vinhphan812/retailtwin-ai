@@ -16,7 +16,7 @@ if branch_valid and branch_covered:
     if bv > 0:
         pct = (bc / bv) * 100
         print(f"branch: {bc}/{bv} = {pct:.1f}%")
-        if pct < 68:
+        if pct < 75:
             print(f"ERROR: branch coverage {pct:.1f}% < 75% threshold")
             sys.exit(1)
         print("PASS: branch coverage >= 75%")
@@ -31,7 +31,7 @@ for counter in root.findall(".//counter"):
 if found > 0:
     pct = (hit / found) * 100
     print(f"branch: {hit}/{found} = {pct:.1f}%")
-    if pct < 68:
+    if pct < 75:
         print(f"ERROR: branch coverage {pct:.1f}% < 75% threshold")
         sys.exit(1)
     print("PASS: branch coverage >= 75%")

@@ -25,26 +25,23 @@ function useStoreId() {
   return useTwinStore((state) => state.live?.store_id) ?? storeFixture.storeId;
 }
 
-type ReadCache = { reads: Map<string, Promise<unknown>>; results: Map<string, unknown>; errors: Map<string, Error> };
+type ReadCache = { reads: Map<string, Promise<unknown>>; results: Map<string, unknown> };
 const caches = new WeakMap<RetailTwinClient, ReadCache>();
 
 function cacheOf(client: RetailTwinClient): ReadCache {
   let cache = caches.get(client);
   if (!cache) {
-    cache = { reads: new Map(), results: new Map(), errors: new Map() };
+    cache = { reads: new Map(), results: new Map() };
     caches.set(client, cache);
   }
   return cache;
 }
-
-type HookResult<T> = T & { error: Error | null; loading: boolean };
 
 /**
  * One read per key, shared by every mount, so switching lenses does not call the API
  * again. A failed read is dropped, toasts once, and is retried on the next mount.
  * Without a client nothing is read and the placeholder stays.
  */
-<<<<<<< Updated upstream
 function useCachedRead<T>(
   client: RetailTwinClient | undefined,
   key: string,
@@ -52,15 +49,6 @@ function useCachedRead<T>(
   placeholder: T,
 ): T {
   const [value, setValue] = useState(() => (client && (cacheOf(client).results.get(key) as T | undefined)) ?? placeholder);
-=======
-function useCachedRead<T>(client: RetailTwinClient, key: string, read: () => Promise<T>, placeholder: T): HookResult<T> {
-  const { reads, results, errors } = cacheOf(client);
-  const [state, setState] = useState<{ data: T; error: Error | null; loading: boolean }>(() => ({
-    data: (results.get(key) as T | undefined) ?? placeholder,
-    error: errors.get(key) ?? null,
-    loading: !results.has(key) && !errors.has(key),
-  }));
->>>>>>> Stashed changes
 
   useEffect(() => {
     if (!client) {
@@ -70,9 +58,7 @@ function useCachedRead<T>(client: RetailTwinClient, key: string, read: () => Pro
     const { reads, results } = cacheOf(client);
     let cancelled = false;
     let pending = reads.get(key) as Promise<T> | undefined;
-    
     if (!pending) {
-<<<<<<< Updated upstream
       pending = read(client).then(
         (result) => {
           results.set(key, result);
@@ -85,36 +71,19 @@ function useCachedRead<T>(client: RetailTwinClient, key: string, read: () => Pro
         },
       );
       reads.set(key, pending);
-=======
-        setState(s => ({ ...s, loading: true }));
-        pending = read().then(
-            (result) => {
-                results.set(key, result);
-                return result;
-            },
-            (error: Error) => {
-                reads.delete(key);
-                errors.set(key, error);
-                notify.error(i18n.t("commerce.loadFailed"), error);
-                throw error;
-            }
-        );
-        reads.set(key, pending);
->>>>>>> Stashed changes
     }
+    setValue((results.get(key) as T | undefined) ?? placeholder);
     pending.then(
-        (data) => {
-            if (!cancelled) setState({ data, error: null, loading: false });
-        },
-        (error: Error) => {
-            if (!cancelled) setState({ data: placeholder, error, loading: false });
-        }
+      (result) => !cancelled && setValue(result),
+      () => {},
     );
+    return () => {
+      cancelled = true;
+    };
+    // `read` and `placeholder` follow from `client` and `key`.
+  }, [client, key]);
 
-    return () => { cancelled = true; };
-  }, [client, key, reads, results, errors, read, placeholder]);
-
-  return { ...state.data, error: state.error, loading: state.loading } as HookResult<T>;
+  return value;
 }
 
 /** `GET /revenue` for one window, read when the Revenue lens opens. All zeros until it lands. */

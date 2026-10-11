@@ -4,8 +4,6 @@ One event_id has one claim. BigQuery rows are derived history.
 A replay of the same payload is a duplicate.
 """
 
-from __future__ import annotations
-
 import hashlib
 import json
 import os
@@ -501,7 +499,7 @@ def _write_derived(
         ledger.release_landing(event.event_id, lease.fence)
         return Landing("conflict", stored, existing_table)
     current = _insert_generation(sink, event, ledger, table, lease)
-    stored = sink.get(table, event.event_id)  # type: ignore[assignment]
+    stored = sink.get(table, event.event_id)
     if stored is None or stored != event:
         ledger.release_landing(event.event_id, current.fence)
         if stored is None:

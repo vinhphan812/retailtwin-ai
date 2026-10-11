@@ -39,3 +39,4 @@ Skip a new record when an accepted ADR already covers the choice, or when the ch
 | [0005](0005-land-each-normalized-store-event-once.md) | Land each normalized store event once | Accepted |
 | [0006](0006-use-heroui-v2-for-app-status-ui.md) | Use HeroUI v2 for app status UI | Accepted |
 | [0007](0007-keep-store-layout-static-until-the-twin-serves-geometry.md) | Keep the store layout static until the twin serves geometry | Accepted |
+| [0008](0008-implement-provider-neutral-llm-architecture.md) | Implement provider-neutral LLM architecture | Accepted |

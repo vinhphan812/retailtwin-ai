@@ -4,8 +4,6 @@ The claim document is the event-id owner. BigQuery landing uses query DML,
 not streaming inserts.
 """
 
-from __future__ import annotations
-
 import base64
 import json
 import os
@@ -16,7 +14,7 @@ import urllib.request
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Protocol, cast
+from typing import Protocol
 from urllib.parse import quote
 
 from retailtwin_api.backbone import (
@@ -270,7 +268,7 @@ class BigQuerySink:
         rows = self._rows(sql, [("event_id", "STRING", event_id)])
         if len(rows) != 1:
             raise BackboneError(f"Could not count {event_id} in {table}.")
-        return int(cast(str, rows[0]["row_count"]))
+        return int(rows[0]["row_count"])
 
     def insert(self, table: str, event: StoreEvent, job_id: str) -> None:
         if not _job_id_ok(job_id):
@@ -543,7 +541,7 @@ class FirestoreRest:
                 }
             ]
         }
-        response = self._call("POST", f"{_database_root(self.config.project)}/documents:commit", payload)  # type: ignore[arg-type]
+        response = self._call("POST", f"{_database_root(self.config.project)}/documents:commit", payload)
         if response.status == 200:
             return Claim("inserted", table, event.model_copy(deep=True))
         if _precondition_failed(response.status, response.body):
@@ -576,7 +574,7 @@ class FirestoreRest:
                 }
             ]
         }
-        response = self._call("POST", f"{_database_root(self.config.project)}/documents:commit", payload)  # type: ignore[arg-type]
+        response = self._call("POST", f"{_database_root(self.config.project)}/documents:commit", payload)
         if response.status == 200:
             return LandingLease(_commit_update_time(response.body), generation)
         if _precondition_failed(response.status, response.body):
@@ -603,7 +601,7 @@ class FirestoreRest:
                 }
             ]
         }
-        response = self._call("POST", f"{_database_root(self.config.project)}/documents:commit", payload)  # type: ignore[arg-type]
+        response = self._call("POST", f"{_database_root(self.config.project)}/documents:commit", payload)
         if response.status == 200:
             return LandingLease(_commit_update_time(response.body), nxt)
         if _precondition_failed(response.status, response.body):
@@ -636,7 +634,7 @@ class FirestoreRest:
             }
         }
         url = f"{_database_root(self.config.project)}/documents/{_REJECT_COLLECTION}"
-        response = self._call("POST", url, payload)  # type: ignore[arg-type]
+        response = self._call("POST", url, payload)
         if response.status not in (200, 201):
             raise _http_error("Quarantine", response.status, response.body)
 
@@ -672,7 +670,7 @@ class FirestoreRest:
                 }
             ]
         }
-        response = self._call("POST", f"{_database_root(self.config.project)}/documents:commit", payload)  # type: ignore[arg-type]
+        response = self._call("POST", f"{_database_root(self.config.project)}/documents:commit", payload)
         if response.status == 200:
             return
         if optional and _precondition_failed(response.status, response.body):
