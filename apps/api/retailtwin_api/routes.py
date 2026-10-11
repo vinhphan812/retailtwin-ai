@@ -5,6 +5,7 @@ import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Request, Response
+from typing import List
 
 from retailtwin_api.errors import ApiError
 from retailtwin_api.events import EventConflict, EventLog
@@ -14,6 +15,11 @@ from retailtwin_api.schemas import (
     ProductInventory,
     StoreEvent,
     StoreResponse,
+    SimulationResponse,
+    SimulationsResponse,
+    SimulationCandidateResponse,
+    KPIResultResponse,
+    ActivityResponse,
 )
 from retailtwin_api.store import StoreRepository
 
@@ -52,6 +58,7 @@ def read_store(store: StoreRepository = Depends(get_store)) -> StoreResponse:
     return store.view()
 
 
+
 @router.get("/inventory/{sku}", response_model=ProductInventory)
 def read_inventory(sku: str, store: StoreRepository = Depends(get_store)) -> ProductInventory:
     require_loaded(store)
@@ -59,6 +66,15 @@ def read_inventory(sku: str, store: StoreRepository = Depends(get_store)) -> Pro
     if product is None:
         raise ApiError(404, "sku_not_found", f"SKU {sku!r} is not in store {store.store_id}.")
     return product
+
+
+@router.get("/simulations", response_model=SimulationsResponse)
+def list_simulations():
+    return SimulationsResponse(simulations=[])
+
+@router.get("/activities", response_model=ActivityResponse)
+def list_activities():
+    return ActivityResponse(activities=[], total=0)
 
 
 @router.post("/events", response_model=EventReceipt)
