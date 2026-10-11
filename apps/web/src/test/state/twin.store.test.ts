@@ -29,7 +29,9 @@ describe("twin store", () => {
     expect(useTwinStore.getState().liveChange).toEqual({
       diff: expect.objectContaining({ facings: [{ sku: "P002", before: 2, after: 3 }] }),
       at: 1000,
+      before: first,
     });
+    expect(useTwinStore.getState().liveChange?.before).toBe(first);
   });
 
   it("keeps the last change when a live state changes nothing", () => {

@@ -61,6 +61,7 @@ describe("useRecentChanges", () => {
       { sku: "P007", from: { shelf_id: "B02", slot_id: "B02-S20" }, to: { shelf_id: "B02", slot_id: "B02-S22" } },
     ]);
     expect(diff?.facings.map((change) => change.sku)).toEqual(["P004"]);
+    expect(result.current?.before).toBe(live);
     expect(diff?.quantity).toEqual([{ sku: "P003", shelfDelta: 12, backroomDelta: -12 }]);
     expect(useTwinStore.getState().live).toBe(live);
     expect(live).toEqual(before);

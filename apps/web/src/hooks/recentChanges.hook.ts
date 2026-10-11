@@ -22,7 +22,7 @@ export function useRecentChanges(): RecentChange | null {
     if (!simulation) return liveChange;
     if (!live) return null;
     const diff = diffStates(live, simulation.state);
-    return isEmptyDiff(diff) ? null : { diff, at: Math.max(viewChangedAt, simulationChangedAt) };
+    return isEmptyDiff(diff) ? null : { diff, at: Math.max(viewChangedAt, simulationChangedAt), before: live };
   }, [simulation, live, liveChange, viewChangedAt, simulationChangedAt]);
 
   const [, expire] = useReducer((count: number) => count + 1, 0);

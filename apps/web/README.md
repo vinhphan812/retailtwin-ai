@@ -106,10 +106,10 @@ A product's entity id is its `sku`.
 
 The diff has two uses, both read through `useRecentChanges()` (`hooks/recentChanges.hook.ts`) for the view on screen:
 
-- **Live → Live.** `setLive` diffs each new live state against the one before and keeps the result with its time as `twin.store.liveChange`. The first state is a load, not a change. A state that changes nothing (a poll with no move, facings, or quantity change) leaves the last change as it was.
+- **Live → Live.** `setLive` diffs each new live state against the one before and keeps the result, its time, and the Live state before it (`before`) as `twin.store.liveChange`. The first state is a load, not a change. A state that changes nothing (a poll with no move, facings, or quantity change) leaves the last change as it was.
 - **Live → Simulation.** In the Simulation view, the hook diffs the current Live state against the proposal, timed from when the view was opened (`ui.store.viewChangedAt`) or the proposal last changed (`twin.store.simulationChangedAt`). It is computed when needed and never stored. Because it is against the current Live state and not the simulation's `base_context_version`, Live changes made since the simulation opened show up in it too.
 
-The hook returns `{ diff, at }` for `CHANGE_CUE_MS` (4 s), then null, so the cues of #23, #24, #25 and #27 fade by themselves. `CHANGE_CUE_MS` is shorter than `TWIN_POLL_MS`, so the next poll never replaces a cue that is still showing.
+For `CHANGE_CUE_MS` (4 s) the hook returns `{ diff, at, before }`, where `before` is the state the diff was taken from (the previous Live state, or Live for a proposal), so a cue can still draw what was there, such as a moved product's old facings at its source slot. After that it returns null, so the cues of #23, #24, #25 and #27 fade by themselves. `CHANGE_CUE_MS` is shorter than `TWIN_POLL_MS`, so the next poll never replaces a cue that is still showing.
 
 ### Revenue and promotions
 

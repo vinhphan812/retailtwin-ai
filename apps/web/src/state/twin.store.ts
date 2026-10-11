@@ -6,14 +6,18 @@ import { diffStates, isEmptyDiff, type StateDiff } from "@/core/twin/stateDiff";
 import { TWIN_STATUS, type TwinStatus } from "@/enums/twin.enum";
 import { VIEW_MODE, type ViewMode } from "@/enums/ui.enum";
 
-/** A diff and when it appeared, in ms since the epoch. */
-export type RecentChange = { diff: StateDiff; at: number };
+/**
+ * A change and when it appeared, in ms since the epoch. `before` is the state it was
+ * diffed from (the previous Live state, or Live for a proposal), so a cue can still draw
+ * what was there, such as a moved product's old facings at its source slot.
+ */
+export type RecentChange = { diff: StateDiff; at: number; before: StoreResponse };
 
 type TwinStore = {
   live: StoreResponse | null;
   /** Products of the last live state that broke the contract and were left out of it. */
   issues: ProductIssue[];
-  /** The last Live → Live change; a state that changed nothing leaves it as it was. */
+  /** The last Live → Live change, with the Live state before it; a state that changed nothing leaves it as it was. */
   liveChange: RecentChange | null;
   /** The open Simulation Twin run, or null. Kept apart from `live`: nothing copies one into the other. */
   simulation: Simulation | null;
@@ -49,7 +53,8 @@ export const useTwinStore = create<TwinStore>()((set) => ({
     set((twin) => {
       // The first state is a load, not a change.
       const diff = twin.live ? diffStates(twin.live, live) : null;
-      const liveChange = diff && !isEmptyDiff(diff) ? { diff, at: Date.now() } : twin.liveChange;
+      const liveChange =
+        twin.live && diff && !isEmptyDiff(diff) ? { diff, at: Date.now(), before: twin.live } : twin.liveChange;
       return { live, issues, liveChange, stale: false };
     }),
   setSimulation: (simulation) =>
