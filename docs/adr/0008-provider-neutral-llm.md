@@ -4,7 +4,7 @@
 Accepted
 
 ## Context
-RetailTwin AI requires an abstraction layer for LLM interaction to support different providers (e.g., Vertex AI, OpenAI, local models) and improve local development and cost-efficiency. Currently, the system has direct dependencies on Vertex AI SDKs.
+RetailTwin AI requires an abstraction layer for LLM interaction to support different providers (e.g., Vertex AI, OpenAI, local models) and improve local development and cost-efficiency.
 
 ## Decision
 Introduce a provider-neutral interface `LLMProvider` in `services/ai`.
