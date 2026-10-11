@@ -36,3 +36,12 @@ export const GUARD_VERDICT = {
   HumanReview: "HUMAN_REVIEW",
 } as const;
 export type GuardVerdict = (typeof GUARD_VERDICT)[keyof typeof GUARD_VERDICT];
+
+/** Why a review was refused without a commit (`ReviewResult.reason_code`). TODO(BE): FE proposal for the review routes. */
+export const REVIEW_REASON = {
+  /** Live is no longer at the proposal's `base_context_version`. Refuses an approval only. */
+  LiveMoved: "live_moved",
+  /** The run's proposal was replaced since it was reviewed. Refuses an approval and a rejection. */
+  ProposalChanged: "proposal_changed",
+} as const;
+export type ReviewReason = (typeof REVIEW_REASON)[keyof typeof REVIEW_REASON];

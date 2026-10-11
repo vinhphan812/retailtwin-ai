@@ -142,11 +142,15 @@ export function parseSimulation(raw: unknown): Simulation {
 
 const DECISIONS: readonly unknown[] = Object.values(REVIEW_DECISION);
 const VERDICTS: readonly unknown[] = Object.values(GUARD_VERDICT);
+/** What a run can be after each decision: done, or still evaluated when the review was refused. */
+const APPROVAL_STATUSES: readonly unknown[] = [SIMULATION_STATUS.Committed, SIMULATION_STATUS.Evaluated];
+const REJECTION_STATUSES: readonly unknown[] = [SIMULATION_STATUS.Rejected, SIMULATION_STATUS.Evaluated];
 const textOrNull = (value: unknown) => value === null || value === undefined || isText(value);
 
 /**
  * Checks a `POST /simulations/{id}/approve|reject` answer against the FE's proposed
- * contract. An approval must carry the guard's verdict; anything off throws.
+ * contract. An approval must carry the guard's verdict and a rejection none, and the run's
+ * status must fit the decision; anything off throws.
  */
 export function parseReviewResult(raw: unknown): ReviewResult {
   if (!isObject(raw)) throw new InvalidTwinStateError("notObject");
@@ -154,8 +158,12 @@ export function parseReviewResult(raw: unknown): ReviewResult {
   if (!DECISIONS.includes(raw.decision)) throw new InvalidTwinStateError("invalidField", { field: "decision" });
   if (!STATUSES.includes(raw.status)) throw new InvalidTwinStateError("invalidField", { field: "status" });
   const verdict = raw.verdict ?? null;
-  if (verdict === null ? raw.decision === REVIEW_DECISION.Approve : !VERDICTS.includes(verdict)) {
+  const approval = raw.decision === REVIEW_DECISION.Approve;
+  if (approval ? !VERDICTS.includes(verdict) : verdict !== null) {
     throw new InvalidTwinStateError("invalidField", { field: "verdict" });
+  }
+  if (!(approval ? APPROVAL_STATUSES : REJECTION_STATUSES).includes(raw.status)) {
+    throw new InvalidTwinStateError("invalidField", { field: "status" });
   }
   for (const field of ["reason_code", "live_context_version"] as const) {
     if (!textOrNull(raw[field])) throw new InvalidTwinStateError("invalidField", { field });

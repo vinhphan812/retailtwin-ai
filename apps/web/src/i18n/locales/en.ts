@@ -241,6 +241,8 @@ export const en = {
       liveUnchanged: "The store did not change.",
       refresh: "{{id}} needs a new simulation",
       refreshHint: "Live has changed since {{base}}, so the guard refused this proposal. Nothing was committed.",
+      proposalChangedHint: "The proposal changed after you reviewed it. Nothing was changed; review the new one.",
+      rejectRefused: "{{id}} was not rejected",
       denied: "The guard denied {{id}}",
       humanReview: "{{id}} needs another review",
       noReason: "No reason given.",

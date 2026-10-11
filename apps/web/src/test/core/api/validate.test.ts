@@ -86,4 +86,20 @@ describe("parseReviewResult", () => {
     expect(() => parseReviewResult({ ...approved, simulation_id: "" })).toThrow(InvalidTwinStateError);
     expect(() => parseReviewResult("ok")).toThrow(InvalidTwinStateError);
   });
+
+  it("rejects a rejection that carries a guard verdict", () => {
+    const rejected = { simulation_id: "sim-1", decision: "reject", status: "rejected", verdict: null };
+    expect(() => parseReviewResult({ ...rejected, verdict: "ALLOW" })).toThrow(/verdict/);
+    expect(() => parseReviewResult({ ...rejected, verdict: "DENY" })).toThrow(/verdict/);
+    expect(() => parseReviewResult({ ...rejected, verdict: "REFRESH_REQUIRED" })).toThrow(/verdict/);
+  });
+
+  it("rejects a status that does not fit the decision", () => {
+    expect(() => parseReviewResult({ ...approved, status: "rejected" })).toThrow(/status/);
+    expect(() => parseReviewResult({ simulation_id: "sim-1", decision: "reject", status: "committed" })).toThrow(/status/);
+    expect(parseReviewResult({ ...approved, status: "evaluated", verdict: "DENY" }).status).toBe("evaluated");
+    expect(
+      parseReviewResult({ simulation_id: "sim-1", decision: "reject", status: "evaluated", reason_code: "proposal_changed" }),
+    ).toMatchObject({ status: "evaluated", verdict: null, reason_code: "proposal_changed" });
+  });
 });

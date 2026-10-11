@@ -133,6 +133,49 @@ describe("Accept and Reject on the simulation banner", () => {
     expect(notify.error).toHaveBeenCalledWith("Could not send the review", expect.any(Error));
     expect(actions()).not.toBeNull();
   });
+
+  it("says when a rejection was refused because the proposal changed, and keeps the buttons", async () => {
+    const simulation = open();
+    const reviewer = vi.fn<SimulationReviewer>(async () => ({
+      simulation_id: simulation.simulation_id,
+      decision: REVIEW_DECISION.Reject,
+      status: SIMULATION_STATUS.Evaluated,
+      verdict: null,
+      reason_code: "proposal_changed",
+      live_context_version: null,
+    }));
+    render(<SimulationBanner reviewer={reviewer} />);
+
+    await press(reject());
+    expect(notify.info).not.toHaveBeenCalled();
+    expect(notify.warning).toHaveBeenCalledWith(
+      `${simulation.simulation_id} was not rejected`,
+      "The proposal changed after you reviewed it. Nothing was changed; review the new one.",
+    );
+    expect(actions()).not.toBeNull();
+  });
+
+  it("offers the buttons again for a proposal replaced under the same run id", async () => {
+    const simulation = open();
+    const reviewer = vi.fn<SimulationReviewer>(async () => ({
+      simulation_id: simulation.simulation_id,
+      decision: REVIEW_DECISION.Reject,
+      status: SIMULATION_STATUS.Rejected,
+      verdict: null,
+      reason_code: null,
+      live_context_version: null,
+    }));
+    render(<SimulationBanner reviewer={reviewer} />);
+
+    await press(reject());
+    expect(actions()).toBeNull();
+    act(() =>
+      useTwinStore
+        .getState()
+        .setSimulation({ ...simulation, state: { ...simulation.state, context_version: `${simulation.state.context_version}-r2` } }),
+    );
+    expect(actions()).not.toBeNull();
+  });
 });
 
 describe("Accept on the memory twin (?twin=memory|demo)", () => {

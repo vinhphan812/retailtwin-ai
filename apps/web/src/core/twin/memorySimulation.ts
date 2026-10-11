@@ -1,5 +1,12 @@
 import type { MemoryTwin } from "@/core/api/sources/memorySource";
-import { GUARD_VERDICT, REVIEW_DECISION, SIMULATION_STATUS, type ReviewDecision } from "@/enums/simulation.enum";
+import {
+  GUARD_VERDICT,
+  REVIEW_DECISION,
+  REVIEW_REASON,
+  SIMULATION_STATUS,
+  type ReviewDecision,
+  type ReviewReason,
+} from "@/enums/simulation.enum";
 import { simulationOf, DEMO_ACTIONS } from "@/fixtures/demo/simulation";
 import { useTwinStore } from "@/state/twin.store";
 import type { ReviewResult, Simulation, SimulationAction } from "@/types/simulation.type";
@@ -23,11 +30,15 @@ export function openSimulation(twin: MemoryTwin, actions: SimulationAction[] = D
 }
 
 /**
- * Reviews `simulation` the way the backend would: a rejection closes it, and an approval
- * goes through a minimal guard that answers REFRESH_REQUIRED once Live has moved on since
- * the simulation started, and ALLOW otherwise. On ALLOW the proposed state is written to
- * the twin, which pushes it to the live feed; the web app's Live view changes only
- * through that feed. Throws when `simulation` is not the open one.
+ * Reviews `simulation` the way the backend would. Both decisions are bound to the
+ * proposal that was reviewed: once the open run's proposal has been replaced (same id,
+ * newer `state.context_version`), either is refused with `proposal_changed` and the run
+ * stays open. A rejection then closes the run; Live moving on does not stop it, since a
+ * rejection never writes Live. An approval goes through a minimal guard that answers
+ * REFRESH_REQUIRED (`live_moved`) once Live has moved on since the simulation started,
+ * and ALLOW otherwise. On ALLOW the proposed state is written to the twin, which pushes it
+ * to the live feed; the web app's Live view changes only through that feed. Throws when
+ * `simulation` is not the open one.
  */
 export function reviewOnTwin(twin: MemoryTwin, simulation: Simulation, decision: ReviewDecision): ReviewResult {
   const { simulation: open, setSimulation } = useTwinStore.getState();
@@ -35,13 +46,19 @@ export function reviewOnTwin(twin: MemoryTwin, simulation: Simulation, decision:
     throw new Error(`${simulation.simulation_id} is not open.`);
   }
   const result = { simulation_id: simulation.simulation_id, decision, reason_code: null, live_context_version: null };
-  if (decision === REVIEW_DECISION.Reject) {
+  const reject = decision === REVIEW_DECISION.Reject;
+  const refused = (reason_code: ReviewReason): ReviewResult => ({
+    ...result,
+    status: SIMULATION_STATUS.Evaluated,
+    verdict: reject ? null : GUARD_VERDICT.RefreshRequired,
+    reason_code,
+  });
+  if (open.state.context_version !== simulation.state.context_version) return refused(REVIEW_REASON.ProposalChanged);
+  if (reject) {
     setSimulation(null);
     return { ...result, status: SIMULATION_STATUS.Rejected, verdict: null };
   }
-  if (twin.current().context_version !== simulation.base_context_version) {
-    return { ...result, status: SIMULATION_STATUS.Evaluated, verdict: GUARD_VERDICT.RefreshRequired, reason_code: "live_moved" };
-  }
+  if (twin.current().context_version !== simulation.base_context_version) return refused(REVIEW_REASON.LiveMoved);
   const committed = twin.update(() => structuredClone(simulation.state));
   setSimulation(null);
   return {
