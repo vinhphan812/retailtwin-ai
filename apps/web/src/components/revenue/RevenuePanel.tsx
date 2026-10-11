@@ -14,8 +14,12 @@ import { SkuList } from "./SkuList";
 export function RevenuePanel() {
   const { t } = useTranslation();
   const [period, setPeriod] = useState<RevenuePeriod>(REVENUE_PERIOD.Today);
-  const summary = useRevenue(period);
+  const summaryResult = useRevenue(period);
+  const { error, loading, ...summary } = summaryResult;
   const { previous } = summary;
+
+  if (loading) return <div className="commerce empty"><p>{t("twin.loading")}</p></div>;
+  if (error) return <div className="commerce empty"><p>{t("commerce.loadFailed")}</p></div>;
 
   return (
     <div className="commerce">
