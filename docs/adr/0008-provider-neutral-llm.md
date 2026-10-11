@@ -1,23 +1,28 @@
 # ADR-0008: Provider-Neutral LLM Runtime
 
+## Status
+Accepted
+
 ## Context
-RetailTwin AI currently calls Gemini directly via Vertex AI SDK. For development and local testing, and to ensure flexibility, we need an abstraction layer that allows switching providers (e.g., to OpenAI or local models) without changing core agent logic.
+RetailTwin AI requires an abstraction layer for LLM interaction to support different providers (e.g., Vertex AI, OpenAI, local models) and improve local development and cost-efficiency. Currently, the system has direct dependencies on Vertex AI SDKs.
 
 ## Decision
-Introduce a provider-neutral interface `LLMProvider` in a new `services/ai` namespace.
+Introduce a provider-neutral interface `LLMProvider` in `services/ai`.
 
-1. **Interface**: Define `LLMProvider` abstract base class with `generate_content(prompt: str, ...) -> str`.
-2. **Implementation**:
-    - `VertexAIProvider`: For production Vertex Gemini invocation.
-    - `OpenAICompatibleProvider`: For dev/local OpenAI or compatible endpoints (e.g., local LLM servers).
-3. **Configuration**: Use `Settings` (Pydantic) to switch provider based on `LLM_PROVIDER` env var.
-4. **Agent Refactoring**: Agents call `LLMProvider`, not the concrete SDKs directly.
+1. **Interface**: Define `LLMProvider` base class implementing a standard request/response contract.
+    - Contracts must support: tools, tool definitions, tool results, and structured JSON/schema output.
+    - Metadata requirements: must include provider, model, usage, and correlation IDs for all requests/responses.
+    - Error handling: normalized error mapping, with explicit support for timeout, retry, and cancellation handling.
+2. **Implementation (Future)**:
+    - `VertexAIProvider`: Production implementation.
+    - `OpenAICompatibleProvider`: Development/Testing implementation.
+3. **Configuration**: Aligned to #85. Use `LLM_RUNTIME` settings for provider selection.
 
 ## Consequences
-- Agents are decoupled from specific SDKs.
-- Local development is drastically improved with OpenAI-compatible mocks/local LLMs, reducing costs and latency for dev.
-- Production remains solid with Vertex AI.
-- Adds slight boilerplate for the factory and provider classes.
+- Agents are decoupled from specific SDKs, improving maintainability.
+- Development flow is enhanced through provider-neutral mocking/local models.
+- Production stability is maintained by conforming to standardized contracts.
+- Standardization of error handling, telemetry, and structured outputs ensures consistent behavior across providers.
 
 ## Implementation Tasks (Planned)
 - [ ] Task 1: Create `services/ai/interface.py` defining `LLMProvider`.
