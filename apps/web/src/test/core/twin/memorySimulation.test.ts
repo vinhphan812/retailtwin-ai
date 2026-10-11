@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createMemoryTwin, patchProduct, type MemoryTwin } from "@/core/api/sources/memorySource";
-import { commitSimulation, discardSimulation, openSimulation } from "@/core/twin/memorySimulation";
-import { ACTION_TYPE } from "@/enums/simulation.enum";
+import { commitSimulation, createMemoryReviewer, discardSimulation, openSimulation } from "@/core/twin/memorySimulation";
+import { ACTION_TYPE, GUARD_VERDICT, REVIEW_DECISION, SIMULATION_STATUS } from "@/enums/simulation.enum";
 import { demoStoreState } from "@/fixtures/demo/store";
 import { useTwinStore } from "@/state/twin.store";
 import type { StoreResponse } from "@/types/twin.type";
@@ -66,5 +66,54 @@ describe("simulations on the memory twin", () => {
     expect(useTwinStore.getState().simulation).toBeNull();
     expect(twin.current()).toEqual(before);
     expect(() => commitSimulation(twin)).toThrow("No simulation is open.");
+  });
+
+  it("accepts through the guard: ALLOW commits through the live feed", async () => {
+    openSimulation(twin);
+    const simulation = useTwinStore.getState().simulation!;
+    const result = await createMemoryReviewer(twin)(simulation, REVIEW_DECISION.Approve);
+
+    expect(result).toEqual({
+      simulation_id: simulation.simulation_id,
+      decision: REVIEW_DECISION.Approve,
+      status: SIMULATION_STATUS.Committed,
+      verdict: GUARD_VERDICT.Allow,
+      reason_code: null,
+      live_context_version: pushed[0].context_version,
+    });
+    expect(pushed).toHaveLength(1);
+    expect(useTwinStore.getState().simulation).toBeNull();
+  });
+
+  it("answers REFRESH_REQUIRED to an accept once Live has moved on, and keeps the run open", async () => {
+    openSimulation(twin);
+    const simulation = useTwinStore.getState().simulation!;
+    twin.update((state) => patchProduct(state, "P002", { shelf_quantity: 9 }));
+    const live = twin.current();
+
+    const result = await createMemoryReviewer(twin)(simulation, REVIEW_DECISION.Approve);
+    expect(result).toMatchObject({ status: SIMULATION_STATUS.Evaluated, verdict: GUARD_VERDICT.RefreshRequired, live_context_version: null });
+    expect(twin.current()).toEqual(live);
+    expect(useTwinStore.getState().simulation).toBe(simulation);
+  });
+
+  it("rejects without touching Live", async () => {
+    const before = twin.current();
+    openSimulation(twin);
+    const simulation = useTwinStore.getState().simulation!;
+
+    const result = await createMemoryReviewer(twin)(simulation, REVIEW_DECISION.Reject);
+    expect(result).toMatchObject({ status: SIMULATION_STATUS.Rejected, verdict: null });
+    expect(useTwinStore.getState().simulation).toBeNull();
+    expect(twin.current()).toEqual(before);
+    expect(pushed).toEqual([]);
+  });
+
+  it("refuses to review a run that is no longer open", async () => {
+    openSimulation(twin);
+    const stale = useTwinStore.getState().simulation!;
+    openSimulation(twin);
+    await expect(createMemoryReviewer(twin)(stale, REVIEW_DECISION.Approve)).rejects.toThrow(`${stale.simulation_id} is not open.`);
+    expect(pushed).toEqual([]);
   });
 });
