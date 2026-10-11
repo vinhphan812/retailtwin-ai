@@ -7,6 +7,7 @@ Exit 2: foundation matches but the budget alert is missing (needs billing admin)
 Exit 1: something else does not match.
 """
 import subprocess, json, sys, os, tempfile
+from pathlib import Path
 
 # ── Config ────────────────────────────────────────────────────────────────────
 PROJECT  = os.environ.get("GCP_PROJECT_ID", "retailtwin-ai-511002")
@@ -24,6 +25,20 @@ CANONICAL_PROJECT = "retailtwin-ai-511002"
 GCLOUD = "gcloud.cmd"
 BQ     = "bq.cmd"
 BQ_REST = "https://bigquery.googleapis.com/bigquery/v2"
+REQUIRED_APIS_FILE = Path(__file__).with_name("required-apis.txt")
+
+
+def required_apis():
+    """Read the shared required-GCP-API manifest."""
+    try:
+        return [
+            line.strip()
+            for line in REQUIRED_APIS_FILE.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        ]
+    except OSError as exc:
+        fail(f"Cannot read required API manifest {REQUIRED_APIS_FILE}: {exc}")
+        return []
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 _failures = 0
@@ -84,18 +99,9 @@ def main():
         fail(f"Billing is not enabled (got '{out}')")
 
     # Enabled APIs
-    apis = [
-        "aiplatform.googleapis.com",
-        "run.googleapis.com",
-        "cloudbuild.googleapis.com",
-        "artifactregistry.googleapis.com",
-        "firestore.googleapis.com",
-        "bigquery.googleapis.com",
-        "pubsub.googleapis.com",
-        "storage.googleapis.com",
-        "secretmanager.googleapis.com",
-        "logging.googleapis.com",
-    ]
+    apis = required_apis()
+    if not apis:
+        sys.exit(1)
     out_list, err_list, _ = run(GCLOUD, "services", "list",
                                  "--enabled", "--project=" + PROJECT,
                                  "--format=value(config.name)")

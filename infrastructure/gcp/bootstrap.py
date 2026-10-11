@@ -8,6 +8,7 @@ Windows-compatible version: calls gcloud.cmd and bq.cmd directly via subprocess.
 """
 
 import subprocess, sys, os, json, tempfile, shutil, textwrap, re
+from pathlib import Path
 
 # ── Config ──────────────────────────────────────────────────────────────────
 PROJECT = os.environ.get("GCP_PROJECT_ID", "retailtwin-ai-511002")
@@ -28,6 +29,21 @@ CONFIRM  = os.environ.get("CONFIRM_GCP_BOOTSTRAP", "")
 # ── Helpers ─────────────────────────────────────────────────────────────────
 GCLOUD = "gcloud.cmd"
 BQ     = "bq.cmd"
+REQUIRED_APIS_FILE = Path(__file__).with_name("required-apis.txt")
+
+
+def required_apis():
+    try:
+        apis = [
+            line.strip()
+            for line in REQUIRED_APIS_FILE.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        ]
+    except OSError as exc:
+        die(f"Cannot read required API manifest {REQUIRED_APIS_FILE}: {exc}")
+    if not apis:
+        die(f"Required API manifest is empty: {REQUIRED_APIS_FILE}")
+    return apis
 
 def die(msg):
     print(f"error: {msg}", file=sys.stderr)
@@ -58,7 +74,7 @@ def run_unchecked(*args, **kwargs):
 
 def account():
     try:
-        return run("gcloud.cmd", "config", "get-value", "account", check=True).stdout.strip()
+        return run(GCLOUD, "config", "get-value", "account", check=True).stdout.strip()
     except Exception:
         return "(none)"
 
@@ -71,7 +87,7 @@ def check_guardrails():
     if REGION != "us-central1":
         die(f"Refusing region {REGION}. Cloud Storage free tier and this foundation use us-central1.")
 
-    out = run("gcloud.cmd", "billing", "projects", "describe", PROJECT,
+    out = run(GCLOUD, "billing", "projects", "describe", PROJECT,
               "--format=value(billingEnabled)", check=True).stdout.strip()
     if out != "True":
         die("Billing is disabled on this project. Free tier still requires a linked billing account.")
@@ -79,49 +95,34 @@ def check_guardrails():
 # ── Service accounts ────────────────────────────────────────────────────────
 def ensure_service_account(sa_id, display, description):
     email = f"{sa_id}@{PROJECT}.iam.gserviceaccount.com"
-    result = run_unchecked("gcloud.cmd", "iam", "service-accounts", "describe", email)
+    result = run_unchecked(GCLOUD, "iam", "service-accounts", "describe", email)
     if result.returncode == 0:
         print(f"Service account exists: {email}")
     else:
         print(f"Creating service account: {email}")
-        run("gcloud.cmd", "iam", "service-accounts", "create", sa_id,
+        run(GCLOUD, "iam", "service-accounts", "create", sa_id,
             f"--display-name={display}", f"--description={description}")
 
 def bind_project_role(member, role):
-    run("gcloud.cmd", "projects", "add-iam-policy-binding", PROJECT,
+    run(GCLOUD, "projects", "add-iam-policy-binding", PROJECT,
         "--member", member, "--role", role, "--quiet")
 
 # ── APIs ────────────────────────────────────────────────────────────────────
 def enable_apis():
-    print("Enabling required APIs")
-    apis = [
-        "aiplatform.googleapis.com",
-        "run.googleapis.com",
-        "cloudbuild.googleapis.com",
-        "artifactregistry.googleapis.com",
-        "firestore.googleapis.com",
-        "bigquery.googleapis.com",
-        "pubsub.googleapis.com",
-        "storage.googleapis.com",
-        "secretmanager.googleapis.com",
-        "logging.googleapis.com",
-        "cloudbilling.googleapis.com",
-        "billingbudgets.googleapis.com",
-        "cloudresourcemanager.googleapis.com",
-        "iam.googleapis.com",
-    ]
-    run("gcloud.cmd", "services", "enable", *apis)
+    apis = required_apis()
+    print(f"Enabling {len(apis)} required APIs")
+    run(GCLOUD, "services", "enable", *apis)
 
 # ── Firestore ───────────────────────────────────────────────────────────────
 def ensure_firestore():
     print(f"Firestore database {DATABASE}")
-    result = run_unchecked("gcloud.cmd", "firestore", "databases", "describe",
+    result = run_unchecked(GCLOUD, "firestore", "databases", "describe",
                            "--database", DATABASE)
     if result.returncode == 0:
         print("Firestore database already exists")
     else:
         print("Creating Firestore database")
-        run("gcloud.cmd", "firestore", "databases", "create",
+        run(GCLOUD, "firestore", "databases", "create",
             "--database", DATABASE, "--location", REGION,
             "--edition=standard", "--type=firestore-native",
             "--delete-protection")
@@ -129,16 +130,16 @@ def ensure_firestore():
 # ── Pub/Sub ─────────────────────────────────────────────────────────────────
 def ensure_pubsub():
     print(f"Pub/Sub topic {TOPIC}")
-    result = run_unchecked("gcloud.cmd", "pubsub", "topics", "describe", TOPIC)
+    result = run_unchecked(GCLOUD, "pubsub", "topics", "describe", TOPIC)
     if result.returncode != 0:
         print("Creating Pub/Sub topic")
-        run("gcloud.cmd", "pubsub", "topics", "create", TOPIC,
+        run(GCLOUD, "pubsub", "topics", "create", TOPIC,
             "--message-storage-policy-allowed-regions", REGION,
             "--labels=app=retailtwin,cost=free-tier")
 
     # Limit message storage to us-central1 (may race on first create)
     for attempt in range(1, 6):
-        result = run_unchecked("gcloud.cmd", "pubsub", "topics", "update", TOPIC,
+        result = run_unchecked(GCLOUD, "pubsub", "topics", "update", TOPIC,
                                "--message-storage-policy-allowed-regions", REGION)
         if result.returncode == 0:
             break
@@ -148,7 +149,7 @@ def ensure_pubsub():
         die(f"Could not limit {TOPIC} message storage to {REGION}.")
 
     # Bind publisher IAM
-    run("gcloud.cmd", "pubsub", "topics", "add-iam-policy-binding", TOPIC,
+    run(GCLOUD, "pubsub", "topics", "add-iam-policy-binding", TOPIC,
         "--member", f"serviceAccount:{API_SA}", "--role", "roles/pubsub.publisher",
         "--quiet")
 
@@ -158,7 +159,7 @@ def ensure_bigquery():
     env = os.environ.copy()
     env["CLOUDSDK_CORE_DISABLE_PROMPTS"] = "1"
     result = subprocess.run(
-        ["bq.cmd", "--project_id=" + PROJECT, "show", "--dataset", f"{PROJECT}:{DATASET}"],
+        [BQ, "--project_id=" + PROJECT, "show", "--dataset", f"{PROJECT}:{DATASET}"],
         capture_output=True, text=True, env=env
     )
     if result.returncode == 0:
@@ -166,7 +167,7 @@ def ensure_bigquery():
     else:
         print("Creating BigQuery dataset")
         subprocess.run(
-            ["bq.cmd", "--project_id=" + PROJECT, "--location=" + REGION, "mk",
+            [BQ, "--project_id=" + PROJECT, "--location=" + REGION, "mk",
              "--dataset",
              "--description=RetailTwin analytical history. On-demand only. Empty day-0 dataset stays inside the 10 GiB free tier.",
              "--label=app:retailtwin", "--label=cost:free-tier",
@@ -177,12 +178,12 @@ def ensure_bigquery():
 # ── Cloud Storage ───────────────────────────────────────────────────────────
 def ensure_gcs():
     print(f"Cloud Storage bucket {BUCKET}")
-    result = run_unchecked("gcloud.cmd", "storage", "buckets", "describe", f"gs://{BUCKET}")
+    result = run_unchecked(GCLOUD, "storage", "buckets", "describe", f"gs://{BUCKET}")
     if result.returncode == 0:
         print("Bucket already exists")
     else:
         print("Creating Cloud Storage bucket")
-        run("gcloud.cmd", "storage", "buckets", "create", f"gs://{BUCKET}",
+        run(GCLOUD, "storage", "buckets", "create", f"gs://{BUCKET}",
             "--location", REGION,
             "--default-storage-class=STANDARD",
             "--uniform-bucket-level-access",
@@ -192,13 +193,13 @@ def ensure_gcs():
 # ── Artifact Registry ───────────────────────────────────────────────────────
 def ensure_artifact_registry():
     print(f"Artifact Registry repository {REPO}")
-    result = run_unchecked("gcloud.cmd", "artifacts", "repositories", "describe",
+    result = run_unchecked(GCLOUD, "artifacts", "repositories", "describe",
                            REPO, "--location", REGION)
     if result.returncode == 0:
         print("Repository already exists")
     else:
         print("Creating Artifact Registry repository")
-        run("gcloud.cmd", "artifacts", "repositories", "create", REPO,
+        run(GCLOUD, "artifacts", "repositories", "create", REPO,
             "--repository-format=docker", "--location", REGION,
             "--description=RetailTwin images. Keep this repository under the 0.5 GB free tier.",
             "--labels=app=retailtwin,cost=free-tier")
@@ -206,7 +207,7 @@ def ensure_artifact_registry():
 # ── Budget ─────────────────────────────────────────────────────────────────
 def configure_budget():
     print("Budget alert")
-    billing_info = run("gcloud.cmd", "billing", "projects", "describe", PROJECT,
+    billing_info = run(GCLOUD, "billing", "projects", "describe", PROJECT,
                        "--format=value(billingAccountName)", check=True).stdout.strip()
     account_id = re.sub(r"^billingAccounts/", "", billing_info)
     errfile = tempfile.NamedTemporaryFile(mode='w', suffix='.err', delete=False)
@@ -216,7 +217,7 @@ def configure_budget():
         env = os.environ.copy()
         env["CLOUDSDK_CORE_DISABLE_PROMPTS"] = "1"
         result = subprocess.run(
-            ["gcloud.cmd", "billing", "budgets", "list",
+            [GCLOUD, "billing", "budgets", "list",
              "--billing-account=" + account_id,
              "--billing-project=" + PROJECT,
              "--format=value(displayName)"],
@@ -229,7 +230,7 @@ def configure_budget():
                 return False
             print(f"Creating budget {BUDGET_NAME} for 25000 VND")
             result2 = subprocess.run(
-                ["gcloud.cmd", "billing", "budgets", "create",
+                [GCLOUD, "billing", "budgets", "create",
                  "--billing-account=" + account_id,
                  "--billing-project=" + PROJECT,
                  "--display-name=" + BUDGET_NAME,
