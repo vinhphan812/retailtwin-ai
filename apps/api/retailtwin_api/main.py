@@ -10,7 +10,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from retailtwin_api.errors import ApiError, api_error_handler, http_error_handler, validation_error_handler
 from retailtwin_api.events import EventLog
-from retailtwin_api.routes import router
+from retailtwin_api.routes import router, DEMO_ROUTER
+from retailtwin_api.demo import setup_demo
 from retailtwin_api.settings import Settings, get_settings
 from retailtwin_api.store import open_store
 
@@ -40,6 +41,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_headers=["accept", "content-type"],
     )
     app.include_router(router)
+    app.include_router(DEMO_ROUTER)
+
+    @app.on_event("startup")
+    def _startup():
+        setup_demo(app)
+
     return app
 
 
@@ -47,15 +54,17 @@ def _origins(value: str) -> list[str]:
     return [item.strip() for item in value.split(",") if item.strip()]
 
 
-app = create_app()
+app = None  # populated at import time only when running as server
 
 
 def main() -> None:
     import uvicorn
 
+    global app
+    app = create_app()
     settings = get_settings()
     uvicorn.run(
-        "retailtwin_api.main:app",
+        app,
         host=settings.api_host,
         port=settings.api_port,
         log_level=settings.log_level.lower(),
