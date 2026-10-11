@@ -21,8 +21,13 @@ type StatusFilter = PromotionStatus | typeof ALL;
  */
 export function PromotionsPanel() {
   const { t } = useTranslation();
-  const summary = usePromotions();
+  const summaryResult = usePromotions();
+  const { error, loading, ...summary } = summaryResult;
   const [filter, setFilter] = useState<StatusFilter>(ALL);
+
+  if (loading) return <div className="commerce empty"><p>{t("twin.loading")}</p></div>;
+  if (error) return <div className="commerce empty"><p>{t("commerce.loadFailed")}</p></div>;
+
   const { promotions } = summary;
   const focusedId = useUiStore((state) => state.focusedPromotionId);
   const focusPromotion = useUiStore((state) => state.focusPromotion);
