@@ -29,6 +29,7 @@ Skip a new record when an accepted ADR already covers the choice, or when the ch
 - Status is `Proposed`, `Accepted`, `Superseded`, or `Deprecated`.
 
 ## Index
+| [0008](0008-provider-neutral-llm.md) | Provider-neutral LLM runtime | Accepted |
 
 | ADR | Title | Status |
 | --- | --- | --- |
