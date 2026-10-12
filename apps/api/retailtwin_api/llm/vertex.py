@@ -1,16 +1,9 @@
-"""Vertex AI Gemini adapter — uses Application Default Credentials (ADC).
+"""Native Vertex Gemini adapter authenticated with Application Default Credentials.
 
-ADC is supplied automatically by Cloud Run's service identity (no key files).
-For local development, authenticate with:
-    gcloud auth application-default login
-or
-    gcloud auth application-default login --impersonate-service-account=<SERVICE-ACCOUNT>
-
-The adapter calls the Vertex AI REST API endpoint:
-    POST https://{location}-aiplatform.googleapis.com/v1/projects/{project_id}/locations/{location}/publishers/google/models/{model}:rawPredict
-
-Reference:
-  https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/inference
+Cloud Run provides ADC from the revision service account; the adapter never uses
+service-account key files. Locally run ``gcloud auth application-default login``.
+The integration test mocks ADC and HTTP transport, proving the REST request and
+response code path without credentials or a billable model invocation.
 """
 
 from __future__ import annotations
@@ -29,6 +22,7 @@ from .contracts import (
     LlmProvider,
     LlmRequest,
     LlmResponse,
+    LlmTool,
     LlmToolCall,
     ProviderError,
     RateLimitError,
@@ -42,6 +36,11 @@ _logger = logging.getLogger(__name__)
 
 # Vertex AI REST API endpoint base
 _VERTEX_API_BASE = "https://{location}-aiplatform.googleapis.com/v1"
+
+# Vertex's generateContent REST endpoint requires an OAuth 2.0 token obtained
+# from ADC. Cloud Run supplies it from the revision service account; local users
+# create it with `gcloud auth application-default login`. No key files are read.
+_VERTEX_SCOPE = "https://www.googleapis.com/auth/cloud-platform"
 
 # Retry configuration
 _MAX_RETRIES = 3
@@ -72,20 +71,16 @@ def _vertex_error_to_exception(status_code: int, payload: dict[str, Any]) -> Pro
     return ProviderError(error_msg, retryable=status_code >= 500)
 
 
-def _convert_tools_vertex(tools: list) -> list[dict[str, Any]]:
-    """Convert LlmTool definitions to Vertex AI function_declarations format."""
-    declarations = []
-    for tool in tools:
-        declarations.append({
+def _convert_tools_vertex(tools: list[LlmTool]) -> list[dict[str, Any]]:
+    """Convert neutral tools to Vertex's native functionDeclarations shape."""
+    return [
+        {
             "name": tool.name,
             "description": tool.description or "",
-            "parameters": {
-                "type": "object",
-                "properties": tool.parameters.get("properties", {}),
-                "required": tool.parameters.get("required", []),
-            },
-        })
-    return declarations
+            "parameters": tool.parameters or {"type": "object", "properties": {}},
+        }
+        for tool in tools
+    ]
 
 
 def _normalize_vertex_tool_calls(
@@ -161,45 +156,51 @@ class VertexProvider(LlmProvider):
         self._endpoint = (
             f"{_VERTEX_API_BASE.format(location=location)}"
             f"/projects/{project_id}/locations/{location}"
-            f"/publishers/google/models/{model}:rawPredict"
+            f"/publishers/google/models/{model}:generateContent"
         )
 
+    def _get_adc_access_token(self) -> str:
+        """Resolve and refresh ADC from Cloud Run or local gcloud authentication."""
+        try:
+            import google.auth
+            from google.auth.transport.requests import Request
+
+            credentials, _ = google.auth.default(scopes=[_VERTEX_SCOPE])
+            if not credentials.valid or not credentials.token:
+                credentials.refresh(Request())
+            if not credentials.token:
+                raise AuthenticationError("ADC did not supply an access token")
+            return str(credentials.token)
+        except AuthenticationError:
+            raise
+        except Exception as exc:
+            raise AuthenticationError(
+                "Unable to obtain Google Application Default Credentials for Vertex AI"
+            ) from exc
+
     async def complete(self, request: LlmRequest) -> LlmResponse:
-        """Call Vertex AI with bounded retry and response normalisation."""
+        """Call Vertex with bounded retries and normalized output."""
         payload = self._build_payload(request)
         last_exc: Exception | None = None
-
         for attempt in range(_MAX_RETRIES):
             try:
                 return await self._do_request(payload, request)
             except RateLimitError as exc:
                 last_exc = exc
-                backoff_secs = _backoff(attempt)
-                _logger.warning(
-                    "Vertex rate-limit attempt %d/%d — sleeping %.1f s",
-                    attempt + 1, _MAX_RETRIES, backoff_secs
-                )
-                await asyncio.sleep(backoff_secs)
-            except AuthenticationError:
-                raise  # Never retry auth failures
-            except InvalidStructuredOutputError:
-                raise  # Never retry output format errors
-            except ToolCallError:
-                raise  # Never retry malformed tool responses
-            except RequestTimeout:
-                raise  # Already typed correctly
+            except (AuthenticationError, InvalidStructuredOutputError, ToolCallError, RequestTimeout):
+                raise
             except ProviderError as exc:
-                if exc.retryable and attempt < _MAX_RETRIES - 1:
-                    last_exc = exc
-                    backoff_secs = _backoff(attempt)
-                    _logger.warning(
-                        "Vertex retryable error attempt %d/%d — sleeping %.1f s: %s",
-                        attempt + 1, _MAX_RETRIES, backoff_secs, exc.message
-                    )
-                    await asyncio.sleep(backoff_secs)
-                else:
+                if not exc.retryable or attempt == _MAX_RETRIES - 1:
                     raise
-
+                last_exc = exc
+            backoff_secs = _backoff(attempt)
+            _logger.warning(
+                "Vertex retryable failure %d/%d; sleeping %.1f s",
+                attempt + 1,
+                _MAX_RETRIES,
+                backoff_secs,
+            )
+            await asyncio.sleep(backoff_secs)
         raise last_exc or ProviderError("Vertex inference failed after all retries.")
 
     async def _do_request(
@@ -207,7 +208,10 @@ class VertexProvider(LlmProvider):
         payload: dict[str, Any],
         request: LlmRequest,
     ) -> LlmResponse:
-        headers = {"Content-Type": "application/json"}
+        headers = {
+            "Authorization": f"Bearer {self._get_adc_access_token()}",
+            "Content-Type": "application/json",
+        }
 
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             try:
@@ -233,25 +237,32 @@ class VertexProvider(LlmProvider):
         return self._parse_response(data, request)
 
     def _build_payload(self, request: LlmRequest) -> dict[str, Any]:
-        messages = [_message_to_vertex(m) for m in request.messages]
+        system_messages = [message for message in request.messages if message.role == "system"]
         payload: dict[str, Any] = {
-            "model": f"publishers/google/models/{self.model}",
-            "messages": messages,
+            "contents": [
+                _message_to_vertex(message)
+                for message in request.messages
+                if message.role != "system"
+            ]
         }
+        if system_messages:
+            payload["systemInstruction"] = {
+                "parts": [{"text": message.content or ""} for message in system_messages]
+            }
 
+        generation_config: dict[str, Any] = {}
         if request.temperature is not None:
-            payload["temperature"] = request.temperature
+            generation_config["temperature"] = request.temperature
         if request.max_tokens is not None:
-            payload["max_output_tokens"] = request.max_tokens
+            generation_config["maxOutputTokens"] = request.max_tokens
+        if request.structured_output:
+            generation_config["responseMimeType"] = "application/json"
+            generation_config["responseSchema"] = request.structured_output.json_schema
+        if generation_config:
+            payload["generationConfig"] = generation_config
 
         if request.tools:
-            payload["tools"] = [{"function_declarations": _convert_tools_vertex(request.tools)}]
-
-        if request.structured_output:
-            payload["response_format"] = {
-                "name": request.structured_output.name,
-                "schema": request.structured_output.schema,
-            }
+            payload["tools"] = [{"functionDeclarations": _convert_tools_vertex(request.tools)}]
 
         return payload
 
@@ -266,32 +277,32 @@ class VertexProvider(LlmProvider):
             raise ProviderError(error_detail)
 
         content = _vertex_content_to_text(candidates)
+        tool_calls, finish_reason = _normalize_vertex_tool_calls(candidates)
 
-        tool_calls: list[LlmToolCall] = []
-        finish_reason: str | None = None
-        if request.tools or request.structured_output:
-            tool_calls, finish_reason = _normalize_vertex_tool_calls(candidates)
-        else:
-            for c in candidates:
-                finish_reason = c.get("finishReason", None)
-
-        if request.structured_output and not tool_calls:
-            if content and not request.tools:
+        if request.structured_output and content is not None:
+            try:
+                content = json.dumps(json.loads(content), separators=(",", ":"), ensure_ascii=False)
+            except json.JSONDecodeError as exc:
                 raise InvalidStructuredOutputError(
-                    f"Model returned text instead of structured output. "
-                    f"Response: {content[:200]}"
-                )
+                    "Model returned invalid JSON for structured output"
+                ) from exc
+        elif request.structured_output and not tool_calls:
+            raise InvalidStructuredOutputError(
+                "Model returned neither JSON nor a structured function response"
+            )
 
-        usage_data = data.get("usage", {})
+        usage_data = data.get("usageMetadata", data.get("usage", {}))
+        if not isinstance(usage_data, dict):
+            usage_data = {}
         usage = TokenUsage(
-            prompt_tokens=usage_data.get("promptTokens", 0),
-            completion_tokens=usage_data.get("candidatesTokens", 0),
-            total_tokens=usage_data.get("totalTokens", 0),
+            prompt_tokens=usage_data.get("promptTokenCount", usage_data.get("promptTokens", 0)),
+            completion_tokens=usage_data.get("candidatesTokenCount", usage_data.get("candidatesTokens", 0)),
+            total_tokens=usage_data.get("totalTokenCount", usage_data.get("totalTokens", 0)),
         )
 
         return LlmResponse(
-            id=data.get("model", self.model),
-            model=data.get("model", self.model),
+            id=data.get("responseId", data.get("modelVersion", self.model)),
+            model=data.get("modelVersion", self.model),
             content=content,
             finish_reason=finish_reason,
             tool_calls=tool_calls,
@@ -301,26 +312,25 @@ class VertexProvider(LlmProvider):
 
 
 def _message_to_vertex(message: LlmMessage) -> dict[str, Any]:
-    """Convert an LlmMessage to Vertex AI message format."""
-    role_map = {"system": "system", "user": "user", "assistant": "model", "tool": "user"}
-    msg: dict[str, Any] = {"role": role_map[message.role]}
-
+    """Convert a neutral message to native Gemini content parts."""
     if message.role == "tool":
-        msg["content"] = json.dumps({
-            "functionResponse": {
+        return {
+            "role": "user",
+            "parts": [{"functionResponse": {
                 "name": message.name or "unknown",
                 "response": {"result": message.content or ""},
-            }
-        })
-    elif message.tool_call_id:
-        msg["content"] = json.dumps({
-            "functionCall": {
+            }}],
+        }
+    if message.tool_call_id:
+        return {
+            "role": "model",
+            "parts": [{"functionCall": {
                 "id": message.tool_call_id,
                 "name": message.name,
-                "args": message.content,
-            }
-        })
-    elif message.content:
-        msg["content"] = message.content
-
-    return msg
+                "args": message.content or "{}",
+            }}],
+        }
+    return {
+        "role": "model" if message.role == "assistant" else "user",
+        "parts": [{"text": message.content or ""}],
+    }

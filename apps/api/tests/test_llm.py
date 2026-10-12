@@ -34,6 +34,12 @@ from retailtwin_api.llm.openai_compatible import (
 from retailtwin_api.llm.vertex import VertexProvider
 
 
+@pytest.fixture(autouse=True)
+def mock_vertex_adc(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep adapter tests offline; dedicated tests assert the Bearer header."""
+    monkeypatch.setattr(VertexProvider, "_get_adc_access_token", lambda self: "test-adc-token")
+
+
 # ─── Mock helpers ───────────────────────────────────────────────────────────────
 
 
@@ -434,7 +440,7 @@ def test_vertex_sends_tool_definitions(monkeypatch: pytest.MonkeyPatch) -> None:
 
     sent_payload = client.calls[0][1]["json"]
     assert "tools" in sent_payload
-    assert sent_payload["tools"][0]["function_declarations"][0]["name"] == "get_inventory"
+    assert sent_payload["tools"][0]["functionDeclarations"][0]["name"] == "get_inventory"
 
 
 def test_vertex_sends_structured_output(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -460,8 +466,8 @@ def test_vertex_sends_structured_output(monkeypatch: pytest.MonkeyPatch) -> None
     asyncio.run(provider.complete(make_request(model="gemini-2.0-flash", structured_output=so)))
 
     sent_payload = client.calls[0][1]["json"]
-    assert "response_format" in sent_payload
-    assert sent_payload["response_format"]["name"] == "Decision"
+    assert sent_payload["generationConfig"]["responseMimeType"] == "application/json"
+    assert sent_payload["generationConfig"]["responseSchema"] == so.json_schema
 
 
 def test_vertex_normalizes_tool_calls(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -494,6 +500,82 @@ def test_vertex_normalizes_tool_calls(monkeypatch: pytest.MonkeyPatch) -> None:
     assert len(response.tool_calls) == 1
     assert response.tool_calls[0].name == "get_inventory"
     assert response.tool_calls[0].arguments == {"sku": "P017"}
+
+
+def test_vertex_complete_uses_adc_authorized_rest_request_and_normalizes_response(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Mock transport proves the full Cloud Run/ADC REST contract without secrets."""
+    client = MockClient(
+        MockResponse({
+            "responseId": "response-123",
+            "modelVersion": "gemini-2.0-flash",
+            "candidates": [{
+                "content": {"parts": [{"text": "Inventory fetched."}]},
+                "finishReason": "STOP",
+            }],
+            "usageMetadata": {
+                "promptTokenCount": 5,
+                "candidatesTokenCount": 3,
+                "totalTokenCount": 8,
+            },
+        })
+    )
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
+    monkeypatch.setattr(VertexProvider, "_get_adc_access_token", lambda self: "adc-access-token")
+    provider = VertexProvider("my-project", "us-central1", "gemini-2.0-flash", 30)
+
+    response = asyncio.run(provider.complete(make_request(model="gemini-2.0-flash")))
+
+    assert response.id == "response-123"
+    assert response.content == "Inventory fetched."
+    assert response.usage.model_dump() == {
+        "prompt_tokens": 5,
+        "completion_tokens": 3,
+        "total_tokens": 8,
+    }
+    assert client.calls == [(
+        (
+            "https://us-central1-aiplatform.googleapis.com/v1/projects/my-project/"
+            "locations/us-central1/publishers/google/models/gemini-2.0-flash:generateContent",
+        ),
+        {
+            "headers": {
+                "Authorization": "Bearer adc-access-token",
+                "Content-Type": "application/json",
+            },
+            "json": {"contents": [{"role": "user", "parts": [{"text": "Hi"}]}]},
+        },
+    )]
+
+
+def test_vertex_structured_output_normalizes_json_response(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = MockClient(
+        MockResponse({
+            "candidates": [{
+                "content": {"parts": [{"text": '{ "decision": "buy", "quantity": 2 }'}]},
+                "finishReason": "STOP",
+            }],
+            "usageMetadata": {},
+        })
+    )
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
+    monkeypatch.setattr(VertexProvider, "_get_adc_access_token", lambda self: "adc-access-token")
+    provider = VertexProvider("my-project", "us-central1", "gemini-2.0-flash", 30)
+    so = StructuredOutput(
+        name="Decision",
+        schema={"type": "object", "properties": {"decision": {"type": "string"}}},
+    )
+
+    response = asyncio.run(provider.complete(make_request(model="gemini-2.0-flash", structured_output=so)))
+
+    assert response.content == '{"decision":"buy","quantity":2}'
+    assert response.finish_reason == "STOP"
+    sent_payload = client.calls[0][1]["json"]
+    assert sent_payload["generationConfig"] == {
+        "responseMimeType": "application/json",
+        "responseSchema": so.json_schema,
+    }
 
 
 def test_vertex_malformed_tool_args_raises(monkeypatch: pytest.MonkeyPatch) -> None:
