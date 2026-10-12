@@ -213,6 +213,8 @@ gcloud run services update-traffic retailtwin-api \
 
 ---
 
+> **CI scope:** Only `apps/api/**` and `.github/workflows/api.yml` paths trigger CI.
+
 ## Files Added
 
 | File | Purpose |
