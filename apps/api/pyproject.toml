@@ -69,4 +69,6 @@ warn_redundant_casts = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 ignore_missing_imports = true
-per_file_ignores = [("retailtwin_api/llm/*.py", ["no-untyped-call", "no-any-return"])]
+per_file_ignores = [
+    { file = "retailtwin_api/llm/*.py", codes = ["no-untyped-call", "no-any-return"] },
+]
