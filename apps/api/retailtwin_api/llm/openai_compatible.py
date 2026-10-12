@@ -1,7 +1,6 @@
 """OpenAI-compatible adapter."""
 
 import httpx
-from typing import Any
 
 from .contracts import (
     LlmProvider,
@@ -28,7 +27,7 @@ class OpenAiCompatibleProvider(LlmProvider):
             "temperature": request.temperature,
             "max_tokens": request.max_tokens,
         }
-        
+
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             try:
                 response = await client.post(
@@ -41,10 +40,10 @@ class OpenAiCompatibleProvider(LlmProvider):
                 raise RequestTimeout()
             except httpx.HTTPError as e:
                 raise ProviderError(str(e))
-        
+
         data = response.json()
         choice = data["choices"][0]
-        
+
         return LlmResponse(
             id=data["id"],
             model=data["model"],
