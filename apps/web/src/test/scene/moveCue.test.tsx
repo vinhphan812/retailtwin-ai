@@ -144,12 +144,23 @@ describe("move cue in the scene", () => {
     expect(scene.find("stock-ghost-").length).toBeGreaterThan(0);
   });
 
-  it("leaves Live alone while the Simulation view shows the move", async () => {
+  it("leaves Live alone while the Simulation view shows the move, and plays the move back on the way out", async () => {
     const scene = await renderScene();
     await scene.run(() => useUiStore.getState().setViewMode(VIEW_MODE.Simulation));
+    now += 60_000;
     await scene.run(() => useUiStore.getState().setViewMode(VIEW_MODE.Live));
-    expect(scene.find("stock-ghost-")).toHaveLength(0);
-    expect(scene.find("stock-moved-slots")).toHaveLength(0);
+    expect(scene.find("stock-moved-slots")[0].count).toBe(2);
+    const ghost = simulation.state.products.find((product) => product.sku === "P007")!;
+    expect(scene.find("stock-ghost-").reduce((sum, mesh) => sum + mesh.count, 0)).toBe(ghost.shelf_quantity);
+    const inLive = Object.values(buildStock(toSceneStore(live).store))
+      .flat()
+      .filter((item) => item.productId === "P007")
+      .map((item) => new Vector3().setFromMatrixPosition(item.matrix));
+    const atLive = () => scene.p007().every((point, index) => point.distanceTo(inLive[index]) < 1e-6);
+    await scene.frameAt(now + MOVE_TWEEN_MS / 2);
+    expect(atLive()).toBe(false);
+    await scene.frameAt(now + MOVE_TWEEN_MS);
+    expect(atLive()).toBe(true);
     expect(useTwinStore.getState().live).toBe(live);
     expect(useTwinStore.getState().live?.products.find((product) => product.sku === "P007")?.slot_id).toBe("B02-S20");
   });
