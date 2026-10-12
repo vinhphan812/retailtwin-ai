@@ -192,7 +192,7 @@ Production hardening applied after Day-0 proof.
 | Production env flag | Done | `APP_ENV=production` sets `is_production=True` |
 | Min-instances=1 | Planned | Prevents cold-start; configured in CI/script |
 | Dedicated service account | Planned | Workload identity for CI; no JSON keys |
-| Secret Manager integration | Planned | Store fixture path in Secret Manager |
+| Secret Manager integration | Done | Runtime injection via `--set-secrets`; pattern documented below |
 
 ### Readiness vs Liveness Separation
 
@@ -230,7 +230,60 @@ gcloud run services update-traffic retailtwin-api \
 
 ---
 
-## Exclusions (do not attempt in this PR)
+## 8. Secret Manager Pattern
+
+**Principle:** No secrets in source, in environment variables, or baked into container images. All secrets live in GCP Secret Manager and are injected at runtime.
+
+### Create a secret
+
+```bash
+# One-time secret creation
+gcloud secrets create STORE_FIXTURE_PATH --data-file=- <<< "data/schemas/store-state.example.json"
+gcloud secrets create APP_ENV --data-file=- <<< "production"
+gcloud secrets add-versions --data-file=- <<< "v1"  # default version
+```
+
+### Grant Cloud Run service account access
+
+```bash
+PROJECT_NR=$(gcloud projects describe $PROJECT_ID --format="value(projectNumber)")
+gcloud secrets add-iam-policy-binding STORE_FIXTURE_PATH \
+  --member="serviceAccount:${PROJECT_NR}-compute@developer.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+```
+
+### Deploy with secret injection
+
+```bash
+gcloud run deploy retailtwin-api \
+  --image gcr.io/$PROJECT_ID/retailtwin-api:$TAG \
+  --set-secrets STORE_FIXTURE_PATH=STORE_FIXTURE_PATH:latest \
+  --set-secrets APP_ENV=APP_ENV:latest \
+  --region us-central1
+```
+
+### Rotation
+
+Create a new version; Cloud Run picks it up on the next cold-start (no re-deploy required):
+
+```bash
+gcloud secrets versions add STORE_FIXTURE_PATH --data-file=store-state.v2.json
+# Next Cloud Run instance automatically reads :latest
+```
+
+### Local development
+
+Locals use `.env` (gitignored) or environment variables — Secret Manager is **Cloud Run only**.
+
+```
+# .env (gitignored)
+STORE_FIXTURE_PATH=data/schemas/store-state.example.json
+APP_ENV=development
+```
+
+---
+
+## 9. Exclusions
 
 - Multi-service mesh / Istio hardening — tracked in issue #34
 - Service-account key file creation — use workload identity federation instead
