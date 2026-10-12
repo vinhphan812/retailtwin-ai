@@ -34,8 +34,6 @@
 @theme static {
   /* Glow of the selected product, shelf, or equipment. */
   --color-selection: #ffffff;
-  /* Outline of a recent change, such as where a moved product stood. */
-  --color-change: #3987e5;
   /* Halo of a product with an open anomaly, by severity. */
   --color-anomaly-high: #ff4d3d;
   --color-anomaly-medium: #ff9f1a;

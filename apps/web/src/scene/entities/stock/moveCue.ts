@@ -1,23 +1,19 @@
-import { Box3, Matrix4, Quaternion, Vector3 } from "three";
+import { Matrix4, Vector3 } from "three";
 import { MOVE_TWEEN_MS } from "@/constants/twin.constant";
 import { ENTITY_TYPE } from "@/enums/scene.enum";
-import type { ProductMove, SlotRef } from "@/core/twin/stateDiff";
+import type { SlotRef } from "@/core/twin/stateDiff";
 import { entityMatrix } from "@/scene/utils/transform";
 import type { RecentChange } from "@/state/twin.store";
-import type { ProductFixture, SlotFixture, StoreFixture } from "@/types/scene.type";
+import type { SlotFixture, StoreFixture } from "@/types/scene.type";
 import { surfaceMatrix, surfacesOf } from "./surfaces";
 
 /**
- * The scene's cue for the moves of a recent change. `offsets` take each moved product's
- * items from their destination back to their source slot; `ghost` is what stood at the
- * source before the move, and `sources` the frame of each source slot's surface, to
- * outline it in.
+ * The scene's cue for the moves of a recent change: `offsets` take each moved product's
+ * items from their destination back to their source slot.
  */
 export type MoveCue = {
   at: number;
   offsets: Map<string, Vector3>;
-  ghost: StoreFixture;
-  sources: Map<string, Matrix4>;
 };
 
 type SlotFrame = { toWorld: Matrix4; slot: SlotFixture };
@@ -48,34 +44,16 @@ function slotCenter({ toWorld, slot }: SlotFrame): Vector3 {
 export function moveCueOf(store: StoreFixture, change: RecentChange | null): MoveCue | null {
   if (!change || change.diff.moved.length === 0) return null;
   const placed = new Map(store.products.map((product) => [product.productId, product]));
-  const shown: ProductMove[] = [];
   const offsets = new Map<string, Vector3>();
-  const sources = new Map<string, Matrix4>();
   for (const move of change.diff.moved) {
     const product = placed.get(move.sku);
     if (product?.shelfId !== move.to.shelf_id || product.slotId !== move.to.slot_id) continue;
     const from = slotFrame(store, move.from);
     const to = slotFrame(store, move.to);
     if (!from || !to) continue;
-    shown.push(move);
     offsets.set(move.sku, slotCenter(from).sub(slotCenter(to)));
-    sources.set(move.sku, from.toWorld);
   }
-  if (shown.length === 0) return null;
-  // Not `toSceneStore`: the layout module imports the stock surfaces, which import this one.
-  const moved = new Set(shown.map((move) => move.sku));
-  const before: ProductFixture[] = change.before.products
-    .filter((product) => moved.has(product.sku))
-    .map((product) => ({
-      productId: product.sku,
-      shelfId: product.shelf_id,
-      slotId: product.slot_id,
-      facings: product.facings,
-      shelfQuantity: product.shelf_quantity,
-      backroomQuantity: product.backroom_quantity,
-      version: product.version,
-    }));
-  return { at: change.at, offsets, ghost: { ...store, products: before }, sources };
+  return offsets.size ? { at: change.at, offsets } : null;
 }
 
 /** How far a move's tween has come at `now`, from 0 to 1. */
@@ -92,39 +70,4 @@ const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 
 export function tweenMatrix(matrix: Matrix4, offset: Vector3, progress: number, out = new Matrix4()): Matrix4 {
   const left = 1 - easeInOut(Math.min(1, Math.max(0, progress)));
   return out.makeTranslation(offset.x * left, offset.y * left, offset.z * left).multiply(matrix);
-}
-
-/**
- * One box per moved product around the items it had at its source slot, squared to the
- * slot's surface: the outline the scene draws where the product stood. `items` are the
- * ghost's drawn items, each a unit box under its matrix.
- */
-export function ghostOutlines(cue: MoveCue, items: { matrix: Matrix4; productId: string }[]): Matrix4[] {
-  const boxes = new Map<string, Box3>();
-  const corner = new Vector3();
-  const toLocal = new Matrix4();
-  const local = new Matrix4();
-  for (const item of items) {
-    const frame = cue.sources.get(item.productId);
-    if (!frame) continue;
-    const box = boxes.get(item.productId) ?? new Box3();
-    local.multiplyMatrices(toLocal.copy(frame).invert(), item.matrix);
-    for (const x of [-0.5, 0.5]) for (const y of [-0.5, 0.5]) for (const z of [-0.5, 0.5]) {
-      box.expandByPoint(corner.set(x, y, z).applyMatrix4(local));
-    }
-    boxes.set(item.productId, box);
-  }
-  return [...boxes].map(([sku, box]) => {
-    const size = box.getSize(new Vector3());
-    const local = new Matrix4().compose(box.getCenter(new Vector3()), new Quaternion(), size);
-    return cue.sources.get(sku)!.clone().multiply(local);
-  });
-}
-
-/**
- * True while the outline of a move appeared at `at` still show at `now`:
- * only while the items travel. They go the moment the items arrive, with no fade.
- */
-export function marksShown(at: number, now: number): boolean {
-  return now - at < MOVE_TWEEN_MS;
 }

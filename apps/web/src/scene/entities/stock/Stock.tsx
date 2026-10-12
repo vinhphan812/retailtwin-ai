@@ -5,15 +5,12 @@ import {
   BoxGeometry,
   Color,
   CylinderGeometry,
-  EdgesGeometry,
   IcosahedronGeometry,
-  LineBasicMaterial,
   Matrix4,
   MeshStandardMaterial,
   Quaternion,
   Vector3,
   type BufferGeometry,
-  type Group,
   type InstancedMesh,
 } from "three";
 import { selectedProductId, useUiStore } from "@/state/ui.store";
@@ -27,10 +24,9 @@ import {
   ANOMALY_HALO_OPACITY,
   ANOMALY_PULSE_DEPTH,
   ANOMALY_PULSE_HZ,
-  MOVE_GHOST_OPACITY,
   SELECTION_ITEM_GLOW,
 } from "@/constants/scene.constant";
-import { anomalyColor, changeColor, selectionColor } from "@/core/utils/theme";
+import { anomalyColor, selectionColor } from "@/core/utils/theme";
 import { ENTITY_TYPE, STOCK_KIND } from "@/enums/scene.enum";
 import { isDrag } from "@/scene/utils/pointer";
 import type {
@@ -435,36 +431,6 @@ function AnomalyMesh({
   );
 }
 
-/** A thin outline where each moved product stood. Takes no pointer events and casts no shadow. */
-function GhostOutlines({ matrices }: { matrices: Matrix4[] }) {
-  const placements = useMemo(
-    () =>
-      matrices.map((matrix) => {
-        const position = new Vector3();
-        const quaternion = new Quaternion();
-        const scale = new Vector3();
-        matrix.decompose(position, quaternion, scale);
-        return { position, quaternion, scale };
-      }),
-    [matrices],
-  );
-  return (
-    <>
-      {placements.map((placement, index) => (
-        <lineSegments
-          key={index}
-          name="stock-ghost-outline"
-          args={[OUTLINE_GEOMETRY, moveGhostMaterial()]}
-          {...placement}
-          renderOrder={1}
-        />
-      ))}
-    </>
-  );
-}
-
-const NO_OUTLINES: Matrix4[] = [];
-
 /** The items of `batches` whose product passes `keep`, per shape. */
 function pick(batches: Batches, keep: (productId: string) => boolean) {
   return Object.fromEntries(
@@ -479,9 +445,8 @@ function pick(batches: Batches, keep: (productId: string) => boolean) {
  * The Simulation view shows no halos (`useShownAnomalies`).
  *
  * A recent move (`useRecentChanges`) carries the product's items from its source slot to
- * its destination and outlines where it stood; the outline goes the moment the items
- * arrive (`marksShown`). With reduced motion the items stand at the destination from the
- * start, and the outline shows for as long.
+ * its destination. Nothing else marks the move in 3D; the product card says where it
+ * came from. With reduced motion the items stand at the destination from the start.
  */
 export function Stock({ store }: { store: StoreFixture }) {
   const batches = useMemo(() => buildStock(store), [store]);
@@ -501,15 +466,9 @@ export function Stock({ store }: { store: StoreFixture }) {
   const motion = useMemo(() => !prefersReducedMotion(), []);
   const change = useRecentChanges();
   const move = useMemo(() => moveCueOf(store, change), [store, change]);
-  const outlines = useMemo(
-    () => (move ? ghostOutlines(move, Object.values(buildStock(move.ghost)).flat()) : NO_OUTLINES),
-    [move],
-  );
   const tween = motion ? move : null;
-  const marks = useRef<Group>(null);
   useFrame(({ clock }) => {
     if (motion && anomalies.length) pulseHalos(Math.sin(clock.elapsedTime * Math.PI * 2 * ANOMALY_PULSE_HZ));
-    if (marks.current) marks.current.visible = move !== null && marksShown(move.at, Date.now());
   });
 
   return (
@@ -536,9 +495,6 @@ export function Stock({ store }: { store: StoreFixture }) {
           />
         )),
       )}
-      <group ref={marks} name="stock-move-marks">
-        <GhostOutlines matrices={outlines} />
-      </group>
     </group>
   );
 }

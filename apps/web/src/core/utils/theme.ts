@@ -27,9 +27,6 @@ export const warningColor = () => themeColor("--color-warning", "#fab219");
 /** Glow color of the selected entity, from the `--color-selection` theme token. */
 export const selectionColor = () => themeColor("--color-selection", "#ffffff");
 
-/** Outline of a recent change in the scene, from the `--color-change` theme token. */
-export const changeColor = () => themeColor("--color-change", "#3987e5");
-
 const ANOMALY_FALLBACK: Record<AnomalySeverity, string> = {
   [ANOMALY_SEVERITY.High]: "#ff4d3d",
   [ANOMALY_SEVERITY.Medium]: "#ff9f1a",
