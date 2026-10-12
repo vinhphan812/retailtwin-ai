@@ -106,15 +106,15 @@ function useCachedRead<T>(
 export function useRevenue(
   period: RevenuePeriod,
   client: RetailTwinClient | undefined = commerceClient(),
-): RevenueSummary {
+): HookResult<RevenueSummary> {
   const storeId = useStoreId();
   const placeholder = useMemo(() => emptyRevenue(storeId, period), [storeId, period]);
-  return useCachedRead(client, `revenue:${storeId}:${period}`, (api) => api.revenue(period), placeholder);
+  return useCachedRead(client, `revenue:${storeId}:${period}`, () => (client ?? demoClient).revenue(period), placeholder);
 }
 
 /** `GET /promotions`, read when the Promotions lens opens. Read only; empty until it lands. */
-export function usePromotions(client: RetailTwinClient | undefined = commerceClient()): PromotionsSummary {
+export function usePromotions(client: RetailTwinClient | undefined = commerceClient()): HookResult<PromotionsSummary> {
   const storeId = useStoreId();
   const placeholder = useMemo(() => emptyPromotions(storeId), [storeId]);
-  return useCachedRead(client, `promotions:${storeId}`, (api) => api.promotions(), placeholder);
+  return useCachedRead(client, `promotions:${storeId}`, () => (client ?? demoClient).promotions(), placeholder);
 }
