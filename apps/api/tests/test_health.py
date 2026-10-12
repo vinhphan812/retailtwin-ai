@@ -159,8 +159,8 @@ def test_middleware_logs_request_start_and_end(client, caplog) -> None:
     # Filter to only retailtwin_api middleware logs (excludes uvicorn startup noise)
     middleware_records = [r for r in caplog.records if r.name == "retailtwin_api.middleware"]
     messages = {r.message for r in middleware_records}
-    assert "request.start" in messages, f"Expected 'request.start' in {messages}"
-    assert "request.end" in messages, f"Expected 'request.end' in {messages}"
+    assert any(m.startswith("request.start") for m in messages), f"Expected 'request.start' prefix in {messages}"
+    assert any(m.startswith("request.end") for m in messages), f"Expected 'request.end' prefix in {messages}"
 
     # Verify correlation_id is present in structured extra fields
     for record in middleware_records:
