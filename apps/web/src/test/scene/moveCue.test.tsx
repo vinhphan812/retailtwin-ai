@@ -1,0 +1,174 @@
+// @vitest-environment jsdom
+import ReactThreeTestRenderer from "@react-three/test-renderer";
+import { act, cleanup, render, screen } from "@testing-library/react";
+import { Matrix4, Vector3, type InstancedMesh, type Object3D } from "three";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ProductInspector } from "@/components/twin/ProductInspector";
+import { MOVE_TWEEN_MS } from "@/constants/twin.constant";
+import { diffStates } from "@/core/twin/stateDiff";
+import { TWIN_STATUS } from "@/enums/twin.enum";
+import { VIEW_MODE } from "@/enums/ui.enum";
+import { demoSimulation } from "@/fixtures/demo/simulation";
+import { demoStoreState } from "@/fixtures/demo/store";
+import { toSceneStore } from "@/scene/layout";
+import { TwinStoreContents } from "@/scene/StoreScene";
+import { buildStock } from "@/scene/entities/stock/Stock";
+import { moveCueOf, moveProgress, tweenMatrix } from "@/scene/entities/stock/moveCue";
+import { useTwinStore } from "@/state/twin.store";
+import { useUiStore } from "@/state/ui.store";
+
+const motion = vi.hoisted(() => ({ reduced: false }));
+vi.mock("@/core/utils/motion", () => ({ prefersReducedMotion: () => motion.reduced }));
+vi.mock("@/hooks/checkout.hook", () => ({ useCheckoutSummary: () => null, useCheckoutTransactions: () => [] }));
+
+const live = demoStoreState();
+const simulation = demoSimulation(live);
+const simulated = toSceneStore(simulation.state).store;
+
+/** Where the simulation puts each P007 item. */
+const p007AtState = Object.values(buildStock(simulated))
+  .flat()
+  .filter((item) => item.productId === "P007")
+  .map((item) => new Vector3().setFromMatrixPosition(item.matrix));
+
+describe("moveCueOf", () => {
+  const change = { diff: diffStates(live, simulation.state), at: 1000, before: live };
+
+  it("offsets P007 from B02-S22 back to B02-S20, lights both slots and keeps a ghost of the source", () => {
+    const cue = moveCueOf(simulated, change)!;
+    expect([...cue.offsets.keys()]).toEqual(["P007"]);
+    const offset = cue.offsets.get("P007")!;
+    expect(offset.length()).toBeGreaterThan(0.1);
+    expect(cue.slots).toHaveLength(2);
+    expect(cue.ghost.products).toEqual([expect.objectContaining({ productId: "P007", slotId: "B02-S20" })]);
+  });
+
+  it("shows nothing when the scene does not have the product where the move put it", () => {
+    expect(moveCueOf(toSceneStore(live).store, change)).toBeNull();
+    expect(moveCueOf(simulated, null)).toBeNull();
+  });
+
+  it("tweens from the source to exactly the state position", () => {
+    const at = new Matrix4().makeTranslation(1, 2, 3);
+    const offset = new Vector3(-2, 0, 0);
+    expect(moveProgress(1000, 1000 - 50)).toBe(0);
+    expect(moveProgress(1000, 1000 + MOVE_TWEEN_MS / 2)).toBeCloseTo(0.5);
+    expect(moveProgress(1000, 1000 + MOVE_TWEEN_MS * 3)).toBe(1);
+    expect(new Vector3().setFromMatrixPosition(tweenMatrix(at, offset, 0)).toArray()).toEqual([-1, 2, 3]);
+    expect(new Vector3().setFromMatrixPosition(tweenMatrix(at, offset, 0.5)).x).toBeCloseTo(0);
+    expect(tweenMatrix(at, offset, 1).equals(at)).toBe(true);
+  });
+});
+
+describe("move cue in the scene", () => {
+  let now = 0;
+  let unmount: (() => Promise<void>) | null = null;
+
+  beforeEach(() => {
+    now = 1_000_000;
+    vi.spyOn(Date, "now").mockImplementation(() => now);
+    motion.reduced = false;
+    useTwinStore.setState(useTwinStore.getInitialState(), true);
+    useUiStore.setState(useUiStore.getInitialState(), true);
+    useTwinStore.getState().setLive(live);
+    useTwinStore.getState().setStatus(TWIN_STATUS.Ready);
+    useTwinStore.getState().setSimulation(simulation);
+    now += 60_000;
+  });
+  afterEach(async () => {
+    await unmount?.();
+    unmount = null;
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  async function renderScene() {
+    const renderer = await ReactThreeTestRenderer.create(<TwinStoreContents interactive={false} />);
+    unmount = () => renderer.unmount();
+    const find = (prefix: string) => {
+      const found: InstancedMesh[] = [];
+      renderer.scene.instance.traverse((object: Object3D) => {
+        if (object.name.startsWith(prefix)) found.push(object as InstancedMesh);
+      });
+      return found;
+    };
+    /** Where each P007 item is drawn now. */
+    const p007 = () => {
+      const drawn: Vector3[] = [];
+      renderer.scene.instance.traverse((object: Object3D) => {
+        const items = object.userData.stockItems as { productId: string }[] | undefined;
+        items?.forEach((item, index) => {
+          if (item.productId !== "P007") return;
+          const matrix = new Matrix4();
+          (object as InstancedMesh).getMatrixAt(index, matrix);
+          drawn.push(new Vector3().setFromMatrixPosition(matrix));
+        });
+      });
+      return drawn;
+    };
+    const run = (change: () => void) => ReactThreeTestRenderer.act(async () => change());
+    const frameAt = async (time: number) => {
+      now = time;
+      await renderer.advanceFrames(1, 0.016);
+    };
+    return { find, p007, run, frameAt };
+  }
+
+  const atState = (drawn: Vector3[]) => drawn.every((point, index) => point.distanceTo(p007AtState[index]) < 1e-6);
+
+  it("carries P007 to B02-S22 in the Simulation view and ends where the state puts it", async () => {
+    const scene = await renderScene();
+    expect(scene.find("stock-ghost-")).toHaveLength(0);
+
+    await scene.run(() => useUiStore.getState().setViewMode(VIEW_MODE.Simulation));
+    const start = now;
+    expect(scene.find("stock-moved-slots")[0].count).toBe(2);
+    const ghost = live.products.find((product) => product.sku === "P007")!;
+    expect(scene.find("stock-ghost-").reduce((sum, mesh) => sum + mesh.count, 0)).toBe(ghost.shelf_quantity);
+
+    await scene.frameAt(start + MOVE_TWEEN_MS / 2);
+    expect(scene.p007()).toHaveLength(p007AtState.length);
+    expect(atState(scene.p007())).toBe(false);
+
+    await scene.frameAt(start + MOVE_TWEEN_MS);
+    expect(atState(scene.p007())).toBe(true);
+  });
+
+  it("puts P007 straight at its destination with reduced motion, and still marks the move", async () => {
+    motion.reduced = true;
+    const scene = await renderScene();
+    await scene.run(() => useUiStore.getState().setViewMode(VIEW_MODE.Simulation));
+    await scene.frameAt(now);
+    expect(atState(scene.p007())).toBe(true);
+    expect(scene.find("stock-moved-slots")).toHaveLength(1);
+    expect(scene.find("stock-ghost-").length).toBeGreaterThan(0);
+  });
+
+  it("leaves Live alone while the Simulation view shows the move", async () => {
+    const scene = await renderScene();
+    await scene.run(() => useUiStore.getState().setViewMode(VIEW_MODE.Simulation));
+    await scene.run(() => useUiStore.getState().setViewMode(VIEW_MODE.Live));
+    expect(scene.find("stock-ghost-")).toHaveLength(0);
+    expect(scene.find("stock-moved-slots")).toHaveLength(0);
+    expect(useTwinStore.getState().live).toBe(live);
+    expect(useTwinStore.getState().live?.products.find((product) => product.sku === "P007")?.slot_id).toBe("B02-S20");
+  });
+
+  it("cues a move that comes in on the live feed", async () => {
+    const scene = await renderScene();
+    await scene.run(() => useTwinStore.getState().setLive(simulation.state));
+    expect(scene.find("stock-moved-slots")[0].count).toBe(2);
+    await scene.frameAt(now + MOVE_TWEEN_MS);
+    expect(atState(scene.p007())).toBe(true);
+  });
+
+  it("says where P007 came from on its card while the move is recent", () => {
+    useUiStore.getState().setViewMode(VIEW_MODE.Simulation);
+    render(<ProductInspector productId="P007" />);
+    expect(screen.getByText("Moved from B02-S20")).toBeTruthy();
+    cleanup();
+    render(<ProductInspector productId="P004" />);
+    expect(screen.queryByText(/Moved from/)).toBeNull();
+    act(() => useUiStore.getState().setViewMode(VIEW_MODE.Live));
+  });
+});

@@ -13,3 +13,5 @@ export const TWIN_POLL_MAX_MS = 60_000;
  * `TWIN_POLL_MS`, so the next poll never replaces a cue that is still showing.
  */
 export const CHANGE_CUE_MS = 4000;
+/** How long a moved product takes to travel from its source slot to its destination. Shorter than `CHANGE_CUE_MS`. */
+export const MOVE_TWEEN_MS = 900;

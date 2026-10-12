@@ -59,3 +59,9 @@ export const GLAZING_FRAME_COLOR = "#1d1e20";
 
 /** Flat floor fallback when no canvas is available (unit tests). */
 export const FLOOR_WOOD_COLOR = "#cbb69c";
+
+/** Opacity of the ghost a moved product leaves at its source slot while the move is recent. */
+export const MOVE_GHOST_OPACITY = 0.25;
+/** Emissive strength and opacity of the light over a moved product's source and destination slots. */
+export const MOVE_SLOT_GLOW = 0.9;
+export const MOVE_SLOT_OPACITY = 0.4;
