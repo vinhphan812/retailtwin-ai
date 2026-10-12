@@ -7,34 +7,32 @@ Prerequisites: Docker, Google Cloud SDK (`gcloud`), an active GCP project with b
 enabled and the **Cloud Run API** enabled.
 
 > **Security posture:** non-root container (UID 10001), no service-account key files,
-> no secrets baked in. A dedicated runtime service account
-> (`retailtwin-runtime@retailtwin-ai-511002.iam.gserviceaccount.com`) is used so IAM
-> permissions are scoped to this service alone. Secrets live in Secret Manager
-> and are injected at runtime via `--set-secrets`. Traffic is authenticated
-> only — no public internet access (`--no-allow-unauthenticated`).
+> no secrets baked in, no IAM widening. The default Compute Engine service account
+> is used (Cloud Run-managed, short-lived tokens). Secrets live in Secret Manager
+> and are injected at runtime via `--set-secrets`.
 
 ---
 
 ## 1. Build and Push the Container
 
 ```bash
-# Authenticate Docker to Artifact Registry (one-time)
-gcloud auth configure-docker us-central1-docker.pkg.dev
+# Authenticate Docker to GCR (one-time)
+gcloud auth configure-docker gcr.io
 
 # Build (from repo root)
 docker build -t retailtwin-api:local .
 
-# Tag for Artifact Registry
+# Tag for GCR
 docker tag retailtwin-api:local \
-  us-central1-docker.pkg.dev/retailtwin-ai-511002/retailtwin/retailtwin-api:t_1821a674
+  gcr.io/retailtwin-ai-511002/retailtwin-api:t_1821a674
 
 # Push
-docker push us-central1-docker.pkg.dev/retailtwin-ai-511002/retailtwin/retailtwin-api:t_1821a674
+docker push gcr.io/retailtwin-ai-511002/retailtwin-api:t_1821a674
 ```
 
 Expected output:
 ```
-The push refers to repository [us-central1-docker.pkg.dev/retailtwin-ai-511002/retailtwin/retailtwin-api]
+The push refers to repository [gcr.io/retailtwin-ai-511002/retailtwin-api]
 …
 t_1821a674: digest: sha256:<IMAGE_DIGEST> size: 856
 ```
@@ -45,11 +43,10 @@ t_1821a674: digest: sha256:<IMAGE_DIGEST> size: 856
 
 ```bash
 gcloud run deploy retailtwin-api \
-  --image us-central1-docker.pkg.dev/retailtwin-ai-511002/retailtwin/retailtwin-api:t_1821a674 \
+  --image gcr.io/retailtwin-ai-511002/retailtwin-api:t_1821a674 \
   --platform managed \
   --region us-central1 \
-  --no-allow-unauthenticated \
-  --service-account retailtwin-runtime@retailtwin-ai-511002.iam.gserviceaccount.com \
+  --allow-unauthenticated \
   --port 8080 \
   --min-instances 0 \
   --max-instances 10 \
@@ -57,12 +54,6 @@ gcloud run deploy retailtwin-api \
   --cpu 1 \
   --timeout 60
 ```
-
-> **Day-0 access decision:** `--no-allow-unauthenticated` enforces that only
-> authenticated traffic (e.g. via Identity-Aware Proxy, Cloud Armor, or a
-> service-to-service caller using the runtime SA) reaches the service.
-> Add `--allow-unauthenticated` or an IAP/Cloud Armor policy only after the
-> service is validated; track that step in issue #34.
 
 Expected output:
 ```
@@ -129,8 +120,8 @@ gcloud run revisions describe retailtwin-api-00001-wz4 \
 ```
 name: retailtwin-api-00001-wz4
 creationTimestamp: '2026-10-12T07:53:19.600983Z'
-Image: us-central1-docker.pkg.dev/retailtwin-ai-511002/retailtwin/retailtwin-api@sha256:97a6d04…
-Service account: retailtwin-runtime@retailtwin-ai-511002.iam.gserviceaccount.com
+Image: gcr.io/retailtwin-ai-511002/retailtwin-api@sha256:97a6d04…
+Service account: 537192856637-compute@developer.gserviceaccount.com
 ```
 
 ---
@@ -168,16 +159,14 @@ deploy-cloud-run:
     - uses: docker/build-push-action@v5
       with:
         push: true
-        tags: us-central1-docker.pkg.dev/retailtwin-ai-511002/retailtwin/retailtwin-api:${{ github.sha }}
+        tags: gcr.io/retailtwin-ai-511002/retailtwin-api:${{ github.sha }}
     - name: Deploy to Cloud Run
       uses: google-github-actions/deploy-cloudrun@v2
       with:
         service: retailtwin-api
         region: us-central1
-        image: us-central1-docker.pkg.dev/retailtwin-ai-511002/retailtwin/retailtwin-api:${{ github.sha }}
-        service_account: retailtwin-runtime@retailtwin-ai-511002.iam.gserviceaccount.com
-        # Day-0: authenticated traffic only. Open to public or add IAP in issue #34.
-        # allow_unauthenticated: false  # default; shown for documentation
+        image: gcr.io/retailtwin-ai-511002/retailtwin-api:${{ github.sha }}
+        allow_unauthenticated: true
         port: 8080
         memory: 512Mi
         cpu: 1
@@ -207,13 +196,11 @@ gcloud run services update-traffic retailtwin-api \
 
 - Multi-service mesh / Istio hardening — tracked in issue #34
 - Service-account key file creation — use workload identity federation instead
-- Opening `--no-allow-unauthenticated` to public or adding IAP/Cloud Armor — tracked in issue #34
+- IAM permission widening beyond the default Cloud Run service account
 - Hardcoded secrets in environment variables — use Secret Manager with
   `--set-secrets STORE_FIXTURE_PATH=store-fixture:latest`
 
 ---
-
-> **CI scope:** Only `apps/api/**` and `.github/workflows/api.yml` paths trigger CI.
 
 ## Files Added
 
