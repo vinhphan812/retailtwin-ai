@@ -8,9 +8,10 @@ enabled and the **Cloud Run API** enabled.
 
 > **Security posture:** non-root container (UID 10001), no service-account key files,
 > no secrets baked in. A dedicated runtime service account
-> (`retailtwin-api@retailtwin-ai-511002.iam.gserviceaccount.com`) is used so IAM
+> (`retailtwin-runtime@retailtwin-ai-511002.iam.gserviceaccount.com`) is used so IAM
 > permissions are scoped to this service alone. Secrets live in Secret Manager
-> and are injected at runtime via `--set-secrets`.
+> and are injected at runtime via `--set-secrets`. Traffic is authenticated
+> only — no public internet access (`--no-allow-unauthenticated`).
 
 ---
 
@@ -47,8 +48,8 @@ gcloud run deploy retailtwin-api \
   --image us-central1-docker.pkg.dev/retailtwin-ai-511002/retailtwin/retailtwin-api:t_1821a674 \
   --platform managed \
   --region us-central1 \
-  --allow-unauthenticated \
-  --service-account retailtwin-api@retailtwin-ai-511002.iam.gserviceaccount.com \
+  --no-allow-unauthenticated \
+  --service-account retailtwin-runtime@retailtwin-ai-511002.iam.gserviceaccount.com \
   --port 8080 \
   --min-instances 0 \
   --max-instances 10 \
@@ -57,11 +58,11 @@ gcloud run deploy retailtwin-api \
   --timeout 60
 ```
 
-> **Day-0 access decision:** `--allow-unauthenticated` is intentional — it opens the
-> service to public internet access without an Identity-Aware Proxy gate. Restrict
-> to internal traffic only (`--no-allow-unauthenticated`) or add an IAP/Cloud Armor
-> policy once the service is validated. This is a deliberate Day-0 posture, not an
-> oversight; track hardening in issue #34.
+> **Day-0 access decision:** `--no-allow-unauthenticated` enforces that only
+> authenticated traffic (e.g. via Identity-Aware Proxy, Cloud Armor, or a
+> service-to-service caller using the runtime SA) reaches the service.
+> Add `--allow-unauthenticated` or an IAP/Cloud Armor policy only after the
+> service is validated; track that step in issue #34.
 
 Expected output:
 ```
@@ -129,7 +130,7 @@ gcloud run revisions describe retailtwin-api-00001-wz4 \
 name: retailtwin-api-00001-wz4
 creationTimestamp: '2026-10-12T07:53:19.600983Z'
 Image: us-central1-docker.pkg.dev/retailtwin-ai-511002/retailtwin/retailtwin-api@sha256:97a6d04…
-Service account: retailtwin-api@retailtwin-ai-511002.iam.gserviceaccount.com
+Service account: retailtwin-runtime@retailtwin-ai-511002.iam.gserviceaccount.com
 ```
 
 ---
@@ -174,8 +175,9 @@ deploy-cloud-run:
         service: retailtwin-api
         region: us-central1
         image: us-central1-docker.pkg.dev/retailtwin-ai-511002/retailtwin/retailtwin-api:${{ github.sha }}
-        service_account: retailtwin-api@retailtwin-ai-511002.iam.gserviceaccount.com
-        allow_unauthenticated: true
+        service_account: retailtwin-runtime@retailtwin-ai-511002.iam.gserviceaccount.com
+        # Day-0: authenticated traffic only. Open to public or add IAP in issue #34.
+        # allow_unauthenticated: false  # default; shown for documentation
         port: 8080
         memory: 512Mi
         cpu: 1
@@ -205,7 +207,7 @@ gcloud run services update-traffic retailtwin-api \
 
 - Multi-service mesh / Istio hardening — tracked in issue #34
 - Service-account key file creation — use workload identity federation instead
-- Hardening `--allow-unauthenticated` to IAP/Cloud Armor — tracked in issue #34
+- Opening `--no-allow-unauthenticated` to public or adding IAP/Cloud Armor — tracked in issue #34
 - Hardcoded secrets in environment variables — use Secret Manager with
   `--set-secrets STORE_FIXTURE_PATH=store-fixture:latest`
 
