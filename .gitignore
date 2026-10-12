@@ -43,3 +43,5 @@ htmlcov/
 # 3D generated/cache
 assets/3d/generated/
 *.blend1
+.worktrees/
+.worktrees/
