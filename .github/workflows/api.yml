@@ -94,3 +94,82 @@ jobs:
 
       - name: Run E2E smoke suite
         run: pytest tests/e2e/ -v --tb=short
+
+  # ── Production deployment ────────────────────────────────────────────────────
+  # Deploys to Cloud Run after all tests pass on a merge to main.
+  # Requires WORKLOAD_IDENTITY_FEDERATION configured:
+  #   - Project: retailtwin-ai-511002
+  #   - SA: github-actions@retailtwin-ai-511002.iam.gserviceaccount.com
+  #   - Roles: Cloud Run Admin, Container Registry Writer, Secret Manager Secret Accessor
+  deploy-cloudrun:
+    name: Deploy to Cloud Run (production)
+    runs-on: ubuntu-latest
+    needs: [build-test, e2e-smoke]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # Separate environment enforces protection: no direct push-to-main without CI green.
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: github-actions@retailtwin-ai-511002.iam.gserviceaccount.com
+
+      - name: Configure Docker for GCR
+        run: gcloud auth configure-docker gcr.io
+
+      - name: Build and push container image
+        run: |
+          docker build \
+            --tag gcr.io/retailtwin-ai-511002/retailtwin-api:${{ github.sha }} \
+            --tag gcr.io/retailtwin-ai-511002/retailtwin-api:latest \
+            .
+          docker push gcr.io/retailtwin-ai-511002/retailtwin-api:${{ github.sha }}
+          docker push gcr.io/retailtwin-ai-511002/retailtwin-api:latest
+
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: retailtwin-api
+          region: us-central1
+          project_id: retailtwin-ai-511002
+          image: gcr.io/retailtwin-ai-511002/retailtwin-api:${{ github.sha }}
+          allow_unauthenticated: true
+          port: 8080
+          min_instances: 1
+          max_instances: 10
+          memory: 512Mi
+          cpu: 1
+          timeout: 60
+          concurrency: 80
+          env_vars: APP_ENV=production,LOG_LEVEL=INFO
+          # secrets: STORE_FIXTURE_PATH=store-fixture:latest  # enable after Secret Manager setup
+
+      - name: Verify production deployment
+        run: |
+          SERVICE_URL="${{ env.ROLLING_URL }}"
+          echo "Service URL: ${SERVICE_URL}"
+
+          HEALTH=$(curl -sf "${SERVICE_URL}/health" || echo "")
+          echo "Health: ${HEALTH}"
+
+          # Assert production env
+          echo "${HEALTH}" | grep -q '"app_env":"production"' \
+            || { echo "ERROR: APP_ENV not set to production" >&2; exit 1; }
+
+          # Assert OK status
+          echo "${HEALTH}" | grep -q '"status":"ok"' \
+            || { echo "ERROR: Service not OK" >&2; exit 1; }
+
+          # Readiness probe
+          READY=$(curl -sf "${SERVICE_URL}/ready" -o /dev/null -w "%{http_code}")
+          echo "Readiness: ${READY}"
+          [[ "${READY}" == "200" ]] \
+            || { echo "ERROR: Readiness probe failed" >&2; exit 1; }
+
+          echo ""
+          echo "=== Production deployment verified ==="
