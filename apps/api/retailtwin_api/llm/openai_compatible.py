@@ -31,7 +31,7 @@ from .contracts import (
 _logger = logging.getLogger(__name__)
 
 _MAX_RETRIES = 3
-_INITIAL_BACKOFF = 1.0  # seconds
+_INITIAL_BACKOFF: float = 1.0  # seconds
 
 
 def _backoff(attempt: int) -> float:
@@ -60,7 +60,8 @@ def _http_error_to_exception(status_code: int, body: dict[str, Any]) -> Provider
     return ProviderError(message, retryable=status_code >= 500)
 
 
-def _convert_tools_openai(tools: list) -> list[dict[str, Any]]:
+def _convert_tools_openai(tools: list[Any]) -> list[dict[str, Any]]:
+
     """Convert LlmTool list to OpenAI tool definitions format."""
     return [
         {

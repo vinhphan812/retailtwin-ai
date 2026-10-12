@@ -11,7 +11,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 import httpx
 
@@ -44,12 +44,14 @@ _VERTEX_SCOPE = "https://www.googleapis.com/auth/cloud-platform"
 
 # Retry configuration
 _MAX_RETRIES = 3
-_INITIAL_BACKOFF = 1.0  # seconds
+_INITIAL_BACKOFF = 1.0
 
 
 def _backoff(attempt: int) -> float:
     """Exponential back-off with jitter cap at 32 s."""
-    return min(_INITIAL_BACKOFF * (2 ** attempt), 32.0)
+    _INITIAL_BACKOFF: float
+    result: float = min(_INITIAL_BACKOFF * (2 ** attempt), 32.0)
+    return result
 
 
 def _vertex_error_to_exception(status_code: int, payload: dict[str, Any]) -> ProviderError:
@@ -162,6 +164,9 @@ class VertexProvider(LlmProvider):
     def _get_adc_access_token(self) -> str:
         """Resolve and refresh ADC from Cloud Run or local gcloud authentication."""
         try:
+            if TYPE_CHECKING:
+                from google.auth.transport.requests import Request as _RequestTyping
+
             import google.auth
             from google.auth.transport.requests import Request
 
