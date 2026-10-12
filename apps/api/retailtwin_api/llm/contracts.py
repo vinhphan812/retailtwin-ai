@@ -92,6 +92,34 @@ class ProviderError(LlmError):
         super().__init__("provider_error", message, retryable=retryable)
 
 
+class AuthenticationError(ProviderError):
+    """Raised when the API key or credential is invalid, missing, or expired."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message, retryable=False)
+
+
+class RateLimitError(ProviderError):
+    """Raised when the provider throttles the request; safe to retry after back-off."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message, retryable=True)
+
+
+class InvalidStructuredOutputError(ProviderError):
+    """Raised when the model refuses or cannot produce the requested structured output."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message, retryable=False)
+
+
+class ToolCallError(ProviderError):
+    """Raised when a tool-call response is malformed, unknown, or the tool result is missing."""
+
+    def __init__(self, message: str, *, retryable: bool = False) -> None:
+        super().__init__(message, retryable=retryable)
+
+
 class RequestTimeout(LlmError):
     def __init__(self) -> None:
         super().__init__("timeout", "The model request timed out.", retryable=True)

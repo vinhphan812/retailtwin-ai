@@ -10,7 +10,12 @@ from .vertex import VertexProvider
 
 
 class LlmConfig(BaseModel):
-    """Configuration used to instantiate a provider adapter."""
+    """Configuration used to instantiate a provider adapter.
+
+    base_url for the ``openai`` provider is read from the ``LLM_BASE_URL``
+    environment variable when not explicitly provided.  No default is applied
+    to avoid accidental routing to the public OpenAI API in production.
+    """
 
     provider: Literal["openai", "vertex"]
     model: str = Field(min_length=1)
@@ -24,8 +29,18 @@ class LlmConfig(BaseModel):
 def create_provider(config: LlmConfig) -> LlmProvider:
     """Create the configured inference adapter without performing inference."""
     if config.provider == "openai":
+        base_url = config.base_url
+        if not base_url:
+            import os
+            base_url = os.environ.get("LLM_BASE_URL")
+            if not base_url:
+                raise ConfigurationError(
+                    "LLM_BASE_URL environment variable or base_url config field is required "
+                    "for the 'openai' provider.  No default is provided."
+                )
+
         return OpenAiCompatibleProvider(
-            base_url=config.base_url or "https://api.openai.com/v1",
+            base_url=base_url,
             api_key=config.api_key or "",
             model=config.model,
             timeout=config.timeout,
