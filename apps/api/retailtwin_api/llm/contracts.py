@@ -7,7 +7,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 # jsonschema is bundled with pydantic>=2.9 via pydantic's own dependency
-from jsonschema import ValidationError as _JsonSchemaValidationError
+import jsonschema as _jsonschema
 
 
 class LlmTool(BaseModel):
@@ -117,11 +117,8 @@ class LlmResponse(BaseModel):
                 f"structured output is not valid JSON: {exc}"
             ) from exc
         try:
-            _JsonSchemaValidationError(
-                parsed,
-                schema,
-            )
-        except _JsonSchemaValidationError as exc:
+            _jsonschema.validate(instance=parsed, schema=schema)
+        except _jsonschema.ValidationError as exc:
             raise InvalidStructuredOutputError(
                 f"structured output does not conform to requested schema: {exc.message}"
             ) from exc

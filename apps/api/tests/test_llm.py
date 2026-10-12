@@ -451,7 +451,7 @@ def test_vertex_sends_structured_output(monkeypatch: pytest.MonkeyPatch) -> None
         MockResponse({
             "candidates": [{
                 "content": {
-                    "parts": [{"functionCall": {"name": "Decision", "args": {"decision": "buy"}}}]
+                    "parts": [{"text": '{"decision":"buy","quantity":2}'}]  # text, not functionCall
                 },
                 "finishReason": "STOP",
             }],
