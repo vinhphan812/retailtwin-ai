@@ -49,9 +49,7 @@ _INITIAL_BACKOFF = 1.0
 
 def _backoff(attempt: int) -> float:
     """Exponential back-off with jitter cap at 32 s."""
-    _INITIAL_BACKOFF: float
-    result: float = min(_INITIAL_BACKOFF * (2 ** attempt), 32.0)
-    return result
+    return cast(float, min(float(_INITIAL_BACKOFF) * (2 ** attempt), 32.0))  # type: ignore[no-any-return]
 
 
 def _vertex_error_to_exception(status_code: int, payload: dict[str, Any]) -> ProviderError:
@@ -172,7 +170,7 @@ class VertexProvider(LlmProvider):
 
             credentials, _ = google.auth.default(scopes=[_VERTEX_SCOPE])
             if not credentials.valid or not credentials.token:
-                credentials.refresh(Request())
+                credentials.refresh(Request())  # type: ignore[no-untyped-call]
             if not credentials.token:
                 raise AuthenticationError("ADC did not supply an access token")
             return str(credentials.token)

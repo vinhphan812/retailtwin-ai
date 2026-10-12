@@ -36,7 +36,7 @@ _INITIAL_BACKOFF: float = 1.0  # seconds
 
 def _backoff(attempt: int) -> float:
     """Exponential back-off capped at 32 s."""
-    return min(_INITIAL_BACKOFF * (2 ** attempt), 32.0)
+    return cast(float, min(_INITIAL_BACKOFF * (2 ** attempt), 32.0))  # type: ignore[no-any-return]
 
 
 def _http_error_to_exception(status_code: int, body: dict[str, Any]) -> ProviderError:
