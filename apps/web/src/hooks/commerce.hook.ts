@@ -47,7 +47,7 @@ type HookResult<T> = T & { error: Error | null; loading: boolean };
 function useCachedRead<T>(
   client: RetailTwinClient | undefined,
   key: string,
-  read: (client: RetailTwinClient) => Promise<T>,
+  read: () => Promise<T>,
   placeholder: T,
 ): HookResult<T> {
   const [state, setState] = useState<{ data: T; error: Error | null; loading: boolean }>(() => {
@@ -71,7 +71,7 @@ function useCachedRead<T>(
 
     if (!pending) {
       setState((s) => ({ ...s, loading: true }));
-      pending = read(client).then(
+      pending = read().then(
         (result) => {
           results.set(key, result);
           return result;
