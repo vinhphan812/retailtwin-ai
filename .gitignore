@@ -14,6 +14,10 @@ venv/
 .mypy_cache/
 .ruff_cache/
 *.egg-info/
+uv.lock
+
+# Nested Python package build artifacts
+apps/api/apps/
 
 # Environment / secrets
 .env
@@ -40,8 +44,5 @@ coverage/
 htmlcov/
 *.log
 
-# 3D generated/cache
-assets/3d/generated/
-*.blend1
-.worktrees/
+# Claude Code worktrees
 .worktrees/
