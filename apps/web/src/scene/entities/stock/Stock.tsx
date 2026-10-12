@@ -13,6 +13,7 @@ import {
   Quaternion,
   Vector3,
   type BufferGeometry,
+  type Group,
   type InstancedMesh,
 } from "three";
 import { selectedProductId, useUiStore } from "@/state/ui.store";
@@ -502,8 +503,8 @@ function pick(batches: Batches, keep: (productId: string) => boolean) {
  *
  * A recent move (`useRecentChanges`) carries the product's items from its source slot to
  * its destination, outlines where it stood, and lights both slots; the outline and lights
- * fade out once the items have arrived. With reduced motion the items stand at the
- * destination from the start, and the outline and lights hold still until the cue ends.
+ * go the moment the items arrive (`marksShown`). With reduced motion the items stand at
+ * the destination from the start, and the outline and lights show for as long.
  */
 export function Stock({ store }: { store: StoreFixture }) {
   const batches = useMemo(() => buildStock(store), [store]);
@@ -528,9 +529,10 @@ export function Stock({ store }: { store: StoreFixture }) {
     [move],
   );
   const tween = motion ? move : null;
+  const marks = useRef<Group>(null);
   useFrame(({ clock }) => {
     if (motion && anomalies.length) pulseHalos(Math.sin(clock.elapsedTime * Math.PI * 2 * ANOMALY_PULSE_HZ));
-    if (move) fadeMoveCue(motion ? cueFade(move.at, Date.now()) : 1);
+    if (marks.current) marks.current.visible = move !== null && marksShown(move.at, Date.now());
   });
 
   return (
@@ -557,8 +559,10 @@ export function Stock({ store }: { store: StoreFixture }) {
           />
         )),
       )}
-      <GhostOutlines matrices={outlines} />
-      <SlotLights matrices={move?.slots ?? NO_SLOTS} />
+      <group ref={marks} name="stock-move-marks">
+        <GhostOutlines matrices={outlines} />
+        <SlotLights matrices={move?.slots ?? NO_SLOTS} />
+      </group>
     </group>
   );
 }

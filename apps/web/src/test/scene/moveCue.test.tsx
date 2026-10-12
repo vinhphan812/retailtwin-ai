@@ -13,8 +13,7 @@ import { demoStoreState } from "@/fixtures/demo/store";
 import { toSceneStore } from "@/scene/layout";
 import { TwinStoreContents } from "@/scene/StoreScene";
 import { buildStock } from "@/scene/entities/stock/Stock";
-import { cueFade, ghostOutlines, moveCueOf, moveProgress, tweenMatrix } from "@/scene/entities/stock/moveCue";
-import { CHANGE_CUE_MS } from "@/constants/twin.constant";
+import { ghostOutlines, marksShown, moveCueOf, moveProgress, tweenMatrix } from "@/scene/entities/stock/moveCue";
 import { useTwinStore } from "@/state/twin.store";
 import { useUiStore } from "@/state/ui.store";
 
@@ -69,11 +68,10 @@ describe("moveCueOf", () => {
     }
   });
 
-  it("holds the outline and lights while the items travel, then fades them out by the end of the cue", () => {
-    expect(cueFade(1000, 1000)).toBe(1);
-    expect(cueFade(1000, 1000 + MOVE_TWEEN_MS)).toBe(1);
-    expect(cueFade(1000, 1000 + (MOVE_TWEEN_MS + CHANGE_CUE_MS) / 2)).toBeCloseTo(0.5);
-    expect(cueFade(1000, 1000 + CHANGE_CUE_MS)).toBe(0);
+  it("shows the outline and lights only while the items travel", () => {
+    expect(marksShown(1000, 1000)).toBe(true);
+    expect(marksShown(1000, 1000 + MOVE_TWEEN_MS - 1)).toBe(true);
+    expect(marksShown(1000, 1000 + MOVE_TWEEN_MS)).toBe(false);
   });
 
   it("tweens from the source to exactly the state position", () => {
@@ -139,7 +137,9 @@ describe("move cue in the scene", () => {
       now = time;
       await renderer.advanceFrames(1, 0.016);
     };
-    return { find, p007, run, frameAt };
+    /** True while the outline and slot lights are drawn. */
+    const marked = () => renderer.scene.instance.getObjectByName("stock-move-marks")?.visible === true;
+    return { find, p007, run, frameAt, marked };
   }
 
   const atState = (drawn: Vector3[]) => drawn.every((point, index) => point.distanceTo(p007AtState[index]) < 1e-6);
@@ -156,9 +156,12 @@ describe("move cue in the scene", () => {
     await scene.frameAt(start + MOVE_TWEEN_MS / 2);
     expect(scene.p007()).toHaveLength(p007AtState.length);
     expect(atState(scene.p007())).toBe(false);
+    expect(scene.marked()).toBe(true);
 
+    // The outline and lights go the moment the items arrive.
     await scene.frameAt(start + MOVE_TWEEN_MS);
     expect(atState(scene.p007())).toBe(true);
+    expect(scene.marked()).toBe(false);
   });
 
   it("puts P007 straight at its destination with reduced motion, and still marks the move", async () => {

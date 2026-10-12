@@ -1,5 +1,5 @@
 import { Box3, Matrix4, Quaternion, Vector3 } from "three";
-import { CHANGE_CUE_MS, MOVE_TWEEN_MS } from "@/constants/twin.constant";
+import { MOVE_TWEEN_MS } from "@/constants/twin.constant";
 import { ENTITY_TYPE } from "@/enums/scene.enum";
 import type { ProductMove, SlotRef } from "@/core/twin/stateDiff";
 import { entityMatrix } from "@/scene/utils/transform";
@@ -138,9 +138,9 @@ export function ghostOutlines(cue: MoveCue, items: { matrix: Matrix4; productId:
 }
 
 /**
- * How visible the ghost and slot lights still are at `now`, from 1 to 0: whole while the
- * items travel, then fading out until the cue ends, so they never vanish at once.
+ * True while the outline and slot lights of a move appeared at `at` still show at `now`:
+ * only while the items travel. They go the moment the items arrive, with no fade.
  */
-export function cueFade(at: number, now: number): number {
-  return 1 - Math.min(1, Math.max(0, (now - at - MOVE_TWEEN_MS) / (CHANGE_CUE_MS - MOVE_TWEEN_MS)));
+export function marksShown(at: number, now: number): boolean {
+  return now - at < MOVE_TWEEN_MS;
 }
