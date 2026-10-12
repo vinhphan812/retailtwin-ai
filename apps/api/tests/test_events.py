@@ -156,9 +156,9 @@ def test_accepted_event_logs_the_correlation_id(client, caplog) -> None:
 
     assert response.status_code == 201
 
-    # Structured logging: correlation_id and event_id are in the extra dict, not the message string.
+    # Structured logging: correlation_id and event_id are in the extra dict and message string.
     event_log_records = [
-        r for r in caplog.records if r.message == "event.accepted"
+        r for r in caplog.records if r.message.startswith("event.accepted")
     ]
     assert len(event_log_records) == 1, f"Expected exactly one 'event.accepted' record, got {len(event_log_records)}"
     record = event_log_records[0]
