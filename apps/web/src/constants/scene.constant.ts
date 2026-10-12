@@ -62,6 +62,3 @@ export const FLOOR_WOOD_COLOR = "#cbb69c";
 
 /** Opacity of the outline a moved product leaves at its source slot while the move is recent. */
 export const MOVE_GHOST_OPACITY = 0.85;
-/** Emissive strength and opacity of the light over a moved product's source and destination slots. */
-export const MOVE_SLOT_GLOW = 0.9;
-export const MOVE_SLOT_OPACITY = 0.4;

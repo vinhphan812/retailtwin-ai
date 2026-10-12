@@ -25,9 +25,8 @@ const live = demoStoreState();
 const simulation = demoSimulation(live);
 const simulated = toSceneStore(simulation.state).store;
 
-/** The demo moves P005, P007 and P008; each lights its source and destination slot. */
+/** The demo moves P005, P007 and P008; each leaves an outline at its source slot. */
 const MOVED = ["P005", "P007", "P008"];
-const MOVED_SLOTS = 2 * MOVED.length;
 
 /** Where the simulation puts each P007 item. */
 const p007AtState = Object.values(buildStock(simulated))
@@ -38,12 +37,11 @@ const p007AtState = Object.values(buildStock(simulated))
 describe("moveCueOf", () => {
   const change = { diff: diffStates(live, simulation.state), at: 1000, before: live };
 
-  it("offsets P007 from B02-S22 back to B02-S20, lights both slots and keeps a ghost of the source", () => {
+  it("offsets P007 from B02-S22 back to B02-S20, and keeps a ghost of the source", () => {
     const cue = moveCueOf(simulated, change)!;
     expect([...cue.offsets.keys()]).toEqual(MOVED);
     const offset = cue.offsets.get("P007")!;
     expect(offset.length()).toBeGreaterThan(0.1);
-    expect(cue.slots).toHaveLength(MOVED_SLOTS);
     expect(cue.ghost.products).toContainEqual(expect.objectContaining({ productId: "P007", slotId: "B02-S20" }));
     expect(cue.ghost.products.map((product) => product.productId).sort()).toEqual(MOVED);
   });
@@ -68,7 +66,7 @@ describe("moveCueOf", () => {
     }
   });
 
-  it("shows the outline and lights only while the items travel", () => {
+  it("shows the outline only while the items travel", () => {
     expect(marksShown(1000, 1000)).toBe(true);
     expect(marksShown(1000, 1000 + MOVE_TWEEN_MS - 1)).toBe(true);
     expect(marksShown(1000, 1000 + MOVE_TWEEN_MS)).toBe(false);
@@ -137,7 +135,7 @@ describe("move cue in the scene", () => {
       now = time;
       await renderer.advanceFrames(1, 0.016);
     };
-    /** True while the outline and slot lights are drawn. */
+    /** True while the outlines are drawn. */
     const marked = () => renderer.scene.instance.getObjectByName("stock-move-marks")?.visible === true;
     return { find, p007, run, frameAt, marked };
   }
@@ -150,7 +148,6 @@ describe("move cue in the scene", () => {
 
     await scene.run(() => useUiStore.getState().setViewMode(VIEW_MODE.Simulation));
     const start = now;
-    expect(scene.find("stock-moved-slots")[0].count).toBe(MOVED_SLOTS);
     expect(scene.find("stock-ghost-outline")).toHaveLength(MOVED.length);
 
     await scene.frameAt(start + MOVE_TWEEN_MS / 2);
@@ -158,7 +155,7 @@ describe("move cue in the scene", () => {
     expect(atState(scene.p007())).toBe(false);
     expect(scene.marked()).toBe(true);
 
-    // The outline and lights go the moment the items arrive.
+    // The outline goes the moment the items arrive.
     await scene.frameAt(start + MOVE_TWEEN_MS);
     expect(atState(scene.p007())).toBe(true);
     expect(scene.marked()).toBe(false);
@@ -170,8 +167,7 @@ describe("move cue in the scene", () => {
     await scene.run(() => useUiStore.getState().setViewMode(VIEW_MODE.Simulation));
     await scene.frameAt(now);
     expect(atState(scene.p007())).toBe(true);
-    expect(scene.find("stock-moved-slots")).toHaveLength(1);
-    expect(scene.find("stock-ghost-").length).toBeGreaterThan(0);
+    expect(scene.find("stock-ghost-outline")).toHaveLength(MOVED.length);
   });
 
   it("leaves Live alone while the Simulation view shows the move, and plays the move back on the way out", async () => {
@@ -179,7 +175,6 @@ describe("move cue in the scene", () => {
     await scene.run(() => useUiStore.getState().setViewMode(VIEW_MODE.Simulation));
     now += 60_000;
     await scene.run(() => useUiStore.getState().setViewMode(VIEW_MODE.Live));
-    expect(scene.find("stock-moved-slots")[0].count).toBe(MOVED_SLOTS);
     expect(scene.find("stock-ghost-outline")).toHaveLength(MOVED.length);
     const inLive = Object.values(buildStock(toSceneStore(live).store))
       .flat()
@@ -197,7 +192,7 @@ describe("move cue in the scene", () => {
   it("cues a move that comes in on the live feed", async () => {
     const scene = await renderScene();
     await scene.run(() => useTwinStore.getState().setLive(simulation.state));
-    expect(scene.find("stock-moved-slots")[0].count).toBe(MOVED_SLOTS);
+    expect(scene.find("stock-ghost-outline")).toHaveLength(MOVED.length);
     await scene.frameAt(now + MOVE_TWEEN_MS);
     expect(atState(scene.p007())).toBe(true);
   });
@@ -210,7 +205,7 @@ describe("move cue in the scene", () => {
     const back = useTwinStore.getState().liveChange?.diff.moved;
     expect(back?.map((move) => move.sku)).toEqual(MOVED);
     expect(back).toContainEqual({ sku: "P007", from: { shelf_id: "B02", slot_id: "B02-S22" }, to: { shelf_id: "B02", slot_id: "B02-S20" } });
-    expect(scene.find("stock-moved-slots")[0].count).toBe(MOVED_SLOTS);
+    expect(scene.find("stock-ghost-outline")).toHaveLength(MOVED.length);
     const original = Object.values(buildStock(toSceneStore(live).store))
       .flat()
       .filter((item) => item.productId === "P007")

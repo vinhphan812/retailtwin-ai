@@ -28,8 +28,6 @@ import {
   ANOMALY_PULSE_DEPTH,
   ANOMALY_PULSE_HZ,
   MOVE_GHOST_OPACITY,
-  MOVE_SLOT_GLOW,
-  MOVE_SLOT_OPACITY,
   SELECTION_ITEM_GLOW,
 } from "@/constants/scene.constant";
 import { anomalyColor, changeColor, selectionColor } from "@/core/utils/theme";
@@ -465,28 +463,7 @@ function GhostOutlines({ matrices }: { matrices: Matrix4[] }) {
   );
 }
 
-/** A light over the source and destination slot of each move. */
-function SlotLights({ matrices }: { matrices: Matrix4[] }) {
-  const ref = useRef<InstancedMesh>(null);
-  useLayoutEffect(() => {
-    const mesh = ref.current;
-    if (!mesh) return;
-    matrices.forEach((matrix, index) => mesh.setMatrixAt(index, matrix));
-    mesh.instanceMatrix.needsUpdate = true;
-    mesh.computeBoundingSphere();
-  }, [matrices]);
-  if (matrices.length === 0) return null;
-  return (
-    <instancedMesh
-      ref={ref}
-      args={[GEOMETRY[STOCK_SHAPE.Box], moveSlotMaterial(), matrices.length]}
-      name="stock-moved-slots"
-      renderOrder={1}
-    />
-  );
-}
-
-const NO_SLOTS: Matrix4[] = [];
+const NO_OUTLINES: Matrix4[] = [];
 
 /** The items of `batches` whose product passes `keep`, per shape. */
 function pick(batches: Batches, keep: (productId: string) => boolean) {
@@ -502,9 +479,9 @@ function pick(batches: Batches, keep: (productId: string) => boolean) {
  * The Simulation view shows no halos (`useShownAnomalies`).
  *
  * A recent move (`useRecentChanges`) carries the product's items from its source slot to
- * its destination, outlines where it stood, and lights both slots; the outline and lights
- * go the moment the items arrive (`marksShown`). With reduced motion the items stand at
- * the destination from the start, and the outline and lights show for as long.
+ * its destination and outlines where it stood; the outline goes the moment the items
+ * arrive (`marksShown`). With reduced motion the items stand at the destination from the
+ * start, and the outline shows for as long.
  */
 export function Stock({ store }: { store: StoreFixture }) {
   const batches = useMemo(() => buildStock(store), [store]);
@@ -525,7 +502,7 @@ export function Stock({ store }: { store: StoreFixture }) {
   const change = useRecentChanges();
   const move = useMemo(() => moveCueOf(store, change), [store, change]);
   const outlines = useMemo(
-    () => (move ? ghostOutlines(move, Object.values(buildStock(move.ghost)).flat()) : NO_SLOTS),
+    () => (move ? ghostOutlines(move, Object.values(buildStock(move.ghost)).flat()) : NO_OUTLINES),
     [move],
   );
   const tween = motion ? move : null;
@@ -561,7 +538,6 @@ export function Stock({ store }: { store: StoreFixture }) {
       )}
       <group ref={marks} name="stock-move-marks">
         <GhostOutlines matrices={outlines} />
-        <SlotLights matrices={move?.slots ?? NO_SLOTS} />
       </group>
     </group>
   );
