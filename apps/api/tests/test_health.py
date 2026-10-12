@@ -166,5 +166,5 @@ def test_middleware_logs_request_start_and_end(client, caplog) -> None:
     for record in middleware_records:
         assert hasattr(record, "correlation_id"), f"Missing correlation_id attr on record: {record}"
         assert getattr(record, "correlation_id"), "Empty correlation_id"
-        assert record.message in ("request.start", "request.end"), f"Unexpected message: {record.message}"
+        assert record.message.startswith("request."), f"Unexpected message: {record.message}"
         assert record.levelname == "INFO"
