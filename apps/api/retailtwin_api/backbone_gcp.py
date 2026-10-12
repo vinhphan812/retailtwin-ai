@@ -268,8 +268,7 @@ class BigQuerySink:
         rows = self._rows(sql, [("event_id", "STRING", event_id)])
         if len(rows) != 1:
             raise BackboneError(f"Could not count {event_id} in {table}.")
-        row_count: object = rows[0]["row_count"]
-        return int(cast(str, row_count))
+        return cast(int, rows[0]["row_count"])
 
     def insert(self, table: str, event: StoreEvent, job_id: str) -> None:
         if not _job_id_ok(job_id):
