@@ -6,16 +6,6 @@ Does NOT fake: Gemini tool calls, Firestore, Simulation Twin, DCG, Executor, Ver
 """
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-# Ensure project root (parent of apps/api) is in sys.path so that
-# agents/, services/, and guard/ packages are importable from e2e tests
-# that run via "pytest tests/e2e/" from the apps/api directory.
-_root = Path(__file__).resolve().parents[2]
-if str(_root) not in sys.path:
-    sys.path.insert(0, str(_root))
-
 import asyncio
 import threading
 import uuid

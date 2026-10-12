@@ -17,6 +17,16 @@ Secrets policy: no real credentials; fixture data only.
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+# Ensure the project root (parent of apps/api) is in sys.path so that
+# agents/, services/, and guard/ packages are importable when running
+# "pytest tests/e2e/" from the repo root.
+_root = Path(__file__).resolve().parents[2]
+if str(_root) not in sys.path:
+    sys.path.insert(0, str(_root))
+
 import logging
 import time
 import uuid
