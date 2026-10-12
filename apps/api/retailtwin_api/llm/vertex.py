@@ -187,7 +187,11 @@ class VertexProvider(LlmProvider):
         last_exc: Exception | None = None
         for attempt in range(_MAX_RETRIES):
             try:
-                return await self._do_request(payload, request)
+                response = await self._do_request(payload, request)
+                # Local schema validation — explicit failure on non-conformant output
+                if request.structured_output:
+                    response.validate_structured_output(request.structured_output.json_schema)
+                return response
             except RateLimitError as exc:
                 last_exc = exc
             except (AuthenticationError, InvalidStructuredOutputError, ToolCallError, RequestTimeout):
@@ -237,7 +241,7 @@ class VertexProvider(LlmProvider):
             raise exc
 
         data = response.json()
-        return self._parse_response(data, request)
+        return self._parse_response(data, request.structured_output)
 
     def _build_payload(self, request: LlmRequest) -> dict[str, Any]:
         system_messages = [message for message in request.messages if message.role == "system"]
@@ -272,7 +276,7 @@ class VertexProvider(LlmProvider):
     def _parse_response(
         self,
         data: dict[str, Any],
-        request: LlmRequest,
+        structured_output: StructuredOutput | None,
     ) -> LlmResponse:
         candidates = data.get("candidates", [])
         if not candidates:
@@ -282,14 +286,14 @@ class VertexProvider(LlmProvider):
         content = _vertex_content_to_text(candidates)
         tool_calls, finish_reason = _normalize_vertex_tool_calls(candidates)
 
-        if request.structured_output and content is not None:
+        if structured_output and content is not None:
             try:
                 content = json.dumps(json.loads(content), separators=(",", ":"), ensure_ascii=False)
             except json.JSONDecodeError as exc:
                 raise InvalidStructuredOutputError(
                     "Model returned invalid JSON for structured output"
                 ) from exc
-        elif request.structured_output and not tool_calls:
+        elif structured_output and not tool_calls:
             raise InvalidStructuredOutputError(
                 "Model returned neither JSON nor a structured function response"
             )

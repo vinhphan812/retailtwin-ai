@@ -135,7 +135,11 @@ class OpenAiCompatibleProvider(LlmProvider):
 
         for attempt in range(_MAX_RETRIES):
             try:
-                return await self._do_request(payload)
+                response = await self._do_request(payload)
+                # Local schema validation — explicit failure on non-conformant output
+                if request.structured_output:
+                    response.validate_structured_output(request.structured_output.json_schema)
+                return response
             except RateLimitError as exc:
                 last_exc = exc
                 await asyncio.sleep(_backoff(attempt))
@@ -206,6 +210,25 @@ class OpenAiCompatibleProvider(LlmProvider):
         # Canonical tool definitions
         if request.tools:
             payload["tools"] = _convert_tools_openai(request.tools)
+
+        # Tool-choice policy
+        if request.tool_choice and request.tools:
+            policy = request.tool_choice
+            if policy.mode == "none":
+                payload["tool_choice"] = "none"
+            elif policy.mode == "required_tool":
+                payload["tool_choice"] = {
+                    "type": "function",
+                    "function": {"name": policy.name or request.tools[0].name},
+                }
+            elif policy.mode == "tool_choice":
+                if policy.name:
+                    payload["tool_choice"] = {
+                        "type": "function",
+                        "function": {"name": policy.name},
+                    }
+                else:
+                    payload["tool_choice"] = "auto"
 
         # Structured output — send as response_format with JSON schema
         if request.structured_output:
