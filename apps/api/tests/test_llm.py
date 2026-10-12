@@ -24,6 +24,7 @@ from retailtwin_api.llm.contracts import (
     RequestTimeout,
     StructuredOutput,
     ToolCallError,
+    ToolChoicePolicy,
 )
 from retailtwin_api.llm.factory import LlmConfig, create_provider
 from retailtwin_api.llm.openai_compatible import (
@@ -90,12 +91,14 @@ def make_request(
     messages: list[LlmMessage] | None = None,
     tools: list[LlmTool] | None = None,
     structured_output: StructuredOutput | None = None,
+    tool_choice: ToolChoicePolicy | None = None,
 ) -> LlmRequest:
     return LlmRequest(
         model=model,
         messages=messages or [LlmMessage(role="user", content="Hi")],
         tools=tools or [],
         structured_output=structured_output,
+        tool_choice=tool_choice,
     )
 
 
@@ -941,3 +944,398 @@ def test_safe_parse_tool_call_bad_json_raises() -> None:
     tc = {"id": "call_4", "function": {"name": "bad", "arguments": "not json"}}
     with pytest.raises(ToolCallError, match="malformed arguments"):
         _safe_parse_tool_call(tc)
+
+
+# ─── ToolChoicePolicy contract ────────────────────────────────────────────────
+
+
+def test_tool_choice_policy_default() -> None:
+    from retailtwin_api.llm.contracts import ToolChoicePolicy
+
+    policy = ToolChoicePolicy()
+    assert policy.mode == "tool_choice"
+    assert policy.name is None
+
+
+def test_tool_choice_policy_required_tool() -> None:
+    from retailtwin_api.llm.contracts import ToolChoicePolicy
+
+    policy = ToolChoicePolicy(mode="required_tool", name="get_inventory")
+    assert policy.mode == "required_tool"
+    assert policy.name == "get_inventory"
+
+
+def test_tool_choice_policy_none_mode() -> None:
+    from retailtwin_api.llm.contracts import ToolChoicePolicy
+
+    policy = ToolChoicePolicy(mode="none")
+    assert policy.mode == "none"
+
+
+def test_tool_choice_policy_validate_for_request_none_with_tools_raises() -> None:
+    from retailtwin_api.llm.contracts import ToolChoicePolicy, LlmTool
+
+    policy = ToolChoicePolicy(mode="none")
+    tools = [LlmTool(name="get_inventory")]
+    with pytest.raises(ValueError, match="'none' is invalid when tools are registered"):
+        policy.validate_for_request(tools)
+
+
+def test_tool_choice_policy_validate_for_request_unknown_name_raises() -> None:
+    from retailtwin_api.llm.contracts import ToolChoicePolicy, LlmTool
+
+    policy = ToolChoicePolicy(mode="tool_choice", name="nonexistent")
+    tools = [LlmTool(name="get_inventory")]
+    with pytest.raises(ValueError, match="not in the registered tools"):
+        policy.validate_for_request(tools)
+
+
+def test_tool_choice_policy_validate_for_request_valid() -> None:
+    from retailtwin_api.llm.contracts import ToolChoicePolicy, LlmTool
+
+    policy = ToolChoicePolicy(mode="tool_choice", name="get_inventory")
+    tools = [LlmTool(name="get_inventory"), LlmTool(name="get_weather")]
+    policy.validate_for_request(tools)  # must not raise
+
+
+def test_tool_choice_policy_validate_none_no_tools() -> None:
+    from retailtwin_api.llm.contracts import ToolChoicePolicy
+
+    policy = ToolChoicePolicy(mode="none")
+    policy.validate_for_request([])  # must not raise
+
+
+# ─── LlmRequest with tool_choice ──────────────────────────────────────────────
+
+
+def test_llm_request_with_tool_choice_required() -> None:
+    from retailtwin_api.llm.contracts import LlmRequest, LlmMessage, ToolChoicePolicy, LlmTool
+
+    req = LlmRequest(
+        model="gpt-4",
+        messages=[LlmMessage(role="user", content="Hi")],
+        tools=[LlmTool(name="get_inventory")],
+        tool_choice=ToolChoicePolicy(mode="required_tool"),
+    )
+    assert req.tool_choice is not None
+    assert req.tool_choice.mode == "required_tool"
+
+
+def test_llm_request_with_tool_choice_named() -> None:
+    from retailtwin_api.llm.contracts import LlmRequest, LlmMessage, ToolChoicePolicy, LlmTool
+
+    req = LlmRequest(
+        model="gpt-4",
+        messages=[LlmMessage(role="user", content="Hi")],
+        tools=[LlmTool(name="get_inventory"), LlmTool(name="get_weather")],
+        tool_choice=ToolChoicePolicy(mode="tool_choice", name="get_inventory"),
+    )
+    assert req.tool_choice is not None
+    assert req.tool_choice.name == "get_inventory"
+
+
+# ─── LlmResponse schema validation ───────────────────────────────────────────
+
+
+def test_validate_structured_output_valid() -> None:
+    from retailtwin_api.llm.contracts import LlmResponse, InvalidStructuredOutputError
+
+    resp = LlmResponse(
+        id="r1",
+        model="gpt-4",
+        content='{"decision":"buy","quantity":5}',
+    )
+    schema = {
+        "type": "object",
+        "properties": {
+            "decision": {"type": "string"},
+            "quantity": {"type": "integer"},
+        },
+        "required": ["decision", "quantity"],
+    }
+    resp.validate_structured_output(schema)  # must not raise
+
+
+def test_validate_structured_output_invalid_json_raises() -> None:
+    from retailtwin_api.llm.contracts import LlmResponse, InvalidStructuredOutputError
+
+    resp = LlmResponse(
+        id="r2",
+        model="gpt-4",
+        content='not valid json at all',
+    )
+    schema = {"type": "object"}
+    with pytest.raises(InvalidStructuredOutputError, match="not valid JSON"):
+        resp.validate_structured_output(schema)
+
+
+def test_validate_structured_output_conforms_to_schema() -> None:
+    from retailtwin_api.llm.contracts import LlmResponse, InvalidStructuredOutputError
+
+    resp = LlmResponse(
+        id="r3",
+        model="gpt-4",
+        content='{"wrong_field":"value"}',  # missing required fields
+    )
+    schema = {
+        "type": "object",
+        "properties": {
+            "decision": {"type": "string"},
+        },
+        "required": ["decision"],
+    }
+    with pytest.raises(InvalidStructuredOutputError, match="does not conform"):
+        resp.validate_structured_output(schema)
+
+
+def test_validate_structured_output_none_content_raises() -> None:
+    from retailtwin_api.llm.contracts import LlmResponse, InvalidStructuredOutputError
+
+    resp = LlmResponse(
+        id="r4",
+        model="gpt-4",
+        content=None,
+    )
+    schema = {"type": "object"}
+    with pytest.raises(InvalidStructuredOutputError, match="no content"):
+        resp.validate_structured_output(schema)
+
+
+def test_validate_structured_output_wrong_type_raises() -> None:
+    from retailtwin_api.llm.contracts import LlmResponse, InvalidStructuredOutputError
+
+    resp = LlmResponse(
+        id="r5",
+        model="gpt-4",
+        content='42',  # integer, not object
+    )
+    schema = {"type": "object"}
+    with pytest.raises(InvalidStructuredOutputError, match="does not conform"):
+        resp.validate_structured_output(schema)
+
+
+# ─── OpenAI adapter: tool_choice policy ──────────────────────────────────────
+
+
+def test_openai_adapter_sends_tool_choice_required(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = MockClient(
+        MockResponse({
+            "id": "chatcmpl-tc1",
+            "model": "gpt-4",
+            "choices": [{"message": {"content": None, "tool_calls": []}, "finish_reason": "tool_calls"}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+        })
+    )
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
+    provider = OpenAiCompatibleProvider(
+        base_url="https://api.test/v1",
+        api_key="key",
+        model="gpt-4",
+        timeout=30,
+    )
+    tools = [LlmTool(name="get_inventory")]
+    policy = ToolChoicePolicy(mode="required_tool")
+    asyncio.run(provider.complete(make_request(tools=tools, tool_choice=policy)))
+
+    sent_payload = client.calls[0][1]["json"]
+    assert sent_payload["tool_choice"] == {
+        "type": "function",
+        "function": {"name": "get_inventory"},
+    }
+
+
+def test_openai_adapter_sends_tool_choice_named(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = MockClient(
+        MockResponse({
+            "id": "chatcmpl-tc2",
+            "model": "gpt-4",
+            "choices": [{"message": {"content": None, "tool_calls": []}, "finish_reason": "tool_calls"}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+        })
+    )
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
+    provider = OpenAiCompatibleProvider(
+        base_url="https://api.test/v1",
+        api_key="key",
+        model="gpt-4",
+        timeout=30,
+    )
+    tools = [LlmTool(name="get_inventory"), LlmTool(name="get_weather")]
+    policy = ToolChoicePolicy(mode="tool_choice", name="get_weather")
+    asyncio.run(provider.complete(make_request(tools=tools, tool_choice=policy)))
+
+    sent_payload = client.calls[0][1]["json"]
+    assert sent_payload["tool_choice"] == {
+        "type": "function",
+        "function": {"name": "get_weather"},
+    }
+
+
+def test_openai_adapter_sends_tool_choice_auto(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = MockClient(
+        MockResponse({
+            "id": "chatcmpl-tc3",
+            "model": "gpt-4",
+            "choices": [{"message": {"content": None, "tool_calls": []}, "finish_reason": "tool_calls"}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+        })
+    )
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
+    provider = OpenAiCompatibleProvider(
+        base_url="https://api.test/v1",
+        api_key="key",
+        model="gpt-4",
+        timeout=30,
+    )
+    tools = [LlmTool(name="get_inventory")]
+    policy = ToolChoicePolicy(mode="tool_choice")
+    asyncio.run(provider.complete(make_request(tools=tools, tool_choice=policy)))
+
+    sent_payload = client.calls[0][1]["json"]
+    assert sent_payload["tool_choice"] == "auto"
+
+
+def test_openai_adapter_sends_tool_choice_none(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = MockClient(
+        MockResponse({
+            "id": "chatcmpl-tc4",
+            "model": "gpt-4",
+            "choices": [{"message": {"content": "Hello!"}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+        })
+    )
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
+    provider = OpenAiCompatibleProvider(
+        base_url="https://api.test/v1",
+        api_key="key",
+        model="gpt-4",
+        timeout=30,
+    )
+    tools = [LlmTool(name="get_inventory")]
+    policy = ToolChoicePolicy(mode="none")
+    asyncio.run(provider.complete(make_request(tools=tools, tool_choice=policy)))
+
+    sent_payload = client.calls[0][1]["json"]
+    assert sent_payload["tool_choice"] == "none"
+
+
+def test_openai_adapter_no_tool_choice_field_when_not_set(monkeypatch: pytest.MonkeyPatch) -> None:
+    """When tool_choice is None, no tool_choice key should appear in the payload."""
+    client = MockClient(
+        MockResponse({
+            "id": "chatcmpl-tc5",
+            "model": "gpt-4",
+            "choices": [{"message": {"content": None, "tool_calls": []}, "finish_reason": "tool_calls"}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+        })
+    )
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
+    provider = OpenAiCompatibleProvider(
+        base_url="https://api.test/v1",
+        api_key="key",
+        model="gpt-4",
+        timeout=30,
+    )
+    tools = [LlmTool(name="get_inventory")]
+    asyncio.run(provider.complete(make_request(tools=tools)))
+
+    sent_payload = client.calls[0][1]["json"]
+    assert "tool_choice" not in sent_payload
+
+
+# ─── OpenAI adapter: schema validation on response ─────────────────────────────
+
+
+def test_openai_adapter_validates_schema_on_response_conformant(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Conformant JSON is accepted without raising."""
+    client = MockClient(
+        MockResponse({
+            "id": "chatcmpl-sv1",
+            "model": "gpt-4",
+            "choices": [{
+                "message": {"content": '{"decision":"buy","quantity":5}'},
+                "finish_reason": "stop",
+            }],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+        })
+    )
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
+    provider = OpenAiCompatibleProvider(
+        base_url="https://api.test/v1",
+        api_key="key",
+        model="gpt-4",
+        timeout=30,
+    )
+    so = StructuredOutput(
+        name="Decision",
+        schema={
+            "type": "object",
+            "properties": {
+                "decision": {"type": "string"},
+                "quantity": {"type": "integer"},
+            },
+            "required": ["decision", "quantity"],
+        },
+    )
+    response = asyncio.run(provider.complete(make_request(structured_output=so)))
+    assert response.content == '{"decision":"buy","quantity":5}'
+
+
+def test_openai_adapter_validates_schema_on_response_invalid_json(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Invalid JSON raises InvalidStructuredOutputError."""
+    client = MockClient(
+        MockResponse({
+            "id": "chatcmpl-sv2",
+            "model": "gpt-4",
+            "choices": [{
+                "message": {"content": "not json at all {{{"},
+                "finish_reason": "stop",
+            }],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+        })
+    )
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
+    provider = OpenAiCompatibleProvider(
+        base_url="https://api.test/v1",
+        api_key="key",
+        model="gpt-4",
+        timeout=30,
+    )
+    so = StructuredOutput(
+        name="Decision",
+        schema={"type": "object", "properties": {"decision": {"type": "string"}}},
+    )
+    with pytest.raises(InvalidStructuredOutputError, match="not valid JSON"):
+        asyncio.run(provider.complete(make_request(structured_output=so)))
+
+
+def test_openai_adapter_validates_schema_on_response_non_conformant(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Valid JSON that doesn't match the schema raises InvalidStructuredOutputError."""
+    client = MockClient(
+        MockResponse({
+            "id": "chatcmpl-sv3",
+            "model": "gpt-4",
+            "choices": [{
+                "message": {"content": '{"wrong_field":"value"}'},
+                "finish_reason": "stop",
+            }],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+        })
+    )
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
+    provider = OpenAiCompatibleProvider(
+        base_url="https://api.test/v1",
+        api_key="key",
+        model="gpt-4",
+        timeout=30,
+    )
+    so = StructuredOutput(
+        name="Decision",
+        schema={
+            "type": "object",
+            "properties": {"decision": {"type": "string"}},
+            "required": ["decision"],
+        },
+    )
+    with pytest.raises(InvalidStructuredOutputError, match="does not conform"):
+        asyncio.run(provider.complete(make_request(structured_output=so)))

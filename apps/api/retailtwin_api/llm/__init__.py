@@ -18,6 +18,7 @@ from .contracts import (
     StructuredOutput,
     TokenUsage,
     ToolCallError,
+    ToolChoicePolicy,
 )
 from .factory import LlmConfig, create_provider
 from .openai_compatible import OpenAiCompatibleProvider
@@ -43,6 +44,7 @@ __all__ = [
     "StructuredOutput",
     "TokenUsage",
     "ToolCallError",
+    "ToolChoicePolicy",
     "VertexProvider",
     "create_provider",
 ]
