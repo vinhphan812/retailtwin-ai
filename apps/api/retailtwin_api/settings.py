@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     @field_validator("app_env")
     @classmethod
     def validate_app_env(cls, v: str) -> str:
-        allowed = {"development", "staging", "production", "test"}
+        allowed = {"development", "staging", "production", "test", "e2e-smoke"}
         normalized = v.strip().lower()
         if normalized not in allowed:
             raise ValueError(
