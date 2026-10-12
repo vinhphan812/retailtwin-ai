@@ -1,61 +1,59 @@
 """Tests for the provider-neutral LLM contracts and adapters."""
 
 import asyncio
+import json
 
 import httpx
 import pytest
 from pydantic import ValidationError
 
 from retailtwin_api.llm.contracts import (
+    AuthenticationError,
     ConfigurationError,
+    InvalidStructuredOutputError,
     LlmError,
     LlmMessage,
+    LlmProvider,
     LlmRequest,
     LlmResponse,
     LlmTool,
+    LlmToolCall,
     ProviderError,
+    RateLimitError,
     RequestCancelled,
     RequestTimeout,
     StructuredOutput,
+    ToolCallError,
 )
 from retailtwin_api.llm.factory import LlmConfig, create_provider
-from retailtwin_api.llm.openai_compatible import OpenAiCompatibleProvider
+from retailtwin_api.llm.openai_compatible import (
+    OpenAiCompatibleProvider,
+    _convert_tools_openai,
+    _safe_parse_tool_call,
+)
 from retailtwin_api.llm.vertex import VertexProvider
+
+
+# ─── Mock helpers ───────────────────────────────────────────────────────────────
 
 
 class MockResponse:
     """Minimal successful OpenAI-compatible response."""
 
+    def __init__(self, data: dict[str, object], status_code: int = 200) -> None:
+        self._data = data
+        self.status_code = status_code
+
+    @property
+    def is_success(self) -> bool:
+        return 200 <= self.status_code < 300
+
     def json(self) -> dict[str, object]:
-        return {
-            "id": "chatcmpl-123",
-            "model": "gpt-4",
-            "choices": [
-                {
-                    "message": {
-                        "content": "Hello!",
-                        "tool_calls": [
-                            {
-                                "id": "call-1",
-                                "function": {
-                                    "name": "get_inventory",
-                                    "arguments": {"sku": "P017"},
-                                },
-                            }
-                        ],
-                    },
-                    "finish_reason": "tool_calls",
-                }
-            ],
-            "usage": {
-                "prompt_tokens": 1,
-                "completion_tokens": 1,
-                "total_tokens": 2,
-            },
-        }
+        return self._data
 
     def raise_for_status(self) -> None:
-        return None
+        if self.status_code >= 400:
+            raise httpx.HTTPError(f"HTTP {self.status_code}")
 
 
 class MockClient:
@@ -78,15 +76,38 @@ class MockClient:
         return self.response
 
 
-def request() -> LlmRequest:
+# ─── Helpers ───────────────────────────────────────────────────────────────────
+
+
+def make_request(
+    model: str = "gpt-4",
+    messages: list[LlmMessage] | None = None,
+    tools: list[LlmTool] | None = None,
+    structured_output: StructuredOutput | None = None,
+) -> LlmRequest:
     return LlmRequest(
-        model="gpt-4",
-        messages=[LlmMessage(role="user", content="Hi")],
+        model=model,
+        messages=messages or [LlmMessage(role="user", content="Hi")],
+        tools=tools or [],
+        structured_output=structured_output,
     )
 
 
+# ─── OpenAI adapter ────────────────────────────────────────────────────────────
+
+
 def test_openai_adapter_success_mock(monkeypatch: pytest.MonkeyPatch) -> None:
-    client = MockClient(MockResponse())
+    client = MockClient(
+        MockResponse({
+            "id": "chatcmpl-123",
+            "model": "gpt-4",
+            "choices": [{
+                "message": {"content": "Hello!"},
+                "finish_reason": "stop",
+            }],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+        })
+    )
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
     provider = create_provider(
         LlmConfig(
@@ -97,29 +118,195 @@ def test_openai_adapter_success_mock(monkeypatch: pytest.MonkeyPatch) -> None:
         )
     )
 
-    response = asyncio.run(provider.complete(request()))
+    response = asyncio.run(provider.complete(make_request()))
 
     assert isinstance(provider, OpenAiCompatibleProvider)
     assert response.content == "Hello!"
     assert response.usage.total_tokens == 2
+    assert client.calls[0][0] == ("https://example.test/v1/chat/completions",)
+    assert client.calls[0][1]["headers"] == {"Authorization": "Bearer test-key", "Content-Type": "application/json"}
+
+
+def test_openai_adapter_sends_tool_definitions(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = MockClient(
+        MockResponse({
+            "id": "chatcmpl-124",
+            "model": "gpt-4",
+            "choices": [{
+                "message": {"content": None, "tool_calls": [
+                    {
+                        "id": "call_abc",
+                        "function": {
+                            "name": "get_inventory",
+                            "arguments": json.dumps({"sku": "P017"}),
+                        },
+                    }
+                ]},
+                "finish_reason": "tool_calls",
+            }],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
+        })
+    )
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
+    provider = OpenAiCompatibleProvider(
+        base_url="https://api.test/v1",
+        api_key="key",
+        model="gpt-4",
+        timeout=30,
+    )
+    tools = [LlmTool(name="get_inventory", description="Get inventory", parameters={"type": "object", "properties": {"sku": {"type": "string"}}})]
+    response = asyncio.run(provider.complete(make_request(tools=tools)))
+
+    sent_payload = client.calls[0][1]["json"]
+    assert "tools" in sent_payload
+    assert sent_payload["tools"][0]["type"] == "function"
+    assert sent_payload["tools"][0]["function"]["name"] == "get_inventory"
     assert response.tool_calls[0].name == "get_inventory"
     assert response.tool_calls[0].arguments == {"sku": "P017"}
-    assert client.calls[0][0] == ("https://example.test/v1/chat/completions",)
-    assert client.calls[0][1]["headers"] == {"Authorization": "Bearer test-key"}
+
+
+def test_openai_adapter_sends_structured_output(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = MockClient(
+        MockResponse({
+            "id": "chatcmpl-125",
+            "model": "gpt-4",
+            "choices": [{
+                "message": {"content": '{"decision":"buy","quantity":5}'},
+                "finish_reason": "stop",
+            }],
+            "usage": {"prompt_tokens": 5, "completion_tokens": 10, "total_tokens": 15},
+        })
+    )
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
+    provider = OpenAiCompatibleProvider(
+        base_url="https://api.test/v1",
+        api_key="key",
+        model="gpt-4",
+        timeout=30,
+    )
+    so = StructuredOutput(name="Decision", schema={"type": "object", "properties": {"decision": {"type": "string"}}})
+    response = asyncio.run(provider.complete(make_request(structured_output=so)))
+
+    sent_payload = client.calls[0][1]["json"]
+    assert "response_format" in sent_payload
+    assert sent_payload["response_format"]["type"] == "json_schema"
+    assert sent_payload["response_format"]["json_schema"]["name"] == "Decision"
+    assert response.content is not None
+
+
+def test_openai_adapter_safe_json_parse_string_args(monkeypatch: pytest.MonkeyPatch) -> None:
+    """OpenAI returns function.arguments as a JSON string — must be parsed."""
+    client = MockClient(
+        MockResponse({
+            "id": "chatcmpl-126",
+            "model": "gpt-4",
+            "choices": [{
+                "message": {
+                    "content": None,
+                    "tool_calls": [{
+                        "id": "call_xyz",
+                        "function": {
+                            "name": "order_item",
+                            "arguments": '{"item_id": "ABC", "qty": 3}',  # string, not dict
+                        },
+                    }],
+                },
+                "finish_reason": "tool_calls",
+            }],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+        })
+    )
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
+    provider = OpenAiCompatibleProvider(
+        base_url="https://api.test/v1",
+        api_key="key",
+        model="gpt-4",
+        timeout=30,
+    )
+    response = asyncio.run(provider.complete(make_request()))
+
+    assert response.tool_calls[0].arguments == {"item_id": "ABC", "qty": 3}
+
+
+def test_openai_adapter_safe_json_parse_dict_args(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Some providers return function.arguments as a dict directly."""
+    client = MockClient(
+        MockResponse({
+            "id": "chatcmpl-127",
+            "model": "gpt-4",
+            "choices": [{
+                "message": {
+                    "content": None,
+                    "tool_calls": [{
+                        "id": "call_dict",
+                        "function": {
+                            "name": "get_store_state",
+                            "arguments": {"store_id": "S001"},  # dict, not string
+                        },
+                    }],
+                },
+                "finish_reason": "tool_calls",
+            }],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+        })
+    )
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
+    provider = OpenAiCompatibleProvider(
+        base_url="https://api.test/v1",
+        api_key="key",
+        model="gpt-4",
+        timeout=30,
+    )
+    response = asyncio.run(provider.complete(make_request()))
+
+    assert response.tool_calls[0].arguments == {"store_id": "S001"}
+
+
+def test_openai_adapter_malformed_arguments_raises_tool_call_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = MockClient(
+        MockResponse({
+            "id": "chatcmpl-128",
+            "model": "gpt-4",
+            "choices": [{
+                "message": {
+                    "content": None,
+                    "tool_calls": [{
+                        "id": "call_bad",
+                        "function": {
+                            "name": "bad_tool",
+                            "arguments": "not valid json {{{",
+                        },
+                    }],
+                },
+                "finish_reason": "tool_calls",
+            }],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+        })
+    )
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
+    provider = OpenAiCompatibleProvider(
+        base_url="https://api.test/v1",
+        api_key="key",
+        model="gpt-4",
+        timeout=30,
+    )
+
+    with pytest.raises(ToolCallError, match="malformed arguments"):
+        asyncio.run(provider.complete(make_request()))
 
 
 def test_openai_adapter_normalizes_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
     client = MockClient(httpx.TimeoutException("timed out"))
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
     provider = OpenAiCompatibleProvider(
-        base_url="https://example.test/v1",
-        api_key="test-key",
+        base_url="https://api.test/v1",
+        api_key="key",
         model="gpt-4",
         timeout=1,
     )
 
     with pytest.raises(RequestTimeout) as error:
-        asyncio.run(provider.complete(request()))
+        asyncio.run(provider.complete(make_request()))
 
     assert error.value.retryable is True
 
@@ -128,14 +315,49 @@ def test_openai_adapter_normalizes_http_error(monkeypatch: pytest.MonkeyPatch) -
     client = MockClient(httpx.ConnectError("unavailable"))
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
     provider = OpenAiCompatibleProvider(
-        base_url="https://example.test/v1",
-        api_key="test-key",
+        base_url="https://api.test/v1",
+        api_key="key",
         model="gpt-4",
         timeout=1,
     )
 
     with pytest.raises(ProviderError, match="unavailable"):
-        asyncio.run(provider.complete(request()))
+        asyncio.run(provider.complete(make_request()))
+
+
+def test_openai_adapter_maps_401_to_auth_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = MockClient(
+        MockResponse({"error": {"message": "Invalid API key"}}, status_code=401)
+    )
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
+    provider = OpenAiCompatibleProvider(
+        base_url="https://api.test/v1",
+        api_key="bad-key",
+        model="gpt-4",
+        timeout=30,
+    )
+
+    with pytest.raises(AuthenticationError):
+        asyncio.run(provider.complete(make_request()))
+
+
+def test_openai_adapter_maps_429_to_rate_limit_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = MockClient(
+        MockResponse({"error": {"message": "Rate limit exceeded"}}, status_code=429)
+    )
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
+    provider = OpenAiCompatibleProvider(
+        base_url="https://api.test/v1",
+        api_key="key",
+        model="gpt-4",
+        timeout=30,
+    )
+
+    with pytest.raises(RateLimitError):
+        asyncio.run(provider.complete(make_request()))
+
+
+# ─── Vertex adapter ────────────────────────────────────────────────────────────
 
 
 def test_vertex_requires_project_id() -> None:
@@ -143,19 +365,217 @@ def test_vertex_requires_project_id() -> None:
         create_provider(LlmConfig(provider="vertex", model="gemini-2.5-flash"))
 
 
-def test_vertex_is_adc_boundary() -> None:
-    provider = create_provider(
-        LlmConfig(
-            provider="vertex",
-            model="gemini-2.5-flash",
-            project_id="retailtwin-ai-511002",
-        )
+def test_vertex_builds_correct_endpoint() -> None:
+    provider = VertexProvider(
+        project_id="my-project",
+        location="us-central1",
+        model="gemini-2.0-flash",
+        timeout=30,
+    )
+    assert "my-project" in provider._endpoint
+    assert "us-central1" in provider._endpoint
+    assert "gemini-2.0-flash" in provider._endpoint
+    assert provider._endpoint.startswith("https://us-central1-aiplatform.googleapis.com")
+
+
+def test_vertex_maps_401_to_auth_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = MockClient(
+        MockResponse({"error": {"message": "UNAUTHENTICATED"}}, status_code=401)
+    )
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
+    provider = VertexProvider(
+        project_id="my-project",
+        location="us-central1",
+        model="gemini-2.0-flash",
+        timeout=30,
     )
 
-    assert isinstance(provider, VertexProvider)
-    assert provider.location == "us-central1"
-    with pytest.raises(ProviderError, match="not implemented"):
-        asyncio.run(provider.complete(request()))
+    with pytest.raises(AuthenticationError):
+        asyncio.run(provider.complete(make_request(model="gemini-2.0-flash")))
+
+
+def test_vertex_maps_429_to_rate_limit_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = MockClient(
+        MockResponse({"error": {"message": "Resource exhausted"}}, status_code=429)
+    )
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
+    provider = VertexProvider(
+        project_id="my-project",
+        location="us-central1",
+        model="gemini-2.0-flash",
+        timeout=30,
+    )
+
+    with pytest.raises(RateLimitError):
+        asyncio.run(provider.complete(make_request(model="gemini-2.0-flash")))
+
+
+def test_vertex_sends_tool_definitions(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = MockClient(
+        MockResponse({
+            "candidates": [{
+                "content": {
+                    "parts": [{"text": "Inventory fetched."}]
+                },
+                "finishReason": "STOP",
+            }],
+            "usage": {"promptTokens": 5, "candidatesTokens": 3, "totalTokens": 8},
+        })
+    )
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
+    provider = VertexProvider(
+        project_id="my-project",
+        location="us-central1",
+        model="gemini-2.0-flash",
+        timeout=30,
+    )
+    tools = [LlmTool(name="get_inventory", description="Get stock", parameters={"type": "object", "properties": {"sku": {"type": "string"}}})]
+    asyncio.run(provider.complete(make_request(model="gemini-2.0-flash", tools=tools)))
+
+    sent_payload = client.calls[0][1]["json"]
+    assert "tools" in sent_payload
+    assert sent_payload["tools"][0]["function_declarations"][0]["name"] == "get_inventory"
+
+
+def test_vertex_sends_structured_output(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = MockClient(
+        MockResponse({
+            "candidates": [{
+                "content": {
+                    "parts": [{"functionCall": {"name": "Decision", "args": {"decision": "buy"}}}]
+                },
+                "finishReason": "STOP",
+            }],
+            "usage": {"promptTokens": 5, "candidatesTokens": 3, "totalTokens": 8},
+        })
+    )
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
+    provider = VertexProvider(
+        project_id="my-project",
+        location="us-central1",
+        model="gemini-2.0-flash",
+        timeout=30,
+    )
+    so = StructuredOutput(name="Decision", schema={"type": "object", "properties": {"decision": {"type": "string"}}})
+    asyncio.run(provider.complete(make_request(model="gemini-2.0-flash", structured_output=so)))
+
+    sent_payload = client.calls[0][1]["json"]
+    assert "response_format" in sent_payload
+    assert sent_payload["response_format"]["name"] == "Decision"
+
+
+def test_vertex_normalizes_tool_calls(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = MockClient(
+        MockResponse({
+            "candidates": [{
+                "content": {
+                    "parts": [{
+                        "functionCall": {
+                            "name": "get_inventory",
+                            "args": {"sku": "P017"},
+                        }
+                    }]
+                },
+                "finishReason": "STOP",
+            }],
+            "usage": {"promptTokens": 5, "candidatesTokens": 3, "totalTokens": 8},
+        })
+    )
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
+    provider = VertexProvider(
+        project_id="my-project",
+        location="us-central1",
+        model="gemini-2.0-flash",
+        timeout=30,
+    )
+    tools = [LlmTool(name="get_inventory")]
+    response = asyncio.run(provider.complete(make_request(model="gemini-2.0-flash", tools=tools)))
+
+    assert len(response.tool_calls) == 1
+    assert response.tool_calls[0].name == "get_inventory"
+    assert response.tool_calls[0].arguments == {"sku": "P017"}
+
+
+def test_vertex_malformed_tool_args_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Vertex functionCall.args that is neither dict nor JSON-string raises ToolCallError."""
+    client = MockClient(
+        MockResponse({
+            "candidates": [{
+                "content": {
+                    "parts": [{
+                        "functionCall": {
+                            "name": "bad_tool",
+                            "args": "not-a-dict-or-string",
+                        }
+                    }]
+                },
+                "finishReason": "STOP",
+            }],
+            "usage": {"promptTokens": 1, "candidatesTokens": 1, "totalTokens": 2},
+        })
+    )
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
+    provider = VertexProvider(
+        project_id="my-project",
+        location="us-central1",
+        model="gemini-2.0-flash",
+        timeout=30,
+    )
+    # Tools must be present in the request for tool-call parsing to trigger
+    tools = [LlmTool(name="bad_tool")]
+
+    with pytest.raises(ToolCallError):
+        asyncio.run(provider.complete(make_request(model="gemini-2.0-flash", tools=tools)))
+
+
+# ─── LLM_BASE_URL configuration ───────────────────────────────────────────────
+
+
+def test_openai_requires_base_url_or_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("LLM_BASE_URL", raising=False)
+    with pytest.raises(ConfigurationError, match="LLM_BASE_URL"):
+        create_provider(LlmConfig(provider="openai", model="gpt-4", api_key="key"))
+
+
+def test_openai_uses_base_url_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LLM_BASE_URL", "https://my-endpoint.example/v1")
+    client = MockClient(
+        MockResponse({
+            "id": "chatcmpl-env",
+            "model": "gpt-4",
+            "choices": [{"message": {"content": "ok"}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+        })
+    )
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
+
+    provider = create_provider(LlmConfig(provider="openai", model="gpt-4", api_key="key"))
+
+    asyncio.run(provider.complete(make_request()))
+    assert client.calls[0][0] == ("https://my-endpoint.example/v1/chat/completions",)
+
+
+def test_openai_explicit_base_url_overrides_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LLM_BASE_URL", "https://env-url.example/v1")
+    client = MockClient(
+        MockResponse({
+            "id": "chatcmpl-explicit",
+            "model": "gpt-4",
+            "choices": [{"message": {"content": "ok"}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+        })
+    )
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
+
+    provider = create_provider(
+        LlmConfig(provider="openai", model="gpt-4", api_key="key", base_url="https://explicit.example/v1")
+    )
+
+    asyncio.run(provider.complete(make_request()))
+    assert client.calls[0][0] == ("https://explicit.example/v1/chat/completions",)
+
+
+# ─── Config validation ─────────────────────────────────────────────────────────
 
 
 @pytest.mark.parametrize(
@@ -171,6 +591,7 @@ def test_config_rejects_invalid_values(config: dict[str, object]) -> None:
 
 
 # ─── contracts: LlmTool ───────────────────────────────────────────────────────
+
 
 def test_llm_tool_rejects_extra_fields() -> None:
     with pytest.raises(ValidationError):
@@ -227,7 +648,7 @@ def test_llm_message_content_none_is_valid() -> None:
     assert msg.content is None
 
 
-# ─── contracts: LlmRequest ─────────────────────────────────────────────────────
+# ─── contracts: LlmRequest ────────────────────────────────────────────────────
 
 
 def test_llm_request_rejects_extra_fields() -> None:
@@ -291,7 +712,7 @@ def test_llm_response_rejects_extra_fields() -> None:
         )
 
 
-# ─── contracts: LlmError hierarchy ─────────────────────────────────────────────
+# ─── contracts: LlmError hierarchy ──────────────────────────────────────────
 
 
 def test_llm_error_attributes() -> None:
@@ -304,6 +725,36 @@ def test_llm_error_attributes() -> None:
 
 def test_llm_error_retryable() -> None:
     err = LlmError("rate_limit", "slow down", retryable=True)
+    assert err.retryable is True
+
+
+def test_authentication_error_not_retryable() -> None:
+    err = AuthenticationError("bad key")
+    assert err.code == "provider_error"
+    assert err.retryable is False
+    assert "bad key" in str(err)
+
+
+def test_rate_limit_error_retryable() -> None:
+    err = RateLimitError("slow down")
+    assert err.code == "provider_error"
+    assert err.retryable is True
+
+
+def test_invalid_structured_output_error_not_retryable() -> None:
+    err = InvalidStructuredOutputError("model refused")
+    assert err.code == "provider_error"
+    assert err.retryable is False
+
+
+def test_tool_call_error_not_retryable() -> None:
+    err = ToolCallError("malformed tool response")
+    assert err.code == "provider_error"
+    assert err.retryable is False
+
+
+def test_tool_call_error_retryable_flag() -> None:
+    err = ToolCallError("transient tool error", retryable=True)
     assert err.retryable is True
 
 
@@ -336,7 +787,7 @@ def test_request_cancelled() -> None:
     assert err.retryable is False
 
 
-# ─── contracts: LlmTransportResponse ─────────────────────────────────────────
+# ─── contracts: LlmTransportResponse ────────────────────────────────────────
 
 
 def test_llm_transport_response() -> None:
@@ -351,12 +802,60 @@ def test_llm_transport_response() -> None:
     assert resp2.payload == {"error": "server error"}
 
 
-# ─── contracts: LlmProvider abstract boundary ─────────────────────────────────
+# ─── contracts: LlmProvider abstract boundary ────────────────────────────────
 
 
 def test_llm_provider_interface_exists() -> None:
     """Verify LlmProvider is importable and has the expected interface contract."""
     from retailtwin_api.llm.contracts import LlmProvider
     assert hasattr(LlmProvider, "complete")
-    # concrete subclasses are tested through their own test cases
 
+
+# ─── Tool conversion helpers ───────────────────────────────────────────────────
+
+
+def test_convert_tools_openai() -> None:
+    from retailtwin_api.llm.contracts import LlmTool
+
+    tools = [
+        LlmTool(
+            name="get_weather",
+            description="Get weather for a location",
+            parameters={
+                "type": "object",
+                "properties": {"city": {"type": "string"}},
+                "required": ["city"],
+            },
+        )
+    ]
+    result = _convert_tools_openai(tools)
+    assert result[0]["type"] == "function"
+    assert result[0]["function"]["name"] == "get_weather"
+    assert result[0]["function"]["description"] == "Get weather for a location"
+    assert result[0]["function"]["parameters"]["properties"]["city"]["type"] == "string"
+
+
+def test_safe_parse_tool_call_string_args() -> None:
+    tc = {"id": "call_1", "function": {"name": "foo", "arguments": '{"a": 1}'}}
+    result = _safe_parse_tool_call(tc)
+    assert result.name == "foo"
+    assert result.arguments == {"a": 1}
+
+
+def test_safe_parse_tool_call_dict_args() -> None:
+    tc = {"id": "call_2", "function": {"name": "bar", "arguments": {"b": 2}}}
+    result = _safe_parse_tool_call(tc)
+    assert result.name == "bar"
+    assert result.arguments == {"b": 2}
+
+
+def test_safe_parse_tool_call_missing_name_raises() -> None:
+    tc = {"id": "call_3", "function": {"arguments": "{}"}}
+    with pytest.raises(ToolCallError, match="missing a function name"):
+        _safe_parse_tool_call(tc)
+
+
+def test_safe_parse_tool_call_bad_json_raises() -> None:
+    tc = {"id": "call_4", "function": {"name": "bad", "arguments": "not json"}}
+    with pytest.raises(ToolCallError, match="malformed arguments"):
+        _safe_parse_tool_call(tc)
