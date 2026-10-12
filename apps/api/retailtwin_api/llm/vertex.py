@@ -1,8 +1,16 @@
-"""Vertex AI adapter."""
+"""Vertex AI adapter boundary.
 
-from .contracts import LlmProvider, LlmRequest, LlmResponse
+Production invocation is intentionally deferred until the Vertex SDK integration is
+added. The adapter is configured for Application Default Credentials (ADC), which
+Cloud Run supplies through its service identity; it never accepts key files.
+"""
+
+from .contracts import ProviderError, LlmProvider, LlmRequest, LlmResponse
+
 
 class VertexProvider(LlmProvider):
+    """Vertex provider configuration using ADC/Cloud Run identity."""
+
     def __init__(self, project_id: str, location: str, model: str, timeout: float) -> None:
         self.project_id = project_id
         self.location = location
@@ -10,5 +18,6 @@ class VertexProvider(LlmProvider):
         self.timeout = timeout
 
     async def complete(self, request: LlmRequest) -> LlmResponse:
-        # TODO: Implement Vertex AI SDK integration (ADC)
-        raise NotImplementedError("Vertex provider not yet implemented.")
+        """Fail closed until a Vertex SDK adapter is implemented and tested."""
+        del request
+        raise ProviderError("Vertex inference is not implemented.")
