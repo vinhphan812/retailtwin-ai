@@ -60,7 +60,10 @@ class FirestoreRepository:
             return str(fields.get(name, {}).get("stringValue", ""))
         def integer(name: str) -> int:
             raw = fields.get(name, {}).get("integerValue", 0)
-            return int(raw)
+            try:
+                return int(raw)
+            except (ValueError, TypeError):
+                return 0
             
         return ProductInventory(
             store_id=self.store_id,
