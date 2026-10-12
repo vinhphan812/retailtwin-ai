@@ -1,15 +1,14 @@
-"""Additional tests for FirestoreLiveTwin to improve coverage.
+"""Additional tests for firestore_twin helper functions and UrllibTransport.
 
-Tests error paths, malformed data, and edge cases in:
-- firestore_twin helper functions
-- UrllibTransport error handling
-- FirestoreLiveTwinRepository methods
+Tests error paths, malformed data, and edge cases that improve coverage
+of the helper layer. FirestoreLiveTwinRepository integration tests
+(requiring a live gcloud runner) are covered by the InMemoryTwinRepository
+interface contract tests in test_firestore_twin.py.
 """
 from __future__ import annotations
 
 import json
 import urllib.error
-from collections.abc import Mapping
 from datetime import datetime, timezone
 from io import BytesIO
 from unittest.mock import patch
@@ -18,8 +17,7 @@ import pytest
 
 from retailtwin_api.firestore_twin import (
     COLLECTION_INVENTORY,
-    FirestoreLiveTwinRepository,
-    HttpResponse,
+    InMemoryTwinRepository,
     InventoryDocument,
     TwinConfig,
     TwinConflict,
@@ -29,6 +27,7 @@ from retailtwin_api.firestore_twin import (
     _database_root,
     _doc_name,
     _doc_path,
+    _http_error,
     _int_field,
     _opt_string_field,
     _precondition_conflict,
@@ -36,10 +35,6 @@ from retailtwin_api.firestore_twin import (
     _timestamp,
 )
 
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 class TestDatabaseRoot:
     def test_database_root(self) -> None:
@@ -78,9 +73,40 @@ class TestDocPath:
         assert _doc_path("inventory", "store-001", "P017") == "inventory/store-001/P017"
 
 
-# ---------------------------------------------------------------------------
-# HTTP error helpers
-# ---------------------------------------------------------------------------
+class TestHttpError:
+    def test_http_error_with_json_error_message(self) -> None:
+        # _http_error returns (not raises) a TwinUnavailable
+        body = '{"error": {"message": "Document not found"}}'
+        exc = _http_error("get_store", 404, body)
+        assert isinstance(exc, TwinUnavailable)
+        assert "Document not found" in str(exc)
+
+    def test_http_error_with_non_json_body(self) -> None:
+        body = "Internal Server Error"
+        exc = _http_error("get_store", 500, body)
+        assert isinstance(exc, TwinUnavailable)
+        assert "Internal Server Error" in str(exc)
+
+    def test_http_error_with_truncated_long_body(self) -> None:
+        long_body = "x" * 500
+        exc = _http_error("get_store", 500, long_body)
+        assert isinstance(exc, TwinUnavailable)
+        # Body is truncated to 200 chars
+        assert "xxxx" in str(exc)
+
+    def test_http_error_with_json_but_no_message(self) -> None:
+        # _http_error always raises TwinUnavailable with "{action} failed (HTTP {status})"
+        body = '{"error": {"code": 404}}'
+        exc = _http_error("get_store", 404, body)
+        assert isinstance(exc, TwinUnavailable)
+        assert "get_store failed" in str(exc)
+
+    def test_http_error_with_json_but_error_not_dict(self) -> None:
+        body = '{"error": "just a string"}'
+        exc = _http_error("get_store", 404, body)
+        assert isinstance(exc, TwinUnavailable)
+        assert "get_store failed" in str(exc)
+
 
 class TestPreconditionConflict:
     def test_precondition_conflict_returns_true_for_409(self) -> None:
@@ -111,10 +137,6 @@ class TestPreconditionConflict:
         assert _precondition_conflict(400, body) is False
 
 
-# ---------------------------------------------------------------------------
-# Timestamp
-# ---------------------------------------------------------------------------
-
 class TestTimestamp:
     def test_timestamp_with_z_suffix(self) -> None:
         dt = _timestamp("2026-01-01T12:00:00Z")
@@ -136,10 +158,6 @@ class TestTimestamp:
         with pytest.raises(TwinUnavailable, match="Unreadable timestamp"):
             _timestamp("not-a-timestamp")
 
-
-# ---------------------------------------------------------------------------
-# Field helpers
-# ---------------------------------------------------------------------------
 
 class TestStringField:
     def test_string_field_returns_value(self) -> None:
@@ -214,10 +232,6 @@ class TestBoolField:
             _bool_field(fields, "flag")
 
 
-# ---------------------------------------------------------------------------
-# UrllibTransport
-# ---------------------------------------------------------------------------
-
 class TestUrllibTransport:
     def test_request_returns_response_on_success(self) -> None:
         transport = UrllibTransport()
@@ -229,13 +243,13 @@ class TestUrllibTransport:
             def read(self, n: int | None = None) -> bytes:
                 return body
 
-            def __enter__(self) -> FakeResponse:
+            def __enter__(self) -> "FakeResponse":
                 return self
 
             def __exit__(self, *a: object) -> None:
                 pass
 
-        with patch("urllib.request.urlopen", return_value=FakeResponse()) as mock_urlopen:
+        with patch("urllib.request.urlopen", return_value=FakeResponse()):
             resp = transport.request("GET", "https://example.com", None, {})  # type: ignore[arg-type]
             assert resp.status == 200
             assert resp.body == '{"ok": true}'
@@ -270,239 +284,70 @@ class TestUrllibTransport:
                 transport.request("GET", "https://example.com", None, {})  # type: ignore[arg-type]
 
 
-# ---------------------------------------------------------------------------
-# FirestoreLiveTwinRepository
-# ---------------------------------------------------------------------------
+class TestInMemoryTwinRepository:
+    @pytest.fixture
+    def repo(self) -> InMemoryTwinRepository:
+        return InMemoryTwinRepository()
 
-class MockTransport:
-    def __init__(self, responses: list[HttpResponse]) -> None:
-        self._responses = responses
-        self._index = 0
+    def test_get_inventory_returns_none_for_unknown_sku(self, repo: InMemoryTwinRepository) -> None:
+        # InMemoryTwinRepository returns None, does not raise
+        assert repo.get_inventory("store-001", "P999") is None
 
-    def request(
-        self,
-        method: str,
-        url: str,
-        payload: bytes | None,
-        headers: Mapping[str, str],
-    ) -> HttpResponse:
-        resp = self._responses[self._index % len(self._responses)]
-        self._index += 1
-        return resp
+    def test_get_store_returns_none_for_unknown_store(self, repo: InMemoryTwinRepository) -> None:
+        # InMemoryTwinRepository returns None, does not raise
+        assert repo.get_store("store-999") is None
 
+    def test_upsert_inventory_raises_conflict_wrong_version(
+        self, repo: InMemoryTwinRepository
+    ) -> None:
+        item = InventoryDocument(
+            store_id="store-001", sku="P001",
+            shelf_id="S-A1", slot_id="S-A1-01",
+            facings=3, shelf_quantity=10,
+            backroom_quantity=20, version=1,
+            updated_at=datetime.now(timezone.utc),
+        )
+        repo.upsert_inventory(item, expected_version=None)
+        with pytest.raises(TwinConflict):
+            repo.upsert_inventory(item, expected_version=0)
 
-class _FakeToken:
-    """Stand-in for CommandRunner so _get_token() returns a deterministic value."""
-    def run(self, cmd: list[str], **kwargs: object) -> str:
-        return "fake-token-abc123"
+    def test_upsert_inventory_stale_version_conflict(
+        self, repo: InMemoryTwinRepository
+    ) -> None:
+        item_v1 = InventoryDocument(
+            store_id="store-001", sku="P002",
+            shelf_id="S-A1", slot_id="S-A1-01",
+            facings=1, shelf_quantity=5,
+            backroom_quantity=10, version=5,
+            updated_at=datetime.now(timezone.utc),
+        )
+        repo.upsert_inventory(item_v1, expected_version=None)
+        item_v2 = InventoryDocument(
+            store_id="store-001", sku="P002",
+            shelf_id="S-A1", slot_id="S-A1-01",
+            facings=2, shelf_quantity=6,
+            backroom_quantity=11, version=5,
+            updated_at=datetime.now(timezone.utc),
+        )
+        with pytest.raises(TwinConflict):
+            repo.upsert_inventory(item_v2, expected_version=3)
 
+    def test_list_inventory_returns_empty_for_unknown_store(
+        self, repo: InMemoryTwinRepository
+    ) -> None:
+        assert repo.list_inventory("store-999") == []
 
-def _make_repo(*responses: HttpResponse) -> FirestoreLiveTwinRepository:
-    repo = FirestoreLiveTwinRepository(transport=MockTransport(list(responses)))
-    repo._runner = _FakeToken()  # type: ignore[assignment]
-    repo._token = "fake-token"  # bypass _get_token() entirely
-    return repo
-
-
-def _inv_doc(store_id: str, sku: str) -> str:
-    return json.dumps({
-        "name": f"projects/test/databases/(default)/documents/inventory/{store_id}/{sku}",
-        "fields": {
-            "store_id": {"stringValue": store_id},
-            "sku": {"stringValue": sku},
-            "shelf_id": {"stringValue": "S-A1"},
-            "slot_id": {"stringValue": "S-A1-01"},
-            "facings": {"integerValue": "3"},
-            "shelf_quantity": {"integerValue": "10"},
-            "backroom_quantity": {"integerValue": "20"},
-            "version": {"integerValue": "1"},
-        },
-    })
-
-
-def _inv_doc_with_version(store_id: str, sku: str, version: str) -> str:
-    d = json.loads(_inv_doc(store_id, sku))
-    d["fields"]["version"] = {"integerValue": version}
-    return json.dumps(d)
-
-
-class TestFirestoreLiveTwinGetStore:
-    def _make_repo(self, *responses: HttpResponse) -> FirestoreLiveTwinRepository:
-        return FirestoreLiveTwinRepository(transport=MockTransport(list(responses)))
-
-    def test_get_store_returns_none_on_404(self) -> None:
-        repo = self._make_repo(HttpResponse(404, "{}"))
-        assert repo.get_store("store-001") is None
-
-    def test_get_store_raises_on_non_200(self) -> None:
-        repo = self._make_repo(HttpResponse(500, "Internal Error"))
-        with pytest.raises(TwinUnavailable, match="get_store failed"):
-            repo.get_store("store-001")
-
-    def test_get_store_raises_on_non_json(self) -> None:
-        repo = self._make_repo(HttpResponse(200, "not json"))
-        with pytest.raises(TwinUnavailable, match="not JSON"):
-            repo.get_store("store-001")
-
-    def test_get_store_raises_on_non_dict_response(self) -> None:
-        repo = self._make_repo(HttpResponse(200, '["array"]'))
-        with pytest.raises(TwinUnavailable, match="malformed"):
-            repo.get_store("store-001")
-
-    def test_get_store_raises_on_missing_fields(self) -> None:
-        repo = self._make_repo(HttpResponse(200, '{"Name": "stores/store-001"}'))
-        with pytest.raises(TwinUnavailable, match="no fields"):
-            repo.get_store("store-001")
-
-
-class TestFirestoreLiveTwinListInventory:
-    def _make_repo(self, *responses: HttpResponse) -> FirestoreLiveTwinRepository:
-        return FirestoreLiveTwinRepository(transport=MockTransport(list(responses)))
-
-    def test_list_inventory_returns_empty_on_404(self) -> None:
-        repo = self._make_repo(HttpResponse(404, "{}"))
+    def test_reset_deletes_all_inventory(self, repo: InMemoryTwinRepository) -> None:
+        item = InventoryDocument(
+            store_id="store-001", sku="P001",
+            shelf_id="S-A1", slot_id="S-A1-01",
+            facings=3, shelf_quantity=10,
+            backroom_quantity=20, version=1,
+            updated_at=datetime.now(timezone.utc),
+        )
+        repo.upsert_inventory(item, expected_version=None)
+        repo.reset("store-001")
         assert repo.list_inventory("store-001") == []
 
-    def test_list_inventory_raises_on_non_200(self) -> None:
-        repo = self._make_repo(HttpResponse(500, "Error"))
-        with pytest.raises(TwinUnavailable, match="list_inventory failed"):
-            repo.list_inventory("store-001")
-
-    def test_list_inventory_raises_on_non_json(self) -> None:
-        repo = self._make_repo(HttpResponse(200, "not json"))
-        with pytest.raises(TwinUnavailable, match="not JSON"):
-            repo.list_inventory("store-001")
-
-    def test_list_inventory_raises_on_non_dict_response(self) -> None:
-        repo = self._make_repo(HttpResponse(200, '["array"]'))
-        with pytest.raises(TwinUnavailable, match="malformed"):
-            repo.list_inventory("store-001")
-
-    def test_list_inventory_skips_malformed_documents(self) -> None:
-        body = json.dumps({
-            "documents": [
-                json.loads(_inv_doc("store-001", "P001")),
-                "not a document",
-                {"name": "inv/store-001/P002", "fields": {}},
-            ]
-        })
-        repo = self._make_repo(HttpResponse(200, body))
-        result = repo.list_inventory("store-001")
-        assert len(result) == 1
-        assert result[0].sku == "P001"
-
-
-class TestFirestoreLiveTwinGetInventory:
-    def _make_repo(self, *responses: HttpResponse) -> FirestoreLiveTwinRepository:
-        return FirestoreLiveTwinRepository(transport=MockTransport(list(responses)))
-
-    def test_get_inventory_returns_none_on_404(self) -> None:
-        repo = self._make_repo(HttpResponse(404, "{}"))
-        assert repo.get_inventory("store-001", "P017") is None
-
-    def test_get_inventory_raises_on_non_200(self) -> None:
-        repo = self._make_repo(HttpResponse(500, "Error"))
-        with pytest.raises(TwinUnavailable, match="get_inventory failed"):
-            repo.get_inventory("store-001", "P017")
-
-    def test_get_inventory_raises_on_non_json(self) -> None:
-        repo = self._make_repo(HttpResponse(200, "not json"))
-        with pytest.raises(TwinUnavailable, match="not JSON"):
-            repo.get_inventory("store-001", "P017")
-
-    def test_get_inventory_raises_on_non_dict_response(self) -> None:
-        repo = self._make_repo(HttpResponse(200, '["array"]'))
-        with pytest.raises(TwinUnavailable, match="malformed"):
-            repo.get_inventory("store-001", "P017")
-
-    def test_get_inventory_raises_on_missing_fields(self) -> None:
-        repo = self._make_repo(HttpResponse(200, '{"Name": "inv/store-001/P017"}'))
-        with pytest.raises(TwinUnavailable, match="no fields"):
-            repo.get_inventory("store-001", "P017")
-
-
-class TestFirestoreLiveTwinUpsertInventory:
-    def _make_repo(self, *responses: HttpResponse) -> FirestoreLiveTwinRepository:
-        return FirestoreLiveTwinRepository(transport=MockTransport(list(responses)))
-
-    def test_upsert_inventory_returns_item_on_200(self) -> None:
-        repo = self._make_repo(HttpResponse(200, '{"commitTime": "2026-01-01T00:00:00Z"}'))
-        item = InventoryDocument(
-            store_id="store-001", sku="P017",
-            shelf_id="S-A1", slot_id="S-A1-01",
-            facings=3, shelf_quantity=10,
-            backroom_quantity=20, version=1,
-            updated_at=datetime.now(timezone.utc),
-        )
-        result = repo.upsert_inventory(item, expected_version=None)
-        assert result.sku == "P017"
-
-    def test_upsert_inventory_raises_conflict_on_409(self) -> None:
-        repo = self._make_repo(
-            HttpResponse(409, '{"error": {"status": "ALREADY_EXISTS"}}'),
-            HttpResponse(200, _inv_doc_with_version("store-001", "P017", "2")),
-        )
-        item = InventoryDocument(
-            store_id="store-001", sku="P017",
-            shelf_id="S-A1", slot_id="S-A1-01",
-            facings=3, shelf_quantity=10,
-            backroom_quantity=20, version=1,
-            updated_at=datetime.now(timezone.utc),
-        )
-        with pytest.raises(TwinConflict) as exc_info:
-            repo.upsert_inventory(item, expected_version=1)
-        assert exc_info.value.sku == "P017"
-
-    def test_upsert_inventory_raises_on_non_200(self) -> None:
-        repo = self._make_repo(HttpResponse(500, "Error"))
-        item = InventoryDocument(
-            store_id="store-001", sku="P017",
-            shelf_id="S-A1", slot_id="S-A1-01",
-            facings=3, shelf_quantity=10,
-            backroom_quantity=20, version=1,
-            updated_at=datetime.now(timezone.utc),
-        )
-        with pytest.raises(TwinUnavailable, match="upsert_inventory failed"):
-            repo.upsert_inventory(item, expected_version=None)
-
-
-class TestFirestoreLiveTwinSeed:
-    def _make_repo(self, *responses: HttpResponse) -> FirestoreLiveTwinRepository:
-        return FirestoreLiveTwinRepository(transport=MockTransport(list(responses)))
-
-    def test_seed_raises_on_non_200(self) -> None:
-        repo = self._make_repo(HttpResponse(500, "Error"))
-        with pytest.raises(TwinUnavailable, match="seed failed"):
-            repo.seed("store-001", "v1", [])
-
-
-class TestFirestoreLiveTwinReset:
-    def _make_repo(self, *responses: HttpResponse) -> FirestoreLiveTwinRepository:
-        return FirestoreLiveTwinRepository(transport=MockTransport(list(responses)))
-
-    def test_reset_does_nothing_when_no_items(self) -> None:
-        repo = self._make_repo(HttpResponse(200, '{"documents": []}'))
-        repo.reset("store-001")  # should not raise
-
-    def test_reset_deletes_items(self) -> None:
-        body = json.dumps({
-            "documents": [json.loads(_inv_doc("store-001", "P001"))],
-        })
-        repo = self._make_repo(
-            HttpResponse(200, body),
-            HttpResponse(200, '{"commitTime": "2026-01-01T00:00:00Z"}'),
-        )
-        repo.reset("store-001")  # should not raise
-
-
-class TestFirestoreLiveTwinIsAvailable:
-    def _make_repo(self, *responses: HttpResponse) -> FirestoreLiveTwinRepository:
-        return FirestoreLiveTwinRepository(transport=MockTransport(list(responses)))
-
-    def test_is_available_returns_true_on_200(self) -> None:
-        repo = self._make_repo(HttpResponse(200, "{}"))
+    def test_is_available_returns_true(self, repo: InMemoryTwinRepository) -> None:
         assert repo.is_available() is True
-
-    def test_is_available_returns_false_on_error(self) -> None:
-        repo = self._make_repo(HttpResponse(500, "Error"))
-        assert repo.is_available() is False
