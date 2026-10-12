@@ -21,13 +21,13 @@ export type RetailTwinClient = {
   revenue: (period: RevenuePeriod) => Promise<RevenueSummary>;
   /** `GET /promotions`. TODO(BE): not served by apps/api yet. */
   promotions: () => Promise<PromotionsSummary>;
-  /** `GET /simulations?status=open`. TODO(BE): not served by apps/api yet (#26). */
+  /** `GET /simulations?status=open`. */
   simulations: () => Promise<SimulationsResponse>;
-  /** `GET /simulations/{simulation_id}`. TODO(BE): not served by apps/api yet (#26). */
+  /** `GET /simulations/{simulation_id}`. */
   simulation: (simulationId: string) => Promise<Simulation>;
   /**
    * `POST /simulations/{simulation_id}/approve|reject`. The only write the web app makes:
-   * it asks, and the guard and the Executor decide. TODO(BE): not served by apps/api yet.
+   * it asks, and the guard and the Executor decide.
    */
   reviewSimulation: (simulationId: string, decision: ReviewDecision, request: ReviewRequest) => Promise<ReviewResult>;
 };

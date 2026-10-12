@@ -35,7 +35,6 @@ export function isNewerSimulation(next: Simulation, current: Simulation | null):
  * `GET /simulations/{id}`), polled like `apiSource`: a failed read doubles the wait up
  * to `maxIntervalMs` and keeps the last simulation; a good read brings the wait back.
  * Nothing is read while the tab is hidden.
- * TODO(BE): apps/api serves no simulations yet (#26), so every read fails until it does.
  */
 export function createSimulationSource(
   client: RetailTwinClient = defaultClient,

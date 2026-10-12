@@ -7,6 +7,7 @@ from typing import Literal, cast
 from fastapi import APIRouter, Depends, Query, Request, Response
 
 from retailtwin_api.errors import ApiError
+<<<<<<< HEAD
 from retailtwin_api.events import EventConflict, EventLog, ReviewAuditLog
 from retailtwin_api.schemas import EventReceipt, HealthResponse, ProductInventory, ReadyResponse, StoreEvent, StoreResponse
 from retailtwin_api.analytics_repository import AnomalyRepository, RevenueRepository, PromotionRepository
@@ -17,6 +18,11 @@ from retailtwin_api.simulation_schemas import (
     SimulationDetail, SimulationFilters, SimulationListResponse, SimulationStatus,
     SimulationReviewRequest, SimulationReviewResponse,
 )
+=======
+from retailtwin_api.events import EventConflict, EventLog
+from retailtwin_api.schemas import EventReceipt, HealthResponse, ProductInventory, StoreEvent, StoreResponse
+from retailtwin_api.simulation import SimulationDetail, SimulationRepository, SimulationSummary
+>>>>>>> e122bcf (feat: calculate deterministic stockout risk and wire simulation API routes)
 from retailtwin_api.store import StoreRepository
 
 logger = logging.getLogger(__name__)
@@ -183,6 +189,7 @@ def list_simulations(
     )
 
 
+<<<<<<< HEAD
 @router.get("/simulations/{simulation_id}", response_model=SimulationDetail)
 def read_simulation(simulation_id: str, repository: SimulationReadRepository = Depends(get_simulations)) -> SimulationDetail:
     require_simulations(repository)
@@ -367,3 +374,38 @@ def reject_simulation(
         audit=audit,
         live_version=live_version,
     )
+=======
+# ─── Simulation routes ───────────────────────────────────────────────────────
+
+def get_simulations(request: Request) -> SimulationRepository:
+    return request.app.state.simulations
+
+
+@router.get("/simulations", response_model=dict[str, list[SimulationSummary]])
+def list_simulations(
+    request: Request,
+    status: str | None = Query(None, description="Filter by status (e.g. 'open' → pending|evaluated)"),
+    simulations: SimulationRepository = Depends(get_simulations),
+) -> dict[str, list[SimulationSummary]]:
+    all_runs = simulations.list_open()
+    if status is None:
+        return {"simulations": all_runs}
+    # Support 'open' as a shorthand for pending|evaluated
+    if status == "open":
+        filtered = [s for s in all_runs if s.status in {"pending", "evaluated"}]
+    else:
+        filtered = [s for s in all_runs if s.status == status]
+    return {"simulations": filtered}
+
+
+@router.get("/simulations/{simulation_id}", response_model=SimulationDetail)
+def get_simulation(
+    simulation_id: str,
+    request: Request,
+    simulations: SimulationRepository = Depends(get_simulations),
+) -> SimulationDetail:
+    run = simulations.get(simulation_id)
+    if run is None:
+        raise ApiError(404, "simulation_not_found", f"No simulation with id {simulation_id!r}.")
+    return run
+>>>>>>> e122bcf (feat: calculate deterministic stockout risk and wire simulation API routes)

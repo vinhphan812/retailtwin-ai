@@ -15,8 +15,7 @@ type AnomalyStore = {
 
 /**
  * Read-side copy of the open anomalies. Never the source of truth.
- * TODO(BE): apps/api serves no anomalies yet; fill this from `GET /anomalies` and its
- * event feed once they exist. Until then only `?twin=demo` and tests fill it.
+ * TODO: fill from `GET /anomalies` and its event feed once the route exists.
  */
 export const useAnomalyStore = create<AnomalyStore>()((set) => ({
   anomalies: [],

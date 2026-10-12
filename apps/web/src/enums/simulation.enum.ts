@@ -1,4 +1,4 @@
-/** Where a simulation run stands. TODO(BE): agree the values with the simulation API. */
+/** Where a simulation run stands. Matches the values the simulation API serves. */
 export const SIMULATION_STATUS = {
   /** Being evaluated; the proposed state may still change. */
   Pending: "pending",
@@ -19,7 +19,7 @@ export const ACTION_TYPE = {
 } as const;
 export type ActionType = (typeof ACTION_TYPE)[keyof typeof ACTION_TYPE];
 
-/** A person's answer to an evaluated proposal. TODO(BE): FE proposal for the review routes. */
+/** A person's answer to an evaluated proposal. Served by POST /simulations/{id}/approve|reject. */
 export const REVIEW_DECISION = {
   /** Send the proposal to the guard; the Executor commits it only on ALLOW. */
   Approve: "approve",
@@ -37,7 +37,7 @@ export const GUARD_VERDICT = {
 } as const;
 export type GuardVerdict = (typeof GUARD_VERDICT)[keyof typeof GUARD_VERDICT];
 
-/** Why a review was refused without a commit (`ReviewResult.reason_code`). TODO(BE): FE proposal for the review routes. */
+/** Why a review was refused without a commit (`ReviewResult.reason_code`). Matches the BE contract. */
 export const REVIEW_REASON = {
   /** Live is no longer at the proposal's `base_context_version`. Refuses an approval only. */
   LiveMoved: "live_moved",
