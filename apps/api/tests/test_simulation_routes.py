@@ -73,6 +73,7 @@ def _repository() -> InMemorySimulationRepository:
         sku="P001",
         shelf_id="A01",
         slot_id="A01-S01",
+        summary="Simulation completed for SKU P001",
     )
     return InMemorySimulationRepository([first, second], [candidate], [event])
 
@@ -145,6 +146,7 @@ def test_agent_events_are_cursor_paginated_and_include_focus_fields(simulation_c
             "correlation_id": "corr-001", "run_id": "run-001", "decision_id": None,
             "simulation_id": "sim-001", "action_id": None, "sku": "P001",
             "shelf_id": "A01", "slot_id": "A01-S01",
+            "summary": "Simulation completed for SKU P001",
         }],
         "cursor": None,
     }
@@ -210,6 +212,7 @@ def test_repository_filters_exact_status_and_paginates_candidates_and_events() -
     event = AgentActivityEntry(
         event_id="activity-2", occurred_at=first.updated_at, stage=ControlStage.PLAN,
         status="started", agent_id="agent-001", correlation_id="corr-002",
+        summary="Planning stage started",
     )
     repository = InMemorySimulationRepository([first], [candidate, candidate], [_repository().list_agent_events(
         __import__("retailtwin_api.simulation_schemas", fromlist=["CursorParameters"]).CursorParameters()

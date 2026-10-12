@@ -101,6 +101,7 @@ class AgentActivityEntry(BaseModel):
     sku: str | None = Field(default=None, min_length=1)
     shelf_id: str | None = Field(default=None, min_length=1)
     slot_id: str | None = Field(default=None, min_length=1)
+    summary: str | None = Field(default=None)
 
 
 class AgentEventListResponse(BaseModel):
