@@ -5,8 +5,11 @@ Live Twin inventory state. Implements bounded versioned mutation/conflict
 resolution and deterministic schema/seed/reset interface.
 
 Canonical paths:
-  - /store/{store_id}          – Store-level metadata document
-  - /inventory/{store_id}/{sku} – Per-SKU inventory documents
+  - /stores/{store_id}             – Store-level metadata document
+  - /stores/{store_id}/inventory/{sku} – Per-SKU inventory documents
+
+Even-segment document hierarchy: /stores/{store_id}/inventory/{sku}
+(4 segments after "documents/", matching Firestore document path rules).
 
 This module is intentionally isolated from the HTTP routes. The routes
 continue to call the StoreRepository interface defined in store.py.
@@ -28,9 +31,7 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol, Self
 from pydantic import BaseModel, Field
 
 from retailtwin_api.errors import ApiError
-
-if TYPE_CHECKING:
-    pass
+from retailtwin_api.schemas import ProductInventory, StoreResponse
 
 logger = logging.getLogger(__name__)
 
@@ -38,8 +39,11 @@ logger = logging.getLogger(__name__)
 # Firestore canonical collection / document paths
 # ---------------------------------------------------------------------------
 
-COLLECTION_STORE = "store"          # /store/{store_id}
-COLLECTION_INVENTORY = "inventory"  # /inventory/{store_id}/{sku}
+COLLECTION_STORES = "stores"        # /stores/{store_id}
+COLLECTION_INVENTORY = "inventory"  # /stores/{store_id}/inventory/{sku}
+
+# Backward-alias so existing test imports still resolve
+COLLECTION_STORE = COLLECTION_STORES
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -129,7 +133,7 @@ class _FirestoreListResponse(BaseModel):
 
 
 class StoreDocument(BaseModel):
-    """Canonical /store/{store_id} document."""
+    """Canonical /stores/{store_id} document."""
 
     store_id: str = Field(min_length=1)
     version: str = Field(pattern=r"^v\d+$")
@@ -140,7 +144,7 @@ class StoreDocument(BaseModel):
 
 
 class InventoryDocument(BaseModel):
-    """Canonical /inventory/{store_id}/{sku} document."""
+    """Canonical /stores/{store_id}/inventory/{sku} document."""
 
     store_id: str = Field(min_length=1)
     sku: str = Field(min_length=1)
@@ -152,17 +156,18 @@ class InventoryDocument(BaseModel):
     version: int = Field(ge=1)
     updated_at: datetime
 
-    def to_product_inventory(self) -> dict[str, Any]:
-        return {
-            "store_id": self.store_id,
-            "sku": self.sku,
-            "shelf_id": self.shelf_id,
-            "slot_id": self.slot_id,
-            "facings": self.facings,
-            "shelf_quantity": self.shelf_quantity,
-            "backroom_quantity": self.backroom_quantity,
-            "version": self.version,
-        }
+    def to_product_inventory(self) -> "ProductInventory":
+        from retailtwin_api.schemas import ProductInventory
+        return ProductInventory(
+            store_id=self.store_id,
+            sku=self.sku,
+            shelf_id=self.shelf_id,
+            slot_id=self.slot_id,
+            facings=self.facings,
+            shelf_quantity=self.shelf_quantity,
+            backroom_quantity=self.backroom_quantity,
+            version=self.version,
+        )
 
 
 class InventorySeed(BaseModel):
@@ -437,8 +442,8 @@ class FirestoreLiveTwinRepository(LiveTwinRepository):
     (updateTime-based compare-and-swap).
 
     Canonical paths:
-        /store/{store_id}           – Store metadata
-        /inventory/{store_id}/{sku} – Per-SKU inventory
+        /stores/{store_id}                    – Store metadata
+        /stores/{store_id}/inventory/{sku}   – Per-SKU inventory
     """
 
     def __init__(
@@ -458,7 +463,7 @@ class FirestoreLiveTwinRepository(LiveTwinRepository):
     # ------------------------------------------------------------------
 
     def get_store(self, store_id: str) -> StoreDocument | None:
-        url = _doc_name(self._config, COLLECTION_STORE, store_id)
+        url = _doc_name(self._config, COLLECTION_STORES, store_id)
         response = self._call("GET", url, None)
         if response.status == 404:
             return None
@@ -478,7 +483,7 @@ class FirestoreLiveTwinRepository(LiveTwinRepository):
         return _parse_store_doc(doc)
 
     def list_inventory(self, store_id: str) -> Sequence[InventoryDocument]:
-        url = f"{_database_root(self._config.project)}/{COLLECTION_INVENTORY}/{store_id}"
+        url = f"{_database_root(self._config.project)}/{COLLECTION_STORES}/{store_id}/{COLLECTION_INVENTORY}"
         response = self._call("GET", url, None)
         if response.status == 404:
             return []
@@ -514,7 +519,7 @@ class FirestoreLiveTwinRepository(LiveTwinRepository):
         return results
 
     def get_inventory(self, store_id: str, sku: str) -> InventoryDocument | None:
-        url = _doc_name(self._config, COLLECTION_INVENTORY, store_id, sku)
+        url = _doc_name(self._config, COLLECTION_STORES, store_id, COLLECTION_INVENTORY, sku)
         response = self._call("GET", url, None)
         if response.status == 404:
             return None
@@ -548,7 +553,7 @@ class FirestoreLiveTwinRepository(LiveTwinRepository):
             "version": {"integerValue": str(item.version)},
             "updated_at": {"timestampValue": now.isoformat()},
         }
-        doc_name = _doc_name(self._config, COLLECTION_INVENTORY, item.store_id, item.sku)
+        doc_name = _doc_name(self._config, COLLECTION_STORES, item.store_id, COLLECTION_INVENTORY, item.sku)
         writes: list[dict[str, Any]] = [
             {"update": {"name": doc_name, "fields": fields}}
         ]
@@ -581,7 +586,7 @@ class FirestoreLiveTwinRepository(LiveTwinRepository):
         writes: list[dict[str, Any]] = []
 
         # Upsert store metadata
-        store_doc = _doc_name(self._config, COLLECTION_STORE, store_id)
+        store_doc = _doc_name(self._config, COLLECTION_STORES, store_id)
         writes.append(
             {
                 "update": {
@@ -599,7 +604,7 @@ class FirestoreLiveTwinRepository(LiveTwinRepository):
         # a sentinel and then using a transaction — simplified here to upsert).
         # We upsert all seed items unconditionally.
         for seed in items:
-            inv_doc = _doc_name(self._config, COLLECTION_INVENTORY, store_id, seed.sku)
+            inv_doc = _doc_name(self._config, COLLECTION_STORES, store_id, COLLECTION_INVENTORY, seed.sku)
             writes.append(
                 {
                     "update": {
@@ -633,14 +638,14 @@ class FirestoreLiveTwinRepository(LiveTwinRepository):
             return
         writes: list[dict[str, Any]] = []
         for item in items:
-            doc_name = _doc_name(self._config, COLLECTION_INVENTORY, store_id, item.sku)
+            doc_name = _doc_name(self._config, COLLECTION_STORES, store_id, COLLECTION_INVENTORY, item.sku)
             writes.append(
                 {
                     "delete": doc_name,
                 }
             )
         # Bump the store version to signal a reset
-        store_doc = _doc_name(self._config, COLLECTION_STORE, store_id)
+        store_doc = _doc_name(self._config, COLLECTION_STORES, store_id)
         current = self.get_store(store_id)
         new_version = _bump_version(current.version) if current else "v1"
         now = datetime.now(timezone.utc)
@@ -664,7 +669,7 @@ class FirestoreLiveTwinRepository(LiveTwinRepository):
             raise _http_error("reset", response.status, response.body)
 
     def is_available(self) -> bool:
-        url = f"{_database_root(self._config.project)}/{COLLECTION_STORE}"
+        url = f"{_database_root(self._config.project)}/{COLLECTION_STORES}"
         try:
             response = self._call("GET", url, None)
             return response.status in (200, 404)
@@ -880,22 +885,22 @@ class StoreRepository:
     def store_id(self) -> str:
         return self._store_id
 
-    def view(self) -> dict[str, Any]:
+    def view(self) -> "StoreResponse":
         """Return a dict matching StoreResponse for the HTTP route."""
         store_doc = self._twin.get_store(self._store_id)
         if store_doc is None:
             raise RuntimeError("Store is not loaded")
         items = self._twin.list_inventory(self._store_id)
-        return {
-            "store_id": store_doc.store_id,
-            "context_version": f"{store_doc.store_id}:{store_doc.version}",
-            "version": store_doc.version,
-            "products": [item.to_product_inventory() for item in items],
-        }
+        return StoreResponse(
+            store_id=store_doc.store_id,
+            context_version=f"{store_doc.store_id}:{store_doc.version}",
+            version=store_doc.version,
+            products=[item.to_product_inventory() for item in items],
+        )
 
     def inventory(self, sku: str) -> dict[str, Any] | None:
         """Return a dict matching ProductInventory or None."""
         doc = self._twin.get_inventory(self._store_id, sku)
         if doc is None:
             return None
-        return doc.to_product_inventory()
+        return doc.to_product_inventory().model_dump()

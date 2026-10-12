@@ -1,12 +1,24 @@
-"""Read the committed day-0 fixture. This is not the Live Twin."""
+"""Read the committed day-0 fixture. This is not the Live Twin.
+
+Issue #6 wires FirestoreLiveTwinRepository when USE_FIRESTORE_TWIN is set.
+The returned StoreRepository still exposes `loaded`, `store_id`, `view`,
+and `inventory` so HTTP routes are unchanged.
+"""
+
+from __future__ import annotations
 
 import json
+import os
 import re
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pydantic import ValidationError
 
 from retailtwin_api.schemas import FixtureFile, ProductInventory, StoreResponse
+
+if TYPE_CHECKING:
+    from retailtwin_api.firestore_twin import LiveTwinRepository
 
 _VERSION = re.compile(r"v(?P<number>[0-9]+)\Z")
 
@@ -21,16 +33,26 @@ def parse_version(version: str) -> int:
 def open_store(fixture_path: Path, store_id: str) -> "StoreRepository":
     """Day-0 read adapter.
 
-    Issue #6 replaces this function with Firestore. The replacement must
-    keep `loaded`, `store_id`, `view`, and `inventory`. The HTTP routes stay put.
+    When USE_FIRESTORE_TWIN=1, opens a FirestoreLiveTwinRepository and wraps
+    it in StoreRepository. Otherwise falls back to the committed fixture file.
     """
+    if os.environ.get("USE_FIRESTORE_TWIN", "").strip() == "1":
+        from retailtwin_api.firestore_twin import FirestoreLiveTwinRepository
+        live_twin = FirestoreLiveTwinRepository()
+        return StoreRepository(fixture_path, store_id, live_twin=live_twin)
     return StoreRepository(fixture_path, store_id)
 
 
 class StoreRepository:
-    def __init__(self, fixture_path: Path, store_id: str) -> None:
+    def __init__(
+        self,
+        fixture_path: Path,
+        store_id: str,
+        live_twin: "LiveTwinRepository | None" = None,
+    ) -> None:
         self.fixture_path = fixture_path
         self.store_id = store_id
+        self._live_twin = live_twin
         self.loaded = False
         self.error: str | None = None
         self._file: FixtureFile | None = None
@@ -38,6 +60,28 @@ class StoreRepository:
         self._load()
 
     def _load(self) -> None:
+        if self._live_twin is not None:
+            self._load_from_firestore()
+        else:
+            self._load_from_fixture()
+
+    def _load_from_firestore(self) -> None:
+        """Load store state from Firestore via the Live Twin repository."""
+        from retailtwin_api.firestore_twin import TwinUnavailable
+        try:
+            doc = self._live_twin.get_store(self.store_id)  # type: ignore[union-attr]
+            if doc is None:
+                self.error = "Store not found in Firestore."
+                self.loaded = False
+                return
+            self._version = self._parse_version(doc.version)
+            self.loaded = True
+            self.error = None
+        except TwinUnavailable as exc:
+            self.error = str(exc)
+            self.loaded = False
+
+    def _load_from_fixture(self) -> None:
         try:
             payload = json.loads(self.fixture_path.read_text(encoding="utf-8"))
             parsed = FixtureFile.model_validate(payload)
@@ -58,7 +102,31 @@ class StoreRepository:
             self.loaded = False
             self.error = str(exc)
 
+    @staticmethod
+    def _parse_version(version: str) -> int:
+        if version.startswith("v"):
+            try:
+                return int(version[1:])
+            except ValueError:
+                return 0
+        return 0
+
     def view(self) -> StoreResponse:
+        if self._live_twin is not None:
+            from retailtwin_api.firestore_twin import TwinUnavailable
+            try:
+                store_doc = self._live_twin.get_store(self.store_id)
+                if store_doc is None:
+                    raise RuntimeError("Store is not loaded")
+                items = self._live_twin.list_inventory(self.store_id)
+                return StoreResponse(
+                    store_id=store_doc.store_id,
+                    context_version=f"{store_doc.store_id}:{store_doc.version}",
+                    version=store_doc.version,
+                    products=[item.to_product_inventory() for item in items],
+                )
+            except TwinUnavailable as exc:
+                raise RuntimeError(f"Live Twin unavailable: {exc}") from exc
         fixture = self._require()
         return StoreResponse(
             store_id=fixture.store_id,
@@ -68,6 +136,15 @@ class StoreRepository:
         )
 
     def inventory(self, sku: str) -> ProductInventory | None:
+        if self._live_twin is not None:
+            from retailtwin_api.firestore_twin import TwinUnavailable
+            try:
+                doc = self._live_twin.get_inventory(self.store_id, sku)
+                if doc is None:
+                    return None
+                return doc.to_product_inventory()
+            except TwinUnavailable:
+                return None
         fixture = self._require()
         for item in fixture.products:
             if item.sku == sku:

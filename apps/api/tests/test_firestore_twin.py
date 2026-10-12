@@ -245,12 +245,12 @@ class TestStoreRepositoryAdapter:
         ])
         adapter = StoreRepository(live, "store-001")
         view = adapter.view()
-        assert view["store_id"] == "store-001"
-        assert view["version"] == "v1"
-        assert view["context_version"] == "store-001:v1"
-        assert len(view["products"]) == 1
-        assert view["products"][0]["sku"] == "P001"
-        assert view["products"][0]["shelf_quantity"] == 8
+        assert view.store_id == "store-001"
+        assert view.version == "v1"
+        assert view.context_version == "store-001:v1"
+        assert len(view.products) == 1
+        assert view.products[0].sku == "P001"
+        assert view.products[0].shelf_quantity == 8
 
     def test_adapter_inventory_returns_item(self) -> None:
         from retailtwin_api.firestore_twin import StoreRepository
@@ -297,7 +297,7 @@ class TestCanonicalPaths:
     """Verify canonical path constants match the specification."""
 
     def test_store_collection_name(self) -> None:
-        assert COLLECTION_STORE == "store"
+        assert COLLECTION_STORE == "stores"
 
     def test_inventory_collection_name(self) -> None:
         assert COLLECTION_INVENTORY == "inventory"
@@ -317,14 +317,14 @@ class TestInventoryDocument:
             updated_at=datetime.now(timezone.utc),
         )
         result = doc.to_product_inventory()
-        assert result["store_id"] == "store-001"
-        assert result["sku"] == "P001"
-        assert result["shelf_id"] == "A01"
-        assert result["slot_id"] == "A01-S01"
-        assert result["facings"] == 3
-        assert result["shelf_quantity"] == 8
-        assert result["backroom_quantity"] == 42
-        assert result["version"] == 1
+        assert result.store_id == "store-001"
+        assert result.sku == "P001"
+        assert result.shelf_id == "A01"
+        assert result.slot_id == "A01-S01"
+        assert result.facings == 3
+        assert result.shelf_quantity == 8
+        assert result.backroom_quantity == 42
+        assert result.version == 1
 
 
 class TestTwinConflict:
@@ -382,14 +382,14 @@ class FakeFirestoreTransport:
     def _handle(self, method: str, url: str, payload: bytes | None) -> FakeHttpResponse:
         import json
 
-        # GET /store/{store_id}
-        if method == "GET" and "/store/" in url and "/documents" in url:
-            # URL: .../projects/{project}/databases/(default)/documents/store/{store_id}
+        # GET /stores/{store_id}
+        if method == "GET" and "/stores/" in url and "/documents" in url:
+            # URL: .../projects/{project}/databases/(default)/documents/stores/{store_id}
             parts = url.split("/documents/")
-            rest = parts[-1] if parts else ""  # "store/store-001"
+            rest = parts[-1] if parts else ""  # "stores/store-001"
             segments = rest.split("/")
             if len(segments) >= 2:
-                key = f"{segments[0]}/{segments[1]}"  # "store/store-001"
+                key = f"{segments[0]}/{segments[1]}"  # "stores/store-001"
             else:
                 key = rest
             if key in self._documents:
@@ -397,11 +397,13 @@ class FakeFirestoreTransport:
                 return FakeHttpResponse(200, json.dumps(doc))
             return FakeHttpResponse(404, json.dumps({"error": {"message": "Not found"}}))
 
-        # GET /inventory/{store_id}
-        if method == "GET" and "/inventory/" in url and "/documents" not in url:
-            parts = url.split("/inventory/")
-            store_id = parts[1] if len(parts) > 1 else ""
-            docs = [v for k, v in self._documents.items() if k.startswith(f"inventory/{store_id}/")]
+        # GET /stores/{store_id}/inventory
+        if method == "GET" and "/stores/" in url and "/inventory" in url and "/documents" not in url:
+            parts = url.split("/stores/")
+            store_path = parts[1] if len(parts) > 1 else ""
+            segments = store_path.split("/")
+            store_id = segments[0] if segments else ""
+            docs = [v for k, v in self._documents.items() if k.startswith(f"stores/{store_id}/inventory/")]
             return FakeHttpResponse(200, json.dumps({"documents": docs}))
 
         # POST /documents:commit
@@ -437,16 +439,16 @@ class FakeFirestoreTransport:
         """Pre-populate the fake store."""
         import json
         now = "2026-01-01T00:00:00.000000Z"
-        store_key = f"store/{store_id}"
-        self._documents[store_key] = json.dumps({
-            "name": f"projects/test/databases/(default)/documents/store/{store_id}",
+        store_key = f"stores/{store_id}"
+        self._documents[store_key] = {
+            "name": f"projects/test/databases/(default)/documents/stores/{store_id}",
             "fields": {
                 "store_id": {"stringValue": store_id},
                 "version": {"stringValue": version},
                 "updated_at": {"timestampValue": now},
             },
             "updateTime": now,
-        })
+        }
 
     def clear(self) -> None:
         self._documents.clear()
@@ -475,8 +477,8 @@ class TestFirestoreLiveTwinRepository:
 
         transport = FakeFirestoreTransport()
         # Store with the key format the code uses (extracted from URL)
-        transport._documents["store/store-001"] = {
-            "name": "projects/retailtwin-ai-511002/databases/(default)/documents/store/store-001",
+        transport._documents["stores/store-001"] = {
+            "name": "projects/retailtwin-ai-511002/databases/(default)/documents/stores/store-001",
             "fields": {
                 "store_id": {"stringValue": "store-001"},
                 "version": {"stringValue": "v1"},
@@ -535,8 +537,8 @@ class TestFirestoreLiveTwinRepository:
         import json
 
         transport = FakeFirestoreTransport()
-        # Return 200 for a GET on the store collection
-        transport._documents["projects/test/databases/(default)/documents/store"] = json.dumps({"documents": []})
+        # Return 200 for a GET on the stores collection
+        transport._documents["projects/test/databases/(default)/documents/stores"] = json.dumps({"documents": []})
 
         class Repo(FirestoreLiveTwinRepository):
             def _headers(self) -> dict[str, str]:
