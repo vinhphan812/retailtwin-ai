@@ -90,7 +90,7 @@ class CorrelationMiddleware(BaseHTTPMiddleware):
 
         # Emit structured request-start log (includes Cloud Run metadata fields)
         logger.info(
-            "request.start",
+            f"request.start correlation_id={correlation_id}",
             extra={
                 "correlation_id": correlation_id,
                 "method": request.method,
@@ -117,7 +117,7 @@ class CorrelationMiddleware(BaseHTTPMiddleware):
 
         # Emit structured request-end log
         logger.info(
-            "request.end",
+            f"request.end correlation_id={correlation_id}",
             extra={
                 "correlation_id": correlation_id,
                 "method": request.method,

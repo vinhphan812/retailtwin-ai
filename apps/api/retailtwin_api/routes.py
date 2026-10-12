@@ -135,8 +135,9 @@ def accept_event(
 
 
 def _log_event(event: StoreEvent, duplicate: bool, correlation_id: str) -> None:
+    msg = f"event.accepted event_id={event.event_id} duplicate={duplicate} store_id={event.store_id} correlation_id={correlation_id}"
     logger.info(
-        "event.accepted",
+        msg,
         extra={
             "correlation_id": correlation_id,
             "event_id": event.event_id,
