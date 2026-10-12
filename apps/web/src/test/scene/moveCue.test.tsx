@@ -162,6 +162,27 @@ describe("move cue in the scene", () => {
     expect(atState(scene.p007())).toBe(true);
   });
 
+  it("animates a rollback on the live feed back to the source slot", async () => {
+    const scene = await renderScene();
+    await scene.run(() => useTwinStore.getState().setLive(simulation.state));
+    now += 60_000;
+    await scene.run(() => useTwinStore.getState().setLive(live));
+    const back = useTwinStore.getState().liveChange?.diff.moved;
+    expect(back).toEqual([
+      { sku: "P007", from: { shelf_id: "B02", slot_id: "B02-S22" }, to: { shelf_id: "B02", slot_id: "B02-S20" } },
+    ]);
+    expect(scene.find("stock-moved-slots")[0].count).toBe(2);
+    const original = Object.values(buildStock(toSceneStore(live).store))
+      .flat()
+      .filter((item) => item.productId === "P007")
+      .map((item) => new Vector3().setFromMatrixPosition(item.matrix));
+    const atOriginal = () => scene.p007().every((point, index) => point.distanceTo(original[index]) < 1e-6);
+    await scene.frameAt(now + MOVE_TWEEN_MS / 2);
+    expect(atOriginal()).toBe(false);
+    await scene.frameAt(now + MOVE_TWEEN_MS);
+    expect(atOriginal()).toBe(true);
+  });
+
   it("says where P007 came from on its card while the move is recent", () => {
     useUiStore.getState().setViewMode(VIEW_MODE.Simulation);
     render(<ProductInspector productId="P007" />);
