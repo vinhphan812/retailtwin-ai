@@ -5,8 +5,8 @@ Live Twin inventory state. Implements bounded versioned mutation/conflict
 resolution and deterministic schema/seed/reset interface.
 
 Canonical paths:
-  - /store/{store_id}          – Store-level metadata document
-  - /inventory/{store_id}/{sku} – Per-SKU inventory documents
+  - /stores/{store_id}                    – Store-level metadata document
+  - /stores/{store_id}/inventory/{sku}    – Per-SKU inventory documents (subcollection)
 
 This module is intentionally isolated from the HTTP routes. The routes
 continue to call the StoreRepository interface defined in store.py.
@@ -38,8 +38,9 @@ logger = logging.getLogger(__name__)
 # Firestore canonical collection / document paths
 # ---------------------------------------------------------------------------
 
-COLLECTION_STORE = "store"          # /store/{store_id}
-COLLECTION_INVENTORY = "inventory"  # /inventory/{store_id}/{sku}
+COLLECTION_STORES = "stores"       # /stores/{store_id}
+COLLECTION_STORE = COLLECTION_STORES  # backward alias
+COLLECTION_GROUP_INVENTORY = "inventory"  # collection group query path
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -140,7 +141,7 @@ class StoreDocument(BaseModel):
 
 
 class InventoryDocument(BaseModel):
-    """Canonical /inventory/{store_id}/{sku} document."""
+    """Canonical /stores/{store_id}/inventory/{sku} document."""
 
     store_id: str = Field(min_length=1)
     sku: str = Field(min_length=1)
@@ -434,11 +435,11 @@ class FirestoreLiveTwinRepository(LiveTwinRepository):
 
     Uses the Firestore REST API directly (no Google client library).
     Implements bounded versioned mutation via optimistic concurrency control
-    (updateTime-based compare-and-swap).
+    (requireVersion-based compare-and-swap).
 
     Canonical paths:
-        /store/{store_id}           – Store metadata
-        /inventory/{store_id}/{sku} – Per-SKU inventory
+        /stores/{store_id}                  – Store metadata
+        /stores/{store_id}/inventory/{sku}   – Per-SKU inventory (subcollection)
     """
 
     def __init__(
@@ -478,7 +479,12 @@ class FirestoreLiveTwinRepository(LiveTwinRepository):
         return _parse_store_doc(doc)
 
     def list_inventory(self, store_id: str) -> Sequence[InventoryDocument]:
-        url = f"{_database_root(self._config.project)}/{COLLECTION_INVENTORY}/{store_id}"
+        # Use the subcollection path: /stores/{store_id}/inventory
+        # This is a real Firestore collection under the store document.
+        url = (
+            f"{_database_root(self._config.project)}"
+            f"/stores/{store_id}/inventory"
+        )
         response = self._call("GET", url, None)
         if response.status == 404:
             return []
@@ -514,7 +520,7 @@ class FirestoreLiveTwinRepository(LiveTwinRepository):
         return results
 
     def get_inventory(self, store_id: str, sku: str) -> InventoryDocument | None:
-        url = _doc_name(self._config, COLLECTION_INVENTORY, store_id, sku)
+        url = _doc_name(self._config, COLLECTION_STORE, store_id, "inventory", sku)
         response = self._call("GET", url, None)
         if response.status == 404:
             return None
@@ -548,25 +554,24 @@ class FirestoreLiveTwinRepository(LiveTwinRepository):
             "version": {"integerValue": str(item.version)},
             "updated_at": {"timestampValue": now.isoformat()},
         }
-        doc_name = _doc_name(self._config, COLLECTION_INVENTORY, item.store_id, item.sku)
+        doc_name = _doc_name(self._config, COLLECTION_STORE, item.store_id, "inventory", item.sku)
         writes: list[dict[str, Any]] = [
             {"update": {"name": doc_name, "fields": fields}}
         ]
         if expected_version is not None:
-            # Optimistic concurrency control: fail if the document exists
-            # and its version does not match what we expect.
+            # Optimistic concurrency control: the write succeeds only if the
+            # stored document's version field matches the expected value.
+            # A mismatch returns FAILED_PRECONDITION and the TwinConflict
+            # is re-raised after reading the current state.
             writes[0]["currentDocument"] = {
                 "exists": True,
-                "requireDoublePrecisionVersionTimeForSingleFieldDoc": False,
+                "requireVersion": expected_version,
             }
-            # The Firestore REST API does not support direct field-level
-            # preconditions for version. We use exists:true and the server
-            # will reject a create (404 → 412 equivalent becomes 409).
         else:
             writes[0]["currentDocument"] = {"exists": False}
 
         payload: dict[str, Any] = {"writes": writes}
-        response = self._call("POST", f"{_database_root(self._config.project)}/documents:commit", payload)
+        response = self._call("POST", f"{_database_root(self._config.project)}:commit", payload)
         if response.status == 200:
             return item
         if _precondition_conflict(response.status, response.body):
@@ -595,11 +600,9 @@ class FirestoreLiveTwinRepository(LiveTwinRepository):
             }
         )
 
-        # Delete all existing inventory documents first (by overwriting with
-        # a sentinel and then using a transaction — simplified here to upsert).
-        # We upsert all seed items unconditionally.
+        # Upsert all seed items as inventory subcollection documents.
         for seed in items:
-            inv_doc = _doc_name(self._config, COLLECTION_INVENTORY, store_id, seed.sku)
+            inv_doc = _doc_name(self._config, COLLECTION_STORE, store_id, "inventory", seed.sku)
             writes.append(
                 {
                     "update": {
@@ -621,7 +624,7 @@ class FirestoreLiveTwinRepository(LiveTwinRepository):
 
         payload: dict[str, Any] = {"writes": writes}
         response = self._call(
-            "POST", f"{_database_root(self._config.project)}/documents:commit", payload
+            "POST", f"{_database_root(self._config.project)}:commit", payload
         )
         if response.status != 200:
             raise _http_error("seed", response.status, response.body)
@@ -633,7 +636,7 @@ class FirestoreLiveTwinRepository(LiveTwinRepository):
             return
         writes: list[dict[str, Any]] = []
         for item in items:
-            doc_name = _doc_name(self._config, COLLECTION_INVENTORY, store_id, item.sku)
+            doc_name = _doc_name(self._config, COLLECTION_STORE, store_id, "inventory", item.sku)
             writes.append(
                 {
                     "delete": doc_name,
@@ -658,13 +661,13 @@ class FirestoreLiveTwinRepository(LiveTwinRepository):
         )
         payload: dict[str, Any] = {"writes": writes}
         response = self._call(
-            "POST", f"{_database_root(self._config.project)}/documents:commit", payload
+            "POST", f"{_database_root(self._config.project)}:commit", payload
         )
         if response.status != 200:
             raise _http_error("reset", response.status, response.body)
 
     def is_available(self) -> bool:
-        url = f"{_database_root(self._config.project)}/{COLLECTION_STORE}"
+        url = f"{_database_root(self._config.project)}/stores"
         try:
             response = self._call("GET", url, None)
             return response.status in (200, 404)

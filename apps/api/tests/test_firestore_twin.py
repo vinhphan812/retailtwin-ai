@@ -5,19 +5,24 @@ a live Firestore instance. The production FirestoreLiveTwinRepository
 is tested via the same interface contract.
 """
 
+import json
+import threading
+from collections.abc import Mapping, Sequence
 from datetime import datetime, timezone
-from collections.abc import Mapping
+from typing import Any, cast
 
 import pytest
 
 from retailtwin_api.firestore_twin import (
-    COLLECTION_INVENTORY,
     COLLECTION_STORE,
+    FirestoreLiveTwinRepository,
+    HttpResponse,
     InMemoryTwinRepository,
     InventoryDocument,
     InventorySeed,
     LiveTwinRepository,
     StoreDocument,
+    TwinConfig,
     TwinConflict,
     TwinNotFound,
     TwinUnavailable,
@@ -297,10 +302,7 @@ class TestCanonicalPaths:
     """Verify canonical path constants match the specification."""
 
     def test_store_collection_name(self) -> None:
-        assert COLLECTION_STORE == "store"
-
-    def test_inventory_collection_name(self) -> None:
-        assert COLLECTION_INVENTORY == "inventory"
+        assert COLLECTION_STORE == "stores"
 
 
 class TestInventoryDocument:
@@ -356,18 +358,48 @@ class TestLiveTwinRepositoryInterface:
 # ---------------------------------------------------------------------------
 
 
-class FakeHttpResponse:
+class FakeHttpResponse(HttpResponse):
+    """Fake HTTP response matching the HttpResponse interface."""
+
+
+class _PreconditionFailed(Exception):
+    """Raised by FakeFirestoreTransport._apply_write on a precondition failure."""
+
     def __init__(self, status: int, body: str) -> None:
         self.status = status
         self.body = body
+        super().__init__(body)
 
 
 class FakeFirestoreTransport:
-    """In-process fake of the Firestore REST API for unit testing."""
+    """In-process fake of the Firestore REST API for unit testing.
+
+    Fully simulates the Firestore REST API contract including:
+    - Document CRUD (GET, DELETE)
+    - Transactional writes via :commit with preconditions
+    - Optimistic concurrency control: exists:false prevents overwrites
+    - Version precondition: when currentDocument.exists:true, the stored
+      document's version field is checked against the precondition's
+      requireVersion. A mismatch returns FAILED_PRECONDITION.
+    - Collection queries for /inventory/{store_id} subcollections
+    - Stale-write rejection: a write with a wrong expected version is rejected
+      while preserving the original document.
+    """
+
+    _CLOCK: int = 0
+    _LOCK = threading.Lock()
 
     def __init__(self) -> None:
         self.calls: list[tuple[str, str, object | None]] = []
-        self._documents: dict[str, dict[str, object]] = {}
+        # documents keyed by full doc name, e.g.
+        #   stores/{store_id}
+        #   stores/{store_id}/inventory/{sku}
+        self._docs: dict[str, dict[str, Any]] = {}
+        self._update_times: dict[str, str] = {}
+
+    def _tick(self) -> str:
+        FakeFirestoreTransport._CLOCK += 1
+        return f"2026-01-01T00:00:00.{FakeFirestoreTransport._CLOCK:06d}Z"
 
     def request(
         self,
@@ -375,82 +407,278 @@ class FakeFirestoreTransport:
         url: str,
         payload: bytes | None,
         headers: Mapping[str, str],
-    ) -> FakeHttpResponse:
+    ) -> HttpResponse:
         self.calls.append((method, url, payload))
         return self._handle(method, url, payload)
+
+    def _doc_name_to_relative(self, full_name: str) -> str:
+        """Convert a full Firestore doc name to a relative doc key.
+
+        "projects/p/databases/(default)/documents/stores/store-001/inventory/P001"
+          → "stores/store-001/inventory/P001"
+        """
+        if "/documents/" in full_name:
+            return full_name.rsplit("/documents/", 1)[-1].strip("/")
+        return full_name.strip("/")
+
+    def _doc_key_from_url(self, url: str) -> str:
+        """Extract the relative document key from a Firestore REST URL.
+
+        Input:  .../documents/stores/store-001/inventory/P001
+        Output: stores/store-001/inventory/P001
+        """
+        if "/documents/" in url:
+            rest = url.rsplit("/documents/", 1)[-1]
+        else:
+            rest = url
+        return rest.strip("/")
 
     def _handle(self, method: str, url: str, payload: bytes | None) -> FakeHttpResponse:
         import json
 
-        # GET /store/{store_id}
-        if method == "GET" and "/store/" in url and "/documents" in url:
-            # URL: .../projects/{project}/databases/(default)/documents/store/{store_id}
-            parts = url.split("/documents/")
-            rest = parts[-1] if parts else ""  # "store/store-001"
-            segments = rest.split("/")
-            if len(segments) >= 2:
-                key = f"{segments[0]}/{segments[1]}"  # "store/store-001"
-            else:
-                key = rest
-            if key in self._documents:
-                doc = self._documents[key]
-                return FakeHttpResponse(200, json.dumps(doc))
-            return FakeHttpResponse(404, json.dumps({"error": {"message": "Not found"}}))
+        # GET subcollection listing: /documents/stores/{store_id}/inventory
+        # Pattern: /documents/stores/{store_id}/inventory where {store_id} is exactly 1 segment
+        # Matches:
+        #   https://.../documents/stores/store-001/inventory ✓ (store_id="store-001")
+        #   https://.../documents/stores/store-001/inventory/P001 ✗ (2 segments after /stores/)
+        #   https://.../documents/stores/store-001 ✗ (no /inventory)
+        is_subcollection_listing = (
+            method == "GET"
+            and "/stores/" in url
+            and "/inventory" in url
+            and url.endswith("/inventory")
+        )
+        if is_subcollection_listing:
+            # Count segments between /stores/ and /inventory
+            stores_pos = url.index("/stores/")
+            inv_pos = url.index("/inventory")
+            rest = url[stores_pos + len("/stores/"):inv_pos]
+            segment_count = len([s for s in rest.split("/") if s])
+            if segment_count == 1:
+                # This is /documents/stores/{store_id}/inventory — list inventory for store
+                start = stores_pos + len("/stores/")
+                store_id_val = url[start:inv_pos]
+                inventory_results: list[dict[str, Any]] = []
+                for key, doc in self._docs.items():
+                    relative_key = self._doc_name_to_relative(key)
+                    segments = relative_key.split("/")
+                    # stores/{store_id}/inventory/{sku}
+                    if (
+                        len(segments) >= 4
+                        and segments[0] == "stores"
+                        and segments[1] == store_id_val
+                        and segments[2] == "inventory"
+                    ):
+                        update_time = self._update_times.get(key, "2026-01-01T00:00:00.000000Z")
+                        inventory_results.append({**doc, "updateTime": update_time})
+                return FakeHttpResponse(200, json.dumps({"documents": inventory_results}))
 
-        # GET /inventory/{store_id}
-        if method == "GET" and "/inventory/" in url and "/documents" not in url:
-            parts = url.split("/inventory/")
-            store_id = parts[1] if len(parts) > 1 else ""
-            docs = [v for k, v in self._documents.items() if k.startswith(f"inventory/{store_id}/")]
-            return FakeHttpResponse(200, json.dumps({"documents": docs}))
+        # GET a single document
+        if method == "GET" and "/documents/" in url:
+            key = self._doc_key_from_url(url)
+            if key in self._docs:
+                doc = self._docs[key]
+                update_time = self._update_times.get(key, "2026-01-01T00:00:00.000000Z")
+                return FakeHttpResponse(
+                    200,
+                    json.dumps({**doc, "updateTime": update_time}),
+                )
+            return FakeHttpResponse(404, json.dumps({"error": {"status": "NOT_FOUND"}}))
 
-        # POST /documents:commit
+        # DELETE a document
+        if method == "DELETE" and "/documents/" in url:
+            key = self._doc_key_from_url(url)
+            if key in self._docs:
+                del self._docs[key]
+                if key in self._update_times:
+                    del self._update_times[key]
+                return FakeHttpResponse(
+                    200,
+                    json.dumps({"writeResults": [{"delete": {}}]}),
+                )
+            return FakeHttpResponse(404, json.dumps({"error": {"status": "NOT_FOUND"}}))
+
+        # GET /stores  — collection listing (used by is_available)
+        if method == "GET" and (
+            url.endswith("/stores") or url.rstrip("/").endswith("/stores")
+        ):
+            return FakeHttpResponse(200, json.dumps({"documents": []}))
+
+        # POST :commit — transactional write with preconditions
         if method == "POST" and ":commit" in url:
             if payload is None:
-                return FakeHttpResponse(400, json.dumps({"error": {"message": "Empty payload"}}))
+                return FakeHttpResponse(400, json.dumps({"error": {"status": "INVALID_ARGUMENT"}}))
             data = json.loads(payload.decode())
-            results = []
-            for write in data.get("writes", []):
-                if "update" in write:
-                    name = write["update"]["name"]
-                    fields = write["update"].get("fields", {})
-                    doc: dict[str, object] = {"name": name, "fields": fields, "updateTime": "2026-01-01T00:00:00.000000Z"}
-                    self._documents[name] = doc
-                    results.append({"updateTime": "2026-01-01T00:00:00.000000Z"})
-                elif "delete" in write:
-                    name = write["delete"]
-                    if name in self._documents:
-                        del self._documents[name]
-                    results.append({"delete": {}})
-
+            results: list[dict[str, object]] = []
+            with FakeFirestoreTransport._LOCK:
+                try:
+                    for write in data.get("writes", []):
+                        results.append(self._apply_write(write))
+                except _PreconditionFailed as exc:
+                    return FakeHttpResponse(exc.status, exc.body)
             return FakeHttpResponse(200, json.dumps({"writeResults": results}))
 
-        # POST /documents/{collection}
+        # POST /documents/{collection}  — single document create
         if method == "POST" and "/documents/" in url:
             if payload is None:
-                return FakeHttpResponse(400, json.dumps({"error": {"message": "Empty payload"}}))
-            return FakeHttpResponse(200, json.dumps({"name": url, "updateTime": "2026-01-01T00:00:00.000000Z"}))
+                return FakeHttpResponse(400, json.dumps({"error": {"status": "INVALID_ARGUMENT"}}))
+            data = json.loads(payload.decode())
+            name = data.get("name", url)
+            update_time = self._tick()
+            doc = {"name": name, "fields": data.get("fields", {})}
+            self._docs[name] = doc
+            self._update_times[name] = update_time
+            return FakeHttpResponse(
+                200,
+                json.dumps({"name": name, "updateTime": update_time}),
+            )
 
-        return FakeHttpResponse(404, json.dumps({"error": {"message": "Not found"}}))
+        return FakeHttpResponse(404, json.dumps({"error": {"status": "NOT_FOUND"}}))
+
+    def _apply_write(self, write: dict[str, Any]) -> dict[str, Any]:
+        """Apply a single write operation, enforcing Firestore preconditions.
+
+        Returns the writeResult dict on success, or raises _PreconditionFailed
+        with a (status, body) tuple on precondition failure.
+        The returned dict is suitable for inclusion in the commit response's
+        writeResults array.
+        """
+        import json
+
+        if "delete" in write:
+            full_name = write["delete"]
+            if "/documents/" in full_name:
+                name = full_name.rsplit("/documents/", 1)[-1]
+            else:
+                name = full_name
+            if name in self._docs:
+                del self._docs[name]
+                if name in self._update_times:
+                    del self._update_times[name]
+            update_time = self._tick()
+            return {"delete": {}, "updateTime": update_time}
+
+        if "update" in write:
+            full_name = write["update"]["name"]
+            # Use relative name as storage key so GET lookups work
+            # (_doc_key_from_url also returns relative names)
+            name = self._doc_name_to_relative(full_name)
+            fields = write["update"].get("fields", {})
+            precondition = write.get("currentDocument", {})
+            exists_required = precondition.get("exists")
+            require_version = precondition.get("requireVersion")
+
+            # Enforce exists precondition.
+            # The Firestore REST API returns exists as a JSON boolean (true/false),
+            # parsed by json.loads() as Python True/False.
+            doc_exists = name in self._docs
+            if exists_required is False or exists_required == "False":
+                # exists:false → fail if the document already exists
+                if doc_exists:
+                    raise _PreconditionFailed(
+                        409,
+                        json.dumps({"error": {"code": 409, "status": "ALREADY_EXISTS"}}),
+                    )
+                # else: doc missing → allowed, fall through to write
+            elif exists_required is True or exists_required == "True":
+                # exists:true → fail if the document does NOT exist
+                if not doc_exists:
+                    raise _PreconditionFailed(
+                        404,
+                        json.dumps({"error": {"code": 404, "status": "NOT_FOUND"}}),
+                    )
+                # else: doc exists → fall through to version check
+            # else: no exists precondition → always allowed, fall through to version check
+
+            # Enforce version precondition (optimistic concurrency control)
+            if require_version is not None and doc_exists:
+                stored = self._docs[name]
+                version_field = stored.get("fields", {}).get("version", {})
+                # Version can be stored as integerValue, stringValue, or a raw int
+                if isinstance(version_field, dict):
+                    version_str = (
+                        version_field.get("integerValue")
+                        or version_field.get("stringValue")
+                        or None
+                    )
+                else:
+                    version_str = str(version_field) if version_field is not None else None
+                try:
+                    stored_version = int(version_str) if version_str else 0
+                except (ValueError, TypeError):
+                    stored_version = 0
+                if stored_version != require_version:
+                    raise _PreconditionFailed(
+                        400,
+                        json.dumps({
+                            "error": {
+                                "code": 400,
+                                "status": "FAILED_PRECONDITION",
+                                "message": f"Document {name} has version {stored_version}, expected {require_version}",
+                            }
+                        }),
+                    )
+
+            # Commit the write
+            update_time = self._tick()
+            doc = {"name": name, "fields": fields}
+            self._docs[name] = doc
+            self._update_times[name] = update_time
+            return {"updateTime": update_time}
+
+        raise _PreconditionFailed(
+            400,
+            json.dumps({"error": {"status": "INVALID_ARGUMENT"}}),
+        )
 
     def seed_data(self, store_id: str, version: str, items: list[InventorySeed]) -> None:
-        """Pre-populate the fake store."""
+        """Pre-populate the fake store with seed data (dict format, not JSON strings).
+
+        Stores documents at the correct hierarchy with FULL doc names as keys:
+          - projects/.../databases/(default)/documents/stores/{store_id}
+          - projects/.../databases/(default)/documents/stores/{store_id}/inventory/{sku}
+        This matches the naming convention used by _apply_write and _doc_key_from_url.
+        """
         import json
-        now = "2026-01-01T00:00:00.000000Z"
-        store_key = f"store/{store_id}"
-        self._documents[store_key] = json.dumps({
-            "name": f"projects/test/databases/(default)/documents/store/{store_id}",
+
+        db = "projects/test/databases/(default)/documents"
+        now = self._tick()
+        # Store document
+        store_key = f"{db}/stores/{store_id}"
+        self._docs[store_key] = {
+            "name": store_key,
             "fields": {
                 "store_id": {"stringValue": store_id},
                 "version": {"stringValue": version},
                 "updated_at": {"timestampValue": now},
             },
-            "updateTime": now,
-        })
+        }
+        self._update_times[store_key] = now
+
+        # Inventory subcollection documents: stores/{store_id}/inventory/{sku}
+        for item in items:
+            inv_key = f"{db}/stores/{store_id}/inventory/{item.sku}"
+            self._docs[inv_key] = {
+                "name": inv_key,
+                "fields": {
+                    "store_id": {"stringValue": store_id},
+                    "sku": {"stringValue": item.sku},
+                    "shelf_id": {"stringValue": item.shelf_id},
+                    "slot_id": {"stringValue": item.slot_id},
+                    "facings": {"integerValue": str(item.facings)},
+                    "shelf_quantity": {"integerValue": str(item.shelf_quantity)},
+                    "backroom_quantity": {"integerValue": str(item.backroom_quantity)},
+                    "version": {"integerValue": "1"},
+                    "updated_at": {"timestampValue": now},
+                },
+            }
+            self._update_times[inv_key] = now
 
     def clear(self) -> None:
-        self._documents.clear()
-        self.calls.clear()
+        with FakeFirestoreTransport._LOCK:
+            self._docs.clear()
+            self._update_times.clear()
+            self.calls.clear()
 
 
 class TestFirestoreLiveTwinRepository:
@@ -466,7 +694,7 @@ class TestFirestoreLiveTwinRepository:
             def _headers(self) -> dict[str, str]:
                 return {"Authorization": "Bearer fake"}
 
-        repo = Repo(TwinConfig(project="retailtwin-ai-511002", location="us-central1"), transport=transport)  # type: ignore[annotation-unchecked]
+        repo = Repo(TwinConfig(project="retailtwin-ai-511002", location="us-central1"), transport=transport)
         result = repo.get_store("store-001")
         assert result is None
 
@@ -475,21 +703,21 @@ class TestFirestoreLiveTwinRepository:
 
         transport = FakeFirestoreTransport()
         # Store with the key format the code uses (extracted from URL)
-        transport._documents["store/store-001"] = {
-            "name": "projects/retailtwin-ai-511002/databases/(default)/documents/store/store-001",
+        # Uses stores/{store_id} hierarchy
+        transport._docs["stores/store-001"] = {
+            "name": "projects/retailtwin-ai-511002/databases/(default)/documents/stores/store-001",
             "fields": {
                 "store_id": {"stringValue": "store-001"},
                 "version": {"stringValue": "v1"},
                 "updated_at": {"timestampValue": "2026-01-01T00:00:00.000000Z"},
             },
-            "updateTime": "2026-01-01T00:00:00.000000Z",
         }
 
         class Repo(FirestoreLiveTwinRepository):
             def _headers(self) -> dict[str, str]:
                 return {"Authorization": "Bearer fake"}
 
-        repo = Repo(TwinConfig(project="retailtwin-ai-511002", location="us-central1"), transport=transport)  # type: ignore[annotation-unchecked]
+        repo = Repo(TwinConfig(project="retailtwin-ai-511002", location="us-central1"), transport=transport)
         result = repo.get_store("store-001")
         assert result is not None
         assert result.store_id == "store-001"
@@ -504,7 +732,7 @@ class TestFirestoreLiveTwinRepository:
             def _headers(self) -> dict[str, str]:
                 return {"Authorization": "Bearer fake"}
 
-        repo = Repo(TwinConfig(project="retailtwin-ai-511002", location="us-central1"), transport=transport)  # type: ignore[annotation-unchecked]
+        repo = Repo(TwinConfig(project="retailtwin-ai-511002", location="us-central1"), transport=transport)
         repo.seed("store-001", "v1", [
             InventorySeed(sku="P001", shelf_id="A01", slot_id="A01-S01",
                          facings=3, shelf_quantity=8, backroom_quantity=42),
@@ -521,7 +749,7 @@ class TestFirestoreLiveTwinRepository:
             def _headers(self) -> dict[str, str]:
                 return {"Authorization": "Bearer fake"}
 
-        repo = Repo(TwinConfig(project="retailtwin-ai-511002", location="us-central1"), transport=transport)  # type: ignore[annotation-unchecked]
+        repo = Repo(TwinConfig(project="retailtwin-ai-511002", location="us-central1"), transport=transport)
         repo.seed("store-001", "v1", [
             InventorySeed(sku="P001", shelf_id="A01", slot_id="A01-S01",
                          facings=3, shelf_quantity=8, backroom_quantity=42),
@@ -532,17 +760,15 @@ class TestFirestoreLiveTwinRepository:
 
     def test_is_available_returns_true_when_firestore_reachable(self) -> None:
         from retailtwin_api.firestore_twin import FirestoreLiveTwinRepository, TwinConfig
-        import json
 
         transport = FakeFirestoreTransport()
-        # Return 200 for a GET on the store collection
-        transport._documents["projects/test/databases/(default)/documents/store"] = json.dumps({"documents": []})
+        # Return 200 for a GET on the stores collection
 
         class Repo(FirestoreLiveTwinRepository):
             def _headers(self) -> dict[str, str]:
                 return {"Authorization": "Bearer fake"}
 
-        repo = Repo(TwinConfig(project="retailtwin-ai-511002", location="us-central1"), transport=transport)  # type: ignore[annotation-unchecked]
+        repo = Repo(TwinConfig(project="retailtwin-ai-511002", location="us-central1"), transport=transport)
         assert repo.is_available() is True
 
 
@@ -624,4 +850,515 @@ class TestFirestoreField:
         from retailtwin_api.firestore_twin import _FirestoreField
         f = _FirestoreField(booleanValue=True)
         assert f.booleanValue is True
+
+
+# ---------------------------------------------------------------------------
+# FakeFirestoreTransport contract tests — verify full REST API simulation
+# ---------------------------------------------------------------------------
+
+
+class TestFakeFirestoreTransportContract:
+    """Verify FakeFirestoreTransport faithfully simulates the Firestore REST API."""
+
+    def test_commit_rejects_exists_false_on_existing_doc(self) -> None:
+        """exists:false returns 409 ALREADY_EXISTS when the document already exists."""
+        transport = FakeFirestoreTransport()
+        transport._docs["test/doc"] = {"fields": {"x": {"stringValue": "y"}}}
+        transport._update_times["test/doc"] = "t1"
+
+        payload = json.dumps({
+            "writes": [{
+                "update": {
+                    "name": "projects/p/databases/(default)/documents/test/doc",
+                    "fields": {"x": {"stringValue": "z"}},
+                },
+                "currentDocument": {"exists": False},
+            }]
+        }).encode()
+        response = transport.request(
+            "POST",
+            "https://firestore.googleapis.com/v1/projects/p/databases/(default)/documents:commit",
+            payload,
+            {},
+        )
+        assert response.status == 409
+
+    def test_commit_accepts_exists_false_on_missing_doc(self) -> None:
+        """exists:false succeeds when the document does not exist."""
+        transport = FakeFirestoreTransport()
+
+        payload = json.dumps({
+            "writes": [{
+                "update": {
+                    "name": "projects/p/databases/(default)/documents/test/new",
+                    "fields": {"x": {"stringValue": "y"}},
+                },
+                "currentDocument": {"exists": False},
+            }]
+        }).encode()
+        response = transport.request(
+            "POST",
+            "https://firestore.googleapis.com/v1/projects/p/databases/(default)/documents:commit",
+            payload,
+            {},
+        )
+        assert response.status == 200
+        assert "test/new" in transport._docs
+
+    def test_commit_enforces_require_version_on_stale_write(self) -> None:
+        """A write with requireVersion mismatching the stored version is rejected."""
+        transport = FakeFirestoreTransport()
+        transport._docs["stores/store-001/inventory/P001"] = {
+            "fields": {
+                "store_id": {"stringValue": "store-001"},
+                "sku": {"stringValue": "P001"},
+                "shelf_id": {"stringValue": "A01"},
+                "slot_id": {"stringValue": "A01-S01"},
+                "facings": {"integerValue": "3"},
+                "shelf_quantity": {"integerValue": "8"},
+                "backroom_quantity": {"integerValue": "42"},
+                "version": {"integerValue": "5"},
+                "updated_at": {"timestampValue": "t1"},
+            }
+        }
+        transport._update_times["stores/store-001/inventory/P001"] = "t1"
+
+        payload = json.dumps({
+            "writes": [{
+                "update": {
+                    "name": "projects/p/databases/(default)/documents/stores/store-001/inventory/P001",
+                    "fields": {
+                        "facings": {"integerValue": "9"},
+                        "version": {"integerValue": "9"},
+                        "updated_at": {"timestampValue": "t2"},
+                    },
+                },
+                "currentDocument": {"exists": True, "requireVersion": 3},
+            }]
+        }).encode()
+        response = transport.request(
+            "POST",
+            "https://firestore.googleapis.com/v1/projects/p/databases/(default)/documents:commit",
+            payload,
+            {},
+        )
+        assert response.status == 400
+        assert "FAILED_PRECONDITION" in response.body
+        # Original document is preserved
+        assert transport._docs["stores/store-001/inventory/P001"]["fields"]["facings"]["integerValue"] == "3"
+
+    def test_commit_accepts_matching_require_version(self) -> None:
+        """A write with requireVersion matching the stored version succeeds."""
+        transport = FakeFirestoreTransport()
+        transport._docs["stores/store-001/inventory/P001"] = {
+            "fields": {
+                "store_id": {"stringValue": "store-001"},
+                "sku": {"stringValue": "P001"},
+                "shelf_id": {"stringValue": "A01"},
+                "slot_id": {"stringValue": "A01-S01"},
+                "facings": {"integerValue": "3"},
+                "shelf_quantity": {"integerValue": "8"},
+                "backroom_quantity": {"integerValue": "42"},
+                "version": {"integerValue": "3"},
+                "updated_at": {"timestampValue": "t1"},
+            }
+        }
+        transport._update_times["stores/store-001/inventory/P001"] = "t1"
+
+        payload = json.dumps({
+            "writes": [{
+                "update": {
+                    "name": "projects/p/databases/(default)/documents/stores/store-001/inventory/P001",
+                    "fields": {
+                        "facings": {"integerValue": "9"},
+                        "version": {"integerValue": "4"},
+                        "updated_at": {"timestampValue": "t2"},
+                    },
+                },
+                "currentDocument": {"exists": True, "requireVersion": 3},
+            }]
+        }).encode()
+        response = transport.request(
+            "POST",
+            "https://firestore.googleapis.com/v1/projects/p/databases/(default)/documents:commit",
+            payload,
+            {},
+        )
+        assert response.status == 200
+        assert transport._docs["stores/store-001/inventory/P001"]["fields"]["facings"]["integerValue"] == "9"
+
+    def test_delete_removes_document(self) -> None:
+        """DELETE removes the document from the store."""
+        transport = FakeFirestoreTransport()
+        transport._docs["stores/store-001/inventory/P001"] = {"fields": {}}
+        transport._update_times["stores/store-001/inventory/P001"] = "t1"
+
+        response = transport.request(
+            "DELETE",
+            "https://firestore.googleapis.com/v1/projects/p/databases/(default)/documents/stores/store-001/inventory/P001",
+            None,
+            {},
+        )
+        assert response.status == 200
+        assert "stores/store-001/inventory/P001" not in transport._docs
+
+    def test_list_inventory_returns_all_skus_for_store(self) -> None:
+        """GET /documents/inventory/{store_id} returns all inventory subcollection documents."""
+        transport = FakeFirestoreTransport()
+        transport._docs["stores/store-001/inventory/P001"] = {
+            "fields": {"sku": {"stringValue": "P001"}},
+        }
+        transport._docs["stores/store-001/inventory/P002"] = {
+            "fields": {"sku": {"stringValue": "P002"}},
+        }
+        transport._docs["stores/store-002/inventory/P001"] = {
+            "fields": {"sku": {"stringValue": "P001"}},
+        }
+        transport._update_times["stores/store-001/inventory/P001"] = "t1"
+        transport._update_times["stores/store-001/inventory/P002"] = "t2"
+        transport._update_times["stores/store-002/inventory/P001"] = "t3"
+
+        response = transport.request(
+            "GET",
+            "https://firestore.googleapis.com/v1/projects/p/databases/(default)/documents/stores/store-001/inventory",
+            None,
+            {},
+        )
+        assert response.status == 200
+        docs = json.loads(response.body)["documents"]
+        assert len(docs) == 2
+        skus = {d["fields"]["sku"]["stringValue"] for d in docs}
+        assert skus == {"P001", "P002"}
+
+    def test_timestamp_increments_per_commit(self) -> None:
+        """Each successful commit write gets a unique incrementing updateTime."""
+        transport = FakeFirestoreTransport()
+
+        for i, name in enumerate(["d1", "d2", "d3"]):
+            payload = json.dumps({
+                "writes": [{
+                    "update": {
+                        "name": f"projects/p/databases/(default)/documents/test/{name}",
+                        "fields": {"x": {"stringValue": chr(ord("a") + i)}},
+                    }
+                }]
+            }).encode()
+            resp = transport.request(
+                "POST",
+                "https://firestore.googleapis.com/v1/projects/p/databases/(default)/documents:commit",
+                payload,
+                {},
+            )
+            assert resp.status == 200
+            ts = json.loads(resp.body)["writeResults"][0]["updateTime"]
+            if i == 0:
+                t1 = ts
+            elif i == 1:
+                t2 = ts
+            else:
+                t3 = ts
+
+        assert t1 < t2 < t3
+
+
+# ---------------------------------------------------------------------------
+# Lifecycle tests — seed-read-mutate-stale-reject via FakeFirestoreTransport
+# ---------------------------------------------------------------------------
+
+
+class _FirestoreTwinRepoUnderTest:
+    """Construct a FirestoreLiveTwinRepository backed by FakeFirestoreTransport."""
+
+    def __init__(self) -> None:
+        self._transport = FakeFirestoreTransport()
+
+        class Repo(FirestoreLiveTwinRepository):
+            def _headers(self) -> dict[str, str]:
+                return {"Authorization": "Bearer fake"}
+
+        self.repo = Repo(
+            TwinConfig(project="retailtwin-ai-511002", location="us-central1"),
+            transport=self._transport,
+        )
+
+    def seed(self) -> None:
+        self.repo.seed(
+            "store-001",
+            "v1",
+            [
+                InventorySeed(sku="P001", shelf_id="A01", slot_id="A01-S01",
+                              facings=3, shelf_quantity=8, backroom_quantity=42),
+                InventorySeed(sku="P002", shelf_id="A02", slot_id="A02-S01",
+                              facings=2, shelf_quantity=5, backroom_quantity=20),
+            ],
+        )
+
+    def read_store(self) -> StoreDocument:
+        doc = self.repo.get_store("store-001")
+        assert doc is not None
+        return doc
+
+    def read_inventory(self, sku: str) -> InventoryDocument:
+        doc = self.repo.get_inventory("store-001", sku)
+        assert doc is not None
+        return doc
+
+    def list_inventory(self) -> Sequence[InventoryDocument]:
+        return self.repo.list_inventory("store-001")
+
+
+class TestSeedReadMutateStaleRejectLifecycle:
+    """Full lifecycle: seed → read → mutate → stale-reject → reset.
+
+    This is the canonical acceptance test for the Firestore Live Twin
+    repository boundary, exercised against a fully-featured fake transport
+    that enforces the real Firestore REST API contract including optimistic
+    concurrency control.
+    """
+
+    def test_lifecycle_seed_twice_is_idempotent(self) -> None:
+        """Seeding the same store twice does not duplicate inventory items."""
+        twin = _FirestoreTwinRepoUnderTest()
+        twin.seed()
+        twin.seed()  # second seed — should overwrite, not duplicate
+
+        items = twin.list_inventory()
+        skus = {item.sku for item in items}
+        assert skus == {"P001", "P002"}
+        # Version is still v1 (second seed overwrote with same version)
+        store = twin.read_store()
+        assert store.version == "v1"
+
+    def test_lifecycle_read_after_seed_returns_correct_values(self) -> None:
+        """After seed, read-back returns the seeded values exactly."""
+        twin = _FirestoreTwinRepoUnderTest()
+        twin.seed()
+
+        p001 = twin.read_inventory("P001")
+        assert p001.sku == "P001"
+        assert p001.facings == 3
+        assert p001.shelf_quantity == 8
+        assert p001.backroom_quantity == 42
+        assert p001.version == 1
+
+        p002 = twin.read_inventory("P002")
+        assert p002.sku == "P002"
+        assert p002.facings == 2
+        assert p002.shelf_quantity == 5
+        assert p002.backroom_quantity == 20
+
+    def test_lifecycle_mutate_updates_version_and_preserves_others(self) -> None:
+        """A successful mutation increments the version and persists new values."""
+        twin = _FirestoreTwinRepoUnderTest()
+        twin.seed()
+
+        # P001 is at version 1. Update it.
+        updated = InventoryDocument(
+            store_id="store-001",
+            sku="P001",
+            shelf_id="A01",
+            slot_id="A01-S01",
+            facings=5,
+            shelf_quantity=12,
+            backroom_quantity=50,
+            version=2,  # incremented
+            updated_at=datetime.now(timezone.utc),
+        )
+        result = twin.repo.upsert_inventory(updated, expected_version=1)
+        assert result.facings == 5
+        assert result.version == 2
+
+        # Verify it persisted
+        p001 = twin.read_inventory("P001")
+        assert p001.facings == 5
+        assert p001.version == 2
+
+        # P002 is unaffected
+        p002 = twin.read_inventory("P002")
+        assert p002.version == 1
+        assert p002.facings == 2
+
+    def test_lifecycle_stale_version_is_rejected_and_data_preserved(self) -> None:
+        """A mutation with a stale (wrong) expected_version raises TwinConflict."""
+        twin = _FirestoreTwinRepoUnderTest()
+        twin.seed()
+
+        # Stored P001 is at version 1. Try to write with expected_version=99.
+        stale = InventoryDocument(
+            store_id="store-001",
+            sku="P001",
+            shelf_id="A01",
+            slot_id="A01-S01",
+            facings=99,
+            shelf_quantity=99,
+            backroom_quantity=99,
+            version=100,
+            updated_at=datetime.now(timezone.utc),
+        )
+        with pytest.raises(TwinConflict) as exc_info:
+            twin.repo.upsert_inventory(stale, expected_version=99)  # stored is 1, not 99
+        assert exc_info.value.sku == "P001"
+        assert exc_info.value.stored_version == 1
+        assert exc_info.value.incoming_version == 100
+
+        # Data is preserved — not overwritten
+        p001 = twin.read_inventory("P001")
+        assert p001.facings == 3  # original value unchanged
+        assert p001.version == 1
+
+    def test_lifecycle_stale_reject_leaves_other_items_untouched(self) -> None:
+        """A stale write on P001 does not touch P002."""
+        twin = _FirestoreTwinRepoUnderTest()
+        twin.seed()
+
+        stale = InventoryDocument(
+            store_id="store-001",
+            sku="P001",
+            shelf_id="A01",
+            slot_id="A01-S01",
+            facings=999,
+            shelf_quantity=999,
+            backroom_quantity=999,
+            version=999,
+            updated_at=datetime.now(timezone.utc),
+        )
+        try:
+            twin.repo.upsert_inventory(stale, expected_version=99)
+            pytest.fail("TwinConflict not raised")
+        except TwinConflict:
+            pass
+
+        # P002 still intact
+        p002 = twin.read_inventory("P002")
+        assert p002.version == 1
+        assert p002.facings == 2
+
+    def test_lifecycle_reset_clears_inventory_and_bumps_version(self) -> None:
+        """reset() removes all inventory items and increments the store version."""
+        twin = _FirestoreTwinRepoUnderTest()
+        twin.seed()
+        assert len(twin.list_inventory()) == 2
+
+        twin.repo.reset("store-001")
+
+        assert twin.list_inventory() == []
+        store = twin.read_store()
+        assert store.version == "v2"
+
+    def test_lifecycle_concurrent_mutations_one_wins(self) -> None:
+        """Two concurrent upserts on the same SKU: one succeeds, one conflicts."""
+        twin = _FirestoreTwinRepoUnderTest()
+        twin.seed()
+        barrier = threading.Barrier(2)
+        outcomes: list[str] = []
+        lock = threading.Lock()
+
+        def worker() -> None:
+            barrier.wait()
+            try:
+                item = InventoryDocument(
+                    store_id="store-001",
+                    sku="P001",
+                    shelf_id="A01",
+                    slot_id="A01-S01",
+                    facings=7,
+                    shelf_quantity=10,
+                    backroom_quantity=10,
+                    version=2,
+                    updated_at=datetime.now(timezone.utc),
+                )
+                twin.repo.upsert_inventory(item, expected_version=1)
+                with lock:
+                    outcomes.append("success")
+            except TwinConflict:
+                with lock:
+                    outcomes.append("conflict")
+
+        t1 = threading.Thread(target=worker)
+        t2 = threading.Thread(target=worker)
+        t1.start()
+        t2.start()
+        t1.join()
+        t2.join()
+
+        assert outcomes.count("success") == 1
+        assert outcomes.count("conflict") == 1
+        # Final state is version 2 (one winner persisted)
+        p001 = twin.read_inventory("P001")
+        assert p001.version == 2
+
+    def test_lifecycle_mutation_uses_currentDocument_requireVersion(self) -> None:
+        """Verify upsert_inventory sends requireVersion in the commit precondition."""
+        twin = _FirestoreTwinRepoUnderTest()
+        twin.seed()  # uses repo.seed() via twin.repo
+
+        # Mutate P001 → version becomes 2
+        item = InventoryDocument(
+            store_id="store-001",
+            sku="P001",
+            shelf_id="A01",
+            slot_id="A01-S01",
+            facings=7,
+            shelf_quantity=10,
+            backroom_quantity=10,
+            version=2,
+            updated_at=datetime.now(timezone.utc),
+        )
+        result = twin.repo.upsert_inventory(item, expected_version=1)
+        assert result.version == 2
+
+        # Find the commit call for inventory
+        commit_calls = [
+            c for c in twin._transport.calls
+            if "commit" in c[1]
+        ]
+        assert len(commit_calls) >= 1
+        # The commit should include requireVersion in currentDocument
+        payload = json.loads(cast(bytes, commit_calls[-1][2]))
+        writes = payload.get("writes", [])
+        inv_write = next(
+            (w for w in writes if "inventory" in w.get("update", {}).get("name", "")),
+            None,
+        )
+        assert inv_write is not None
+        assert "currentDocument" in inv_write
+
+
+class TestFakeFirestoreTransportConcurrency:
+    """Thread-safety tests for FakeFirestoreTransport._apply_write."""
+
+    def test_concurrent_commits_are_serialized_by_lock(self) -> None:
+        """Concurrent commit writes are serialized by the lock — no data corruption."""
+        transport = FakeFirestoreTransport()
+        barrier = threading.Barrier(4)
+        errors: list[Exception] = []
+
+        def writer(n: int) -> None:
+            barrier.wait()
+            try:
+                transport.request(
+                    "POST",
+                    "https://firestore.googleapis.com/v1/projects/p/databases/(default)/documents:commit",
+                    json.dumps({
+                        "writes": [{
+                            "update": {
+                                "name": f"projects/p/databases/(default)/documents/test/doc{n}",
+                                "fields": {"v": {"stringValue": f"val{n}"}},
+                            }
+                        }]
+                    }).encode(),
+                    {},
+                )
+            except Exception as exc:
+                errors.append(exc)
+
+        threads = [threading.Thread(target=writer, args=(i,)) for i in range(4)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert errors == []
+        assert len(transport._docs) == 4
+
 
