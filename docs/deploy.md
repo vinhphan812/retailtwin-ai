@@ -178,7 +178,45 @@ deploy-cloud-run:
 
 ---
 
-## 6. Rollback
+## 6. Production Hardening (Issue #34)
+
+Production hardening applied after Day-0 proof.
+
+| Feature | Status | Details |
+|---|---|---|
+| Structured JSON logging | Done | Cloud Logging-compatible JSON per request/event |
+| Correlation IDs | Done | `X-Correlation-ID` injected, echoed in response headers |
+| Readiness probe | Done | `GET /ready` returns 503 when fixture unavailable |
+| Liveness probe | Done | `GET /health` always 200 if container alive |
+| Settings validation | Done | `APP_ENV`, `LOG_LEVEL` validated at startup |
+| Production env flag | Done | `APP_ENV=production` sets `is_production=True` |
+| Min-instances=1 | Planned | Prevents cold-start; configured in CI/script |
+| Dedicated service account | Planned | Workload identity for CI; no JSON keys |
+| Secret Manager integration | Planned | Store fixture path in Secret Manager |
+
+### Readiness vs Liveness Separation
+
+```
+Cloud Run LB
+    ├── /health  → liveness probe (always 200 if container alive)
+    └── /ready   → readiness probe (200=serve, 503=drain)
+```
+
+The readiness probe returns 503 when the store fixture is unavailable, causing Cloud Run to drain traffic away from that instance. This is the correct behavior for a store-read-only service.
+
+### Structured Logs
+
+Every log line is a JSON object:
+
+```json
+{"message":"request.start","severity":"INFO","timestamp":"2026-10-12T09:00:00.000Z","correlation_id":"abc-123","method":"GET","path":"/ready","client_host":"192.168.0.1","service":"retailtwin-api","logger":"retailtwin_api.middleware","level":"INFO"}
+```
+
+Cloud Logging parses these automatically from container stdout.
+
+---
+
+## 7. Rollback
 
 ```bash
 # List revisions
@@ -198,14 +236,22 @@ gcloud run services update-traffic retailtwin-api \
 - Service-account key file creation — use workload identity federation instead
 - IAM permission widening beyond the default Cloud Run service account
 - Hardcoded secrets in environment variables — use Secret Manager with
-  `--set-secrets STORE_FIXTURE_PATH=store-fixture:latest`
+  `--set-secrets STORE_FIXTURE_PATH=store-fixture:latest` (Secret Manager setup is out of scope)
+- Dedicated CI service account (WIF provider not yet configured in GitHub repo vars)
 
 ---
 
-## Files Added
+## Files Changed
 
 | File | Purpose |
 |---|---|
 | `Dockerfile` | Multi-stage build; non-root runtime; uv dependency management |
-| `.dockerignore` | Excludes test tooling, docs, and OS noise from the build context |
-| `docs/deploy.md` | This document |
+| `apps/api/retailtwin_api/middleware.py` | Structured JSON logging + correlation ID middleware |
+| `apps/api/retailtwin_api/routes.py` | Readiness probe `/ready`; correlation IDs in logs |
+| `apps/api/retailtwin_api/settings.py` | Production env guard + settings validation |
+| `apps/api/retailtwin_api/schemas.py` | `ReadyResponse`, `app_env` in `HealthResponse` |
+| `apps/api/tests/test_health.py` | 12 tests: probes, correlation IDs, settings, logs |
+| `.github/workflows/api.yml` | Production `deploy-cloudrun` job (on merge to main) |
+| `scripts/deploy-cloudrun.sh` | Local deploy script with verification |
+| `.env.example` | Production Cloud Run environment variable hints |
+| `docs/deploy.md` | Production hardening docs, structured logging example |
