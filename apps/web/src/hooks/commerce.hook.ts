@@ -45,7 +45,7 @@ type HookResult<T> = T & { error: Error | null; loading: boolean };
  * Without a client nothing is read and the placeholder stays.
  */
 function useCachedRead<T>(client: RetailTwinClient | undefined, key: string, read: () => Promise<T>, placeholder: T): HookResult<T> {
-  const { reads, results, errors } = cacheOf(client ?? demoClient);
+  const { results, errors } = cacheOf(client ?? demoClient);
   const [state, setState] = useState<{ data: T; error: Error | null; loading: boolean }>(() => ({
     data: (results.get(key) as T | undefined) ?? placeholder,
     error: errors.get(key) ?? null,
