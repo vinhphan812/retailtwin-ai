@@ -47,6 +47,7 @@ class JsonFormatter(logging.Formatter):
         import json
         from datetime import datetime, timezone
 
+        # Capture standard structured fields from the record
         payload = {
             "message": record.getMessage(),
             "severity": record.levelname,
@@ -63,6 +64,10 @@ class JsonFormatter(logging.Formatter):
             "logger": record.name,
             "level": record.levelname,
         }
+        # Forward extra fields (event_id, sku, store_id, etc.) into the output
+        for k, v in record.__dict__.items():
+            if k not in payload and not k.startswith("_"):
+                payload[k] = v
         return json.dumps({k: v for k, v in payload.items() if v is not None}, separators=(",", ":"))
 
 
