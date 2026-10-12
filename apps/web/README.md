@@ -184,7 +184,7 @@ Under `memory` and `demo`, the console also drives simulations (`core/twin/memor
 | `store.ts` | a product on every kind of fixture that holds stock, some out of stock or low | the twin source |
 | `checkouts.ts` | three lanes (open, paused, closed) and today's sales with receipt lines, from a fixed price list | `useCheckoutSummary`, `useCheckoutTransactions` |
 | `commerce.ts` | Revenue for every window (today adds up the checkout sales) and Promotions in every status | `useRevenue`, `usePromotions` through `demoClient` |
-| `simulation.ts` | `sim-demo-001`: restock P003, one more facing for P004, and P007 moved from B02-S20 to B02-S22 | `twin.store.simulation` on load; `twin.simulate()` in the console |
+| `simulation.ts` | `sim-demo-001`: restock P003, one more facing for P004, P007 moved from B02-S20 to B02-S22, and the well-stocked P008 (C01-S21 → A02-S22) and P005 (A03-S22 → B01-S22) moved to another gondola, so a move shows a full facing travel | `twin.store.simulation` on load; `twin.simulate()` in the console |
 | `anomalies.ts` | open anomalies that agree with the demo store's stock: stockouts and low stock where the shelf says so, and sales drops on full shelves, so a halo shows at every severity | `anomaly.store` on load; `twin.anomalies()`, `twin.raise()` in the console |
 
 The figures agree with each other: a lane's card adds up its sales, each sale its receipt lines, and today's revenue the lanes. Everything else still reads `apps/api`. Without `?twin=demo`, and in tests, none of it is used. The whole demo is one commit, so it can be reverted on its own.

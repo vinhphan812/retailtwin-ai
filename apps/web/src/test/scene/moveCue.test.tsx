@@ -25,6 +25,15 @@ const live = demoStoreState();
 const simulation = demoSimulation(live);
 const simulated = toSceneStore(simulation.state).store;
 
+/** The demo moves P005, P007 and P008; each lights its source and destination slot. */
+const MOVED = ["P005", "P007", "P008"];
+const MOVED_SLOTS = 2 * MOVED.length;
+/** Items of the moved products drawn in `state`: the ghost draws the same ones at the source. */
+const movedUnits = (state: typeof live) =>
+  Object.values(buildStock(toSceneStore(state).store))
+    .flat()
+    .filter((item) => MOVED.includes(item.productId)).length;
+
 /** Where the simulation puts each P007 item. */
 const p007AtState = Object.values(buildStock(simulated))
   .flat()
@@ -36,11 +45,12 @@ describe("moveCueOf", () => {
 
   it("offsets P007 from B02-S22 back to B02-S20, lights both slots and keeps a ghost of the source", () => {
     const cue = moveCueOf(simulated, change)!;
-    expect([...cue.offsets.keys()]).toEqual(["P007"]);
+    expect([...cue.offsets.keys()]).toEqual(MOVED);
     const offset = cue.offsets.get("P007")!;
     expect(offset.length()).toBeGreaterThan(0.1);
-    expect(cue.slots).toHaveLength(2);
-    expect(cue.ghost.products).toEqual([expect.objectContaining({ productId: "P007", slotId: "B02-S20" })]);
+    expect(cue.slots).toHaveLength(MOVED_SLOTS);
+    expect(cue.ghost.products).toContainEqual(expect.objectContaining({ productId: "P007", slotId: "B02-S20" }));
+    expect(cue.ghost.products.map((product) => product.productId).sort()).toEqual(MOVED);
   });
 
   it("shows nothing when the scene does not have the product where the move put it", () => {
@@ -122,9 +132,8 @@ describe("move cue in the scene", () => {
 
     await scene.run(() => useUiStore.getState().setViewMode(VIEW_MODE.Simulation));
     const start = now;
-    expect(scene.find("stock-moved-slots")[0].count).toBe(2);
-    const ghost = live.products.find((product) => product.sku === "P007")!;
-    expect(scene.find("stock-ghost-").reduce((sum, mesh) => sum + mesh.count, 0)).toBe(ghost.shelf_quantity);
+    expect(scene.find("stock-moved-slots")[0].count).toBe(MOVED_SLOTS);
+    expect(scene.find("stock-ghost-").reduce((sum, mesh) => sum + mesh.count, 0)).toBe(movedUnits(live));
 
     await scene.frameAt(start + MOVE_TWEEN_MS / 2);
     expect(scene.p007()).toHaveLength(p007AtState.length);
@@ -149,9 +158,8 @@ describe("move cue in the scene", () => {
     await scene.run(() => useUiStore.getState().setViewMode(VIEW_MODE.Simulation));
     now += 60_000;
     await scene.run(() => useUiStore.getState().setViewMode(VIEW_MODE.Live));
-    expect(scene.find("stock-moved-slots")[0].count).toBe(2);
-    const ghost = simulation.state.products.find((product) => product.sku === "P007")!;
-    expect(scene.find("stock-ghost-").reduce((sum, mesh) => sum + mesh.count, 0)).toBe(ghost.shelf_quantity);
+    expect(scene.find("stock-moved-slots")[0].count).toBe(MOVED_SLOTS);
+    expect(scene.find("stock-ghost-").reduce((sum, mesh) => sum + mesh.count, 0)).toBe(movedUnits(simulation.state));
     const inLive = Object.values(buildStock(toSceneStore(live).store))
       .flat()
       .filter((item) => item.productId === "P007")
@@ -168,7 +176,7 @@ describe("move cue in the scene", () => {
   it("cues a move that comes in on the live feed", async () => {
     const scene = await renderScene();
     await scene.run(() => useTwinStore.getState().setLive(simulation.state));
-    expect(scene.find("stock-moved-slots")[0].count).toBe(2);
+    expect(scene.find("stock-moved-slots")[0].count).toBe(MOVED_SLOTS);
     await scene.frameAt(now + MOVE_TWEEN_MS);
     expect(atState(scene.p007())).toBe(true);
   });
@@ -179,10 +187,9 @@ describe("move cue in the scene", () => {
     now += 60_000;
     await scene.run(() => useTwinStore.getState().setLive(live));
     const back = useTwinStore.getState().liveChange?.diff.moved;
-    expect(back).toEqual([
-      { sku: "P007", from: { shelf_id: "B02", slot_id: "B02-S22" }, to: { shelf_id: "B02", slot_id: "B02-S20" } },
-    ]);
-    expect(scene.find("stock-moved-slots")[0].count).toBe(2);
+    expect(back?.map((move) => move.sku)).toEqual(MOVED);
+    expect(back).toContainEqual({ sku: "P007", from: { shelf_id: "B02", slot_id: "B02-S22" }, to: { shelf_id: "B02", slot_id: "B02-S20" } });
+    expect(scene.find("stock-moved-slots")[0].count).toBe(MOVED_SLOTS);
     const original = Object.values(buildStock(toSceneStore(live).store))
       .flat()
       .filter((item) => item.productId === "P007")
