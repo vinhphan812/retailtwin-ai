@@ -169,5 +169,8 @@ def list_agent_events(
     repository: SimulationReadRepository = Depends(get_simulations),
 ) -> AgentEventListResponse:
     require_simulations(repository)
-    events, cursor = repository.list_agent_events(CursorParameters(since=since, limit=limit))
+    try:
+        events, cursor = repository.list_agent_events(CursorParameters(since=since, limit=limit))
+    except ValueError as exc:
+        raise ApiError(422, "invalid_cursor", str(exc)) from exc
     return AgentEventListResponse(events=events, cursor=cursor)

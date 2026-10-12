@@ -55,7 +55,7 @@ class InMemorySimulationRepository:
             self._candidates.setdefault(item.simulation_id, []).append(item.model_copy(deep=True))
         self._agent_events = sorted(
             (item.model_copy(deep=True) for item in agent_events),
-            key=lambda item: (item.occurred_at, item.event_id),
+            key=lambda item: (item.ts, item.id),
         )
 
     @property
@@ -124,7 +124,9 @@ class InMemorySimulationRepository:
                 try:
                     start = int(cursor.since)
                 except ValueError:
-                    start = 0
+                    raise ValueError(f"Invalid cursor value {cursor.since!r}: must be a non-negative integer.") from None
+                if start < 0:
+                    raise ValueError(f"Invalid cursor value {cursor.since!r}: must be a non-negative integer.") from None
             window = self._agent_events[start : start + cursor.limit]
             offset = start + len(window)
             next_cursor = str(offset) if offset < len(self._agent_events) else None

@@ -62,11 +62,10 @@ def _repository() -> InMemorySimulationRepository:
         created_at=first.created_at,
     )
     event = AgentActivityEntry(
-        event_id="activity-001",
-        occurred_at=first.created_at,
+        id="activity-001",
+        ts=first.created_at,
         stage=ControlStage.SIMULATE,
         status="completed",
-        agent_id="agent-001",
         correlation_id="corr-001",
         run_id="run-001",
         simulation_id="sim-001",
@@ -141,11 +140,13 @@ def test_agent_events_are_cursor_paginated_and_include_focus_fields(simulation_c
     assert response.status_code == 200
     assert response.json() == {
         "events": [{
-            "event_id": "activity-001", "occurred_at": "2026-10-11T23:59:00Z",
-            "stage": "SIMULATE", "status": "completed", "agent_id": "agent-001",
-            "correlation_id": "corr-001", "run_id": "run-001", "decision_id": None,
+            "id": "activity-001", "ts": "2026-10-11T23:59:00Z",
+            "stage": "SIMULATE", "status": "completed",
+            "correlation_id": "corr-001", "run_id": "run-001",
+            "decision": None,
             "simulation_id": "sim-001", "action_id": None, "sku": "P001",
             "shelf_id": "A01", "slot_id": "A01-S01",
+            "focus": None,
             "summary": "Simulation completed for SKU P001",
         }],
         "cursor": None,
@@ -183,13 +184,25 @@ def test_dtos_reject_missing_provenance_and_invalid_cursor() -> None:
         CursorParameters(since="", limit=0)
 
 
-def test_repository_handles_non_numeric_cursor_and_cursor_continuation() -> None:
-    repository = _repository()
-    from retailtwin_api.simulation_schemas import CursorParameters
+def test_repository_raises_on_invalid_cursor(simulation_client) -> None:
+    response = simulation_client.get("/agent/events", params={"since": "invalid", "limit": 1})
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "invalid_cursor"
 
-    events, cursor = repository.list_agent_events(CursorParameters(since="invalid", limit=1))
-    assert [item.event_id for item in events] == ["activity-001"]
-    assert cursor is None
+
+def test_repository_raises_on_negative_cursor(simulation_client) -> None:
+    response = simulation_client.get("/agent/events", params={"since": "-1", "limit": 1})
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "invalid_cursor"
+
+
+def test_repository_continues_from_valid_cursor(simulation_client) -> None:
+    # First page
+    first_page = simulation_client.get("/agent/events", params={"limit": 1})
+    assert first_page.status_code == 200
+    assert len(first_page.json()["events"]) == 1
+    cursor = first_page.json()["cursor"]
+    assert cursor is None  # only 1 event total
 
 
 def test_open_list_excludes_closed_simulations() -> None:
@@ -210,8 +223,8 @@ def test_repository_filters_exact_status_and_paginates_candidates_and_events() -
         provenance="kpi-evaluator", created_at=first.created_at,
     )
     event = AgentActivityEntry(
-        event_id="activity-2", occurred_at=first.updated_at, stage=ControlStage.PLAN,
-        status="started", agent_id="agent-001", correlation_id="corr-002",
+        id="activity-2", ts=first.updated_at, stage=ControlStage.PLAN,
+        status="started", correlation_id="corr-002",
         summary="Planning stage started",
     )
     repository = InMemorySimulationRepository([first], [candidate, candidate], [_repository().list_agent_events(
@@ -223,7 +236,7 @@ def test_repository_filters_exact_status_and_paginates_candidates_and_events() -
     candidates = repository.list_candidates("sim-pending", PageParameters(page=1, page_size=1))
     assert candidates is not None and candidates.next_cursor == "2"
     events, cursor = repository.list_agent_events(CursorParameters(since="1", limit=1))
-    assert [item.event_id for item in events] == ["activity-2"]
+    assert [item.id for item in events] == ["activity-2"]
     assert cursor is None
 
 

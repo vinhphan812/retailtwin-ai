@@ -88,19 +88,19 @@ class AgentActivityEntry(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    event_id: str = Field(min_length=1)
-    occurred_at: datetime
+    id: str = Field(min_length=1)
+    ts: datetime
     stage: ControlStage
     status: str = Field(min_length=1)
-    agent_id: str = Field(min_length=1)
     correlation_id: str = Field(min_length=1)
     run_id: str | None = Field(default=None, min_length=1)
-    decision_id: str | None = Field(default=None, min_length=1)
+    decision: str | None = Field(default=None, min_length=1)
     simulation_id: str | None = Field(default=None, min_length=1)
     action_id: str | None = Field(default=None, min_length=1)
     sku: str | None = Field(default=None, min_length=1)
     shelf_id: str | None = Field(default=None, min_length=1)
     slot_id: str | None = Field(default=None, min_length=1)
+    focus: str | None = Field(default=None, min_length=1)
     summary: str | None = Field(default=None)
 
 
