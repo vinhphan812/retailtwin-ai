@@ -10,8 +10,11 @@ Introduce a provider-neutral interface `LLMProvider` in a new `services/ai` name
 2. **Implementation**:
     - `VertexAIProvider`: For production Vertex Gemini invocation.
     - `OpenAICompatibleProvider`: For dev/local OpenAI or compatible endpoints (e.g., local LLM servers).
-3. **Configuration**: Use `Settings` (Pydantic) to switch provider based on `LLM_PROVIDER` env var.
-4. **Agent Refactoring**: Agents call `LLMProvider`, not the concrete SDKs directly.
+3. **Configuration**: Use `Settings` (Pydantic) to switch provider based on `LLM_PROVIDER` env var:
+    - **Development / local**: `LLM_PROVIDER=openai_compatible`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`
+    - **Production (Vertex AI)**: `LLM_PROVIDER=vertex_gemini`, `LLM_MODEL`, `GOOGLE_CLOUD_PROJECT=retailtwin-ai-511002`, `GOOGLE_CLOUD_LOCATION=us-central1`
+4. **Production auth**: Vertex AI authentication uses Application Default Credentials (ADC) via the Cloud Run service identity. Service-account key files are never used in production.
+5. **Agent Refactoring**: Agents call `LLMProvider`, not the concrete SDKs directly.
 
 ## Consequences
 - Agents are decoupled from specific SDKs.
