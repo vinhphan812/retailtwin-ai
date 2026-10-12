@@ -16,7 +16,10 @@ Introduce a provider-neutral interface `LLMProvider` in `services/ai`.
 2. **Implementation (Future)**:
     - `VertexAIProvider`: Production implementation.
     - `OpenAICompatibleProvider`: Development/Testing implementation.
-3. **Configuration**: Aligned to #85. Use `LLM_RUNTIME` settings for provider selection.
+3. **Configuration**: Aligned to #85. Use the following settings for provider selection:
+    - Development: `LLM_PROVIDER=openai_compatible`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`
+    - Production: `LLM_PROVIDER=vertex_gemini`, `LLM_MODEL`, `GOOGLE_CLOUD_PROJECT=retailtwin-ai-511002`, `GOOGLE_CLOUD_LOCATION=us-central1`
+    - Production Vertex auth uses ADC / Cloud Run service identity, never service-account keys.
 
 ## Consequences
 - Agents are decoupled from specific SDKs, improving maintainability.
