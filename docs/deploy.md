@@ -7,8 +7,9 @@ Prerequisites: Docker, Google Cloud SDK (`gcloud`), an active GCP project with b
 enabled and the **Cloud Run API** enabled.
 
 > **Security posture:** non-root container (UID 10001), no service-account key files,
-> no secrets baked in, no IAM widening. The default Compute Engine service account
-> is used (Cloud Run-managed, short-lived tokens). Secrets live in Secret Manager
+> no secrets baked in. A dedicated runtime service account
+> (`retailtwin-api@retailtwin-ai-511002.iam.gserviceaccount.com`) is used so IAM
+> permissions are scoped to this service alone. Secrets live in Secret Manager
 > and are injected at runtime via `--set-secrets`.
 
 ---
@@ -16,23 +17,23 @@ enabled and the **Cloud Run API** enabled.
 ## 1. Build and Push the Container
 
 ```bash
-# Authenticate Docker to GCR (one-time)
-gcloud auth configure-docker gcr.io
+# Authenticate Docker to Artifact Registry (one-time)
+gcloud auth configure-docker us-central1-docker.pkg.dev
 
 # Build (from repo root)
 docker build -t retailtwin-api:local .
 
-# Tag for GCR
+# Tag for Artifact Registry
 docker tag retailtwin-api:local \
-  gcr.io/retailtwin-ai-511002/retailtwin-api:t_1821a674
+  us-central1-docker.pkg.dev/retailtwin-ai-511002/retailtwin/retailtwin-api:t_1821a674
 
 # Push
-docker push gcr.io/retailtwin-ai-511002/retailtwin-api:t_1821a674
+docker push us-central1-docker.pkg.dev/retailtwin-ai-511002/retailtwin/retailtwin-api:t_1821a674
 ```
 
 Expected output:
 ```
-The push refers to repository [gcr.io/retailtwin-ai-511002/retailtwin-api]
+The push refers to repository [us-central1-docker.pkg.dev/retailtwin-ai-511002/retailtwin/retailtwin-api]
 …
 t_1821a674: digest: sha256:<IMAGE_DIGEST> size: 856
 ```
@@ -43,10 +44,11 @@ t_1821a674: digest: sha256:<IMAGE_DIGEST> size: 856
 
 ```bash
 gcloud run deploy retailtwin-api \
-  --image gcr.io/retailtwin-ai-511002/retailtwin-api:t_1821a674 \
+  --image us-central1-docker.pkg.dev/retailtwin-ai-511002/retailtwin/retailtwin-api:t_1821a674 \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated \
+  --service-account retailtwin-api@retailtwin-ai-511002.iam.gserviceaccount.com \
   --port 8080 \
   --min-instances 0 \
   --max-instances 10 \
@@ -54,6 +56,12 @@ gcloud run deploy retailtwin-api \
   --cpu 1 \
   --timeout 60
 ```
+
+> **Day-0 access decision:** `--allow-unauthenticated` is intentional — it opens the
+> service to public internet access without an Identity-Aware Proxy gate. Restrict
+> to internal traffic only (`--no-allow-unauthenticated`) or add an IAP/Cloud Armor
+> policy once the service is validated. This is a deliberate Day-0 posture, not an
+> oversight; track hardening in issue #34.
 
 Expected output:
 ```
@@ -120,8 +128,8 @@ gcloud run revisions describe retailtwin-api-00001-wz4 \
 ```
 name: retailtwin-api-00001-wz4
 creationTimestamp: '2026-10-12T07:53:19.600983Z'
-Image: gcr.io/retailtwin-ai-511002/retailtwin-api@sha256:97a6d04…
-Service account: 537192856637-compute@developer.gserviceaccount.com
+Image: us-central1-docker.pkg.dev/retailtwin-ai-511002/retailtwin/retailtwin-api@sha256:97a6d04…
+Service account: retailtwin-api@retailtwin-ai-511002.iam.gserviceaccount.com
 ```
 
 ---
@@ -159,13 +167,14 @@ deploy-cloud-run:
     - uses: docker/build-push-action@v5
       with:
         push: true
-        tags: gcr.io/retailtwin-ai-511002/retailtwin-api:${{ github.sha }}
+        tags: us-central1-docker.pkg.dev/retailtwin-ai-511002/retailtwin/retailtwin-api:${{ github.sha }}
     - name: Deploy to Cloud Run
       uses: google-github-actions/deploy-cloudrun@v2
       with:
         service: retailtwin-api
         region: us-central1
-        image: gcr.io/retailtwin-ai-511002/retailtwin-api:${{ github.sha }}
+        image: us-central1-docker.pkg.dev/retailtwin-ai-511002/retailtwin/retailtwin-api:${{ github.sha }}
+        service_account: retailtwin-api@retailtwin-ai-511002.iam.gserviceaccount.com
         allow_unauthenticated: true
         port: 8080
         memory: 512Mi
@@ -196,7 +205,7 @@ gcloud run services update-traffic retailtwin-api \
 
 - Multi-service mesh / Istio hardening — tracked in issue #34
 - Service-account key file creation — use workload identity federation instead
-- IAM permission widening beyond the default Cloud Run service account
+- Hardening `--allow-unauthenticated` to IAP/Cloud Armor — tracked in issue #34
 - Hardcoded secrets in environment variables — use Secret Manager with
   `--set-secrets STORE_FIXTURE_PATH=store-fixture:latest`
 
