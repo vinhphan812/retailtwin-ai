@@ -13,7 +13,8 @@ import { demoStoreState } from "@/fixtures/demo/store";
 import { toSceneStore } from "@/scene/layout";
 import { TwinStoreContents } from "@/scene/StoreScene";
 import { buildStock } from "@/scene/entities/stock/Stock";
-import { moveCueOf, moveProgress, tweenMatrix } from "@/scene/entities/stock/moveCue";
+import { cueFade, ghostOutlines, moveCueOf, moveProgress, tweenMatrix } from "@/scene/entities/stock/moveCue";
+import { CHANGE_CUE_MS } from "@/constants/twin.constant";
 import { useTwinStore } from "@/state/twin.store";
 import { useUiStore } from "@/state/ui.store";
 
@@ -28,11 +29,6 @@ const simulated = toSceneStore(simulation.state).store;
 /** The demo moves P005, P007 and P008; each lights its source and destination slot. */
 const MOVED = ["P005", "P007", "P008"];
 const MOVED_SLOTS = 2 * MOVED.length;
-/** Items of the moved products drawn in `state`: the ghost draws the same ones at the source. */
-const movedUnits = (state: typeof live) =>
-  Object.values(buildStock(toSceneStore(state).store))
-    .flat()
-    .filter((item) => MOVED.includes(item.productId)).length;
 
 /** Where the simulation puts each P007 item. */
 const p007AtState = Object.values(buildStock(simulated))
@@ -56,6 +52,28 @@ describe("moveCueOf", () => {
   it("shows nothing when the scene does not have the product where the move put it", () => {
     expect(moveCueOf(toSceneStore(live).store, change)).toBeNull();
     expect(moveCueOf(simulated, null)).toBeNull();
+  });
+
+  it("outlines each moved product once, around every item it had at its source", () => {
+    const cue = moveCueOf(simulated, change)!;
+    const items = Object.values(buildStock(cue.ghost)).flat();
+    const outlines = ghostOutlines(cue, items);
+    expect(outlines).toHaveLength(MOVED.length);
+    for (const item of items) {
+      const center = new Vector3().setFromMatrixPosition(item.matrix);
+      const inside = outlines.some((outline) => {
+        const local = center.clone().applyMatrix4(outline.clone().invert());
+        return Math.max(Math.abs(local.x), Math.abs(local.y), Math.abs(local.z)) <= 0.5 + 1e-6;
+      });
+      expect(inside, item.productId).toBe(true);
+    }
+  });
+
+  it("holds the outline and lights while the items travel, then fades them out by the end of the cue", () => {
+    expect(cueFade(1000, 1000)).toBe(1);
+    expect(cueFade(1000, 1000 + MOVE_TWEEN_MS)).toBe(1);
+    expect(cueFade(1000, 1000 + (MOVE_TWEEN_MS + CHANGE_CUE_MS) / 2)).toBeCloseTo(0.5);
+    expect(cueFade(1000, 1000 + CHANGE_CUE_MS)).toBe(0);
   });
 
   it("tweens from the source to exactly the state position", () => {
@@ -133,7 +151,7 @@ describe("move cue in the scene", () => {
     await scene.run(() => useUiStore.getState().setViewMode(VIEW_MODE.Simulation));
     const start = now;
     expect(scene.find("stock-moved-slots")[0].count).toBe(MOVED_SLOTS);
-    expect(scene.find("stock-ghost-").reduce((sum, mesh) => sum + mesh.count, 0)).toBe(movedUnits(live));
+    expect(scene.find("stock-ghost-outline")).toHaveLength(MOVED.length);
 
     await scene.frameAt(start + MOVE_TWEEN_MS / 2);
     expect(scene.p007()).toHaveLength(p007AtState.length);
@@ -159,7 +177,7 @@ describe("move cue in the scene", () => {
     now += 60_000;
     await scene.run(() => useUiStore.getState().setViewMode(VIEW_MODE.Live));
     expect(scene.find("stock-moved-slots")[0].count).toBe(MOVED_SLOTS);
-    expect(scene.find("stock-ghost-").reduce((sum, mesh) => sum + mesh.count, 0)).toBe(movedUnits(simulation.state));
+    expect(scene.find("stock-ghost-outline")).toHaveLength(MOVED.length);
     const inLive = Object.values(buildStock(toSceneStore(live).store))
       .flat()
       .filter((item) => item.productId === "P007")

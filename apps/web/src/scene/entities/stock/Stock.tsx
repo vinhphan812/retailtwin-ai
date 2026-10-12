@@ -5,7 +5,9 @@ import {
   BoxGeometry,
   Color,
   CylinderGeometry,
+  EdgesGeometry,
   IcosahedronGeometry,
+  LineBasicMaterial,
   Matrix4,
   MeshStandardMaterial,
   Quaternion,
@@ -29,7 +31,7 @@ import {
   MOVE_SLOT_OPACITY,
   SELECTION_ITEM_GLOW,
 } from "@/constants/scene.constant";
-import { anomalyColor, selectionColor } from "@/core/utils/theme";
+import { anomalyColor, changeColor, selectionColor } from "@/core/utils/theme";
 import { ENTITY_TYPE, STOCK_KIND } from "@/enums/scene.enum";
 import { isDrag } from "@/scene/utils/pointer";
 import type {
@@ -434,17 +436,31 @@ function AnomalyMesh({
   );
 }
 
-/** What a moved product left at its source slot, see-through. Takes no pointer events and casts no shadow. */
-function GhostMesh({ shape, items }: { shape: StockShape; items: Placed[] }) {
-  const ref = useInstances(items);
-  if (items.length === 0) return null;
+/** A thin outline where each moved product stood. Takes no pointer events and casts no shadow. */
+function GhostOutlines({ matrices }: { matrices: Matrix4[] }) {
+  const placements = useMemo(
+    () =>
+      matrices.map((matrix) => {
+        const position = new Vector3();
+        const quaternion = new Quaternion();
+        const scale = new Vector3();
+        matrix.decompose(position, quaternion, scale);
+        return { position, quaternion, scale };
+      }),
+    [matrices],
+  );
   return (
-    <instancedMesh
-      ref={ref}
-      args={[GEOMETRY[shape], moveGhostMaterial(), items.length]}
-      name={`stock-ghost-${shape}`}
-      renderOrder={1}
-    />
+    <>
+      {placements.map((placement, index) => (
+        <lineSegments
+          key={index}
+          name="stock-ghost-outline"
+          args={[OUTLINE_GEOMETRY, moveGhostMaterial()]}
+          {...placement}
+          renderOrder={1}
+        />
+      ))}
+    </>
   );
 }
 
@@ -469,7 +485,6 @@ function SlotLights({ matrices }: { matrices: Matrix4[] }) {
   );
 }
 
-const NO_BATCHES: Batches = { box: [], cylinder: [], sphere: [] };
 const NO_SLOTS: Matrix4[] = [];
 
 /** The items of `batches` whose product passes `keep`, per shape. */
@@ -486,8 +501,9 @@ function pick(batches: Batches, keep: (productId: string) => boolean) {
  * The Simulation view shows no halos (`useShownAnomalies`).
  *
  * A recent move (`useRecentChanges`) carries the product's items from its source slot to
- * its destination, leaves a ghost of it at the source, and lights both slots. With reduced
- * motion the items stand at the destination from the start; the ghost and lights still show.
+ * its destination, outlines where it stood, and lights both slots; the outline and lights
+ * fade out once the items have arrived. With reduced motion the items stand at the
+ * destination from the start, and the outline and lights hold still until the cue ends.
  */
 export function Stock({ store }: { store: StoreFixture }) {
   const batches = useMemo(() => buildStock(store), [store]);
@@ -507,10 +523,14 @@ export function Stock({ store }: { store: StoreFixture }) {
   const motion = useMemo(() => !prefersReducedMotion(), []);
   const change = useRecentChanges();
   const move = useMemo(() => moveCueOf(store, change), [store, change]);
-  const ghost = useMemo(() => (move ? buildStock(move.ghost) : NO_BATCHES), [move]);
+  const outlines = useMemo(
+    () => (move ? ghostOutlines(move, Object.values(buildStock(move.ghost)).flat()) : NO_SLOTS),
+    [move],
+  );
   const tween = motion ? move : null;
   useFrame(({ clock }) => {
     if (motion && anomalies.length) pulseHalos(Math.sin(clock.elapsedTime * Math.PI * 2 * ANOMALY_PULSE_HZ));
+    if (move) fadeMoveCue(motion ? cueFade(move.at, Date.now()) : 1);
   });
 
   return (
@@ -537,9 +557,7 @@ export function Stock({ store }: { store: StoreFixture }) {
           />
         )),
       )}
-      {SHAPES.map((shape) => (
-        <GhostMesh key={`ghost-${shape}`} shape={shape} items={ghost[shape]} />
-      ))}
+      <GhostOutlines matrices={outlines} />
       <SlotLights matrices={move?.slots ?? NO_SLOTS} />
     </group>
   );
