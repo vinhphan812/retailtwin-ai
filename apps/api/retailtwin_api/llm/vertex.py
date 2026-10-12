@@ -117,7 +117,7 @@ def _normalize_vertex_tool_calls(
                     )
                 tool_calls.append(
                     LlmToolCall(
-                        id=fc.get("name", "unknown"),
+                        id=fc.get("id", ""),
                         name=fc["name"],
                         arguments=args,
                     )

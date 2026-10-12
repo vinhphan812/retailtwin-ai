@@ -111,7 +111,7 @@ def test_openai_adapter_success_mock(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
     provider = create_provider(
         LlmConfig(
-            provider="openai",
+            provider="openai_compatible",
             model="gpt-4",
             api_key="test-key",
             base_url="https://example.test/v1/",
@@ -362,7 +362,7 @@ def test_openai_adapter_maps_429_to_rate_limit_error(monkeypatch: pytest.MonkeyP
 
 def test_vertex_requires_project_id() -> None:
     with pytest.raises(ConfigurationError, match="project_id"):
-        create_provider(LlmConfig(provider="vertex", model="gemini-2.5-flash"))
+        create_provider(LlmConfig(provider="vertex_gemini", model="gemini-2.5-flash"))
 
 
 def test_vertex_builds_correct_endpoint() -> None:
@@ -534,7 +534,7 @@ def test_vertex_malformed_tool_args_raises(monkeypatch: pytest.MonkeyPatch) -> N
 def test_openai_requires_base_url_or_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("LLM_BASE_URL", raising=False)
     with pytest.raises(ConfigurationError, match="LLM_BASE_URL"):
-        create_provider(LlmConfig(provider="openai", model="gpt-4", api_key="key"))
+        create_provider(LlmConfig(provider="openai_compatible", model="gpt-4", api_key="key"))
 
 
 def test_openai_uses_base_url_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -549,7 +549,7 @@ def test_openai_uses_base_url_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
 
-    provider = create_provider(LlmConfig(provider="openai", model="gpt-4", api_key="key"))
+    provider = create_provider(LlmConfig(provider="openai_compatible", model="gpt-4", api_key="key"))
 
     asyncio.run(provider.complete(make_request()))
     assert client.calls[0][0] == ("https://my-endpoint.example/v1/chat/completions",)
@@ -568,7 +568,7 @@ def test_openai_explicit_base_url_overrides_env(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: client)
 
     provider = create_provider(
-        LlmConfig(provider="openai", model="gpt-4", api_key="key", base_url="https://explicit.example/v1")
+        LlmConfig(provider="openai_compatible", model="gpt-4", api_key="key", base_url="https://explicit.example/v1")
     )
 
     asyncio.run(provider.complete(make_request()))
@@ -581,8 +581,8 @@ def test_openai_explicit_base_url_overrides_env(monkeypatch: pytest.MonkeyPatch)
 @pytest.mark.parametrize(
     "config",
     [
-        {"provider": "openai", "model": ""},
-        {"provider": "openai", "model": "gpt-4", "timeout": 0},
+        {"provider": "openai_compatible", "model": ""},
+        {"provider": "openai_compatible", "model": "gpt-4", "timeout": 0},
     ],
 )
 def test_config_rejects_invalid_values(config: dict[str, object]) -> None:

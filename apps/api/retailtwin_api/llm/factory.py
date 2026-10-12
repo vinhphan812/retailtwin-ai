@@ -12,12 +12,12 @@ from .vertex import VertexProvider
 class LlmConfig(BaseModel):
     """Configuration used to instantiate a provider adapter.
 
-    base_url for the ``openai`` provider is read from the ``LLM_BASE_URL``
+    base_url for the ``openai_compatible`` provider is read from the ``LLM_BASE_URL``
     environment variable when not explicitly provided.  No default is applied
     to avoid accidental routing to the public OpenAI API in production.
     """
 
-    provider: Literal["openai", "vertex"]
+    provider: Literal["openai_compatible", "vertex_gemini"]
     model: str = Field(min_length=1)
     base_url: str | None = None
     api_key: str | None = None
@@ -28,7 +28,7 @@ class LlmConfig(BaseModel):
 
 def create_provider(config: LlmConfig) -> LlmProvider:
     """Create the configured inference adapter without performing inference."""
-    if config.provider == "openai":
+    if config.provider == "openai_compatible":
         base_url = config.base_url
         if not base_url:
             import os
@@ -36,7 +36,7 @@ def create_provider(config: LlmConfig) -> LlmProvider:
             if not base_url:
                 raise ConfigurationError(
                     "LLM_BASE_URL environment variable or base_url config field is required "
-                    "for the 'openai' provider.  No default is provided."
+                    "for the 'openai_compatible' provider.  No default is provided."
                 )
 
         return OpenAiCompatibleProvider(
@@ -47,7 +47,7 @@ def create_provider(config: LlmConfig) -> LlmProvider:
         )
 
     if not config.project_id:
-        raise ConfigurationError("project_id is required for the Vertex provider")
+        raise ConfigurationError("project_id is required for the vertex_gemini provider")
 
     return VertexProvider(
         project_id=config.project_id,
