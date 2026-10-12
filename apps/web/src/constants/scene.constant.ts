@@ -65,3 +65,9 @@ export const MOVE_GHOST_OPACITY = 0.85;
 /** Emissive strength and opacity of the light over a moved product's source and destination slots. */
 export const MOVE_SLOT_GLOW = 0.9;
 export const MOVE_SLOT_OPACITY = 0.4;
+/** How high a moved product's items rise midway through their tween, in meters. */
+export const MOVE_ARC_HEIGHT = 0.18;
+/** How much of its light a slot hands over during a move: the source dims and the destination brightens by this share. */
+export const MOVE_SLOT_HANDOFF = 0.7;
+/** Extra glow on the destination slot the moment the items land, fading with the marks. */
+export const MOVE_ARRIVAL_FLASH = 1.5;

@@ -465,8 +465,8 @@ function GhostOutlines({ matrices }: { matrices: Matrix4[] }) {
   );
 }
 
-/** A light over the source and destination slot of each move. */
-function SlotLights({ matrices }: { matrices: Matrix4[] }) {
+/** A light over the source or destination slot of each move. */
+function SlotLights({ matrices, end }: { matrices: Matrix4[]; end: SlotEnd }) {
   const ref = useRef<InstancedMesh>(null);
   useLayoutEffect(() => {
     const mesh = ref.current;
@@ -479,8 +479,8 @@ function SlotLights({ matrices }: { matrices: Matrix4[] }) {
   return (
     <instancedMesh
       ref={ref}
-      args={[GEOMETRY[STOCK_SHAPE.Box], moveSlotMaterial(), matrices.length]}
-      name="stock-moved-slots"
+      args={[GEOMETRY[STOCK_SHAPE.Box], moveSlotMaterial(end), matrices.length]}
+      name={`stock-moved-slots-${end}`}
       renderOrder={1}
     />
   );
@@ -501,10 +501,11 @@ function pick(batches: Batches, keep: (productId: string) => boolean) {
  * gets a halo; only products in the twin state are drawn, so a stale anomaly shows nothing.
  * The Simulation view shows no halos (`useShownAnomalies`).
  *
- * A recent move (`useRecentChanges`) carries the product's items from its source slot to
- * its destination, outlines where it stood, and lights both slots; the outline and lights
- * go the moment the items arrive (`marksShown`). With reduced motion the items stand at
- * the destination from the start, and the outline and lights show for as long.
+ * A recent move (`useRecentChanges`) carries the product's items on an arc from its source
+ * slot to its destination, outlines where it stood, and lights both slots: the light hands
+ * over from source to destination as the items travel, flashes when they land, and fades
+ * out (`markLevels`, `marksShown`). With reduced motion the items stand at the destination
+ * from the start, and the outline and lights hold still for as long as the tween would take.
  */
 export function Stock({ store }: { store: StoreFixture }) {
   const batches = useMemo(() => buildStock(store), [store]);
@@ -532,7 +533,10 @@ export function Stock({ store }: { store: StoreFixture }) {
   const marks = useRef<Group>(null);
   useFrame(({ clock }) => {
     if (motion && anomalies.length) pulseHalos(Math.sin(clock.elapsedTime * Math.PI * 2 * ANOMALY_PULSE_HZ));
-    if (marks.current) marks.current.visible = move !== null && marksShown(move.at, Date.now());
+    const now = Date.now();
+    const shown = move !== null && marksShown(move.at, now, motion);
+    if (marks.current) marks.current.visible = shown;
+    if (shown) showMarks(motion ? markLevels(move.at, now) : STEADY_MARKS);
   });
 
   return (
@@ -561,7 +565,8 @@ export function Stock({ store }: { store: StoreFixture }) {
       )}
       <group ref={marks} name="stock-move-marks">
         <GhostOutlines matrices={outlines} />
-        <SlotLights matrices={move?.slots ?? NO_SLOTS} />
+        <SlotLights matrices={move?.fromSlots ?? NO_SLOTS} end="from" />
+        <SlotLights matrices={move?.toSlots ?? NO_SLOTS} end="to" />
       </group>
     </group>
   );

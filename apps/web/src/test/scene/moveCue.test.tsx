@@ -4,7 +4,8 @@ import { act, cleanup, render, screen } from "@testing-library/react";
 import { Matrix4, Vector3, type InstancedMesh, type Object3D } from "three";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProductInspector } from "@/components/twin/ProductInspector";
-import { MOVE_TWEEN_MS } from "@/constants/twin.constant";
+import { MOVE_ARC_HEIGHT } from "@/constants/scene.constant";
+import { MOVE_MARK_IN_MS, MOVE_MARK_OUT_MS, MOVE_TWEEN_MS } from "@/constants/twin.constant";
 import { diffStates } from "@/core/twin/stateDiff";
 import { TWIN_STATUS } from "@/enums/twin.enum";
 import { VIEW_MODE } from "@/enums/ui.enum";
@@ -13,7 +14,7 @@ import { demoStoreState } from "@/fixtures/demo/store";
 import { toSceneStore } from "@/scene/layout";
 import { TwinStoreContents } from "@/scene/StoreScene";
 import { buildStock } from "@/scene/entities/stock/Stock";
-import { ghostOutlines, marksShown, moveCueOf, moveProgress, tweenMatrix } from "@/scene/entities/stock/moveCue";
+import { ghostOutlines, markLevels, marksShown, moveCueOf, moveProgress, tweenMatrix } from "@/scene/entities/stock/moveCue";
 import { useTwinStore } from "@/state/twin.store";
 import { useUiStore } from "@/state/ui.store";
 
@@ -43,7 +44,8 @@ describe("moveCueOf", () => {
     expect([...cue.offsets.keys()]).toEqual(MOVED);
     const offset = cue.offsets.get("P007")!;
     expect(offset.length()).toBeGreaterThan(0.1);
-    expect(cue.slots).toHaveLength(MOVED_SLOTS);
+    expect(cue.fromSlots).toHaveLength(MOVED.length);
+    expect(cue.toSlots).toHaveLength(MOVED.length);
     expect(cue.ghost.products).toContainEqual(expect.objectContaining({ productId: "P007", slotId: "B02-S20" }));
     expect(cue.ghost.products.map((product) => product.productId).sort()).toEqual(MOVED);
   });
@@ -68,10 +70,30 @@ describe("moveCueOf", () => {
     }
   });
 
-  it("shows the outline and lights only while the items travel", () => {
+  it("shows the outline and lights while the items travel and as they fade out", () => {
     expect(marksShown(1000, 1000)).toBe(true);
-    expect(marksShown(1000, 1000 + MOVE_TWEEN_MS - 1)).toBe(true);
-    expect(marksShown(1000, 1000 + MOVE_TWEEN_MS)).toBe(false);
+    expect(marksShown(1000, 1000 + MOVE_TWEEN_MS)).toBe(true);
+    expect(marksShown(1000, 1000 + MOVE_TWEEN_MS + MOVE_MARK_OUT_MS)).toBe(false);
+    // Reduced motion has no fade: they go when the items would have arrived.
+    expect(marksShown(1000, 1000 + MOVE_TWEEN_MS - 1, false)).toBe(true);
+    expect(marksShown(1000, 1000 + MOVE_TWEEN_MS, false)).toBe(false);
+  });
+
+  it("fades the marks in, hands the light from source to destination, flashes on arrival and fades out", () => {
+    expect(markLevels(1000, 1000)).toEqual({ ghost: 0, from: 0, to: 0, flash: 0 });
+    const early = markLevels(1000, 1000 + MOVE_MARK_IN_MS);
+    expect(early.ghost).toBe(1);
+    expect(early.from).toBeGreaterThan(early.to);
+    const late = markLevels(1000, 1000 + MOVE_TWEEN_MS - 1);
+    expect(late.to).toBeGreaterThan(late.from);
+    expect(late.flash).toBe(0);
+    const landed = markLevels(1000, 1000 + MOVE_TWEEN_MS);
+    expect(landed.to).toBe(1);
+    expect(landed.flash).toBeGreaterThan(0);
+    const fading = markLevels(1000, 1000 + MOVE_TWEEN_MS + MOVE_MARK_OUT_MS / 2);
+    expect(fading.ghost).toBeCloseTo(0.5);
+    expect(fading.flash).toBeLessThan(landed.flash);
+    expect(markLevels(1000, 1000 + MOVE_TWEEN_MS + MOVE_MARK_OUT_MS)).toEqual({ ghost: 0, from: 0, to: 0, flash: 0 });
   });
 
   it("tweens from the source to exactly the state position", () => {
@@ -81,7 +103,10 @@ describe("moveCueOf", () => {
     expect(moveProgress(1000, 1000 + MOVE_TWEEN_MS / 2)).toBeCloseTo(0.5);
     expect(moveProgress(1000, 1000 + MOVE_TWEEN_MS * 3)).toBe(1);
     expect(new Vector3().setFromMatrixPosition(tweenMatrix(at, offset, 0)).toArray()).toEqual([-1, 2, 3]);
-    expect(new Vector3().setFromMatrixPosition(tweenMatrix(at, offset, 0.5)).x).toBeCloseTo(0);
+    const midway = new Vector3().setFromMatrixPosition(tweenMatrix(at, offset, 0.5));
+    expect(midway.x).toBeCloseTo(0);
+    // The items hop: highest midway, back on the shelf at both ends.
+    expect(midway.y).toBeCloseTo(2 + MOVE_ARC_HEIGHT);
     expect(tweenMatrix(at, offset, 1).equals(at)).toBe(true);
   });
 });
@@ -137,9 +162,11 @@ describe("move cue in the scene", () => {
       now = time;
       await renderer.advanceFrames(1, 0.016);
     };
+    /** How many slot lights are drawn, source and destination together. */
+    const slotLights = () => find("stock-moved-slots-").reduce((sum, mesh) => sum + mesh.count, 0);
     /** True while the outline and slot lights are drawn. */
     const marked = () => renderer.scene.instance.getObjectByName("stock-move-marks")?.visible === true;
-    return { find, p007, run, frameAt, marked };
+    return { find, p007, run, frameAt, marked, slotLights };
   }
 
   const atState = (drawn: Vector3[]) => drawn.every((point, index) => point.distanceTo(p007AtState[index]) < 1e-6);
@@ -150,7 +177,7 @@ describe("move cue in the scene", () => {
 
     await scene.run(() => useUiStore.getState().setViewMode(VIEW_MODE.Simulation));
     const start = now;
-    expect(scene.find("stock-moved-slots")[0].count).toBe(MOVED_SLOTS);
+    expect(scene.slotLights()).toBe(MOVED_SLOTS);
     expect(scene.find("stock-ghost-outline")).toHaveLength(MOVED.length);
 
     await scene.frameAt(start + MOVE_TWEEN_MS / 2);
@@ -158,9 +185,11 @@ describe("move cue in the scene", () => {
     expect(atState(scene.p007())).toBe(false);
     expect(scene.marked()).toBe(true);
 
-    // The outline and lights go the moment the items arrive.
+    // The items land where the state puts them; the outline and lights then fade out.
     await scene.frameAt(start + MOVE_TWEEN_MS);
     expect(atState(scene.p007())).toBe(true);
+    expect(scene.marked()).toBe(true);
+    await scene.frameAt(start + MOVE_TWEEN_MS + MOVE_MARK_OUT_MS);
     expect(scene.marked()).toBe(false);
   });
 
@@ -170,7 +199,7 @@ describe("move cue in the scene", () => {
     await scene.run(() => useUiStore.getState().setViewMode(VIEW_MODE.Simulation));
     await scene.frameAt(now);
     expect(atState(scene.p007())).toBe(true);
-    expect(scene.find("stock-moved-slots")).toHaveLength(1);
+    expect(scene.slotLights()).toBe(MOVED_SLOTS);
     expect(scene.find("stock-ghost-").length).toBeGreaterThan(0);
   });
 
@@ -179,7 +208,7 @@ describe("move cue in the scene", () => {
     await scene.run(() => useUiStore.getState().setViewMode(VIEW_MODE.Simulation));
     now += 60_000;
     await scene.run(() => useUiStore.getState().setViewMode(VIEW_MODE.Live));
-    expect(scene.find("stock-moved-slots")[0].count).toBe(MOVED_SLOTS);
+    expect(scene.slotLights()).toBe(MOVED_SLOTS);
     expect(scene.find("stock-ghost-outline")).toHaveLength(MOVED.length);
     const inLive = Object.values(buildStock(toSceneStore(live).store))
       .flat()
@@ -197,7 +226,7 @@ describe("move cue in the scene", () => {
   it("cues a move that comes in on the live feed", async () => {
     const scene = await renderScene();
     await scene.run(() => useTwinStore.getState().setLive(simulation.state));
-    expect(scene.find("stock-moved-slots")[0].count).toBe(MOVED_SLOTS);
+    expect(scene.slotLights()).toBe(MOVED_SLOTS);
     await scene.frameAt(now + MOVE_TWEEN_MS);
     expect(atState(scene.p007())).toBe(true);
   });
@@ -210,7 +239,7 @@ describe("move cue in the scene", () => {
     const back = useTwinStore.getState().liveChange?.diff.moved;
     expect(back?.map((move) => move.sku)).toEqual(MOVED);
     expect(back).toContainEqual({ sku: "P007", from: { shelf_id: "B02", slot_id: "B02-S22" }, to: { shelf_id: "B02", slot_id: "B02-S20" } });
-    expect(scene.find("stock-moved-slots")[0].count).toBe(MOVED_SLOTS);
+    expect(scene.slotLights()).toBe(MOVED_SLOTS);
     const original = Object.values(buildStock(toSceneStore(live).store))
       .flat()
       .filter((item) => item.productId === "P007")
