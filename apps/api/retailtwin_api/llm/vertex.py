@@ -170,7 +170,7 @@ class VertexProvider(LlmProvider):
 
             credentials, _ = google.auth.default(scopes=[_VERTEX_SCOPE])
             if not credentials.valid or not credentials.token:
-                credentials.refresh(Request())
+                credentials.refresh(Request())  # type: ignore[no-untyped-call]
             if not credentials.token:
                 raise AuthenticationError("ADC did not supply an access token")
             return str(credentials.token)
