@@ -49,7 +49,7 @@ _INITIAL_BACKOFF = 1.0
 
 def _backoff(attempt: int) -> float:
     """Exponential back-off with jitter cap at 32 s."""
-    return cast(float, min(float(_INITIAL_BACKOFF) * (2 ** attempt), 32.0))  # type: ignore[no-any-return]  # type: ignore[no-any-return]
+    return cast(float, min(float(_INITIAL_BACKOFF) * (2 ** attempt), 32.0))
 
 
 def _vertex_error_to_exception(status_code: int, payload: dict[str, Any]) -> ProviderError:
