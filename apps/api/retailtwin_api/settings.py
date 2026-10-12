@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     store_id: str = "store-001"
     store_fixture_path: Path = Field(default=DEFAULT_FIXTURE)
+    use_firestore: bool = False
     log_level: str = "INFO"
 
 
