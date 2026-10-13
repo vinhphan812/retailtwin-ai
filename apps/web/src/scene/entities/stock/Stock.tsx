@@ -301,6 +301,24 @@ export function buildStock(store: StoreFixture): Batches {
   return batches;
 }
 
+const drawnCounts = new WeakMap<StoreFixture, Map<string, number>>();
+
+/**
+ * How many shelf units of each product `buildStock` draws: never more than its facings
+ * hold. Computed once per store object.
+ */
+export function unitsDrawn(store: StoreFixture): Map<string, number> {
+  let counts = drawnCounts.get(store);
+  if (!counts) {
+    counts = new Map();
+    for (const item of Object.values(buildStock(store)).flat()) {
+      counts.set(item.productId, (counts.get(item.productId) ?? 0) + 1);
+    }
+    drawnCounts.set(store, counts);
+  }
+  return counts;
+}
+
 /** The stock item a raycast hit, if it hit one. Fixture hit boxes use it to let their own items take a click. */
 export function stockItemAt(hit: Intersection): Placed | undefined {
   const items = hit.object.userData.stockItems as Placed[] | undefined;
