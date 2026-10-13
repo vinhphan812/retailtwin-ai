@@ -28,7 +28,7 @@ Simulation receives only schema-valid decisions tied to one evidence bundle and 
 
 A live Vertex call remains issue #2. This record does not change the investigator, the observer, the tool registry, the Decision Context Guard, No-Stale-Commit, or the analytics lander.
 
-- Pull request: this pull request
+- Pull request: https://github.com/vinhphan812/retailtwin-ai/pull/155
 - Issue: #14
 - Supersedes:
 - Superseded by:
