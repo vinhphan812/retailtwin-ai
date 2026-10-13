@@ -237,7 +237,7 @@ class OpenAiCompatibleProvider(LlmProvider):
                 "type": "json_schema",
                 "json_schema": {
                     "name": so.name,
-                    "schema": so.schema,
+                    "schema": so.json_schema,  # Pydantic field name; alias='schema' is the JSON key
                     "strict": so.strict,
                 },
             }

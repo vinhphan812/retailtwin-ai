@@ -1243,6 +1243,191 @@ def test_openai_adapter_no_tool_choice_field_when_not_set(monkeypatch: pytest.Mo
     assert "tool_choice" not in sent_payload
 
 
+# ─── OpenAI adapter: full request/response cycle integration ──────────────────
+
+
+
+def test_openai_full_request_response_cycle_mock(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Prove the complete OpenAI-compatible request/response cycle end-to-end.
+
+    Mocks httpx to intercept the actual POST payload and returns a
+    fully-formed response so we can verify every field without any real API key.
+
+    Verified contract:
+      - model: sent as-is
+      - messages: serialised via model_dump()
+      - tools: converted to OpenAI function-declaration format
+      - tool_choice: emitted as named-function policy
+      - response_format: emitted as json_schema with name + schema + strict
+      - response: parsed back to LlmResponse with correct content, tool_calls,
+        usage, and finish_reason
+    """
+    # Capture the exact payload so we can assert on every field
+    captured_payload: dict[str, object] = {}
+
+    class CycleMockClient:
+        """Minimal async context-manager that records the request payload."""
+
+        async def __aenter__(self: "CycleMockClient") -> "CycleMockClient":
+            return self
+
+        async def __aexit__(self: "CycleMockClient", *_: object) -> None:
+            return None
+
+        async def post(
+            self,
+            url: str,
+            *,
+            headers: dict[str, str],
+            json: dict[str, object],
+        ) -> MockResponse:
+            captured_payload.update({
+                "url": url,
+                "headers": headers,
+                "json": json,
+            })
+            return MockResponse({
+                "id": "chatcmpl-full-cycle",
+                "model": "gpt-4o-mini",
+                "choices": [{
+                    "message": {
+                        "content": '{"action":"order","sku":"P042","quantity":3}',
+                        "tool_calls": [
+                            {
+                                "id": "call_cycle_001",
+                                "function": {
+                                    "name": "order_item",
+                                    "arguments": '{"sku":"P042","qty":3}',
+                                },
+                            },
+                        ],
+                    },
+                    "finish_reason": "tool_calls",
+                }],
+                "usage": {"prompt_tokens": 42, "completion_tokens": 17, "total_tokens": 59},
+            })
+
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **_: CycleMockClient())
+
+    provider = OpenAiCompatibleProvider(
+        base_url="https://api.openai.com/v1",
+        api_key="sk-test-full-cycle",
+        model="gpt-4o-mini",
+        timeout=60.0,
+    )
+
+    # Build a request exercising every field
+    tools = [
+        LlmTool(
+            name="order_item",
+            description="Place an order for a product",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "sku": {"type": "string", "description": "Product SKU"},
+                    "qty": {"type": "integer", "description": "Quantity to order"},
+                },
+                "required": ["sku", "qty"],
+            },
+        ),
+    ]
+    policy = ToolChoicePolicy(mode="tool_choice", name="order_item")
+    structured_output = StructuredOutput(
+        name="OrderAction",
+        schema={
+            "type": "object",
+            "properties": {
+                "action": {"type": "string"},
+                "sku": {"type": "string"},
+                "quantity": {"type": "integer"},
+            },
+            "required": ["action", "sku", "quantity"],
+        },
+        strict=True,
+    )
+    request = LlmRequest(
+        model="gpt-4o-mini",
+        messages=[
+            LlmMessage(role="system", content="You are a retail assistant."),
+            LlmMessage(role="user", content="Order 3 units of P042."),
+        ],
+        temperature=0.7,
+        max_tokens=512,
+        tools=tools,
+        tool_choice=policy,
+        structured_output=structured_output,
+    )
+
+    response = asyncio.run(provider.complete(request))
+
+    # ── Verify URL & auth headers ────────────────────────────────────────────
+    payload = captured_payload["json"]
+    assert captured_payload["url"] == "https://api.openai.com/v1/chat/completions"
+    assert captured_payload["headers"] == {
+        "Authorization": "Bearer sk-test-full-cycle",
+        "Content-Type": "application/json",
+    }
+
+    # ── model ────────────────────────────────────────────────────────────────
+    assert payload["model"] == "gpt-4o-mini"
+
+    # ── messages (serialised via model_dump()) ──────────────────────────────
+    assert len(payload["messages"]) == 2
+    assert payload["messages"][0]["role"] == "system"
+    assert payload["messages"][0]["content"] == "You are a retail assistant."
+    assert payload["messages"][1]["role"] == "user"
+    assert payload["messages"][1]["content"] == "Order 3 units of P042."
+
+    # ── optional top-level fields ────────────────────────────────────────────
+    assert payload["temperature"] == 0.7
+    assert payload["max_tokens"] == 512
+
+    # ── tools (OpenAI function-declaration format) ──────────────────────────
+    assert "tools" in payload
+    tools_list = payload["tools"]
+    assert len(tools_list) == 1
+    assert tools_list[0]["type"] == "function"
+    assert tools_list[0]["function"]["name"] == "order_item"
+    assert tools_list[0]["function"]["description"] == "Place an order for a product"
+    assert tools_list[0]["function"]["parameters"] == {
+        "type": "object",
+        "properties": {
+            "sku": {"type": "string", "description": "Product SKU"},
+            "qty": {"type": "integer", "description": "Quantity to order"},
+        },
+        "required": ["sku", "qty"],
+    }
+
+    # ── tool_choice (named function policy) ──────────────────────────────────
+    assert "tool_choice" in payload
+    assert payload["tool_choice"] == {
+        "type": "function",
+        "function": {"name": "order_item"},
+    }
+
+    # ── response_format (structured output) ──────────────────────────────────
+    assert "response_format" in payload
+    rf = payload["response_format"]
+    assert rf["type"] == "json_schema"
+    assert rf["json_schema"]["name"] == "OrderAction"
+    assert rf["json_schema"]["strict"] is True
+    assert "properties" in rf["json_schema"]["schema"]
+
+    # ── response parsing ─────────────────────────────────────────────────────
+    assert response.id == "chatcmpl-full-cycle"
+    assert response.model == "gpt-4o-mini"
+    assert response.content == '{"action":"order","sku":"P042","quantity":3}'
+    assert response.finish_reason == "tool_calls"
+    assert response.usage.prompt_tokens == 42
+    assert response.usage.completion_tokens == 17
+    assert response.usage.total_tokens == 59
+
+    assert len(response.tool_calls) == 1
+    assert response.tool_calls[0].id == "call_cycle_001"
+    assert response.tool_calls[0].name == "order_item"
+    assert response.tool_calls[0].arguments == {"sku": "P042", "qty": 3}
+
+
 # ─── OpenAI adapter: schema validation on response ─────────────────────────────
 
 
