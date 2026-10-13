@@ -367,3 +367,79 @@ def reject_simulation(
         audit=audit,
         live_version=live_version,
     )
+
+
+# ─── Analytics routes ─────────────────────────────────────────────────────────
+
+@router.get("/anomalies", response_model=AnomaliesResponse, include_in_schema=True)
+def list_anomalies(
+    severity: str | None = Query(None, description="Filter by severity: low, medium, high, critical"),
+    anomaly_type: str | None = Query(None, description="Filter by type: stockout, demand_surge, slow_moving, excess"),
+    since: str | None = Query(None, description="ISO-8601 timestamp to filter anomalies after"),
+    limit: int = Query(50, ge=1, le=500, description="Max results to return"),
+    repo: AnomalyRepository = Depends(get_anomalies),
+) -> AnomaliesResponse:
+    """List anomalies from Firestore."""
+    from datetime import datetime, timezone
+    from retailtwin_api.settings import Settings
+    from retailtwin_api.schemas import AnomalySeverity, AnomalyType
+    settings = Settings()
+    store_id = settings.store_id
+    since_dt = datetime.fromisoformat(since) if since else None
+    # Convert string params to enums if provided
+    sev = AnomalySeverity(severity) if severity else None
+    typ = AnomalyType(anomaly_type) if anomaly_type else None
+    items, total = repo.list_anomalies(
+        store_id=store_id,
+        severity=sev,
+        anomaly_type=typ,
+        since=since_dt,
+        limit=limit,
+    )
+    return AnomaliesResponse(anomalies=items, total=total, detected_since=since_dt)
+
+
+@router.get("/revenue", response_model=RevenueResponse, include_in_schema=True)
+def list_revenue(
+    period: str = Query("daily", description="Aggregation period: hourly, daily, weekly, monthly"),
+    start: str | None = Query(None, description="ISO-8601 start timestamp"),
+    end: str | None = Query(None, description="ISO-8601 end timestamp"),
+    repo: RevenueRepository = Depends(get_revenue_repo),
+) -> RevenueResponse:
+    """Aggregate revenue from BigQuery sales events."""
+    from datetime import datetime, timezone
+    from retailtwin_api.settings import Settings
+    settings = Settings()
+    store_id = settings.store_id
+    # Parse timestamps or use defaults
+    end_dt = datetime.fromisoformat(end) if end else datetime.now(timezone.utc)
+    start_dt = datetime.fromisoformat(start) if start else end_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+    return repo.get_revenue(
+        store_id=store_id,
+        period=period,
+        start=start_dt,
+        end=end_dt,
+    )
+
+
+@router.get("/promotions", response_model=PromotionsResponse, include_in_schema=True)
+def list_promotions(
+    status: str | None = Query(None, description="Filter by status: active, upcoming, ended"),
+    sku: str | None = Query(None, description="Filter by product SKU"),
+    category: str | None = Query(None, description="Filter by promotion category"),
+    limit: int = Query(50, ge=1, le=500),
+    repo: PromotionRepository = Depends(get_promotions),
+) -> PromotionsResponse:
+    """List promotions from BigQuery."""
+    from retailtwin_api.settings import Settings
+    settings = Settings()
+    store_id = settings.store_id
+    items, total = repo.list_promotions(
+        store_id=store_id,
+        status=status,
+        sku=sku,
+        category=category,
+        limit=limit,
+    )
+    active_count = sum(1 for p in items if p.status.value == "active")
+    return PromotionsResponse(promotions=items, total=total, active_count=active_count)
