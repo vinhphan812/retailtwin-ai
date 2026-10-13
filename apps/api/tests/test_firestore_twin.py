@@ -1409,3 +1409,45 @@ class TestFakeFirestoreTransportConcurrency:
         assert len(transport._docs) == 4
 
 
+
+
+class TestBumpStoreVersion:
+    """The guarded Executor advances the store version after a commit (#18)."""
+
+    def test_firestore_bump_advances_the_store_version(self) -> None:
+        harness = _FirestoreTwinRepoUnderTest()
+        harness.seed()
+        bumped = harness.repo.bump_store_version("store-001")
+        assert bumped.version == "v2"
+        assert harness.read_store().version == "v2"
+        assert [doc.version for doc in harness.list_inventory()] == [1, 1]
+
+    def test_firestore_bump_of_a_missing_store_raises(self) -> None:
+        harness = _FirestoreTwinRepoUnderTest()
+        with pytest.raises(TwinNotFound):
+            harness.repo.bump_store_version("store-001")
+
+    def test_firestore_bump_reports_a_failed_write(self) -> None:
+        harness = _FirestoreTwinRepoUnderTest()
+        harness.seed()
+        original = harness._transport.request
+
+        def failing(method: str, url: str, payload: bytes | None, headers: Mapping[str, str]) -> HttpResponse:
+            if url.endswith(":commit"):
+                return FakeHttpResponse(500, "boom")
+            return original(method, url, payload, headers)
+
+        harness._transport.request = failing  # type: ignore[method-assign]
+        with pytest.raises(TwinUnavailable):
+            harness.repo.bump_store_version("store-001")
+
+    def test_in_memory_bump_advances_the_store_version(self) -> None:
+        repo = InMemoryTwinRepository()
+        repo.seed("store-001", "v4", [])
+        assert repo.bump_store_version("store-001").version == "v5"
+        store = repo.get_store("store-001")
+        assert store is not None and store.version == "v5"
+
+    def test_in_memory_bump_of_a_missing_store_raises(self) -> None:
+        with pytest.raises(TwinNotFound):
+            InMemoryTwinRepository().bump_store_version("store-001")

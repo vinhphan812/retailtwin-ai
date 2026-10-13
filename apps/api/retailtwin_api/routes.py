@@ -6,6 +6,9 @@ from typing import Literal, cast
 
 from fastapi import APIRouter, Depends, Query, Request, Response
 
+from retailtwin_api.agents.executor import CommitService
+from retailtwin_api.contracts import DCGVerdict
+from retailtwin_api.decisions import DecisionSource
 from retailtwin_api.errors import ApiError
 from retailtwin_api.events import EventConflict, EventLog, ReviewAuditLog
 from retailtwin_api.schemas import EventReceipt, HealthResponse, ProductInventory, ReadyResponse, StoreEvent, StoreResponse
@@ -17,13 +20,13 @@ from retailtwin_api.simulation_schemas import (
     SimulationDetail, SimulationFilters, SimulationListResponse, SimulationStatus,
     SimulationReviewRequest, SimulationReviewResponse,
 )
-from retailtwin_api.store import StoreRepository
+from retailtwin_api.store import StoreReader
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def get_store(request: Request) -> StoreRepository:
+def get_store(request: Request) -> StoreReader:
     return request.app.state.store
 
 
@@ -52,7 +55,7 @@ def require_simulations(repository: SimulationReadRepository) -> None:
         raise ApiError(503, "simulations_unavailable", "Simulation read model is not available.")
 
 
-def require_loaded(store: StoreRepository) -> None:
+def require_loaded(store: StoreReader) -> None:
     if not store.loaded:
         raise ApiError(503, "store_unavailable", "Store fixture is not available.")
 
@@ -62,7 +65,7 @@ def _correlation_id(request: Request) -> str:
 
 
 @router.get("/health", response_model=HealthResponse, include_in_schema=True)
-def health(request: Request, store: StoreRepository = Depends(get_store)) -> HealthResponse:
+def health(request: Request, store: StoreReader = Depends(get_store)) -> HealthResponse:
     """Liveness probe: is the process alive? Always returns 200 if the container is running."""
     return HealthResponse(
         status="ok" if store.loaded else "degraded",
@@ -75,7 +78,7 @@ def health(request: Request, store: StoreRepository = Depends(get_store)) -> Hea
 
 
 @router.get("/ready", response_model=ReadyResponse, include_in_schema=True)
-def ready(request: Request, store: StoreRepository = Depends(get_store)) -> ReadyResponse:
+def ready(request: Request, store: StoreReader = Depends(get_store)) -> ReadyResponse:
     """Readiness probe: can the service handle traffic?
 
     Returns 503 when the store fixture is unavailable, causing Cloud Run
@@ -93,13 +96,13 @@ def ready(request: Request, store: StoreRepository = Depends(get_store)) -> Read
 
 
 @router.get("/store", response_model=StoreResponse, include_in_schema=True)
-def read_store(request: Request, store: StoreRepository = Depends(get_store)) -> StoreResponse:
+def read_store(request: Request, store: StoreReader = Depends(get_store)) -> StoreResponse:
     require_loaded(store)
     return store.view()
 
 
 @router.get("/inventory/{sku}", response_model=ProductInventory, include_in_schema=True)
-def read_inventory(request: Request, sku: str, store: StoreRepository = Depends(get_store)) -> ProductInventory:
+def read_inventory(request: Request, sku: str, store: StoreReader = Depends(get_store)) -> ProductInventory:
     require_loaded(store)
     product = store.inventory(sku)
     if product is None:
@@ -116,7 +119,7 @@ def accept_event(
     request: Request,
     event: StoreEvent,
     response: Response,
-    store: StoreRepository = Depends(get_store),
+    store: StoreReader = Depends(get_store),
     events: EventLog = Depends(get_events),
 ) -> EventReceipt:
     require_loaded(store)
@@ -230,74 +233,30 @@ def get_live_version(request: Request) -> str:
     return request.app.state.live_context_version
 
 
-def _run_review(
-    simulation_id: str,
-    body: SimulationReviewRequest,
-    decision: Literal["approved", "rejected"],
-    simulations: SimulationReadRepository,
-    store: StoreRepository,
-    audit: ReviewAuditLog,
-    live_version: str,
-) -> SimulationReviewResponse:
-    """Shared logic for /approve and /reject: version check → simulation check → audit."""
-    # 1. Version validation: base_context_version must match live store version
-    if body.base_context_version != live_version:
-        logger.warning(
-            "simulation_review.version_mismatch",
-            extra={
-                "simulation_id": simulation_id,
-                "decision": decision,
-                "base_context_version": body.base_context_version,
-                "live_context_version": live_version,
-            },
-        )
-        return SimulationReviewResponse(
-            simulation_id=simulation_id,
-            decision=decision,
-            status="pending",
-            verdict=DecisionReviewVerdict.REFRESH_REQUIRED,
-            reason_code=DecisionReviewReasonCode.VERSION_MISMATCH,
-            live_context_version=live_version,
-        )
+def get_decisions(request: Request) -> DecisionSource:
+    return request.app.state.decisions
 
-    # 2. Simulation exists and is open (pending | evaluated)
-    item = simulations.get_simulation(simulation_id)
-    if item is None:
-        raise ApiError(
-            404,
-            "simulation_not_found",
-            f"Simulation {simulation_id!r} was not found.",
-        )
-    if item.status not in ("pending", "evaluated"):
-        logger.warning(
-            "simulation_review.not_open",
-            extra={
-                "simulation_id": simulation_id,
-                "decision": decision,
-                "current_status": item.status,
-            },
-        )
-        return SimulationReviewResponse(
-            simulation_id=simulation_id,
-            decision=decision,
-            status=item.status,
-            verdict=DecisionReviewVerdict.DENY,
-            reason_code=DecisionReviewReasonCode.SIMULATION_NOT_OPEN,
-            live_context_version=live_version,
-        )
 
-    # 3. Record audit
-    audit.record(
-        simulation_id=simulation_id,
-        decision=decision,
-        base_context_version=body.base_context_version,
-        proposal_context_version=body.proposal_context_version,
-        live_context_version=live_version,
-        verdict=DecisionReviewVerdict.ALLOW,
-        reason_code=DecisionReviewReasonCode.APPROVED,
-    )
-    logger.info(
-        f"simulation_review.{decision}",
+def get_commits(request: Request) -> CommitService | None:
+    return request.app.state.commits
+
+
+# A refused approval reports the guard's verdict with one of these review reasons.
+_REVIEW_REASON = {
+    DCGVerdict.REFRESH_REQUIRED: DecisionReviewReasonCode.VERSION_STALE,
+    DCGVerdict.DENY: DecisionReviewReasonCode.DCG_DENY,
+    DCGVerdict.HUMAN_REVIEW: DecisionReviewReasonCode.DCG_HUMAN_REVIEW,
+}
+
+
+def _version_mismatch(
+    simulation_id: str, body: SimulationReviewRequest, decision: Literal["approved", "rejected"], live_version: str
+) -> SimulationReviewResponse | None:
+    """Refuse a review of a proposal built on a Live state that has since moved."""
+    if body.base_context_version == live_version:
+        return None
+    logger.warning(
+        "simulation_review.version_mismatch",
         extra={
             "simulation_id": simulation_id,
             "decision": decision,
@@ -305,16 +264,61 @@ def _run_review(
             "live_context_version": live_version,
         },
     )
-
-    new_status: SimulationStatus = "committed" if decision == "approved" else "rejected"
     return SimulationReviewResponse(
         simulation_id=simulation_id,
         decision=decision,
-        status=new_status,
-        verdict=DecisionReviewVerdict.ALLOW,
-        reason_code=DecisionReviewReasonCode.APPROVED,
+        status="pending",
+        verdict=DecisionReviewVerdict.REFRESH_REQUIRED,
+        reason_code=DecisionReviewReasonCode.VERSION_MISMATCH,
         live_context_version=live_version,
     )
+
+
+def _open_simulation(
+    simulation_id: str, decision: Literal["approved", "rejected"], simulations: SimulationReadRepository, live_version: str
+) -> SimulationDetail | SimulationReviewResponse:
+    item = simulations.get_simulation(simulation_id)
+    if item is None:
+        raise ApiError(404, "simulation_not_found", f"Simulation {simulation_id!r} was not found.")
+    if item.status in ("pending", "evaluated"):
+        return item
+    logger.warning(
+        "simulation_review.not_open",
+        extra={"simulation_id": simulation_id, "decision": decision, "current_status": item.status},
+    )
+    return SimulationReviewResponse(
+        simulation_id=simulation_id,
+        decision=decision,
+        status=item.status,
+        verdict=DecisionReviewVerdict.DENY,
+        reason_code=DecisionReviewReasonCode.SIMULATION_NOT_OPEN,
+        live_context_version=live_version,
+    )
+
+
+def _record(
+    audit: ReviewAuditLog, body: SimulationReviewRequest, response: SimulationReviewResponse
+) -> SimulationReviewResponse:
+    audit.record(
+        simulation_id=response.simulation_id,
+        decision=response.decision,
+        base_context_version=body.base_context_version,
+        proposal_context_version=body.proposal_context_version,
+        live_context_version=response.live_context_version,
+        verdict=response.verdict,
+        reason_code=response.reason_code,
+    )
+    logger.info(
+        f"simulation_review.{response.decision}",
+        extra={
+            "simulation_id": response.simulation_id,
+            "verdict": response.verdict.value,
+            "reason_code": response.reason_code.value,
+            "detail_code": response.detail_code,
+            "live_context_version": response.live_context_version,
+        },
+    )
+    return response
 
 
 @router.post(
@@ -323,23 +327,80 @@ def _run_review(
     status_code=200,
 )
 def approve_simulation(
+    request: Request,
     simulation_id: str,
     body: SimulationReviewRequest,
     repository: SimulationReadRepository = Depends(get_simulations),
-    store: StoreRepository = Depends(get_store),
+    store: StoreReader = Depends(get_store),
     audit: ReviewAuditLog = Depends(get_review_audit),
     live_version: str = Depends(get_live_version),
+    decisions: DecisionSource = Depends(get_decisions),
+    commits: CommitService | None = Depends(get_commits),
 ) -> SimulationReviewResponse:
-    """Approve a simulation: validate versions, check DCG guard, record audit, commit."""
+    """Approve a simulation: the guard decides on fresh Live reads and only ALLOW commits.
+
+    Version precheck, then the simulation's Decision, then DCG, a signed
+    single-use authorization and the guarded Executor. Live changes only on ALLOW.
+    """
     require_simulations(repository)
-    return _run_review(
-        simulation_id=simulation_id,
-        body=body,
-        decision="approved",
-        simulations=repository,
-        store=store,
-        audit=audit,
-        live_version=live_version,
+    refused = _version_mismatch(simulation_id, body, "approved", live_version)
+    if refused is not None:
+        return refused
+    item = _open_simulation(simulation_id, "approved", repository, live_version)
+    if isinstance(item, SimulationReviewResponse):
+        return item
+    if commits is None or not commits.can_commit:
+        raise ApiError(503, "commit_unavailable", "No Live Twin commit path is configured.")
+    if not decisions.available:
+        raise ApiError(503, "decisions_unavailable", "The decision store is not available.")
+
+    decision = decisions.get_for_simulation(simulation_id)
+    if decision is None or decision.simulation_id not in (None, simulation_id):
+        return _record(
+            audit,
+            body,
+            SimulationReviewResponse(
+                simulation_id=simulation_id,
+                decision="approved",
+                status=item.status,
+                verdict=DecisionReviewVerdict.DENY,
+                reason_code=DecisionReviewReasonCode.DECISION_UNAVAILABLE,
+                live_context_version=live_version,
+            ),
+        )
+
+    outcome = commits.approve(decision)
+    if outcome.committed:
+        repository.set_status(simulation_id, "committed", datetime.now(timezone.utc))
+        request.app.state.live_context_version = store.view().context_version
+        return _record(
+            audit,
+            body,
+            SimulationReviewResponse(
+                simulation_id=simulation_id,
+                decision="approved",
+                status="committed",
+                verdict=DecisionReviewVerdict.ALLOW,
+                reason_code=DecisionReviewReasonCode.APPROVED,
+                live_context_version=request.app.state.live_context_version,
+                detail_code=outcome.reason_code,
+                guard=outcome.guard,
+            ),
+        )
+    failed = outcome.commit is not None and outcome.commit.status == "failed"
+    return _record(
+        audit,
+        body,
+        SimulationReviewResponse(
+            simulation_id=simulation_id,
+            decision="approved",
+            status=item.status,
+            verdict=DecisionReviewVerdict(outcome.verdict.value),
+            reason_code=DecisionReviewReasonCode.EXECUTION_FAILED if failed else _REVIEW_REASON[outcome.verdict],
+            live_context_version=live_version,
+            detail_code=outcome.reason_code,
+            guard=outcome.guard,
+        ),
     )
 
 
@@ -352,18 +413,27 @@ def reject_simulation(
     simulation_id: str,
     body: SimulationReviewRequest,
     repository: SimulationReadRepository = Depends(get_simulations),
-    store: StoreRepository = Depends(get_store),
     audit: ReviewAuditLog = Depends(get_review_audit),
     live_version: str = Depends(get_live_version),
 ) -> SimulationReviewResponse:
-    """Reject a simulation: validate versions, check DCG guard, record audit."""
+    """Reject a simulation: nothing reaches the guard or the Live Twin."""
     require_simulations(repository)
-    return _run_review(
-        simulation_id=simulation_id,
-        body=body,
-        decision="rejected",
-        simulations=repository,
-        store=store,
-        audit=audit,
-        live_version=live_version,
+    refused = _version_mismatch(simulation_id, body, "rejected", live_version)
+    if refused is not None:
+        return refused
+    item = _open_simulation(simulation_id, "rejected", repository, live_version)
+    if isinstance(item, SimulationReviewResponse):
+        return item
+    repository.set_status(simulation_id, "rejected", datetime.now(timezone.utc))
+    return _record(
+        audit,
+        body,
+        SimulationReviewResponse(
+            simulation_id=simulation_id,
+            decision="rejected",
+            status="rejected",
+            verdict=DecisionReviewVerdict.ALLOW,
+            reason_code=DecisionReviewReasonCode.APPROVED,
+            live_context_version=live_version,
+        ),
     )
