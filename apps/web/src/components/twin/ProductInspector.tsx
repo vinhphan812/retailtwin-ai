@@ -24,6 +24,7 @@ export function ProductInspector({ productId }: { productId: string }) {
   const anomalies = anomaliesOf(useShownAnomalies(), productId);
   const showDetails = useUiStore((state) => state.showDetails);
   const facingsChange = useFacingsChange(productId);
+  const movedFrom = useMovedFrom(productId);
 
   return (
     <InspectorCard title={productId} label={t("inspector.label", { sku: productId })}>
@@ -52,6 +53,11 @@ export function ProductInspector({ productId }: { productId: string }) {
       {inspection.kind === INSPECTION_KIND.Ok && facingsChange ? (
         <Chip size="sm" variant="flat" color="primary" className="mb-2">
           {t("inspector.facingsChange", facingsChange)}
+        </Chip>
+      ) : null}
+      {inspection.kind === INSPECTION_KIND.Ok && movedFrom ? (
+        <Chip size="sm" variant="flat" color="primary" className="mb-2">
+          {t("inspector.movedFrom", { slot: movedFrom })}
         </Chip>
       ) : null}
       {inspection.kind === INSPECTION_KIND.Ok && live ? (

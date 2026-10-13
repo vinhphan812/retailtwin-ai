@@ -69,3 +69,9 @@ export function useFacingsChange(sku: string | null): FacingsChange | null {
   const change = useRecentChanges();
   return change?.diff.facings.find((item) => item.sku === sku) ?? null;
 }
+
+/** The slot `sku` was moved from, while the move is recent; null otherwise. */
+export function useMovedFrom(sku: string | null): string | null {
+  const change = useRecentChanges();
+  return change?.diff.moved.find((item) => item.sku === sku)?.from.slot_id ?? null;
+}
