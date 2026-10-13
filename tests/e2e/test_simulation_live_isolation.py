@@ -103,7 +103,7 @@ class TestExecutorIsolation:
         import pathlib
         repo_root = pathlib.Path(__file__).parent.parent.parent
         package_root = repo_root / "apps" / "api" / "retailtwin_api"
-        writers = {"upsert_inventory", "bump_store_version"}
+        writers = {"upsert_inventory", "commit_inventory"}
         allowed = {
             package_root / "agents" / "executor" / "executor.py",
             package_root / "firestore_twin.py",

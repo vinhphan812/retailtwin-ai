@@ -176,19 +176,18 @@ def test_large_change_goes_to_a_person(settings: Settings, monkeypatch: pytest.M
     assert (body["verdict"], body["reason_code"], body["detail_code"]) == ("HUMAN_REVIEW", "DCG_HUMAN_REVIEW", "POLICY_THRESHOLD")
 
 
-def test_execution_failure_is_reported_and_rolled_back(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_execution_failure_is_reported_and_writes_nothing(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     twin: InMemoryTwinRepository = client.app.state.live_twin  # type: ignore[attr-defined]
 
-    def broken(store_id: str) -> Any:
+    def broken(store_id: str, items: Any) -> Any:
         raise RuntimeError("backend detail")
 
-    monkeypatch.setattr(twin, "bump_store_version", broken)
+    monkeypatch.setattr(twin, "commit_inventory", broken)
     _put(client, _decision())
+    before = _p001(client)
     body = _approve(client)
     assert (body["verdict"], body["reason_code"], body["detail_code"]) == ("DENY", "EXECUTION_FAILED", "EXECUTION_FAILED")
-    p001 = _p001(client)
-    # Restored content, one version past the rolled-back write.
-    assert (p001["shelf_quantity"], p001["version"]) == (8, 3)
+    assert _p001(client) == before
 
 
 def test_simulation_without_a_decision_is_denied(client: TestClient) -> None:

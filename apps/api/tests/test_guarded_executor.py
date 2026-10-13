@@ -11,7 +11,6 @@ import pytest
 from retailtwin_api.agents.executor import (
     COMMITTED,
     EXECUTION_FAILED,
-    ROLLBACK_FAILED,
     CommitService,
     GuardedExecutor,
     build_commit_service,
@@ -31,7 +30,6 @@ from retailtwin_api.firestore_twin import (
     InventoryDocument,
     InventorySeed,
     StoreDocument,
-    TwinConflict,
 )
 from retailtwin_api.guard.decision_context_guard import (
     INSUFFICIENT_EVIDENCE,
@@ -70,13 +68,11 @@ class FlakyTwin(InMemoryTwinRepository):
 
     def __init__(self) -> None:
         super().__init__()
-        self.fail_upsert_for: set[str] = set()
-        self.race_upsert_for: set[str] = set()
-        self.fail_rollback = False
-        self.fail_bump = False
+        self.race_commit = False
+        self.fail_commit = False
         self.fail_get = False
         self.stale_get: dict[str, int] = {}
-        self.writes: list[tuple[str, int]] = []
+        self.commits: list[list[tuple[str, int]]] = []
 
     def get_inventory(self, store_id: str, sku: str) -> InventoryDocument | None:
         if self.fail_get:
@@ -86,23 +82,17 @@ class FlakyTwin(InMemoryTwinRepository):
             return doc.model_copy(update={"version": self.stale_get[sku]})
         return doc
 
-    def upsert_inventory(self, item: InventoryDocument, expected_version: int | None) -> InventoryDocument:
-        if self.writes and self.fail_rollback and item.sku == self.writes[0][0]:
-            raise RuntimeError("rollback broke")
-        if item.sku in self.fail_upsert_for:
+    def commit_inventory(self, store_id: str, items: Sequence[tuple[InventoryDocument, int]]) -> StoreDocument:
+        if self.fail_commit:
             raise RuntimeError("backend detail")
-        if item.sku in self.race_upsert_for:
-            current = super().get_inventory(item.store_id, item.sku)
-            assert current is not None
-            raise TwinConflict(item.sku, current.version + 1, item.version)
-        stored = super().upsert_inventory(item, expected_version)
-        self.writes.append((item.sku, item.version))
-        return stored
-
-    def bump_store_version(self, store_id: str) -> StoreDocument:
-        if self.fail_bump:
-            raise RuntimeError("backend detail")
-        return super().bump_store_version(store_id)
+        if self.race_commit:
+            # Another writer lands on the first SKU just before this commit.
+            first = super().get_inventory(store_id, items[0][0].sku)
+            assert first is not None
+            super().upsert_inventory(first.model_copy(update={"version": first.version + 1}), first.version)
+        store = super().commit_inventory(store_id, items)
+        self.commits.append([(item.sku, item.version) for item, _ in items])
+        return store
 
 
 @pytest.fixture
@@ -188,8 +178,8 @@ def test_valid_token_commits_exactly_the_actions(parts, twin: FlakyTwin) -> None
     p001 = twin.get_inventory(STORE, "P001")
     assert p001 is not None
     assert (p001.shelf_quantity, p001.backroom_quantity, p001.facings, p001.version) == (16, 24, 4, 2)
-    # Two actions on one SKU are one write and one version step.
-    assert twin.writes == [("P001", 2)]
+    # Two actions on one SKU are one write and one version step, in one commit.
+    assert twin.commits == [[("P001", 2)]]
     assert outcome.entity_versions == {"P001": 2}
     assert outcome.store_version == "v8"
     store = twin.get_store(STORE)
@@ -292,62 +282,40 @@ def test_version_moving_between_recheck_and_read_blocks_the_commit(parts, twin: 
     assert live(twin) == before
 
 
-def test_conflicting_write_rolls_back_and_reports_stale(parts, twin: FlakyTwin) -> None:
+def test_write_landing_before_the_commit_writes_nothing(parts, twin: FlakyTwin) -> None:
     d = decision(
         [ReplenishShelf(sku="P001", quantity=6), ReplenishShelf(sku="P002", quantity=1)],
         versions={"P001": "1", "P002": "1"},
     )
     token = authorize(parts, d)
-    twin.race_upsert_for = {"P002"}
+    twin.race_commit = True
 
     outcome = parts[2].commit(d, token)
 
     assert (outcome.status, outcome.reason_code) == ("refused", VERSION_STALE)
+    assert twin.commits == []
     p001 = twin.get_inventory(STORE, "P001")
-    assert p001 is not None
-    # P001 was written at 2, then restored at 3 so nothing built on 2 looks current.
-    assert (p001.shelf_quantity, p001.backroom_quantity, p001.version) == (10, 30, 3)
+    p002 = twin.get_inventory(STORE, "P002")
+    assert p001 is not None and p002 is not None
+    # Only the other writer's version step; neither SKU took this decision's change.
+    assert (p001.shelf_quantity, p001.version, p002.shelf_quantity, p002.version) == (10, 2, 4, 1)
     store = twin.get_store(STORE)
     assert store is not None and store.version == "v7"
 
 
-# ─── Execution failures ──────────────────────────────────────────────────────
-
-
-def test_failed_write_rolls_back(parts, twin: FlakyTwin) -> None:
+def test_failed_commit_writes_nothing(parts, twin: FlakyTwin) -> None:
     d = decision(
         [ReplenishShelf(sku="P001", quantity=6), ReplenishShelf(sku="P002", quantity=1)],
         versions={"P001": "1", "P002": "1"},
     )
     token = authorize(parts, d)
-    twin.fail_upsert_for = {"P002"}
+    twin.fail_commit = True
+    before = live(twin)
 
     outcome = parts[2].commit(d, token)
 
     assert (outcome.status, outcome.reason_code) == ("failed", EXECUTION_FAILED)
-    p001 = twin.get_inventory(STORE, "P001")
-    assert p001 is not None and (p001.shelf_quantity, p001.version) == (10, 3)
-
-
-def test_failed_rollback_is_reported(parts, twin: FlakyTwin) -> None:
-    d = decision(
-        [ReplenishShelf(sku="P001", quantity=6), ReplenishShelf(sku="P002", quantity=1)],
-        versions={"P001": "1", "P002": "1"},
-    )
-    token = authorize(parts, d)
-    twin.fail_upsert_for = {"P002"}
-    twin.fail_rollback = True
-    assert parts[2].commit(d, token).reason_code == ROLLBACK_FAILED
-
-
-def test_failed_store_version_rolls_back(parts, twin: FlakyTwin) -> None:
-    d = decision()
-    token = authorize(parts, d)
-    twin.fail_bump = True
-    outcome = parts[2].commit(d, token)
-    assert (outcome.status, outcome.reason_code) == ("failed", EXECUTION_FAILED)
-    p001 = twin.get_inventory(STORE, "P001")
-    assert p001 is not None and (p001.shelf_quantity, p001.version) == (10, 3)
+    assert live(twin) == before
 
 
 def test_failed_live_read_changes_nothing(parts, twin: FlakyTwin) -> None:
@@ -364,7 +332,7 @@ def test_failed_live_read_changes_nothing(parts, twin: FlakyTwin) -> None:
     outcome = GuardedExecutor(twin, authorizer, ReadBreakingGate()).commit(d, token)  # type: ignore[arg-type]
     twin.fail_get = False
     assert (outcome.status, outcome.reason_code) == ("failed", EXECUTION_FAILED)
-    assert twin.writes == []
+    assert twin.commits == []
 
 
 def test_sku_deleted_before_the_write_changes_nothing(parts, twin: FlakyTwin) -> None:
@@ -380,7 +348,7 @@ def test_sku_deleted_before_the_write_changes_nothing(parts, twin: FlakyTwin) ->
 
     outcome = GuardedExecutor(twin, authorizer, DeletingGate()).commit(d, token)  # type: ignore[arg-type]
     assert outcome.reason_code == EXECUTION_FAILED
-    assert twin.writes == []
+    assert twin.commits == []
 
 
 # ─── Commit service ──────────────────────────────────────────────────────────
@@ -421,13 +389,13 @@ def test_service_routes_large_changes_to_a_person(twin: FlakyTwin, clock: Clock,
 
 
 def test_service_maps_a_write_race_to_refresh(service: CommitService, twin: FlakyTwin) -> None:
-    twin.race_upsert_for = {"P001"}
+    twin.race_commit = True
     outcome = service.approve(decision())
     assert (outcome.verdict, outcome.reason_code) == (DCGVerdict.REFRESH_REQUIRED, VERSION_STALE)
 
 
 def test_service_maps_an_execution_failure_to_deny(service: CommitService, twin: FlakyTwin) -> None:
-    twin.fail_upsert_for = {"P001"}
+    twin.fail_commit = True
     outcome = service.approve(decision())
     assert (outcome.verdict, outcome.reason_code) == (DCGVerdict.DENY, EXECUTION_FAILED)
     assert outcome.commit is not None and outcome.commit.status == "failed"

@@ -7,12 +7,13 @@ this order:
    actions, and not used before (``CommitAuthorizer.redeem``);
 2. No-Stale-Commit rechecks the guard on fresh reads (``NoStaleCommit.recheck``);
 3. each touched SKU is still at the version the authorization names;
-4. every write carries that version as ``expected_version``.
+4. the Live Twin accepts one atomic ``commit_inventory`` of every touched SKU, each
+   conditional on that version, together with the store version step.
 
-The commit is all-or-nothing. A failed write rolls the earlier writes back with a
-new version, so nothing built on the rolled-back state looks current. A
-successful commit advances each touched SKU by one version and the store
-``v<N>`` by one.
+The commit is all-or-nothing at the repository boundary: Firestore applies one
+``:commit`` entirely or not at all, and the in-memory twin does the same under its
+lock. A conflict or failure writes nothing. A successful commit advances each
+touched SKU by one version and the store ``v<N>`` by one.
 
 The Executor never learns which model produced the decision.
 """
@@ -49,7 +50,6 @@ log = logging.getLogger(__name__)
 
 COMMITTED = "COMMITTED"
 EXECUTION_FAILED = "EXECUTION_FAILED"
-ROLLBACK_FAILED = "ROLLBACK_FAILED"
 
 Status = Literal["committed", "refused", "failed"]
 
@@ -110,23 +110,16 @@ class GuardedExecutor:
             return self._outcome(decision, "refused", VERSION_STALE, guard=guard)
 
         planned = _apply(decision, originals, self._clock())
-        written: list[tuple[InventoryDocument, InventoryDocument]] = []
-        for sku, target in planned.items():
-            try:
-                stored = self._twin.upsert_inventory(target, expected_version=originals[sku].version)
-            except TwinConflict:
-                log.warning("executor write conflict decision_id=%s sku=%s", decision.decision_id, sku)
-                return self._undo(decision, written, VERSION_STALE, guard)
-            except Exception:
-                log.error("executor write failed decision_id=%s sku=%s", decision.decision_id, sku)
-                return self._undo(decision, written, EXECUTION_FAILED, guard)
-            written.append((originals[sku], stored))
-
         try:
-            store = self._twin.bump_store_version(binding.store_id)
+            store = self._twin.commit_inventory(
+                binding.store_id, [(target, originals[sku].version) for sku, target in planned.items()]
+            )
+        except TwinConflict:
+            log.warning("executor write conflict decision_id=%s", decision.decision_id)
+            return self._outcome(decision, "refused", VERSION_STALE, guard=guard)
         except Exception:
-            log.error("executor store version failed decision_id=%s", decision.decision_id)
-            return self._undo(decision, written, EXECUTION_FAILED, guard)
+            log.error("executor write failed decision_id=%s", decision.decision_id)
+            return self._outcome(decision, "failed", EXECUTION_FAILED, guard=guard)
 
         log.info(
             "executor committed decision_id=%s skus=%s store_version=%s",
@@ -142,7 +135,7 @@ class GuardedExecutor:
                 ExecutorResult(action_id=_action_id(decision, i), status="applied", error=None)
                 for i in range(len(decision.proposed_actions))
             ],
-            entity_versions={stored.sku: stored.version for _, stored in written},
+            entity_versions={sku: target.version for sku, target in planned.items()},
             store_version=store.version,
             guard=guard,
         )
@@ -152,25 +145,6 @@ class GuardedExecutor:
         if doc is None:
             raise LookupError(sku)
         return doc
-
-    def _undo(
-        self,
-        decision: Decision,
-        written: list[tuple[InventoryDocument, InventoryDocument]],
-        reason_code: str,
-        guard: DCGVerdictResult,
-    ) -> CommitOutcome:
-        for original, stored in reversed(written):
-            restore = original.model_copy(update={"version": stored.version + 1, "updated_at": self._clock()})
-            try:
-                self._twin.upsert_inventory(restore, expected_version=stored.version)
-            except Exception:
-                log.critical(
-                    "executor rollback failed decision_id=%s sku=%s", decision.decision_id, original.sku
-                )
-                return self._outcome(decision, "failed", ROLLBACK_FAILED, guard=guard)
-        status: Status = "refused" if reason_code == VERSION_STALE else "failed"
-        return self._outcome(decision, status, reason_code, guard=guard)
 
     def _outcome(
         self,

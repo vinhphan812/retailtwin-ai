@@ -8,7 +8,6 @@ from retailtwin_api.agents.executor.commit_service import (
 from retailtwin_api.agents.executor.executor import (
     COMMITTED,
     EXECUTION_FAILED,
-    ROLLBACK_FAILED,
     CommitOutcome,
     GuardedExecutor,
 )
@@ -16,7 +15,6 @@ from retailtwin_api.agents.executor.executor import (
 __all__ = [
     "COMMITTED",
     "EXECUTION_FAILED",
-    "ROLLBACK_FAILED",
     "ApprovalOutcome",
     "CommitOutcome",
     "CommitService",

@@ -13,12 +13,11 @@ outcome = service.approve(decision)  # guard -> signed token -> Executor
 2. No-Stale-Commit still allows the decision on fresh reads;
 3. every touched SKU is still at the version the token names.
 
-Each touched SKU is written once, one version ahead, with `expected_version`. Any failed write rolls the earlier ones back at a new version. A commit advances the store `v<N>`. The Executor never sees which model produced the decision.
+All touched SKUs, one version ahead, and the store `v<N>` step go to the Live Twin in one atomic `commit_inventory`, each conditional on the version the token names. In Firestore that is one `:commit` with `updateTime` preconditions. A conflict or failure writes nothing. The Executor never sees which model produced the decision.
 
 | Code | Meaning |
 | --- | --- |
 | `COMMITTED` | All actions applied |
 | `MISSING_TOKEN`, `INVALID_SIGNATURE`, `TOKEN_EXPIRED`, `ACTION_MISMATCH`, `TOKEN_REUSED`, `UNKNOWN_TOKEN` | Authorization refused; nothing written |
-| `VERSION_STALE` and other guard codes | The context moved; nothing written, or rolled back |
-| `EXECUTION_FAILED` | A write or the store version failed; rolled back |
-| `ROLLBACK_FAILED` | A rollback write failed; logged at critical |
+| `VERSION_STALE` and other guard codes | The context moved; nothing written |
+| `EXECUTION_FAILED` | The read or the commit failed; nothing written |
