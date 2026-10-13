@@ -32,7 +32,10 @@ Any other verdict returns no binding, so no commit authorization can be issued f
 | --- | --- |
 | A touched SKU moved | `REFRESH_REQUIRED VERSION_STALE` |
 | The context aged out | `REFRESH_REQUIRED CONTEXT_EXPIRED` |
+| An `ALLOW` after `binding.expiry` on the wrapper clock | `REFRESH_REQUIRED CONTEXT_EXPIRED`, recorded as a `binding` check |
 | An `ALLOW` whose hash differs from the binding | `DENY BINDING_MISMATCH`, recorded as a `binding` check |
+
+The binding's expiry is authoritative. The context hash does not cover the decision's timestamps, so a caller that copies `context_timestamp` and evidence `freshness` forward cannot extend an authorization past the expiry it was given.
 
 On `ALLOW` the live versions equal the evidence, so a different hash means a different decision id, store or action list.
 
@@ -49,7 +52,7 @@ Each call records one `GuardAuditEvent`. The event fields are:
 - live `entity_versions`
 - `at`
 
-The event carries no model text and no provider identifiers. `InMemoryGuardAudit` is the process-memory sink.
+The event carries no model text and no provider identifiers. `InMemoryGuardAudit` is the process-memory sink. It stores and returns deep copies, so a caller cannot rewrite recorded history.
 
 The Executor (#18) must call `recheck` right before writing. It must also write each document with `expected_version` set to the binding's `entity_versions`, so a change that lands between the recheck and the write is refused by the Live Twin's optimistic concurrency.
 
