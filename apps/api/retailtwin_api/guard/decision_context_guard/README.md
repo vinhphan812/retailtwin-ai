@@ -37,6 +37,19 @@ Possible outcomes:
 
 The guard reads the Live Twin, never writes it, and imports no model SDK.
 
+## No-Stale-Commit
+
+See [ADR 0015](../../../../../docs/adr/0015-recheck-live-versions-before-every-commit.md).
+
+```python
+gate = NoStaleCommit(guard, InMemoryGuardAudit())
+result, binding = gate.authorize(decision)  # binding only on ALLOW
+...
+result = gate.recheck(decision, binding)    # immediately before the commit
+```
+
+`recheck` re-reads the Live Twin. A touched SKU at a new version is `REFRESH_REQUIRED VERSION_STALE`; a decision that no longer hashes to the binding is `DENY BINDING_MISMATCH`. Every call records a `GuardAuditEvent`. The Executor writes with `binding.entity_versions` as expected versions.
+
 `contract.schema.json` is the JSON shape of a `RetailTwinDecision`.
 
 Core invariant: **No stale decision may commit to live state.**

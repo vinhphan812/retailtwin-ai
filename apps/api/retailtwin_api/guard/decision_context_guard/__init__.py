@@ -23,11 +23,20 @@ from retailtwin_api.guard.decision_context_guard.hashing import (
     canonical_action,
     context_hash,
 )
+from retailtwin_api.guard.decision_context_guard.no_stale_commit import (
+    BINDING_MISMATCH,
+    CommitBinding,
+    GuardAuditEvent,
+    GuardAuditSink,
+    InMemoryGuardAudit,
+    NoStaleCommit,
+)
 from retailtwin_api.guard.decision_context_guard.policy import GuardPolicy, PolicyConfigError
 
 __all__ = [
     "ACTION_NOT_ALLOWED",
     "ALLOWED",
+    "BINDING_MISMATCH",
     "CONFLICTING_EVIDENCE",
     "CONTEXT_EXPIRED",
     "GATES",
@@ -39,9 +48,14 @@ __all__ = [
     "TWIN_UNAVAILABLE",
     "UNKNOWN_ENTITY",
     "VERSION_STALE",
+    "CommitBinding",
     "DecisionContextGuard",
+    "GuardAuditEvent",
+    "GuardAuditSink",
     "GuardPolicy",
+    "InMemoryGuardAudit",
     "LiveTwinReader",
+    "NoStaleCommit",
     "PolicyConfigError",
     "action_hash",
     "action_type",
