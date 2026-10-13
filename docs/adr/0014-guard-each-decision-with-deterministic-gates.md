@@ -49,7 +49,7 @@ The Executor (#18) can treat `ALLOW` plus `context_hash` as the only basis for a
 
 `max_facings` is a single policy number until the Live Twin or planogram serves per-slot capacity. Move feasibility knows only which slots are occupied, not which slots exist. Nothing calls the guard yet: `POST /simulations/{id}/approve` is wired in #18. Guard decisions are not persisted. The audit trail is #35.
 
-- Pull request: https://github.com/vinhphan812/retailtwin-ai/pull/138
+- Pull request: https://github.com/vinhphan812/retailtwin-ai/pull/148
 - Issue: #16
 - Supersedes:
 - Superseded by:
