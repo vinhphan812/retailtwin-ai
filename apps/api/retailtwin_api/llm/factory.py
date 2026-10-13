@@ -5,6 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from .contracts import ConfigurationError, LlmProvider
+from .fake import FakeLlmProvider
 from .openai_compatible import OpenAiCompatibleProvider
 from .vertex import VertexProvider
 
@@ -15,9 +16,11 @@ class LlmConfig(BaseModel):
     base_url for the ``openai_compatible`` provider is read from the ``LLM_BASE_URL``
     environment variable when not explicitly provided.  No default is applied
     to avoid accidental routing to the public OpenAI API in production.
+
+    The ``fake`` provider is for tests and local development only.
     """
 
-    provider: Literal["openai_compatible", "vertex_gemini"]
+    provider: Literal["fake", "openai_compatible", "vertex_gemini"]
     model: str = Field(min_length=1)
     base_url: str | None = None
     api_key: str | None = None
@@ -28,6 +31,9 @@ class LlmConfig(BaseModel):
 
 def create_provider(config: LlmConfig) -> LlmProvider:
     """Create the configured inference adapter without performing inference."""
+    if config.provider == "fake":
+        return FakeLlmProvider(default_model=config.model)
+
     if config.provider == "openai_compatible":
         base_url = config.base_url
         if not base_url:

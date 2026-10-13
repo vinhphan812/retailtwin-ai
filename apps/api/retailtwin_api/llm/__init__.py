@@ -21,12 +21,14 @@ from .contracts import (
     ToolChoicePolicy,
 )
 from .factory import LlmConfig, create_provider
+from .fake import FakeLlmProvider
 from .openai_compatible import OpenAiCompatibleProvider
 from .vertex import VertexProvider
 
 __all__ = [
     "AuthenticationError",
     "ConfigurationError",
+    "FakeLlmProvider",
     "InvalidStructuredOutputError",
     "LlmConfig",
     "LlmError",
