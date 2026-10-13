@@ -1,6 +1,7 @@
 """Day-0 routes. Live Twin mutation stays behind the guard and the executor."""
 
 import logging
+from datetime import datetime, timedelta, timezone
 from typing import Literal, cast
 
 from fastapi import APIRouter, Depends, Query, Request, Response
@@ -31,6 +32,18 @@ def get_events(request: Request) -> EventLog:
 
 def get_simulations(request: Request) -> SimulationReadRepository:
     return request.app.state.simulations
+
+
+def get_anomalies(request: Request) -> AnomalyRepository:
+    return request.app.state.anomalies
+
+
+def get_revenue_repo(request: Request) -> RevenueRepository:
+    return request.app.state.revenue
+
+
+def get_promotions(request: Request) -> PromotionRepository:
+    return request.app.state.promotions
 
 
 def require_simulations(repository: SimulationReadRepository) -> None:
@@ -148,7 +161,6 @@ def _log_event(event: StoreEvent, duplicate: bool, correlation_id: str) -> None:
             "duplicate": duplicate,
         },
     )
-
 
 
 @router.get("/simulations", response_model=SimulationListResponse)
