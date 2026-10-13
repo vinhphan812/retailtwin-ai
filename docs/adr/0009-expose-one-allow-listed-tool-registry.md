@@ -30,7 +30,7 @@ A new tool is a catalog entry plus a handler that does not mutate the Live Twin.
 
 Analytical tools stay dark until their deterministic source is bound, so the model is not offered a tool that would have to invent a KPI. The activity log is process memory. It is not the Live Twin and it is not an authorization. A programmer can still register a badly behaved handler under a new name; review has to refuse that handler, and the live-write names cannot be registered at all.
 
-- Pull request: this pull request
+- Pull request: https://github.com/vinhphan812/retailtwin-ai/pull/119
 - Issue: #11
 - Supersedes:
 - Superseded by:
