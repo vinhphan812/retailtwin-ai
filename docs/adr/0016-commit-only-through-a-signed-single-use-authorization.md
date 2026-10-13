@@ -107,7 +107,7 @@ Limits and follow-ups:
 - **Web contract drift.** The web review contract (`approve`/`reject`, lowercase reasons) still differs from the API (`approved`/`rejected`), as it did before this change.
 - **Still to do:** Verifier (#19), re-plan (#20) and the BigQuery audit (#35).
 
-- Pull request:
+- Pull request: https://github.com/vinhphan812/retailtwin-ai/pull/141
 - Issue: #18
 - Supersedes:
 - Superseded by:
