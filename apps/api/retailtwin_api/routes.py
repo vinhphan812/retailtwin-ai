@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Query, Request, Response
 from retailtwin_api.errors import ApiError
 from retailtwin_api.events import EventConflict, EventLog, ReviewAuditLog
 from retailtwin_api.schemas import EventReceipt, HealthResponse, ProductInventory, ReadyResponse, StoreEvent, StoreResponse
+from retailtwin_api.analytics_repository import AnomalyRepository, RevenueRepository, PromotionRepository
 from retailtwin_api.simulation_repository import SimulationReadRepository
 from retailtwin_api.simulation_schemas import (
     AgentEventListResponse, CandidateListResponse, CursorParameters, PageParameters,
