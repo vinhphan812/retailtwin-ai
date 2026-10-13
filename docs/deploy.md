@@ -13,7 +13,34 @@ enabled and the **Cloud Run API** enabled.
 
 ---
 
-## 1. Build and Push the Container
+## 1. GCP Prerequisites (One-time)
+
+```bash
+# Enable required APIs
+gcloud services enable \
+  run.googleapis.com \
+  secretmanager.googleapis.com \
+  containerregistry.googleapis.com \
+  --project=retailtwin-ai-511002
+
+# Create the runtime service account
+gcloud iam service-accounts create retailtwin-runtime \
+  --display-name="RetailTwin Cloud Run Runtime" \
+  --project=retailtwin-ai-511002
+
+# Grant it Cloud Run Invoker + Secret Accessor
+gcloud projects add-iam-policy-binding retailtwin-ai-511002 \
+  --member="serviceAccount:retailtwin-runtime@retailtwin-ai-511002.iam.gserviceaccount.com" \
+  --role="roles/run.invoker"
+
+gcloud secrets add-iam-policy-binding STORE_FIXTURE_PATH \
+  --member="serviceAccount:retailtwin-runtime@retailtwin-ai-511002.iam.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+```
+
+---
+
+## 2. Build and Push the Container
 
 ```bash
 # Authenticate Docker to GCR (one-time)
@@ -39,21 +66,28 @@ t_1821a674: digest: sha256:<IMAGE_DIGEST> size: 856
 
 ---
 
-## 2. Deploy to Cloud Run
+## 3. Deploy to Cloud Run
 
 ```bash
 gcloud run deploy retailtwin-api \
   --image gcr.io/retailtwin-ai-511002/retailtwin-api:t_1821a674 \
   --platform managed \
   --region us-central1 \
-  --allow-unauthenticated \
+  --service-account=retailtwin-runtime@retailtwin-ai-511002.iam.gserviceaccount.com \
+  --no-allow-unauthenticated \
   --port 8080 \
-  --min-instances 0 \
+  --min-instances 1 \
   --max-instances 10 \
   --memory 512Mi \
   --cpu 1 \
-  --timeout 60
+  --timeout 60 \
+  --set-secrets STORE_FIXTURE_PATH=store-fixture:latest \
+  --set-secrets APP_ENV=APP_ENV:latest
 ```
+
+> **Security note:** `--no-allow-unauthenticated` locks the service to IAM authentication.
+> Use `gcloud run services add-iam-policy-binding` or the Console to grant specific
+> principals (e.g. your frontend SA) the `run.invoker` role on `retailtwin-api`.
 
 Expected output:
 ```
@@ -69,14 +103,17 @@ Service URL: https://retailtwin-api-<hash>.us-central1.run.app
 
 ---
 
-## 3. Verify the Deployment
+## 4. Verify the Deployment
 
+> The service is private (no unauthenticated access). Use an identity token:
 ```bash
-# Health check
-curl -s https://<SERVICE_URL>/health
+SERVICE_URL=https://retailtwin-api-<hash>.us-central1.run.app
+TOKEN=$(gcloud auth print-identity-token \
+  --audiences="${SERVICE_URL}" \
+  --impersonate-service-account=retailtwin-runtime@retailtwin-ai-511002.iam.gserviceaccount.com)
 
-# Store read
-curl -s https://<SERVICE_URL>/store | python -m json.tool
+curl -s -H "Authorization: Bearer ${TOKEN}" "${SERVICE_URL}/health"
+curl -s -H "Authorization: Bearer ${TOKEN}" "${SERVICE_URL}/store" | python -m json.tool
 ```
 
 Expected output:
@@ -121,12 +158,12 @@ gcloud run revisions describe retailtwin-api-00001-wz4 \
 name: retailtwin-api-00001-wz4
 creationTimestamp: '2026-10-12T07:53:19.600983Z'
 Image: gcr.io/retailtwin-ai-511002/retailtwin-api@sha256:97a6d04…
-Service account: 537192856637-compute@developer.gserviceaccount.com
+Service account: retailtwin-runtime@retailtwin-ai-511002.iam.gserviceaccount.com
 ```
 
 ---
 
-## 4. Environment Variables (Runtime)
+## 5. Environment Variables (Runtime)
 
 | Variable | Default | Notes |
 |---|---|---|
@@ -134,53 +171,50 @@ Service account: 537192856637-compute@developer.gserviceaccount.com
 | `UVICORN_HOST` | `0.0.0.0` | Bind address |
 | `UVICORN_PORT` | `8080` | Mirror PORT for uvicorn |
 | `LOG_LEVEL` | `INFO` | Logging verbosity |
-| `STORE_FIXTURE_PATH` | `data/schemas/store-state.example.json` | Day-0 read model |
+| `STORE_FIXTURE_PATH` | from Secret Manager | Injected at runtime by Cloud Run |
 | `STORE_ID` | `store-001` | Store scope |
-| `APP_ENV` | `development` | Reported by `/health` |
+| `APP_ENV` | `production` | Set via Secret Manager |
 
 ---
 
-## 5. CI/CD Integration
+## 6. CI/CD Integration
 
-In GitHub Actions, add a job after tests pass:
+The full production deploy job lives in `.github/workflows/api.yml`. Key configuration:
 
 ```yaml
 deploy-cloud-run:
-  needs: [test]
+  needs: [build-test, e2e-smoke]
   runs-on: ubuntu-latest
+  environment: production          # gates on main + CI green
   steps:
     - uses: actions/checkout@v4
-    - uses: docker/setup-buildx-action@v3
-    - id: auth
-      uses: google-github-actions/auth@v2
+    - uses: google-github-actions/auth@v2
       with:
-        workload_identity_provider: projects/<PROJECT_NUMBER>/locations/global/workloadIdentityPools/<POOL>/providers/<PROVIDER>
-        service_account: <SA>@retailtwin-ai-511002.iam.gserviceaccount.com
-    - uses: docker/build-push-action@v5
-      with:
-        push: true
-        tags: gcr.io/retailtwin-ai-511002/retailtwin-api:${{ github.sha }}
+        workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+        service_account: github-actions@retailtwin-ai-511002.iam.gserviceaccount.com
+    # Build & push container …
+    - name: Activate Secret Manager
+      run: gcloud services enable secretmanager.googleapis.com --project=retailtwin-ai-511002
     - name: Deploy to Cloud Run
+      id: deploy
       uses: google-github-actions/deploy-cloudrun@v2
       with:
         service: retailtwin-api
         region: us-central1
+        service_account: retailtwin-runtime@retailtwin-ai-511002.iam.gserviceaccount.com
         image: gcr.io/retailtwin-ai-511002/retailtwin-api:${{ github.sha }}
-        allow_unauthenticated: true
-        port: 8080
-        memory: 512Mi
-        cpu: 1
-        max_instances: 10
-    - name: Health check
-      run: |
-        curl -f https://${{ env.SERVICE_URL }}/health || exit 1
+        allow_unauthenticated: false
+        secrets: STORE_FIXTURE_PATH=store-fixture:latest
 ```
+
+> **Verification step** uses `gcloud identity tokens sign-jwt` (or `generateIdToken` API) to
+> acquire an OIDC token scoped to the service URL, so it works against the private service.
 
 ---
 
-## 6. Production Hardening (Issue #34)
+## 7. Production Hardening (Issue #34)
 
-Production hardening applied after Day-0 proof.
+All production hardening features are implemented.
 
 | Feature | Status | Details |
 |---|---|---|
@@ -190,9 +224,9 @@ Production hardening applied after Day-0 proof.
 | Liveness probe | Done | `GET /health` always 200 if container alive |
 | Settings validation | Done | `APP_ENV`, `LOG_LEVEL` validated at startup |
 | Production env flag | Done | `APP_ENV=production` sets `is_production=True` |
-| Min-instances=1 | Planned | Prevents cold-start; configured in CI/script |
-| Dedicated service account | Planned | Workload identity for CI; no JSON keys |
-| Secret Manager integration | Done | Runtime injection via `--set-secrets`; pattern documented below |
+| Min-instances=1 | Done | Prevents cold-start; configured in CI and deploy script |
+| Dedicated service account | Done | `retailtwin-runtime@…` — no default Compute SA |
+| Secret Manager integration | Done | Runtime injection via `--set-secrets` |
 
 ### Readiness vs Liveness Separation
 
@@ -216,7 +250,7 @@ Cloud Logging parses these automatically from container stdout.
 
 ---
 
-## 7. Rollback
+## 8. Rollback
 
 ```bash
 # List revisions
@@ -230,7 +264,7 @@ gcloud run services update-traffic retailtwin-api \
 
 ---
 
-## 8. Secret Manager Pattern
+## 9. Secret Manager Pattern
 
 **Principle:** No secrets in source, in environment variables, or baked into container images. All secrets live in GCP Secret Manager and are injected at runtime.
 
@@ -246,9 +280,8 @@ gcloud secrets add-versions --data-file=- <<< "v1"  # default version
 ### Grant Cloud Run service account access
 
 ```bash
-PROJECT_NR=$(gcloud projects describe $PROJECT_ID --format="value(projectNumber)")
 gcloud secrets add-iam-policy-binding STORE_FIXTURE_PATH \
-  --member="serviceAccount:${PROJECT_NR}-compute@developer.gserviceaccount.com" \
+  --member="serviceAccount:retailtwin-runtime@retailtwin-ai-511002.iam.gserviceaccount.com" \
   --role="roles/secretmanager.secretAccessor"
 ```
 
@@ -283,14 +316,13 @@ APP_ENV=development
 
 ---
 
-## 9. Exclusions
+## 10. Exclusions
 
 - Multi-service mesh / Istio hardening — tracked in issue #34
 - Service-account key file creation — use workload identity federation instead
-- IAM permission widening beyond the default Cloud Run service account
+- IAM permission widening beyond the `retailtwin-runtime` service account
 - Hardcoded secrets in environment variables — use Secret Manager with
-  `--set-secrets STORE_FIXTURE_PATH=store-fixture:latest` (Secret Manager setup is out of scope)
-- Dedicated CI service account (WIF provider not yet configured in GitHub repo vars)
+  `--set-secrets STORE_FIXTURE_PATH=store-fixture:latest`
 
 ---
 
