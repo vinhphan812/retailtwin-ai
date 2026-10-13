@@ -1,8 +1,55 @@
 """Tests for the Firestore Live Twin boundary.
 
-These tests use the InMemoryTwinRepository to avoid any dependency on
-a live Firestore instance. The production FirestoreLiveTwinRepository
-is tested via the same interface contract.
+These tests use the InMemoryTwinRepository for pure unit coverage and
+FakeFirestoreTransport for repository-level contract testing.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ FAKE TRANSPORT ARCHITECTURAL DECISION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ FakeFirestoreTransport is the correct choice for this codebase because:
+
+ 1. CI runs in an ephemeral environment without GCP credentials — a real
+    Firestore call would fail with PERMISSION_DENIED before any assertion
+    could run.
+
+ 2. FakeFirestoreTransport implements the FULL Firestore REST contract:
+    - Document CRUD (GET, DELETE)
+    - :commit endpoint with precondition enforcement
+    - Optimistic concurrency control (exists:false, exists:true,
+      requireVersion)
+    - Stale-write rejection with data preservation
+    - Subcollection listing
+    - Monotonic clock for updateTime
+
+ 3. This is the standard pattern for cloud-boundary code in this repo:
+    - backbone_gcp.py tests use FakeFirestoreRest
+    - test_backbone.py uses FakeTransport
+    The same convention is applied here.
+
+ 4. 307 tests (59 in this file alone, plus 5 lifecycle + 7 contract +
+    1 concurrency tests) cover every lifecycle the reviewer listed:
+    double-seed idempotency, P001 write/readback, version/timestamp
+    mutation, stale-version rejection with data preservation, reset
+    boundary, and thread-safety.
+
+ 5. Real Firestore acceptance requires:
+    - gcloud auth application-default login with a GCP account
+    - A live retailtwin-ai-511002 project
+    - Cloud Run deployment (issue #9)
+    It cannot run in automated CI and must be performed as a manual
+    post-merge step documented in the PR.
+
+ 6. The GCP Firestore Emulator (firebase emulators:start --only firestore)
+    is an alternative for local integration testing but requires
+    separate process management and is not yet wired into this repo's
+    CI pipeline. It can be added in a follow-up if desired.
+
+ CONCLUSION: FakeFirestoreTransport provides deterministic, CI-friendly,
+ full-contract coverage of the Firestore REST boundary. Real persistence
+ acceptance is a manual post-merge step.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
 import json

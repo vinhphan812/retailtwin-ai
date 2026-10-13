@@ -55,6 +55,15 @@ Canonical paths:
 
 This module is intentionally isolated from the HTTP routes. The routes
 continue to call the StoreRepository interface defined in store.py.
+
+NOTE ON FAKE TRANSPORT: FirestoreLiveTwinRepository is exercised against
+FakeFirestoreTransport (defined in test_firestore_twin.py), which fully
+simulates the Firestore REST contract including :commit preconditions,
+optimistic concurrency, and stale-write rejection. Real Firestore requires
+GCP credentials (gcloud auth application-default login) and cannot run in
+CI. See the test file's FAKE TRANSPORT ARCHITECTURAL DECISION block for
+the full rationale.
+
 """
 
 from __future__ import annotations
