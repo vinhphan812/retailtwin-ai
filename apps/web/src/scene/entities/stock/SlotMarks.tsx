@@ -30,7 +30,7 @@ export type SlotBox = { productId: string; slotId: string; matrix: Matrix4 };
 export type SlotMarks = {
   /** Slots holding more facings than they fit. */
   overflow: SlotBox[];
-  /** Slots whose product's facings changed in `change`. */
+  /** Slots whose product's facings changed in `change`, or whose shelf gained units. */
   changed: SlotBox[];
   /** Slots the proposal on screen changes: where a changed product stands, and where a moved one stood. */
   proposed: SlotBox[];
@@ -85,20 +85,29 @@ function slotBox({ holder, slot, surface }: PlacedSlot, productId: string): Slot
 
 /**
  * The slots of `store`, the state on screen, to mark: every overflowing slot, the slots
- * of the facings changes in `change` whose product still has the new facings, and the
- * slots `proposal` (the proposal on screen against Live) changes.
+ * of the facings changes in `change` whose product still has the new facings, or of the
+ * shelf gains in `change` whose product still has the new shelf count, and the slots
+ * `proposal` (the proposal on screen against Live) changes.
  */
 export function slotMarksOf(store: StoreFixture, change: RecentChange | null, proposal: StateDiff | null = null): SlotMarks {
   const marks: SlotMarks = { overflow: [], changed: [], proposed: [] };
   const holders = holdersOf(store);
   const changed = new Map(change?.diff.facings.map((item) => [item.sku, item.after]));
+  const before = new Map(change?.before.products.map((item) => [item.sku, item.shelf_quantity]));
+  const restocked = new Map(
+    change?.diff.quantity
+      .filter((item) => item.shelfDelta > 0 && before.has(item.sku))
+      .map((item) => [item.sku, before.get(item.sku)! + item.shelfDelta]),
+  );
   const proposed = new Set(proposal ? changedSkus(proposal) : []);
   for (const product of store.products) {
     const placed = placedSlot(holders, product.shelfId, product.slotId);
     if (!placed) continue;
     const box = () => slotBox(placed, product.productId);
     if (product.facings > slotCapacity(placed.slot, stockItemFor(placed.surface.kind))) marks.overflow.push(box());
-    if (changed.get(product.productId) === product.facings) marks.changed.push(box());
+    if (changed.get(product.productId) === product.facings || restocked.get(product.productId) === product.shelfQuantity) {
+      marks.changed.push(box());
+    }
     if (proposed.has(product.productId)) marks.proposed.push(box());
   }
   for (const move of proposal?.moved ?? []) {
@@ -138,9 +147,9 @@ const NO_RAYCAST = () => null;
 /**
  * Slot marks over the stock. An overflowing slot is outlined in red, with a faint red
  * fill, for as long as it overflows; it is never drawn as a valid slot. A recent facings
- * change (`useRecentChanges`) glows on its slot and fades over `CHANGE_CUE_MS`; with
- * reduced motion it holds still until the cue ends. In the Simulation view every slot the
- * proposal changes (`useProposalChanges`) is outlined for as long as the proposal is on
+ * change or shelf gain (`useRecentChanges`) glows on its slot and fades over `CHANGE_CUE_MS`;
+ * with reduced motion it holds still until the cue ends. In the Simulation view every slot
+ * the proposal changes (`useProposalChanges`) is outlined for as long as the proposal is on
  * screen, the source slot of a move included.
  */
 export function SlotMarksLayer({ store }: { store: StoreFixture }) {
@@ -178,7 +187,7 @@ export function SlotMarksLayer({ store }: { store: StoreFixture }) {
       {marks.changed.map(({ slotId, matrix }) => (
         <mesh
           key={`changed-${slotId}`}
-          name={`slot-facings-changed-${slotId}`}
+          name={`slot-changed-${slotId}`}
           matrix={matrix}
           matrixAutoUpdate={false}
           geometry={UNIT_BOX}
