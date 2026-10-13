@@ -13,7 +13,7 @@ Gates run in order and the first failure decides:
 
 | # | Gate | Fails with |
 | --- | --- | --- |
-| 1 | decision integrity | `DENY INVALID_DECISION` |
+| 1 | decision integrity: one store, one correlation id, timezone-aware timestamps not in the future | `DENY INVALID_DECISION` |
 | 2 | evidence sufficient and consistent | `DENY INSUFFICIENT_EVIDENCE` / `CONFLICTING_EVIDENCE` |
 | 3 | context version of each touched SKU | `REFRESH_REQUIRED VERSION_STALE`; `DENY MISSING_CONTEXT_VERSION` / `UNKNOWN_ENTITY` |
 | 4 | context freshness | `REFRESH_REQUIRED CONTEXT_EXPIRED` |
