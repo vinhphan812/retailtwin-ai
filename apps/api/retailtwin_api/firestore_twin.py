@@ -475,6 +475,15 @@ class LiveTwinRepository(ABC):
         """
 
     @abstractmethod
+    def bump_store_version(self, store_id: str) -> StoreDocument:
+        """Advance the store ``v<N>`` version after a committed live change.
+
+        Raises:
+            TwinNotFound: The store document does not exist.
+            TwinUnavailable: The store is unreachable.
+        """
+
+    @abstractmethod
     def is_available(self) -> bool:
         """Return True when the underlying store is reachable."""
 
@@ -720,6 +729,34 @@ class FirestoreLiveTwinRepository(LiveTwinRepository):
         if response.status != 200:
             raise _http_error("reset", response.status, response.body)
 
+    def bump_store_version(self, store_id: str) -> StoreDocument:
+        current = self.get_store(store_id)
+        if current is None:
+            raise TwinNotFound(_doc_path(COLLECTION_STORE, store_id))
+        bumped = StoreDocument(
+            store_id=store_id,
+            version=_bump_version(current.version),
+            updated_at=datetime.now(timezone.utc),
+        )
+        payload: dict[str, Any] = {
+            "writes": [
+                {
+                    "update": {
+                        "name": _doc_name(self._config, COLLECTION_STORE, store_id),
+                        "fields": {
+                            "store_id": {"stringValue": store_id},
+                            "version": {"stringValue": bumped.version},
+                            "updated_at": {"timestampValue": bumped.updated_at.isoformat()},
+                        },
+                    }
+                }
+            ]
+        }
+        response = self._call("POST", f"{_database_root(self._config.project)}:commit", payload)
+        if response.status != 200:
+            raise _http_error("bump_store_version", response.status, response.body)
+        return bumped
+
     def is_available(self) -> bool:
         url = f"{_database_root(self._config.project)}/stores"
         try:
@@ -876,6 +913,19 @@ class InMemoryTwinRepository(LiveTwinRepository):
                 version=new_version,
                 updated_at=datetime.now(timezone.utc),
             )
+
+    def bump_store_version(self, store_id: str) -> StoreDocument:
+        with self._lock:
+            current = self._stores.get(store_id)
+            if current is None:
+                raise TwinNotFound(f"stores/{store_id}")
+            bumped = StoreDocument(
+                store_id=store_id,
+                version=_bump_version(current.version),
+                updated_at=datetime.now(timezone.utc),
+            )
+            self._stores[store_id] = bumped
+            return bumped
 
     def is_available(self) -> bool:
         return True

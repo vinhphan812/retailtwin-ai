@@ -7,13 +7,17 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from retailtwin_api.agents.executor import build_commit_service
+from retailtwin_api.decisions import unavailable_decision_source
 from retailtwin_api.errors import ApiError, api_error_handler, http_error_handler, validation_error_handler
+from retailtwin_api.firestore_twin import FirestoreLiveTwinRepository, LiveTwinRepository
+from retailtwin_api.guard.decision_context_guard import InMemoryGuardAudit
 from retailtwin_api.events import EventLog, ReviewAuditLog
 from retailtwin_api.middleware import CorrelationMiddleware
 from retailtwin_api.routes import router
 from retailtwin_api.settings import Settings, get_settings
 from retailtwin_api.simulation_repository import unavailable_simulation_repository
-from retailtwin_api.store import open_store
+from retailtwin_api.store import LiveTwinStore, StoreReader, open_memory_live_store, open_store
 from retailtwin_api.analytics_repository import unavailable_analytics_repositories
 
 logger = logging.getLogger(__name__)
@@ -30,8 +34,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = resolved
 
-    store = open_store(resolved.store_fixture_path, resolved.store_id)
+    store = _open_store(resolved)
     app.state.store = store
+    # Only the guarded Executor writes the Live Twin, through the approve route.
+    live_twin: LiveTwinRepository | None = store.twin if isinstance(store, LiveTwinStore) else None
+    app.state.live_twin = live_twin
+    app.state.guard_audit = InMemoryGuardAudit()
+    app.state.commits = (
+        build_commit_service(live_twin, app.state.guard_audit, production=resolved.is_production)
+        if live_twin is not None
+        else None
+    )
+    # The planner records the Decision it simulated. Production injects a real source.
+    app.state.decisions = unavailable_decision_source()
     app.state.events = EventLog()
     app.state.review_audit = ReviewAuditLog()
     app.state.live_context_version = store.view().context_version if store.loaded else ""
@@ -74,6 +89,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         },
     )
     return app
+
+
+def _open_store(settings: Settings) -> StoreReader:
+    if settings.live_twin_backend == "fixture":
+        return open_store(settings.store_fixture_path, settings.store_id)
+    if settings.live_twin_backend == "firestore":
+        return LiveTwinStore(FirestoreLiveTwinRepository(), settings.store_id)
+    return open_memory_live_store(settings.store_fixture_path, settings.store_id)
 
 
 def _origins(value: str) -> list[str]:
