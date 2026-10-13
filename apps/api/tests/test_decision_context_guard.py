@@ -74,16 +74,18 @@ def bundle(
     freshness: datetime = NOW - timedelta(seconds=10),
     store_id: str = STORE,
     bundle_id: str = "bundle-1",
+    correlation_id: str = "corr-1",
+    collected_at: datetime | None = None,
 ) -> EvidenceBundle:
     return EvidenceBundle(
         bundle_id=bundle_id,
         provenance="tool-registry",
         source="investigator",
         entity_versions={"P001": "1"} if versions is None else versions,
-        collected_at=freshness,
+        collected_at=freshness if collected_at is None else collected_at,
         freshness=freshness,
         store_id=store_id,
-        correlation_id="corr-1",
+        correlation_id=correlation_id,
         is_sufficient=sufficient,
     )
 
@@ -180,6 +182,40 @@ def test_evidence_from_two_stores_is_denied(guard: DecisionContextGuard) -> None
     assert (result.verdict, result.reason_code) == (DCGVerdict.DENY, INVALID_DECISION)
 
 
+def test_evidence_from_two_investigations_is_denied(guard: DecisionContextGuard) -> None:
+    result = guard.evaluate(
+        decision(evidence=[bundle(), bundle({"P001": "1"}, bundle_id="b2", correlation_id="corr-2")])
+    )
+    assert (result.verdict, result.reason_code) == (DCGVerdict.DENY, INVALID_DECISION)
+    assert "correlation" in result.policy_result["checks"][0]["detail"]
+
+
+def test_blank_correlation_id_is_denied(guard: DecisionContextGuard) -> None:
+    result = guard.evaluate(decision(evidence=[bundle(correlation_id="  ")]))
+    assert (result.verdict, result.reason_code) == (DCGVerdict.DENY, INVALID_DECISION)
+
+
+def test_result_and_logs_carry_the_correlation_id(
+    guard: DecisionContextGuard, twin: InMemoryTwinRepository, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level("INFO", logger="retailtwin_api.guard.decision_context_guard.guard")
+    assert guard.evaluate(decision()).policy_result["correlation_id"] == "corr-1"
+    bump(twin, "P001")
+    assert guard.evaluate(decision()).policy_result["correlation_id"] == "corr-1"
+    assert all("correlation_id=corr-1" in record.getMessage() for record in caplog.records)
+    assert len(caplog.records) == 2
+
+
+def test_read_failure_log_carries_the_correlation_id(
+    twin: InMemoryTwinRepository, caplog: pytest.LogCaptureFixture
+) -> None:
+    guard = DecisionContextGuard(_BrokenTwin(twin, fail_get=True), clock=lambda: NOW)
+    guard.evaluate(decision())
+    assert any(
+        "live read failed" in r.getMessage() and "correlation_id=corr-1" in r.getMessage() for r in caplog.records
+    )
+
+
 def test_duplicate_action_for_one_sku_is_denied(guard: DecisionContextGuard) -> None:
     result = guard.evaluate(
         decision([ReplenishShelf(sku="P001", quantity=1), ReplenishShelf(sku="P001", quantity=2)])
@@ -195,6 +231,25 @@ def test_naive_timestamp_is_denied(guard: DecisionContextGuard) -> None:
 def test_future_timestamp_is_denied(guard: DecisionContextGuard) -> None:
     result = guard.evaluate(decision(evidence=[bundle(freshness=NOW + timedelta(minutes=1))]))
     assert (result.verdict, result.reason_code) == (DCGVerdict.DENY, INVALID_DECISION)
+
+
+def test_naive_collected_at_is_denied(guard: DecisionContextGuard) -> None:
+    result = guard.evaluate(decision(evidence=[bundle(collected_at=datetime(2026, 10, 13, 8, 59))]))
+    assert (result.verdict, result.reason_code) == (DCGVerdict.DENY, INVALID_DECISION)
+
+
+def test_future_collected_at_is_denied(guard: DecisionContextGuard) -> None:
+    result = guard.evaluate(decision(evidence=[bundle(collected_at=NOW + timedelta(minutes=1))]))
+    assert (result.verdict, result.reason_code) == (DCGVerdict.DENY, INVALID_DECISION)
+
+
+def test_collected_at_does_not_extend_the_expiry(guard: DecisionContextGuard) -> None:
+    """An old collection time is valid; expiry still follows context_timestamp and freshness."""
+    result = guard.evaluate(
+        decision(evidence=[bundle(freshness=NOW - timedelta(seconds=10), collected_at=NOW - timedelta(seconds=50))])
+    )
+    assert result.verdict is DCGVerdict.ALLOW
+    assert result.expiry == NOW - timedelta(seconds=10) + timedelta(seconds=120)
 
 
 def test_timestamp_within_clock_skew_is_accepted(guard: DecisionContextGuard) -> None:
