@@ -394,3 +394,24 @@ class TestPromotions:
         data = response.json()
         assert data["total"] == 3
         assert data["active_count"] == 1  # only ACTIVE counts
+
+
+
+def test_naive_timestamps_are_read_as_utc(client: TestClient, anomaly_repo: InMemoryAnomalyRepository) -> None:
+    anomaly_repo.seed([
+        Anomaly(
+            anomaly_id="a-1",
+            anomaly_type=AnomalyType.STOCKOUT,
+            severity=AnomalySeverity.HIGH,
+            store_id="store-001",
+            title="Recent",
+            description="Recent anomaly",
+            detected_at=datetime(2026, 10, 13, 9, 0, tzinfo=timezone.utc),
+        ),
+    ])
+    response = client.get("/anomalies", params={"since": "2026-10-13T08:00:00"})
+    assert response.status_code == 200
+    assert response.json()["total"] == 1
+    response = client.get("/revenue", params={"start": "2026-10-13T00:00:00", "end": "2026-10-13T08:00:00"})
+    assert response.status_code == 200
+    assert response.json()["start"] in ("2026-10-13T00:00:00Z", "2026-10-13T00:00:00+00:00")

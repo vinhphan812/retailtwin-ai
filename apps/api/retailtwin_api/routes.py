@@ -375,6 +375,13 @@ def reject_simulation(
 # ─── Analytics routes ─────────────────────────────────────────────────────────
 
 
+def _as_utc(value: datetime | None) -> datetime | None:
+    """Read a timestamp without an offset as UTC, so it compares with stored UTC times."""
+    if value is None or value.tzinfo is not None:
+        return value
+    return value.replace(tzinfo=timezone.utc)
+
+
 @router.get("/anomalies", response_model=AnomaliesResponse, include_in_schema=True)
 def list_anomalies(
     request: Request,
@@ -389,7 +396,7 @@ def list_anomalies(
         store_id=request.app.state.settings.store_id,
         severity=severity,
         anomaly_type=anomaly_type,
-        since=since,
+        since=_as_utc(since),
         limit=limit,
     )
 
@@ -403,8 +410,8 @@ def read_revenue(
     repo: RevenueRepository = Depends(get_revenue_repo),
 ) -> RevenueResponse:
     """Revenue for the served store between `start` and `end`, bucketed by `period`."""
-    end_at = end or datetime.now(timezone.utc)
-    start_at = start or end_at.replace(hour=0, minute=0, second=0, microsecond=0)
+    end_at = _as_utc(end) or datetime.now(timezone.utc)
+    start_at = _as_utc(start) or end_at.replace(hour=0, minute=0, second=0, microsecond=0)
     if start_at > end_at:
         raise ApiError(422, "invalid_period", "start must not be after end.")
     return repo.get_revenue(
