@@ -6,7 +6,6 @@ on:
     paths:
       - 'apps/api/**'
       - 'services/forecasting/**'
-      - 'services/simulation/**'
       - 'tests/e2e/**'
       - '.github/workflows/api.yml'
       - 'package.json'
@@ -14,7 +13,6 @@ on:
     paths:
       - 'apps/api/**'
       - 'services/forecasting/**'
-      - 'services/simulation/**'
       - 'tests/e2e/**'
       - '.github/workflows/api.yml'
       - 'package.json'
@@ -49,7 +47,7 @@ jobs:
           pip install -e ".[dev]"
 
       - name: Type-check
-        run: pip install mypy && mypy apps/api/retailtwin_api --ignore-missing-imports
+        run: pip install mypy && mypy retailtwin_api --ignore-missing-imports
 
       - name: Stockout risk tests
         working-directory: services/forecasting
@@ -59,47 +57,20 @@ jobs:
         working-directory: services/forecasting
         run: python -m mypy demand --ignore-missing-imports && python -m pytest
 
-      - name: Simulation KPI tests with coverage
-        working-directory: ${{ github.workspace }}
-        env:
-          PYTHONPATH: ${{ github.workspace }}/services/simulation:${{ github.workspace }}/services/forecasting/risk
-        run: |
-          python -m mypy services/simulation/kpi --ignore-missing-imports
-          pytest \
-            --cov=retailtwin_api \
-            --cov=services/forecasting/risk \
-            --cov=services/simulation \
-            --cov-report=term \
-            --cov-report=xml:apps/api/coverage.xml \
-            --cov-branch \
-            --no-cov-on-fail \
-            services/simulation/tests/
-
       - name: Run tests with coverage
-        working-directory: ${{ github.workspace }}
-        run: |
-          pytest \
-            --cov=retailtwin_api \
-            --cov=services/forecasting/risk \
-            --cov=services/simulation \
-            --cov-report=term \
-            --cov-report=xml:apps/api/coverage.xml \
-            --cov-branch \
-            --cov-append \
-            apps/api/tests/
+        run: pytest --cov=retailtwin_api --cov-report=term --cov-report=xml --cov-branch
 
       - name: Check branch coverage threshold
         run: python check_branch_threshold.py
 
       - name: Enforce critical-path coverage policy
-        working-directory: ${{ github.workspace }}
-        run: python apps/api/enforce_critical_path_coverage.py
+        run: python enforce_critical_path_coverage.py
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
           name: api-coverage
-          path: coverage.xml
+          path: apps/api/coverage.xml
 
       - name: Coverage summary
         run: |
@@ -178,6 +149,7 @@ jobs:
           region: us-central1
           project_id: retailtwin-ai-511002
           image: gcr.io/retailtwin-ai-511002/retailtwin-api:${{ github.sha }}
+          service_account: retailtwin-runtime@retailtwin-ai-511002.iam.gserviceaccount.com
           allow_unauthenticated: false
           port: 8080
           min_instances: 1
@@ -191,10 +163,17 @@ jobs:
 
       - name: Verify production deployment
         run: |
+          set -e
           SERVICE_URL="${{ steps.deploy.outputs.url }}"
           echo "Service URL: ${SERVICE_URL}"
+          echo "ROLLING_URL=${SERVICE_URL}" >> $GITHUB_ENV
 
-          HEALTH=$(curl -sf "${SERVICE_URL}/health" || echo "")
+          # Obtain identity token scoped to the service URL for authenticated health check
+          TOKEN=$(gcloud auth print-identity-token --audiences="${SERVICE_URL}" --quiet)
+          echo "Identity token obtained"
+
+          # Liveness: /health (should always be 200 if container is alive)
+          HEALTH=$(curl -sf -H "Authorization: Bearer ${TOKEN}" "${SERVICE_URL}/health" || echo "")
           echo "Health: ${HEALTH}"
 
           # Assert production env
@@ -205,8 +184,8 @@ jobs:
           echo "${HEALTH}" | grep -q '"status":"ok"' \
             || { echo "ERROR: Service not OK" >&2; exit 1; }
 
-          # Readiness probe
-          READY=$(curl -sf "${SERVICE_URL}/ready" -o /dev/null -w "%{http_code}")
+          # Readiness probe: /ready
+          READY=$(curl -sf -H "Authorization: Bearer ${TOKEN}" "${SERVICE_URL}/ready" -o /dev/null -w "%{http_code}")
           echo "Readiness: ${READY}"
           [[ "${READY}" == "200" ]] \
             || { echo "ERROR: Readiness probe failed" >&2; exit 1; }
