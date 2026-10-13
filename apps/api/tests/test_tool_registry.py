@@ -50,7 +50,7 @@ ALL = {ToolCapability.READ, ToolCapability.SIMULATION, ToolCapability.COMMIT_REQ
 
 @pytest.fixture
 def store():
-    return open_store(DEFAULT_FIXTURE, "store-001")
+    return open_store("store-001", use_firestore=False, fixture_path=DEFAULT_FIXTURE)
 
 
 @pytest.fixture

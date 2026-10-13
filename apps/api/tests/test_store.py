@@ -22,17 +22,20 @@ def test_store_returns_the_committed_fixture(client) -> None:
 
 
 def test_store_is_unavailable_without_a_fixture(tmp_path, monkeypatch) -> None:
+    """When use_firestore=False and the fixture file is missing, GET /store returns 503."""
     from fastapi.testclient import TestClient
 
     from retailtwin_api.main import create_app
     from retailtwin_api.settings import Settings
 
+    monkeypatch.delenv("USE_FIRESTORE", raising=False)
     monkeypatch.delenv("STORE_FIXTURE_PATH", raising=False)
     application = create_app(
         Settings(
             _env_file=None,
             store_id="store-001",
             store_fixture_path=tmp_path / "missing.json",
+            use_firestore=False,  # Explicitly use fixture path (not Firestore)
         )
     )
 
@@ -49,6 +52,7 @@ def test_store_is_unavailable_without_a_fixture(tmp_path, monkeypatch) -> None:
 
 
 def test_duplicate_sku_keeps_the_fixture_unloaded(tmp_path, monkeypatch) -> None:
+    """When the fixture has duplicate SKUs, FixtureStoreRepository.loaded is False."""
     from fastapi.testclient import TestClient
 
     from retailtwin_api.main import create_app
@@ -68,9 +72,10 @@ def test_duplicate_sku_keeps_the_fixture_unloaded(tmp_path, monkeypatch) -> None
         """,
         encoding="utf-8",
     )
+    monkeypatch.delenv("USE_FIRESTORE", raising=False)
     monkeypatch.delenv("STORE_FIXTURE_PATH", raising=False)
     application = create_app(
-        Settings(_env_file=None, store_id="store-001", store_fixture_path=fixture)
+        Settings(_env_file=None, store_id="store-001", store_fixture_path=fixture, use_firestore=False)
     )
 
     with TestClient(application) as test_client:

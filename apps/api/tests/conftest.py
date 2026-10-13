@@ -16,6 +16,8 @@ _SETTINGS_ENV = (
     "CORS_ORIGINS",
     "STORE_ID",
     "STORE_FIXTURE_PATH",
+    "USE_FIRESTORE",
+    "FIRESTORE_PROJECT",
     "LOG_LEVEL",
 )
 
@@ -29,6 +31,7 @@ def settings(monkeypatch: pytest.MonkeyPatch) -> Settings:
         app_env="test",
         store_id="store-001",
         store_fixture_path=DEFAULT_FIXTURE,
+        use_firestore=False,  # Tests use fixture path so they run without GCP credentials
     )
 
 

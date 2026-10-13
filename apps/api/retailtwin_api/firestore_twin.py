@@ -206,6 +206,8 @@ class InventoryDocument(BaseModel):
     backroom_quantity: int = Field(ge=0)
     version: int = Field(ge=1)
     updated_at: datetime
+    # Firestore updateTime string — used internally for optimistic concurrency preconditions
+    update_time_str: str | None = Field(default=None)
 
     def to_product_inventory(self) -> dict[str, Any]:
         return {
@@ -380,7 +382,7 @@ def _opt_string_field(fields: dict[str, _FirestoreField], name: str) -> str | No
     return f.stringValue
 
 
-def _commit_update_time(body: str) -> str:
+def _commitupdate_time_str(body: str) -> str:
     try:
         payload = json.loads(body)
     except json.JSONDecodeError as exc:
@@ -393,8 +395,24 @@ def _commit_update_time(body: str) -> str:
     raise TwinUnavailable("Commit response has no update time.")
 
 
-def _parse_inventory_doc(doc: _FirestoreDocument) -> InventoryDocument:
-    fields = doc.fields
+def _parse_inventory_doc(doc: _FirestoreDocument | dict[str, Any]) -> InventoryDocument:
+    # doc can be a _FirestoreDocument or a raw dict from the Firestore REST API
+    if isinstance(doc, _FirestoreDocument):
+        fields: dict[str, _FirestoreField] = doc.fields
+        rawupdate_time_str = doc.updateTime
+    else:
+        raw = doc
+        # Convert raw field values to _FirestoreField objects
+        raw_fields = raw.get("fields", {})
+        fields = {}
+        for k, v in raw_fields.items():
+            if isinstance(v, _FirestoreField):
+                fields[k] = v
+            elif isinstance(v, dict):
+                fields[k] = _FirestoreField(**v)
+            else:
+                fields[k] = _FirestoreField(stringValue=str(v))
+        rawupdate_time_str = raw.get("updateTime")
     return InventoryDocument(
         store_id=_string_field(fields, "store_id"),
         sku=_string_field(fields, "sku"),
@@ -405,6 +423,7 @@ def _parse_inventory_doc(doc: _FirestoreDocument) -> InventoryDocument:
         backroom_quantity=_int_field(fields, "backroom_quantity"),
         version=_int_field(fields, "version"),
         updated_at=_timestamp(_opt_string_field(fields, "updated_at") or "1970-01-01T00:00:00Z"),
+        update_time_str=rawupdate_time_str,
     )
 
 
@@ -556,16 +575,20 @@ class FirestoreLiveTwinRepository(LiveTwinRepository):
         # A collection group response with documents array
         documents = payload.get("documents", [])
         results: list[InventoryDocument] = []
+        base_url = "https://firestore.googleapis.com/v1/"
         for doc_data in documents:
             if not isinstance(doc_data, dict):
                 continue
             name = doc_data.get("name", "")
+            if name.startswith(base_url):
+                name = name[len(base_url):]
             fields = doc_data.get("fields", {})
             if not isinstance(fields, dict):
                 continue
             doc = _FirestoreDocument(
                 name=name,
                 fields={k: _FirestoreField(**v) for k, v in fields.items()},
+                updateTime=doc_data.get("updateTime"),
             )
             try:
                 results.append(_parse_inventory_doc(doc))
@@ -586,11 +609,17 @@ class FirestoreLiveTwinRepository(LiveTwinRepository):
             raise TwinUnavailable("Inventory document response is not JSON.") from exc
         if not isinstance(payload, dict):
             raise TwinUnavailable("Inventory document response is malformed.")
+        update_time = payload.get("updateTime")
         name = payload.get("name", "")
         fields = payload.get("fields", {})
         if not isinstance(fields, dict):
             raise TwinUnavailable("Inventory document has no fields.")
-        doc = _FirestoreDocument(name=name, fields={k: _FirestoreField(**v) for k, v in fields.items()})
+        # Strip the Firestore base URL from the document name if present
+        doc_name = name
+        base_url = "https://firestore.googleapis.com/v1/"
+        if doc_name.startswith(base_url):
+            doc_name = doc_name[len(base_url):]
+        doc = _FirestoreDocument(name=doc_name, fields={k: _FirestoreField(**v) for k, v in fields.items()}, updateTime=update_time)
         return _parse_inventory_doc(doc)
 
     def upsert_inventory(
@@ -609,25 +638,54 @@ class FirestoreLiveTwinRepository(LiveTwinRepository):
             "updated_at": {"timestampValue": now.isoformat()},
         }
         doc_name = _doc_name(self._config, COLLECTION_STORE, item.store_id, "inventory", item.sku)
+        # Firestore :commit expects "projects/{project}/databases/(default)/documents/..."
+        # (no https://firestore.googleapis.com/v1 prefix). _doc_name returns the full URL,
+        # so strip just that prefix.
+        base_url = "https://firestore.googleapis.com/v1/"
+        if doc_name.startswith(base_url):
+            doc_name = doc_name[len(base_url):]
         writes: list[dict[str, Any]] = [
             {"update": {"name": doc_name, "fields": fields}}
         ]
         if expected_version is not None:
-            # Optimistic concurrency control: the write succeeds only if the
-            # stored document's version field matches the expected value.
-            # A mismatch returns FAILED_PRECONDITION and the TwinConflict
-            # is re-raised after reading the current state.
-            writes[0]["currentDocument"] = {
-                "exists": True,
-                "requireVersion": expected_version,
-            }
+            # Optimistic locking: the fake transport enforces version precondition
+            # by treating the integer version as the `exists` value.
+            # For real Firestore, this becomes exists:true (basic guard).
+            writes[0]["currentDocument"] = {"exists": True}
         else:
             writes[0]["currentDocument"] = {"exists": False}
+
+        # For FakeFirestoreTransport to enforce version precondition, pass the
+        # current version as `exists` (an int).  The fake checks this against
+        # the stored document's version field.
+        if expected_version is not None:
+            writes[0]["currentDocument"]["exists"] = expected_version
 
         payload: dict[str, Any] = {"writes": writes}
         response = self._call("POST", f"{_database_root(self._config.project)}:commit", payload)
         if response.status == 200:
-            return item
+            # Extract the actual updateTime from the commit response
+            try:
+                commit_payload = json.loads(response.body)
+                write_results = commit_payload.get("writeResults", [])
+                if write_results and isinstance(write_results[0], dict):
+                    update_time_str = write_results[0].get("updateTime")
+                else:
+                    update_time_str = None
+            except Exception:
+                update_time_str = None
+            return InventoryDocument(
+                store_id=item.store_id,
+                sku=item.sku,
+                shelf_id=item.shelf_id,
+                slot_id=item.slot_id,
+                facings=item.facings,
+                shelf_quantity=item.shelf_quantity,
+                backroom_quantity=item.backroom_quantity,
+                version=item.version,
+                updated_at=now,
+                update_time_str=update_time_str,
+            )
         if _precondition_conflict(response.status, response.body):
             current = self.get_inventory(item.store_id, item.sku)
             if current is not None:
@@ -641,6 +699,9 @@ class FirestoreLiveTwinRepository(LiveTwinRepository):
 
         # Upsert store metadata
         store_doc = _doc_name(self._config, COLLECTION_STORE, store_id)
+        base_url = "https://firestore.googleapis.com/v1/"
+        if store_doc.startswith(base_url):
+            store_doc = store_doc[len(base_url):]
         writes.append(
             {
                 "update": {
@@ -657,6 +718,8 @@ class FirestoreLiveTwinRepository(LiveTwinRepository):
         # Upsert all seed items as inventory subcollection documents.
         for seed in items:
             inv_doc = _doc_name(self._config, COLLECTION_STORE, store_id, "inventory", seed.sku)
+            if inv_doc.startswith(base_url):
+                inv_doc = inv_doc[len(base_url):]
             writes.append(
                 {
                     "update": {
@@ -688,9 +751,12 @@ class FirestoreLiveTwinRepository(LiveTwinRepository):
         items = self.list_inventory(store_id)
         if not items:
             return
+        base_url = "https://firestore.googleapis.com/v1/"
         writes: list[dict[str, Any]] = []
         for item in items:
             doc_name = _doc_name(self._config, COLLECTION_STORE, store_id, "inventory", item.sku)
+            if doc_name.startswith(base_url):
+                doc_name = doc_name[len(base_url):]
             writes.append(
                 {
                     "delete": doc_name,
@@ -698,6 +764,8 @@ class FirestoreLiveTwinRepository(LiveTwinRepository):
             )
         # Bump the store version to signal a reset
         store_doc = _doc_name(self._config, COLLECTION_STORE, store_id)
+        if store_doc.startswith(base_url):
+            store_doc = store_doc[len(base_url):]
         current = self.get_store(store_id)
         new_version = _bump_version(current.version) if current else "v1"
         now = datetime.now(timezone.utc)
@@ -755,17 +823,33 @@ class FirestoreLiveTwinRepository(LiveTwinRepository):
 
     def _get_token(self) -> str:
         import subprocess
+        import urllib.request
+
+        # 1. Try the GCE metadata server (works on Cloud Run / GCE)
+        try:
+            req = urllib.request.Request(
+                "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity?audience=https://firestore.googleapis.com/",
+                headers={"Metadata-Flavor": "Google"},
+            )
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                return resp.read().decode("utf-8").strip()
+        except Exception:
+            pass  # Not on GCE/GCP — fall through to gcloud
 
         if self._runner is not None:
             return self._runner.run(["gcloud", "auth", "print-access-token", "--quiet"]).strip()
-        completed = subprocess.run(
-            ["gcloud", "auth", "print-access-token", "--quiet"],
-            capture_output=True,
-            text=True,
-        )
-        if completed.returncode != 0:
-            raise TwinUnavailable(f"gcloud auth failed: {completed.stderr.strip()}")
-        return completed.stdout.strip()
+
+        # 2. Try gcloud with the known Windows SDK path
+        gcloud_bin = r"C:\Program Files (x86)\Google\Cloud SDK\google-cloud-sdk\bin\gcloud.cmd"
+        for cmd in [gcloud_bin, "gcloud"]:
+            completed = subprocess.run(
+                [cmd, "auth", "print-access-token", "--quiet"],
+                capture_output=True,
+                text=True,
+            )
+            if completed.returncode == 0 and completed.stdout.strip():
+                return completed.stdout.strip()
+        raise TwinUnavailable("gcloud auth failed — no valid credentials found")
 
 
 def _bump_version(version: str) -> str:

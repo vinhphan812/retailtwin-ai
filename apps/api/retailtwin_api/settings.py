@@ -31,6 +31,12 @@ class Settings(BaseSettings):
     store_id: str = Field(default="store-001")
     store_fixture_path: Path = Field(default=DEFAULT_FIXTURE)
 
+    # ── Live Twin (Firestore) ─────────────────────────────────────────────────
+    # Set use_firestore=true in development/production to back GET /store from
+    # the canonical Firestore Live Twin (retailtwin-ai-511002, us-central1).
+    use_firestore: bool = Field(default=True)
+    firestore_project: str = Field(default="retailtwin-ai-511002")
+
     # ── Logging ──────────────────────────────────────────────────────────────
     log_level: str = Field(default="INFO")
 

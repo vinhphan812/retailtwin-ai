@@ -29,7 +29,7 @@ def test_health_stays_up_when_the_fixture_is_missing(tmp_path, monkeypatch) -> N
     from retailtwin_api.main import create_app
     from retailtwin_api.settings import Settings
 
-    for key in ("APP_ENV", "STORE_ID", "STORE_FIXTURE_PATH", "LOG_LEVEL"):
+    for key in ("APP_ENV", "STORE_ID", "STORE_FIXTURE_PATH", "LOG_LEVEL", "USE_FIRESTORE"):
         monkeypatch.delenv(key, raising=False)
     missing = tmp_path / "missing.json"
     application = create_app(
@@ -38,6 +38,7 @@ def test_health_stays_up_when_the_fixture_is_missing(tmp_path, monkeypatch) -> N
             app_env="test",
             store_id="store-001",
             store_fixture_path=missing,
+            use_firestore=False,
         )
     )
 
@@ -75,7 +76,7 @@ def test_ready_returns_200_when_fixture_is_loaded(client) -> None:
 
 
 def test_ready_returns_503_when_fixture_is_missing(tmp_path, monkeypatch) -> None:
-    for key in ("APP_ENV", "STORE_ID", "STORE_FIXTURE_PATH", "LOG_LEVEL"):
+    for key in ("APP_ENV", "STORE_ID", "STORE_FIXTURE_PATH", "LOG_LEVEL", "USE_FIRESTORE"):
         monkeypatch.delenv(key, raising=False)
     missing = tmp_path / "missing.json"
     application = create_app(
@@ -84,6 +85,7 @@ def test_ready_returns_503_when_fixture_is_missing(tmp_path, monkeypatch) -> Non
             app_env="test",
             store_id="store-001",
             store_fixture_path=missing,
+            use_firestore=False,
         )
     )
 

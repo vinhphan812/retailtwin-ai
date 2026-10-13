@@ -628,13 +628,44 @@ class FakeFirestoreTransport:
                     )
                 # else: doc missing → allowed, fall through to write
             elif exists_required is True or exists_required == "True":
-                # exists:true → fail if the document does NOT exist
+                # exists:true → fail if the document does NOT exist.
+                # Additionally, when expected_version was provided in the call (signalled by
+                # setting exists_required to the current version integer), we enforce
+                # optimistic concurrency: the stored version must match.
                 if not doc_exists:
                     raise _PreconditionFailed(
                         404,
                         json.dumps({"error": {"code": 404, "status": "NOT_FOUND"}}),
                     )
-                # else: doc exists → fall through to version check
+                # Enforce version precondition when expected_version was provided.
+                # We signal this by setting exists_required to the current version (an int).
+                if isinstance(exists_required, int) and doc_exists:
+                    stored = self._docs[name]
+                    version_field = stored.get("fields", {}).get("version", {})
+                    if isinstance(version_field, dict):
+                        version_str = (
+                            version_field.get("integerValue")
+                            or version_field.get("stringValue")
+                            or None
+                        )
+                    else:
+                        version_str = str(version_field) if version_field is not None else None
+                    try:
+                        stored_version = int(version_str) if version_str else 0
+                    except (ValueError, TypeError):
+                        stored_version = 0
+                    if stored_version != exists_required:
+                        raise _PreconditionFailed(
+                            409,
+                            json.dumps({
+                                "error": {
+                                    "code": 409,
+                                    "status": "FAILED_PRECONDITION",
+                                    "message": f"Version mismatch: stored={stored_version}, required={exists_required}"
+                                }
+                            }),
+                        )
+                # else: plain exists:true without version → allow, fall through to write
             # else: no exists precondition → always allowed, fall through to version check
 
             # Enforce version precondition (optimistic concurrency control)

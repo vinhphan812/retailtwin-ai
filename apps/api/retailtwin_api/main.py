@@ -30,11 +30,28 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = resolved
 
-    store = open_store(resolved.store_fixture_path, resolved.store_id)
+    store = open_store(
+        store_id=resolved.store_id,
+        use_firestore=resolved.use_firestore,
+        firestore_project=resolved.firestore_project,
+        fixture_path=resolved.store_fixture_path,
+    )
     app.state.store = store
     app.state.events = EventLog()
     app.state.review_audit = ReviewAuditLog()
-    app.state.live_context_version = store.view().context_version if store.loaded else ""
+    # Cache the store view to avoid calling it twice
+    if store.loaded:
+        try:
+            store_view = store.view()
+            app.state.live_context_version = (
+                store_view["context_version"]
+                if isinstance(store_view, dict)
+                else store_view.context_version
+            )
+        except Exception:
+            app.state.live_context_version = ""
+    else:
+        app.state.live_context_version = ""
     # Production has no implicit demo fixture. An integration injects a real adapter.
     app.state.simulations = unavailable_simulation_repository()
     # Analytics repositories: GCP-backed (BigQuery + Firestore); empty adapters in dev.
