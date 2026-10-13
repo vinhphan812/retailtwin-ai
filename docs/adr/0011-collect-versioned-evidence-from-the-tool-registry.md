@@ -28,7 +28,7 @@ A planner can tell an observed fact from a missing mandatory source. An empty pr
 
 The forecast service stays outside the API package. A test or a later adapter binds `forecast_demand` to the deterministic formula. Stockout risk can be bound later and is not required for a sufficient bundle. A live Vertex call remains issue #2. This record does not change the analytics lander, the demand-surge publisher, or the observer ack rule.
 
-- Pull request: this pull request
+- Pull request: https://github.com/vinhphan812/retailtwin-ai/pull/121
 - Issue: #13
 - Supersedes:
 - Superseded by:
