@@ -105,12 +105,12 @@ Service URL: https://retailtwin-api-<hash>.us-central1.run.app
 
 ## 4. Verify the Deployment
 
-> The service is private (no unauthenticated access). Use an identity token:
+> The service is private (no unauthenticated access). Use an identity token scoped to the service URL:
 ```bash
 SERVICE_URL=https://retailtwin-api-<hash>.us-central1.run.app
-TOKEN=$(gcloud auth print-identity-token \
-  --audiences="${SERVICE_URL}" \
-  --impersonate-service-account=retailtwin-runtime@retailtwin-ai-511002.iam.gserviceaccount.com)
+
+# Obtain identity token scoped to the service URL for authenticated health check
+TOKEN=$(gcloud auth print-identity-token --audiences="${SERVICE_URL}" --quiet)
 
 curl -s -H "Authorization: Bearer ${TOKEN}" "${SERVICE_URL}/health"
 curl -s -H "Authorization: Bearer ${TOKEN}" "${SERVICE_URL}/store" | python -m json.tool

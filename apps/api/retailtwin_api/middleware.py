@@ -26,11 +26,12 @@ def _configure_json_logging() -> None:
     handler = logging.StreamHandler()  # defaults to sys.stderr
     handler.setFormatter(JsonFormatter())
 
-    # retailtwin_api-level logs
+    # retailtwin_api-level logs — propagate=True so pytest caplog can capture
+    # child loggers while the handler still formats JSON for Cloud Logging.
     retailtwin_api_logger = logging.getLogger("retailtwin_api")
     retailtwin_api_logger.setLevel(logging.INFO)
     retailtwin_api_logger.addHandler(handler)
-    retailtwin_api_logger.propagate = False
+    retailtwin_api_logger.propagate = True
 
     # Quiet uvicorn (it is very chatty)
     for name in ("uvicorn", "uvicorn.access"):

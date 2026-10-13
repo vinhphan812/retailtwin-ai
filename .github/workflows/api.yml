@@ -58,13 +58,34 @@ jobs:
         run: python -m mypy demand --ignore-missing-imports && python -m pytest
 
       - name: Run tests with coverage
-        run: pytest --cov=retailtwin_api --cov-report=term --cov-report=xml --cov-branch
+        working-directory: ${{ github.workspace }}
+        env:
+          PYTHONPATH: ${{ github.workspace }}/apps/api
+        run: pytest --cov=retailtwin_api --cov-report=term --cov-report=xml:apps/api/coverage.xml --cov-branch apps/api/tests/
+
+      - name: Simulation KPI tests with coverage
+        working-directory: ${{ github.workspace }}
+        env:
+          PYTHONPATH: ${{ github.workspace }}/apps/api:${{ github.workspace }}/services/simulation:${{ github.workspace }}/services/forecasting/risk
+        run: |
+          python -m mypy services/simulation/kpi --ignore-missing-imports
+          pytest \
+            --cov=retailtwin_api \
+            --cov=services/forecasting/risk \
+            --cov=services/simulation \
+            --cov-report=term \
+            --cov-report=xml:apps/api/coverage.xml \
+            --cov-branch \
+            --cov-append \
+            --no-cov-on-fail \
+            services/simulation/tests/
 
       - name: Check branch coverage threshold
         run: python check_branch_threshold.py
 
       - name: Enforce critical-path coverage policy
-        run: python enforce_critical_path_coverage.py
+        working-directory: ${{ github.workspace }}
+        run: python apps/api/enforce_critical_path_coverage.py
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
