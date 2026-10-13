@@ -1,8 +1,7 @@
 import type { AnomalyKind, AnomalySeverity } from "@/enums/anomaly.enum";
 
 /**
- * One open anomaly on a product, as the anomaly API will serve it.
- * TODO(BE): apps/api serves no anomalies yet; this shape is the FE's proposal.
+ * One open anomaly on a product, as the anomaly API serves it.
  */
 export type Anomaly = {
   anomaly_id: string;

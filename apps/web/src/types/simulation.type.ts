@@ -24,8 +24,7 @@ export type ReplenishShelfAction = {
 export type SimulationAction = MoveProductAction | ChangeFacingsAction | ReplenishShelfAction;
 
 /**
- * A Simulation Twin run, as `GET /simulations/{simulation_id}` will serve it.
- * TODO(BE): apps/api serves no simulations yet; this shape is the FE's proposal (#26).
+ * A Simulation Twin run, as `GET /simulations/{simulation_id}` serves it.
  */
 export type Simulation = {
   simulation_id: string;
@@ -54,13 +53,12 @@ export type Candidate = {
 /** One row of `GET /simulations?status=open`. TODO(BE): FE proposal (#26). */
 export type SimulationSummary = Pick<Simulation, "simulation_id" | "store_id" | "base_context_version" | "status">;
 
-/** `GET /simulations?status=open`. TODO(BE): FE proposal (#26). */
+/** `GET /simulations?status=open`. */
 export type SimulationsResponse = { simulations: SimulationSummary[] };
 
 /**
  * Body of `POST /simulations/{simulation_id}/approve` and `/reject`: what the reviewer
  * looked at, so the backend can refuse a review of something that has changed since.
- * TODO(BE): apps/api serves neither route yet; this shape is the FE's proposal.
  */
 export type ReviewRequest = {
   /** The Live version the proposal was built on, as the reviewer saw it. */
@@ -72,7 +70,6 @@ export type ReviewRequest = {
 /**
  * The answer to a review. An approval is not a commit: the guard decides, and only on
  * ALLOW does the Executor apply the actions. Live then changes through `GET /store`.
- * TODO(BE): FE proposal, see `ReviewRequest`.
  */
 export type ReviewResult = {
   simulation_id: string;

@@ -37,8 +37,6 @@ export function TwinPage() {
         <StoreScene />
         <SimulationBanner reviewer={reviewer} />
         <TwinStatusOverlay />
-        {/* TODO(BE): apps/api does not serve GET /revenue and GET /promotions yet; until it does the
-          Revenue and Promotions lenses show their empty report and a toast, or the demo data under ?twin=demo. */}
         <div className="lens-switcher">
           <LensSwitcher />
           <ViewModeSwitch />

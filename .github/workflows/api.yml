@@ -53,10 +53,13 @@ jobs:
         working-directory: services/forecasting
         run: python -m mypy risk --ignore-missing-imports && python -m pytest
 
+<<<<<<< HEAD
       - name: Demand forecast tests
         working-directory: services/forecasting
         run: python -m mypy demand --ignore-missing-imports && python -m pytest
 
+=======
+>>>>>>> e122bcf (feat: calculate deterministic stockout risk and wire simulation API routes)
       - name: Run tests with coverage
         working-directory: ${{ github.workspace }}
         env:

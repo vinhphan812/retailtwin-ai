@@ -21,7 +21,6 @@ export function reviewRequestOf(simulation: Simulation): ReviewRequest {
 
 /**
  * Reviews through `POST /simulations/{simulation_id}/approve|reject` on apps/api.
- * TODO(BE): apps/api serves neither route yet, so every review fails with a toast until it does.
  */
 export function createApiReviewer(client: RetailTwinClient = defaultClient): SimulationReviewer {
   return async (simulation, decision) =>

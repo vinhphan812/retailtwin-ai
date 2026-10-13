@@ -114,7 +114,7 @@ const STATUSES: readonly unknown[] = Object.values(SIMULATION_STATUS);
 const ACTION_TYPES: readonly unknown[] = Object.values(ACTION_TYPE);
 
 /**
- * Checks a `GET /simulations/{id}` payload against the FE's proposed contract (#26).
+ * Checks a `GET /simulations/{id}` payload against the FE contract.
  * The proposed state is checked like `GET /store`, so a broken product is left out of
  * it; anything else that breaks the contract throws.
  */

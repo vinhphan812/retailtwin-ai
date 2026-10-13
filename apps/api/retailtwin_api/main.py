@@ -12,7 +12,11 @@ from retailtwin_api.events import EventLog, ReviewAuditLog
 from retailtwin_api.middleware import CorrelationMiddleware
 from retailtwin_api.routes import router
 from retailtwin_api.settings import Settings, get_settings
+<<<<<<< HEAD
 from retailtwin_api.simulation_repository import unavailable_simulation_repository
+=======
+from retailtwin_api.simulation import SimulationRepository
+>>>>>>> e122bcf (feat: calculate deterministic stockout risk and wire simulation API routes)
 from retailtwin_api.store import open_store
 from retailtwin_api.analytics_repository import unavailable_analytics_repositories
 
@@ -33,6 +37,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     store = open_store(resolved.store_fixture_path, resolved.store_id)
     app.state.store = store
     app.state.events = EventLog()
+<<<<<<< HEAD
     app.state.review_audit = ReviewAuditLog()
     app.state.live_context_version = store.view().context_version if store.loaded else ""
     # Production has no implicit demo fixture. An integration injects a real adapter.
@@ -43,6 +48,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.anomalies = anomalies
     app.state.revenue = revenue
     app.state.promotions = promotions
+=======
+    app.state.simulations = SimulationRepository(store.view, resolved.store_id)
+>>>>>>> e122bcf (feat: calculate deterministic stockout risk and wire simulation API routes)
     if not store.loaded:
         logger.error(
             "fixture.unavailable",
