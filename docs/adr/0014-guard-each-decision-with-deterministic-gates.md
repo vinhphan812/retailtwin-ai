@@ -18,7 +18,7 @@ Comparing the store-level `context_version` (`store-001:vN`) was set aside. Any 
 
 `DecisionContextGuard.evaluate(decision)` in `apps/api/retailtwin_api/guard/decision_context_guard/` returns a `DCGVerdictResult`. It takes an injected Live Twin reader (`get_inventory` and `list_inventory`), a `GuardPolicy` and a clock. Gates run in this order and the first failure decides the verdict:
 
-1. **Integrity** (`DENY INVALID_DECISION`). The decision must have a non-blank `decision_id`, `agent_id` and `context_version`. It must have at least one action and at least one evidence bundle, and all bundles must come from one store. No action type may repeat for the same SKU. Timestamps must be timezone-aware and no more than the 5s clock skew in the future.
+1. **Integrity** (`DENY INVALID_DECISION`). The decision must have a non-blank `decision_id`, `agent_id` and `context_version`. It must have at least one action and at least one evidence bundle. All bundles must come from one store and carry one non-blank `correlation_id`, so evidence from two investigations is never mixed. No action type may repeat for the same SKU. `context_timestamp` and every bundle `freshness` and `collected_at` must be timezone-aware and no more than the 5s clock skew in the future. Only `context_timestamp` and `freshness` set the expiry.
 2. **Evidence**. Every bundle must have `is_sufficient`, otherwise `DENY INSUFFICIENT_EVIDENCE`. Bundles must agree on each SKU version, otherwise `DENY CONFLICTING_EVIDENCE`.
 3. **Context version**, entity-level. Each SKU that an action touches is read from the Live Twin.
    - If the evidence has no version for the SKU: `DENY MISSING_CONTEXT_VERSION`.
@@ -38,7 +38,7 @@ Any exception from a Live Twin read is `DENY TWIN_UNAVAILABLE`, and the exceptio
 
 The result fields are set as follows:
 
-- `policy_result` records `failed_gate`, one `{gate, passed, detail}` entry per gate that ran, the store id and the live versions read.
+- `policy_result` records `failed_gate`, one `{gate, passed, detail}` entry per gate that ran, the store id, the correlation id and the live versions read. Verdict and read-failure logs carry the decision id and the correlation id.
 - On `ALLOW`, `expiry` is the time the oldest context ages out. On any other verdict, `expiry` is the evaluation time.
 
 The guard never writes the Live Twin, never calls a model, and imports no model SDK. A test enforces the import rule.

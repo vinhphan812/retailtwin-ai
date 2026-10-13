@@ -3,7 +3,8 @@
 The guard reads the Live Twin, never writes it, and never calls a model. Gates
 run in a fixed order and the first failure decides the verdict:
 
-1. integrity      DENY              the decision is well formed
+1. integrity      DENY              the decision is well formed: one store, one
+                                    correlation id, timezone-aware timestamps not in the future
 2. evidence       DENY              every evidence bundle is sufficient and consistent
 3. context        REFRESH_REQUIRED  each SKU an action touches is still at the version the
                                     evidence read (DENY when that version is missing)
@@ -77,6 +78,7 @@ class _Context:
     """What the gates learn about one decision as they run."""
 
     store_id: str = ""
+    correlation_id: str = ""
     claimed: dict[str, str] = field(default_factory=dict)
     live: dict[str, InventoryDocument] = field(default_factory=dict)
     oldest: datetime | None = None
@@ -123,14 +125,19 @@ class DecisionContextGuard:
             checks.append({"gate": gate, "passed": failure is None, "detail": failure.detail if failure else ""})
             if failure is not None:
                 log.info(
-                    "dcg verdict decision_id=%s verdict=%s reason=%s gate=%s",
+                    "dcg verdict decision_id=%s correlation_id=%s verdict=%s reason=%s gate=%s",
                     decision.decision_id,
+                    ctx.correlation_id,
                     failure.verdict.value,
                     failure.reason_code,
                     gate,
                 )
                 return self._result(decision, ctx, failure.verdict, failure.reason_code, gate, checks, now)
-        log.info("dcg verdict decision_id=%s verdict=ALLOW", decision.decision_id)
+        log.info(
+            "dcg verdict decision_id=%s correlation_id=%s verdict=ALLOW",
+            decision.decision_id,
+            ctx.correlation_id,
+        )
         assert ctx.oldest is not None
         return self._result(
             decision, ctx, DCGVerdict.ALLOW, ALLOWED, None, checks, ctx.oldest + self._policy.freshness
@@ -152,16 +159,23 @@ class DecisionContextGuard:
         if len(stores) != 1:
             return _deny(INVALID_DECISION, "Evidence comes from more than one store.")
         ctx.store_id = stores.pop()
+        correlations = {bundle.correlation_id.strip() for bundle in decision.evidence}
+        if len(correlations) != 1 or "" in correlations:
+            return _deny(INVALID_DECISION, "Evidence must carry exactly one non-blank correlation id.")
+        ctx.correlation_id = correlations.pop()
         seen: set[tuple[str, str]] = set()
         for action in decision.proposed_actions:
             key = (action_type(action), action.sku)
             if key in seen:
                 return _deny(INVALID_DECISION, f"{key[0]} is proposed twice for {action.sku}.")
             seen.add(key)
+        # Context age comes from the decision and each bundle's freshness; collection
+        # times are checked for shape and clock too, but do not extend the expiry.
         stamps = [decision.context_timestamp, *(bundle.freshness for bundle in decision.evidence)]
-        if any(stamp.tzinfo is None for stamp in stamps):
+        checked = [*stamps, *(bundle.collected_at for bundle in decision.evidence)]
+        if any(stamp.tzinfo is None for stamp in checked):
             return _deny(INVALID_DECISION, "Context timestamps must be timezone-aware.")
-        if any(stamp > now + self._policy.clock_skew for stamp in stamps):
+        if any(stamp > now + self._policy.clock_skew for stamp in checked):
             return _deny(INVALID_DECISION, "A context timestamp is in the future.")
         ctx.oldest = min(stamps)
         return None
@@ -183,7 +197,12 @@ class DecisionContextGuard:
             try:
                 doc = self._twin.get_inventory(ctx.store_id, sku)
             except Exception:
-                log.error("dcg live read failed decision_id=%s sku=%s", decision.decision_id, sku)
+                log.error(
+                    "dcg live read failed decision_id=%s correlation_id=%s sku=%s",
+                    decision.decision_id,
+                    ctx.correlation_id,
+                    sku,
+                )
                 return _deny(TWIN_UNAVAILABLE, "The Live Twin could not be read.")
             if doc is None:
                 return _deny(UNKNOWN_ENTITY, f"{sku} is not in store {ctx.store_id}.")
@@ -238,7 +257,11 @@ class DecisionContextGuard:
                     try:
                         occupants = {item.slot_id: item.sku for item in self._twin.list_inventory(ctx.store_id)}
                     except Exception:
-                        log.error("dcg live list failed decision_id=%s", decision.decision_id)
+                        log.error(
+                            "dcg live list failed decision_id=%s correlation_id=%s",
+                            decision.decision_id,
+                            ctx.correlation_id,
+                        )
                         return _deny(TWIN_UNAVAILABLE, "The Live Twin could not be read.")
                     occupants.update({item.slot_id: sku for sku, item in state.items()})
                 occupant = occupants.get(action.to_slot)
@@ -288,6 +311,7 @@ class DecisionContextGuard:
                 "failed_gate": failed_gate,
                 "checks": checks,
                 "store_id": ctx.store_id,
+                "correlation_id": ctx.correlation_id,
                 "entity_versions": versions,
             },
         )
