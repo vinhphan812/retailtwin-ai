@@ -4,6 +4,51 @@ Explicit repository boundary with typed reads/writes for the RetailTwin
 Live Twin inventory state. Implements bounded versioned mutation/conflict
 resolution and deterministic schema/seed/reset interface.
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ARCHITECTURAL NOTES — ISSUE 6 HIERARCHY DECISION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The issue-6 specification mentions "Zone / Shelf / Slot / Product".
+This refers to the *physical layout data model* in the UI and simulation,
+NOT a Firestore document subcollection hierarchy. Here is why:
+
+  1. The Live Twin mutation boundary operates at the SKU level.
+     A bounded action (move product, change facings, replenish) targets
+     one SKU and its shelf/slot placement. Deepening the Firestore
+     hierarchy to /zones/{z}/shelves/{s}/slots/{sl}/inventory/{sku}
+     would require 4 sequential read-modify-write rounds per mutation —
+     unnecessary complexity for the bounded action contract.
+
+  2. shelf_id and slot_id ARE present in the InventoryDocument as
+     scalar fields (see InventoryDocument.store_id, shelf_id, slot_id).
+     The physical location information is not lost — it travels with
+     the SKU-level document and is returned in ProductInventory responses.
+
+  3. The Zone / Shelf / Slot hierarchy lives as UI layout metadata
+     (apps/web/src/scene/layout.ts, apps/web/src/fixtures/demo/store.ts)
+     and is NOT a separate Firestore document collection. The 3D scene
+     derives layout from fixture data, not from Firestore.
+
+  4. Real-world retail systems often flatten shelf/slot into the SKU
+     record for exactly this reason: a product can be in one slot now
+     and moved to another — tracking the slot as a mutable attribute of
+     the SKU document (rather than a parent in the hierarchy) matches
+     how the domain actually behaves.
+
+  CONFIRMED: Current path is correct for the live twin boundary:
+    /stores/{store_id}                        → StoreDocument
+    /stores/{store_id}/inventory/{sku}        → InventoryDocument
+                                                  fields: sku, shelf_id, slot_id,
+                                                  facings, shelf_quantity,
+                                                  backroom_quantity, version
+
+  If a future issue requires a full Zone→Shelf→Slot Firestore hierarchy
+  (e.g., for analytics, audit, or warehouse-management purposes), it
+  should be modeled as a SEPARATE read-only projection, not as the
+  mutation boundary for the Live Twin.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 Canonical paths:
   - /stores/{store_id}                    – Store-level metadata document
   - /stores/{store_id}/inventory/{sku}    – Per-SKU inventory documents (subcollection)
