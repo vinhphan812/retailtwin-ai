@@ -166,7 +166,7 @@ class TestCanonicalStages:
     def test_agent_markers_respect_demo_runtime_isolation(
         self, run_id: str, env_info: dict
     ) -> None:
-        """Demo-only agent implementations live exclusively under demo_runtime."""
+        """The demo verifier stays under demo_runtime; the guarded Executor is canonical (#18)."""
         import pathlib
 
         repo_root = pathlib.Path(__file__).parent.parent.parent
@@ -174,8 +174,8 @@ class TestCanonicalStages:
         demo_agents = package_root / "demo_runtime" / "agents"
         for module in ("executor.py", "verifier.py"):
             assert (demo_agents / module).exists(), f"Missing demo_runtime agent {module}"
-        for legacy in ("executor", "verifier"):
-            assert not (package_root / "agents" / legacy).exists()
+        assert not (package_root / "agents" / "verifier").exists()
+        assert (package_root / "agents" / "executor" / "executor.py").exists()
 
         # env_info documents the target canonical path (contract presence check)
         assert env_info["canonical_path"] == "EVENT -> AI -> INVESTIGATE -> SIMULATE -> GUARD -> LIVE -> VERIFY"
