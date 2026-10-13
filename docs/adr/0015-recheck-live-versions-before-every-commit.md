@@ -62,7 +62,7 @@ The G04 scenario runs against the real guard in `tests/e2e/test_stale_context.py
 
 Refreshing evidence and re-planning after `REFRESH_REQUIRED` is #20. The audit is process memory until the BigQuery trail (#35). The race between the recheck and the write is closed only once the Executor uses the binding's versions (#18).
 
-- Pull request: https://github.com/vinhphan812/retailtwin-ai/pull/139
+- Pull request: https://github.com/vinhphan812/retailtwin-ai/pull/149
 - Issue: #17
 - Supersedes:
 - Superseded by:
