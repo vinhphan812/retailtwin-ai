@@ -7,9 +7,11 @@ from typing import Literal, cast
 from fastapi import APIRouter, Depends, Query, Request, Response
 
 from retailtwin_api.errors import ApiError
-<<<<<<< HEAD
 from retailtwin_api.events import EventConflict, EventLog, ReviewAuditLog
-from retailtwin_api.schemas import EventReceipt, HealthResponse, ProductInventory, ReadyResponse, StoreEvent, StoreResponse
+from retailtwin_api.schemas import (
+    AnomaliesResponse, AnomalySeverity, AnomalyType, EventReceipt, HealthResponse, ProductInventory,
+    PromotionsResponse, PromotionStatus, ReadyResponse, RevenueResponse, StoreEvent, StoreResponse,
+)
 from retailtwin_api.analytics_repository import AnomalyRepository, RevenueRepository, PromotionRepository
 from retailtwin_api.simulation_repository import SimulationReadRepository
 from retailtwin_api.simulation_schemas import (
@@ -18,11 +20,6 @@ from retailtwin_api.simulation_schemas import (
     SimulationDetail, SimulationFilters, SimulationListResponse, SimulationStatus,
     SimulationReviewRequest, SimulationReviewResponse,
 )
-=======
-from retailtwin_api.events import EventConflict, EventLog
-from retailtwin_api.schemas import EventReceipt, HealthResponse, ProductInventory, StoreEvent, StoreResponse
-from retailtwin_api.simulation import SimulationDetail, SimulationRepository, SimulationSummary
->>>>>>> e122bcf (feat: calculate deterministic stockout risk and wire simulation API routes)
 from retailtwin_api.store import StoreRepository
 
 logger = logging.getLogger(__name__)
@@ -189,7 +186,6 @@ def list_simulations(
     )
 
 
-<<<<<<< HEAD
 @router.get("/simulations/{simulation_id}", response_model=SimulationDetail)
 def read_simulation(simulation_id: str, repository: SimulationReadRepository = Depends(get_simulations)) -> SimulationDetail:
     require_simulations(repository)
@@ -374,38 +370,65 @@ def reject_simulation(
         audit=audit,
         live_version=live_version,
     )
-=======
-# ─── Simulation routes ───────────────────────────────────────────────────────
-
-def get_simulations(request: Request) -> SimulationRepository:
-    return request.app.state.simulations
 
 
-@router.get("/simulations", response_model=dict[str, list[SimulationSummary]])
-def list_simulations(
+# ─── Analytics routes ─────────────────────────────────────────────────────────
+
+
+@router.get("/anomalies", response_model=AnomaliesResponse, include_in_schema=True)
+def list_anomalies(
     request: Request,
-    status: str | None = Query(None, description="Filter by status (e.g. 'open' → pending|evaluated)"),
-    simulations: SimulationRepository = Depends(get_simulations),
-) -> dict[str, list[SimulationSummary]]:
-    all_runs = simulations.list_open()
-    if status is None:
-        return {"simulations": all_runs}
-    # Support 'open' as a shorthand for pending|evaluated
-    if status == "open":
-        filtered = [s for s in all_runs if s.status in {"pending", "evaluated"}]
-    else:
-        filtered = [s for s in all_runs if s.status == status]
-    return {"simulations": filtered}
+    severity: AnomalySeverity | None = Query(None, description="Filter by severity."),
+    anomaly_type: AnomalyType | None = Query(None, description="Filter by anomaly type."),
+    since: datetime | None = Query(None, description="ISO-8601 timestamp; only anomalies detected at or after it."),
+    limit: int = Query(50, ge=1, le=500, description="Max results to return."),
+    repo: AnomalyRepository = Depends(get_anomalies),
+) -> AnomaliesResponse:
+    """Open anomalies for the served store, newest first."""
+    return repo.list_anomalies(
+        store_id=request.app.state.settings.store_id,
+        severity=severity,
+        anomaly_type=anomaly_type,
+        since=since,
+        limit=limit,
+    )
 
 
-@router.get("/simulations/{simulation_id}", response_model=SimulationDetail)
-def get_simulation(
-    simulation_id: str,
+@router.get("/revenue", response_model=RevenueResponse, include_in_schema=True)
+def read_revenue(
     request: Request,
-    simulations: SimulationRepository = Depends(get_simulations),
-) -> SimulationDetail:
-    run = simulations.get(simulation_id)
-    if run is None:
-        raise ApiError(404, "simulation_not_found", f"No simulation with id {simulation_id!r}.")
-    return run
->>>>>>> e122bcf (feat: calculate deterministic stockout risk and wire simulation API routes)
+    period: Literal["hourly", "daily", "weekly", "monthly"] = Query("daily", description="Aggregation period."),
+    start: datetime | None = Query(None, description="ISO-8601 start; defaults to the start of the end day."),
+    end: datetime | None = Query(None, description="ISO-8601 end; defaults to now (UTC)."),
+    repo: RevenueRepository = Depends(get_revenue_repo),
+) -> RevenueResponse:
+    """Revenue for the served store between `start` and `end`, bucketed by `period`."""
+    end_at = end or datetime.now(timezone.utc)
+    start_at = start or end_at.replace(hour=0, minute=0, second=0, microsecond=0)
+    if start_at > end_at:
+        raise ApiError(422, "invalid_period", "start must not be after end.")
+    return repo.get_revenue(
+        store_id=request.app.state.settings.store_id,
+        period=period,
+        start=start_at,
+        end=end_at,
+    )
+
+
+@router.get("/promotions", response_model=PromotionsResponse, include_in_schema=True)
+def list_promotions(
+    request: Request,
+    status: PromotionStatus | None = Query(None, description="Filter by status."),
+    sku: str | None = Query(None, description="Filter by product SKU."),
+    category: str | None = Query(None, description="Filter by promotion category."),
+    limit: int = Query(50, ge=1, le=500, description="Max results to return."),
+    repo: PromotionRepository = Depends(get_promotions),
+) -> PromotionsResponse:
+    """Promotions for the served store, newest first."""
+    return repo.list_promotions(
+        store_id=request.app.state.settings.store_id,
+        status=status,
+        sku=sku,
+        category=category,
+        limit=limit,
+    )
