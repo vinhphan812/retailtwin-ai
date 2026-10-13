@@ -32,7 +32,7 @@ A new `sale.completed` id can start one investigation when this consumer is run.
 
 The publisher in issue #30 still only publishes. It does not invoke this consumer. Foundation gate #10 stays open: this ledger is in-process, the live subscription is still `store-events-analytics`, and Gemini on Vertex remains issue #2. A production observer needs its own pull subscription on `store-events` before it can run beside the lander.
 
-- Pull request: this pull request
+- Pull request: https://github.com/vinhphan812/retailtwin-ai/pull/120
 - Issue: #12
 - Supersedes:
 - Superseded by:
