@@ -1,12 +1,12 @@
 # API
 
-Python FastAPI boundary for the web client. Day-0 reads come from the committed fixture at `data/schemas/store-state.example.json`. This process is not the Live Twin and it does not write Firestore.
+Python FastAPI boundary for the web client. This is a demo scaffold for Weekend Demand Surge and does not constitute a production-ready system. It uses an in-memory fixture for Day-0 reads and cannot write to Firestore or any external provider.
 
 `POST /events` validates a normalized store event and keeps it in process memory. An `event_id` names one immutable payload. The same normalized event returns `200`. A different payload for that id returns `409` `event_id_conflict` and leaves the stored event in place. Acceptance does not change shelf or backroom quantity. Live writes stay behind the Decision Context Guard and the Executor.
 
 `open_store` in `retailtwin_api/store.py` is the read adapter. Issue #6 replaces that function. The routes and response models stay the same. This app does not close foundation gate #10.
 
-The browser does not write Firestore. This app does not expose action submission or guard validation; those stay target contracts. No route bypasses Simulation-before-Live, the Decision Context Guard, authorization, or the Executor.
+The browser does not write to any external database in this demo mode. This app does not connect to production APIs, Firestore, or LLM providers. As a demo scaffold, it does not support action submission, complex guard validation, or production-bound event publishing.
 
 ADR: `docs/adr/0003-serve-store-reads-through-the-api.md`
 
@@ -18,6 +18,12 @@ ADR: `docs/adr/0003-serve-store-reads-through-the-api.md`
 | GET | `/store` | `200` typed store view | `503` `store_unavailable` |
 | GET | `/inventory/{sku}` | `200` one product | `404` `sku_not_found`, `503` `store_unavailable` |
 | POST | `/events` | `201` first accept, `200` identical duplicate | `409` `event_id_conflict`, `404` `sku_not_found` or `store_not_found`, `422` `validation_error`, `503` `store_unavailable` |
+| GET | `/anomalies` | `200` open anomalies list (Firestore Live Twin / BQ fallback) | `503` `analytics_unavailable` |
+| GET | `/revenue` | `200` revenue aggregate buckets (BigQuery analysis) | `422` `invalid_period`, `503` `analytics_unavailable` |
+| GET | `/promotions` | `200` promotions list (Firestore / BQ) | `503` `analytics_unavailable` |
+| GET | `/checkouts` | `200` checkout lanes summary list | `503` `analytics_unavailable` |
+| GET | `/checkouts/{checkout_id}/transactions` | `200` checkout transactions for date | `404` `checkout_not_found`, `422` `invalid_date`, `503` `analytics_unavailable` |
+
 
 `GET /store` for the committed fixture returns `store-001`, `context_version` `store-001:v1`, and product `P001` on shelf `A01` / slot `A01-S01` with 3 facings, 8 on shelf, and 42 in the backroom. Product `version` is the fixture version as an integer (`1`). Ids are case-sensitive.
 
@@ -56,4 +62,4 @@ Copy the repository `.env.example` to `.env` only when you need to override a se
 | `STORE_FIXTURE_PATH` | `data/schemas/store-state.example.json` | Day-0 read model |
 | `LOG_LEVEL` | `INFO` | Log level |
 
-Accepted events log `event_id`, `correlation_id`, and `store_id`. The log is process memory only. This route does not publish. The store-events backbone is a separate command, documented in [infrastructure/gcp/store-events.md](../../infrastructure/gcp/store-events.md). That command claims the event id in Firestore and writes the derived BigQuery row. It does not make this process the Live Twin.
+Accepted events log `event_id`, `correlation_id`, and `store_id` in process memory only. This demo scaffold does not publish events, connect to Firestore, or interact with BigQuery. Canonical event backbone implementation is out-of-scope for this demo.

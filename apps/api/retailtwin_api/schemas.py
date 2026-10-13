@@ -1,5 +1,6 @@
 """Public request and response models for the day-0 API."""
 
+from enum import StrEnum
 from typing import Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
@@ -84,3 +85,149 @@ class EventReceipt(BaseModel):
     accepted: Literal[True] = True
     duplicate: bool
     event: StoreEvent
+
+
+class AnomalyType(StrEnum):
+    STOCKOUT = "stockout"
+    DEMAND_SURGE = "demand_surge"
+    SLOW_MOVING = "slow_moving"
+    EXCESS_INVENTORY = "excess_inventory"
+    PRICE_ANOMALY = "price_anomaly"
+    SHELF_VIOLATION = "shelf_violation"
+
+
+class AnomalySeverity(StrEnum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
+class Anomaly(BaseModel):
+    anomaly_id: str = Field(min_length=1)
+    anomaly_type: AnomalyType
+    severity: AnomalySeverity
+    store_id: str = Field(min_length=1)
+    sku: str | None = None
+    shelf_id: str | None = None
+    title: str = Field(min_length=1)
+    description: str = Field(min_length=1)
+    detected_at: AwareDatetime
+    event_ids: list[str] = Field(default_factory=list)
+    metadata: dict[str, str] = Field(default_factory=dict)
+
+
+class AnomaliesResponse(BaseModel):
+    anomalies: list[Anomaly]
+    total: int
+    detected_since: AwareDatetime | None = None
+
+
+class RevenueBucket(BaseModel):
+    timestamp: AwareDatetime
+    revenue: float
+    transactions: int
+    items_sold: int
+
+
+class RevenueResponse(BaseModel):
+    store_id: str = Field(min_length=1)
+    period: Literal["hourly", "daily", "weekly", "monthly"]
+    start: AwareDatetime
+    end: AwareDatetime
+    total_revenue: float
+    total_transactions: int
+    total_items_sold: int
+    avg_transaction_value: float
+    currency: Literal["USD"] = "USD"
+    buckets: list[RevenueBucket] = Field(default_factory=list)
+
+
+class PromotionStatus(StrEnum):
+    ACTIVE = "active"
+    UPCOMING = "upcoming"
+    ENDED = "ended"
+    CANCELLED = "cancelled"
+
+
+class PromotionType(StrEnum):
+    DISCOUNT_PERCENT = "discount_percent"
+    DISCOUNT_ABSOLUTE = "discount_absolute"
+    BUY_ONE_GET_ONE = "buy_one_get_one"
+    BUNDLE = "bundle"
+    LOYALTY_MULTIPLIER = "loyalty_multiplier"
+
+
+class Promotion(BaseModel):
+    promotion_id: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    promotion_type: PromotionType
+    status: PromotionStatus
+    store_id: str = Field(min_length=1)
+    sku: str | None = None
+    category: str | None = None
+    discount_value: float | None = None
+    conditions: str | None = None
+    start_time: AwareDatetime
+    end_time: AwareDatetime
+    redemption_count: int = 0
+    metadata: dict[str, str] = Field(default_factory=dict)
+
+
+class PromotionsResponse(BaseModel):
+    promotions: list[Promotion]
+    total: int
+    active_count: int
+
+
+# ─── Checkout schemas ─────────────────────────────────────────────────────────
+
+class CheckoutStatus(StrEnum):
+    OPEN = "open"
+    PAUSED = "paused"
+    CLOSED = "closed"
+
+
+class PaymentMethod(StrEnum):
+    CARD = "card"
+    CASH = "cash"
+    MOBILE = "mobile"
+
+
+class Cashier(BaseModel):
+    staff_id: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+
+
+class CheckoutSummary(BaseModel):
+    checkout_id: str = Field(min_length=1)
+    store_id: str = Field(min_length=1)
+    status: CheckoutStatus
+    cashier: Cashier | None = None
+    shift_started_at: AwareDatetime | None = None
+    business_date: str = Field(min_length=1)
+    revenue_today: float = 0.0
+    transactions_today: int = 0
+    items_scanned_today: int = 0
+    queue_length: int = 0
+    last_transaction_at: AwareDatetime | None = None
+
+
+class CheckoutLine(BaseModel):
+    sku: str = Field(min_length=1)
+    quantity: int = Field(ge=1)
+    unit_price: float = Field(ge=0.0)
+    line_total: float = Field(ge=0.0)
+
+
+class CheckoutTransaction(BaseModel):
+    transaction_id: str = Field(min_length=1)
+    checkout_id: str = Field(min_length=1)
+    store_id: str = Field(min_length=1)
+    completed_at: AwareDatetime
+    cashier: Cashier | None = None
+    items: int = Field(ge=1)
+    total: float = Field(ge=0.0)
+    payment_method: PaymentMethod
+    lines: list[CheckoutLine] = Field(default_factory=list)
+

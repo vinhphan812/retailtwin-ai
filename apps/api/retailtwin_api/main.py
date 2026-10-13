@@ -10,6 +10,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from retailtwin_api.errors import ApiError, api_error_handler, http_error_handler, validation_error_handler
 from retailtwin_api.events import EventLog
+from retailtwin_api.analytics_repository import unavailable_analytics_repositories
 from retailtwin_api.routes import router
 from retailtwin_api.settings import Settings, get_settings
 from retailtwin_api.store import open_store
@@ -27,6 +28,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     store = open_store(resolved.store_fixture_path, resolved.store_id)
     app.state.store = store
     app.state.events = EventLog()
+    anomalies, revenue, promotions, checkouts = unavailable_analytics_repositories()
+    app.state.anomalies = anomalies
+    app.state.revenue = revenue
+    app.state.promotions = promotions
+    app.state.checkouts = checkouts
     if not store.loaded:
         logger.error(json.dumps({"message": "fixture.unavailable", "reason": store.error}))
 
