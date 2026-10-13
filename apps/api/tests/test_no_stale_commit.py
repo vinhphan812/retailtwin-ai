@@ -21,6 +21,7 @@ from retailtwin_api.guard.decision_context_guard import (
     INSUFFICIENT_EVIDENCE,
     VERSION_STALE,
     DecisionContextGuard,
+    GuardAuditEvent,
     InMemoryGuardAudit,
     NoStaleCommit,
 )
@@ -227,3 +228,53 @@ def test_default_clock_is_utc(twin: InMemoryTwinRepository, audit: InMemoryGuard
     gate = NoStaleCommit(DecisionContextGuard(twin, clock=lambda: T0), audit)
     gate.authorize(decision_at(twin))
     assert audit.events()[0].at.tzinfo is not None
+
+
+def test_refreshed_timestamps_cannot_extend_an_expired_binding(
+    gate: NoStaleCommit, twin: InMemoryTwinRepository, clock: Clock, audit: InMemoryGuardAudit
+) -> None:
+    """Review of #139: copying the decision's timestamps forward must not regain ALLOW."""
+    d1 = decision_at(twin)
+    _, binding = gate.authorize(d1)
+    assert binding is not None
+    clock.now = binding.expiry + timedelta(seconds=5)
+    refreshed_at = clock.now - timedelta(seconds=1)
+    refreshed = d1.model_copy(
+        update={
+            "context_timestamp": refreshed_at,
+            "evidence": [
+                d1.evidence[0].model_copy(update={"collected_at": refreshed_at, "freshness": refreshed_at})
+            ],
+        }
+    )
+
+    result = gate.recheck(refreshed, binding)
+
+    assert (result.verdict, result.reason_code) == (DCGVerdict.REFRESH_REQUIRED, CONTEXT_EXPIRED)
+    assert result.policy_result["failed_gate"] == "binding"
+    assert result.expiry == clock.now
+    assert audit.events("dec-1")[-1].reason_code == CONTEXT_EXPIRED
+
+
+def test_binding_at_its_expiry_is_still_valid(gate: NoStaleCommit, twin: InMemoryTwinRepository, clock: Clock) -> None:
+    d1 = decision_at(twin)
+    _, binding = gate.authorize(d1)
+    assert binding is not None
+    clock.now = binding.expiry
+    assert gate.recheck(d1, binding).verdict is DCGVerdict.ALLOW
+
+
+def test_returned_audit_events_cannot_rewrite_history(gate: NoStaleCommit, twin: InMemoryTwinRepository, audit: InMemoryGuardAudit) -> None:
+    gate.authorize(decision_at(twin))
+    audit.events()[0].entity_versions["P001"] = "999"
+    assert audit.events()[0].entity_versions == {"P001": "1"}
+
+
+def test_recorded_audit_event_is_detached_from_the_caller(audit: InMemoryGuardAudit) -> None:
+    event = GuardAuditEvent(
+        stage="authorize", decision_id="d", correlation_id="c", store_id=STORE, verdict=DCGVerdict.ALLOW,
+        reason_code="ALLOWED", failed_gate=None, context_hash="h", entity_versions={"P001": "1"}, at=T0,
+    )
+    audit.record(event)
+    event.entity_versions["P001"] = "2"
+    assert audit.events()[0].entity_versions == {"P001": "1"}

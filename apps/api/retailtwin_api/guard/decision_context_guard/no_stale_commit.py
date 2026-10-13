@@ -3,8 +3,9 @@
 A decision is bound to the exact live entity versions the guard saw when it
 allowed it. ``authorize`` runs the guard on fresh reads and returns a
 ``CommitBinding`` only on ALLOW. ``recheck`` runs the guard again right before
-the commit: a SKU that moved is REFRESH_REQUIRED (``VERSION_STALE``), context
-past its TTL is REFRESH_REQUIRED (``CONTEXT_EXPIRED``), and a decision whose
+the commit: a SKU that moved is REFRESH_REQUIRED (``VERSION_STALE``), a binding or
+context past its expiry is REFRESH_REQUIRED (``CONTEXT_EXPIRED``) whatever
+timestamps the decision now carries, and a decision whose
 hash no longer matches the binding is DENY (``BINDING_MISMATCH``). Every check
 emits a ``GuardAuditEvent``.
 
@@ -25,7 +26,7 @@ from typing import Literal, Protocol
 from pydantic import BaseModel, ConfigDict
 
 from retailtwin_api.contracts import DCGVerdict, DCGVerdictResult, Decision
-from retailtwin_api.guard.decision_context_guard.guard import DecisionContextGuard
+from retailtwin_api.guard.decision_context_guard.guard import CONTEXT_EXPIRED, DecisionContextGuard
 
 log = logging.getLogger(__name__)
 
@@ -64,11 +65,16 @@ class InMemoryGuardAudit:
 
     def record(self, event: GuardAuditEvent) -> None:
         with self._lock:
-            self._events.append(event)
+            self._events.append(event.model_copy(deep=True))
 
     def events(self, decision_id: str | None = None) -> list[GuardAuditEvent]:
+        """Detached copies: changing a returned event never rewrites the stored history."""
         with self._lock:
-            return [e for e in self._events if decision_id is None or e.decision_id == decision_id]
+            return [
+                e.model_copy(deep=True)
+                for e in self._events
+                if decision_id is None or e.decision_id == decision_id
+            ]
 
 
 @dataclass(frozen=True)
@@ -121,10 +127,19 @@ class NoStaleCommit:
         """Evaluate again immediately before commit. ALLOW only if nothing the binding names moved."""
 
         result = self._guard.evaluate(decision)
-        if result.verdict is DCGVerdict.ALLOW and result.context_hash != binding.context_hash:
+        now = self._clock()
+        if result.verdict is DCGVerdict.ALLOW and now > binding.expiry:
+            # The binding's expiry is authoritative. The hash does not cover the
+            # decision's timestamps, so refreshed timestamps must not extend it.
+            result = _refuse(
+                result, DCGVerdict.REFRESH_REQUIRED, CONTEXT_EXPIRED, "The binding expired before the commit.", now
+            )
+        elif result.verdict is DCGVerdict.ALLOW and result.context_hash != binding.context_hash:
             # Live versions equal the evidence on ALLOW, so a different hash means a
             # different decision id, store or action list than the one authorized.
-            result = _refuse(result, "The decision is not the one this binding authorized.", self._clock())
+            result = _refuse(
+                result, DCGVerdict.DENY, BINDING_MISMATCH, "The decision is not the one this binding authorized.", now
+            )
         self._emit("commit", decision, result)
         return result
 
@@ -153,15 +168,12 @@ class NoStaleCommit:
         )
 
 
-def _refuse(result: DCGVerdictResult, detail: str, now: datetime) -> DCGVerdictResult:
+def _refuse(
+    result: DCGVerdictResult, verdict: DCGVerdict, reason_code: str, detail: str, now: datetime
+) -> DCGVerdictResult:
     policy = dict(result.policy_result)
     policy["failed_gate"] = "binding"
     policy["checks"] = [*policy.get("checks", []), {"gate": "binding", "passed": False, "detail": detail}]
     return result.model_copy(
-        update={
-            "verdict": DCGVerdict.DENY,
-            "reason_code": BINDING_MISMATCH,
-            "expiry": now,
-            "policy_result": policy,
-        }
+        update={"verdict": verdict, "reason_code": reason_code, "expiry": now, "policy_result": policy}
     )
