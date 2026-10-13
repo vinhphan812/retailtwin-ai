@@ -28,9 +28,6 @@ jobs:
     name: Build & Test
     runs-on: ubuntu-latest
 
-    env:
-      RETAILTWIN_RUNTIME_SA: retailtwin-runtime@retailtwin-ai-511002.iam.gserviceaccount.com
-
     defaults:
       run:
         working-directory: apps/api
