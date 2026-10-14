@@ -168,3 +168,42 @@ def test_middleware_logs_request_start_and_end(client, caplog) -> None:
         assert getattr(record, "correlation_id"), "Empty correlation_id"
         assert record.message.startswith("request."), f"Unexpected message: {record.message}"
         assert record.levelname == "INFO"
+
+
+# ── Health degraded when analytics unavailable ──────────────────────────────────
+
+def test_health_returns_degraded_when_analytics_unavailable(settings, caplog, monkeypatch) -> None:
+    """When store is loaded but analytics repos are unavailable, /health returns degraded."""
+    from fastapi.testclient import TestClient
+    from retailtwin_api.analytics_repository import (
+        _UnavailableAnomalyRepository,
+        _UnavailableRevenueRepository,
+        _UnavailablePromotionRepository,
+    )
+    from retailtwin_api.main import create_app
+
+    application = create_app(settings)
+    # Override with unavailable stubs (available=False)
+    application.state.anomalies = _UnavailableAnomalyRepository()
+    application.state.revenue = _UnavailableRevenueRepository()
+    application.state.promotions = _UnavailablePromotionRepository()
+
+    with TestClient(application) as test_client:
+        response = test_client.get("/health")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "degraded"
+    assert body["fixture_loaded"] is True
+    # No internal paths leaked
+    assert str(settings.store_fixture_path) not in response.text
+
+
+def test_health_returns_ok_when_store_and_analytics_available(client) -> None:
+    """When store is loaded and analytics repos are available, /health returns ok."""
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["fixture_loaded"] is True
