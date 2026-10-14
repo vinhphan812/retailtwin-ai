@@ -59,7 +59,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.store = store
     app.state.events = EventLog()
     app.state.review_audit = ReviewAuditLog()
-    app.state.live_context_version = store.view().context_version if store.loaded else ""
+    app.state.live_context_version = store.view().context_version if store.loaded else ""  # type: ignore[union-attr]
     # Production has no implicit demo fixture. An integration injects a real adapter.
     app.state.simulations = SimulationRepository(store.view, resolved.store_id)
     # Analytics repositories: GCP-backed (BigQuery + Firestore); empty adapters in dev.
