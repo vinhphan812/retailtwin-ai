@@ -60,6 +60,44 @@ CANONICAL_PROJECT = "retailtwin-ai-511002"
 STORE_ID = "store-001"
 SKU = "P017"
 
+# Demo namespace for all demo-scoped data
+DEMO_NAMESPACE = "retailtwin-demo"
+
+
+def demo_event_id(suffix: str) -> str:
+    """Create a deterministic event ID with demo namespace."""
+    return f"{DEMO_NAMESPACE}-{suffix}"
+
+
+def create_seed_manifest(run_id: str, counts: dict[str, int]) -> dict[str, Any]:
+    """Create and save seed manifest for deterministic reset."""
+    manifest = {
+        "run_id": run_id,
+        "namespace": DEMO_NAMESPACE,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "store_id": STORE_ID,
+        "sku": SKU,
+        "counts": counts,
+        "checksums": {
+            "p017_friday": 50,  # Expected units on Friday
+            "p017_saturday": 73,  # Expected units on Saturday (surge)
+        }
+    }
+    manifest_path = Path(__file__).parent / "seed_manifest.json"
+    manifest_path.write_text(json.dumps(manifest, indent=2))
+    return manifest
+
+
+def load_seed_manifest() -> dict[str, Any] | None:
+    """Load existing seed manifest if exists."""
+    manifest_path = Path(__file__).parent / "seed_manifest.json"
+    if manifest_path.exists():
+        try:
+            return json.loads(manifest_path.read_text())
+        except (json.JSONDecodeError, IOError):
+            pass
+    return None
+
 # Import seed data
 from data.seed.demo_seed import DEMO_PRODUCTS, SeedProduct
 
@@ -269,7 +307,10 @@ def format_timestamp(dt: datetime) -> str:
 
 
 def generate_p017_context() -> list[dict[str, Any]]:
-    """Generate P017 historical context showing weekend surge pattern."""
+    """Generate P017 historical context showing weekend surge pattern.
+    
+    All event_ids use DEMO_NAMESPACE prefix for bounded reset capability.
+    """
     events = []
     base_date = datetime(2026, 9, 12, tzinfo=timezone.utc)
     
@@ -279,8 +320,8 @@ def generate_p017_context() -> list[dict[str, Any]]:
         # Friday surge
         for i, hour in enumerate([8, 9, 10, 11]):
             events.append({
-                "event_id": f"hist-p017-w{week}-fri-{hour}",
-                "correlation_id": f"hist-week{week}",
+                "event_id": demo_event_id(f"hist-p017-w{week}-fri-{hour}"),
+                "correlation_id": demo_event_id(f"hist-week{week}"),
                 "event_type": "sale.completed",
                 "store_id": STORE_ID,
                 "sku": SKU,
@@ -292,8 +333,8 @@ def generate_p017_context() -> list[dict[str, Any]]:
         # Saturday surge (higher)
         for i, hour in enumerate([8, 9, 10, 11, 12]):
             events.append({
-                "event_id": f"hist-p017-w{week}-sat-{hour}",
-                "correlation_id": f"hist-week{week}",
+                "event_id": demo_event_id(f"hist-p017-w{week}-sat-{hour}"),
+                "correlation_id": demo_event_id(f"hist-week{week}"),
                 "event_type": "sale.completed",
                 "store_id": STORE_ID,
                 "sku": SKU,
@@ -305,8 +346,8 @@ def generate_p017_context() -> list[dict[str, Any]]:
         # Weekday baseline
         for day_offset in [3, 4, 5]:
             events.append({
-                "event_id": f"hist-p017-w{week}-day{day_offset}",
-                "correlation_id": f"hist-week{week}",
+                "event_id": demo_event_id(f"hist-p017-w{week}-day{day_offset}"),
+                "correlation_id": demo_event_id(f"hist-week{week}"),
                 "event_type": "sale.completed",
                 "store_id": STORE_ID,
                 "sku": SKU,
@@ -389,7 +430,10 @@ def canonical_body(event: dict[str, Any]) -> str:
 
 
 def generate_demo_events() -> list[dict[str, Any]]:
-    """Generate all demo events (baseline + surge)."""
+    """Generate all demo events (baseline + surge).
+    
+    All event_ids use DEMO_NAMESPACE prefix for bounded reset capability.
+    """
     events = []
     
     # Baseline (Friday)
@@ -397,8 +441,8 @@ def generate_demo_events() -> list[dict[str, Any]]:
     step = timedelta(hours=WINDOW_HOURS) / len(quantities)
     for index, quantity in enumerate(quantities, start=1):
         events.append({
-            "event_id": f"evt-p017-base-{index:04d}",
-            "correlation_id": CORRELATION_ID,
+            "event_id": demo_event_id(f"evt-p017-base-{index:04d}"),
+            "correlation_id": demo_event_id(CORRELATION_ID),
             "event_type": "sale.completed",
             "store_id": STORE_ID,
             "sku": SKU,
@@ -412,8 +456,8 @@ def generate_demo_events() -> list[dict[str, Any]]:
     step = timedelta(hours=WINDOW_HOURS) / len(quantities)
     for index, quantity in enumerate(quantities, start=1):
         events.append({
-            "event_id": f"evt-p017-surge-{index:04d}",
-            "correlation_id": CORRELATION_ID,
+            "event_id": demo_event_id(f"evt-p017-surge-{index:04d}"),
+            "correlation_id": demo_event_id(CORRELATION_ID),
             "event_type": "sale.completed",
             "store_id": STORE_ID,
             "sku": SKU,
@@ -565,6 +609,21 @@ def main() -> int:
             events = generate_demo_events()
             results["pubsub"] = publish_events(events, dry_run)
             print(f"  Result: {json.dumps(results['pubsub'], indent=4)}")
+            print()
+
+        # Create seed manifest for deterministic reset
+        if not dry_run:
+            manifest = create_seed_manifest(
+                run_id=f"run-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}",
+                counts={
+                    "firestore": results.get("firestore", {}).get("seeded", 0),
+                    "bigquery": results.get("bigquery", {}).get("inserted", 0),
+                    "pubsub": results.get("pubsub", {}).get("published", 0),
+                }
+            )
+            print("Seed manifest created:")
+            print(f"  Run ID: {manifest['run_id']}")
+            print(f"  Namespace: {manifest['namespace']}")
             print()
 
         # Summary
