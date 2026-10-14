@@ -17,11 +17,13 @@ const CATEGORY_COLOR = {
 /**
  * Open alerts and opportunities, worst first, each with how far its agent run has got.
  * They appear as soon as the anomaly store has them, with no prompt. Picking one selects
- * its product, flies the camera there, and narrows the timeline to its run.
+ * its product, flies the camera there, and narrows the timeline to its run. When a read of the
+ * anomalies fails it says so and keeps the last list, which may be out of date.
  */
 export function AlertsSection() {
   const { t } = useTranslation();
   const anomalies = useAnomalyStore((state) => state.anomalies);
+  const readError = useAnomalyStore((state) => state.readError);
   const activity = useRunStore((state) => state.activity);
   const active = useActiveState();
   const selected = useUiStore(selectedProductId);
@@ -38,6 +40,11 @@ export function AlertsSection() {
           <span className="activity-count">{alerts.length}</span>
         </h2>
       </div>
+      {readError ? (
+        <p className="alerts-error" role="status">
+          {t(alerts.length ? "alerts.readFailedKept" : "alerts.readFailed", { error: readError })}
+        </p>
+      ) : null}
       {alerts.length ? (
         <ul className="alerts-list" aria-label={t("alerts.list")}>
           {alerts.map((anomaly) => {
@@ -94,7 +101,7 @@ export function AlertsSection() {
             );
           })}
         </ul>
-      ) : (
+      ) : readError ? null : (
         <p className="alerts-empty">{t("alerts.empty")}</p>
       )}
     </section>

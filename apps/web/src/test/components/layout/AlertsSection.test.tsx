@@ -32,7 +32,7 @@ const alertButton = (name: RegExp) => within(alertList()).getByRole("button", { 
 beforeEach(() => {
   usePanelStore.setState({ open: true });
   useRunStore.getState().reset();
-  useAnomalyStore.setState({ anomalies: [] });
+  useAnomalyStore.setState({ anomalies: [], readError: null });
   useTwinStore.setState({ live: state, issues: [], status: TWIN_STATUS.Ready });
   useUiStore.getState().select(null);
 });
@@ -123,6 +123,28 @@ describe("Alerts & opportunities", () => {
     act(() => useUiStore.getState().select("P005"));
     expect(screen.queryByRole("button", { name: "Show every run" })).toBeNull();
     expect(useUiStore.getState().focusedCorrelationId).toBeNull();
+  });
+
+  test("a failed read says so and keeps the last list, until a read succeeds", () => {
+    useAnomalyStore.getState().setAll(demoAnomalies(state));
+    render(<AgentActivityPanel />);
+    const count = within(alertList()).getAllByRole("button").length;
+
+    act(() => useAnomalyStore.getState().fail("GET /anomalies returned 503."));
+    expect(
+      screen.getByRole("status").textContent,
+    ).toBe("Could not read the alerts; showing the last list received, which may be out of date. GET /anomalies returned 503.");
+    expect(within(alertList()).getAllByRole("button")).toHaveLength(count);
+
+    act(() => useAnomalyStore.getState().setAll(demoAnomalies(state)));
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  test("a failed first read says so instead of claiming nothing is open", () => {
+    useAnomalyStore.getState().fail("GET /anomalies returned 503.");
+    render(<AgentActivityPanel />);
+    expect(screen.getByRole("status").textContent).toBe("Could not read the alerts. GET /anomalies returned 503.");
+    expect(screen.queryByText("No open alerts or opportunities.")).toBeNull();
   });
 
   test("an alert on a SKU missing from the twin cannot be picked, and says so", () => {

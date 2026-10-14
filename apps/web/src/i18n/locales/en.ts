@@ -211,6 +211,8 @@ export const en = {
     section: "Alerts & opportunities",
     list: "Open alerts and opportunities",
     empty: "No open alerts or opportunities.",
+    readFailed: "Could not read the alerts. {{error}}",
+    readFailedKept: "Could not read the alerts; showing the last list received, which may be out of date. {{error}}",
     category: {
       alert: "Alert",
       opportunity: "Opportunity",

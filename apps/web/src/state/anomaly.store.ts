@@ -5,8 +5,12 @@ import type { AnomaliesResponse, Anomaly } from "@/types/anomaly.type";
 type AnomalyStore = {
   /** Open anomalies, as the anomaly API last served them. */
   anomalies: Anomaly[];
-  /** Replaces every open anomaly with a fresh `GET /anomalies` response. */
+  /** Why the last read of the anomalies failed; null once a read succeeds. `anomalies` keeps the last list. */
+  readError: string | null;
+  /** Replaces every open anomaly with a fresh `GET /anomalies` response, and clears `readError`. */
   setAll: (response: AnomaliesResponse) => void;
+  /** A read of the anomalies failed: keeps the last list and says why. */
+  fail: (message: string) => void;
   /** An anomaly event: adds the anomaly, or replaces the one with the same id. */
   raise: (anomaly: Anomaly) => void;
   /** The anomaly was handled and is no longer open. */
@@ -20,7 +24,9 @@ type AnomalyStore = {
  */
 export const useAnomalyStore = create<AnomalyStore>()((set) => ({
   anomalies: [],
-  setAll: (response) => set({ anomalies: response.anomalies }),
+  readError: null,
+  setAll: (response) => set({ anomalies: response.anomalies, readError: null }),
+  fail: (readError) => set({ readError }),
   raise: (anomaly) =>
     set((state) => ({
       anomalies: [...state.anomalies.filter((open) => open.anomaly_id !== anomaly.anomaly_id), anomaly],

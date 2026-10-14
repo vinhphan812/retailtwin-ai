@@ -60,7 +60,8 @@ const DEV_SOURCES: Record<string, TwinSource> = {
  * P001 on A01-S01, `twin.patch("P001", { facings: 5 })` changes it, `twin.patch("P001", null)`
  * removes it, and `twin.anomalies()` lists the demo anomalies of the current state.
  * `twin.raise("P001")` raises an anomaly event on a product (a stockout unless told
- * otherwise), and `twin.resolve("P001")` closes its anomalies again.
+ * otherwise), and `twin.resolve("P001")` closes its anomalies again. `twin.failAnomalies()` acts as
+ * a failed `GET /anomalies` read, and `twin.reloadAnomalies()` as a good one with the demo anomalies.
  * `twin.simulate()` opens a simulation of the demo actions on the current state (or of the
  * actions passed in), `twin.commit()` commits it to Live as a guarded commit would, and
  * `twin.discard()` drops it. `twin.candidate("cand-b")` shows one of the open simulation's
@@ -90,6 +91,8 @@ function memoryTwinSource(initial: StoreResponse = fixtureStoreState()): TwinSou
         return simulateAnomaly(product, kind, severity, state.context_version);
       },
       resolve: resolveAnomalies,
+      failAnomalies: (message = "GET /anomalies did not answer.") => useAnomalyStore.getState().fail(message),
+      reloadAnomalies: () => useAnomalyStore.getState().setAll(demoAnomalies(twin.current())),
       simulate: (...actions: SimulationAction[]) => openSimulation(twin, actions.length ? actions : undefined),
       commit: () => commitSimulation(twin),
       discard: discardSimulation,

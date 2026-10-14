@@ -357,6 +357,17 @@ body {
   color: var(--color-ink-soft);
 }
 
+.alerts-error {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-warning) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 45%, transparent);
+  border-radius: 8px;
+}
+
 .alerts-empty {
   margin: 0;
   font-size: 13px;
