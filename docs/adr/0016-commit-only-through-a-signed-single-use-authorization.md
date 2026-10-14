@@ -105,6 +105,7 @@ A valid approval now changes the Live Twin, the next `GET /store` shows it, and 
 Limits and follow-ups:
 
 - **Process memory.** The ledger, guard audit and in-memory twin live in process memory. Several Cloud Run instances would each have their own twin and ledger until the Firestore backend is used. Tokens never leave the process that issued them.
+- **Production backend is a deploy setting.** The default `memory` backend is for local and demo tests. A production revision that sets `RETAILTWIN_COMMIT_SIGNING_KEY` must also set `LIVE_TWIN_BACKEND=firestore`, or commits would mutate the in-process twin. The current Cloud Run script sets `APP_ENV=production` and sets neither variable, so approve stays unavailable. Wiring those two variables together belongs to #134 and #143, not this change.
 - **No production `DecisionSource`.** The Planner is on `main` but does not record the Decision it returned. Approve stays `503 decisions_unavailable` until an orchestrator injects a source. This record does not score candidates; that stays with issue #15.
 - **Firestore is verified against the fake only.** The fake now enforces Firestore's real precondition and atomic-commit semantics, but no test runs against a live Firestore database.
 - **Web contract drift.** The web review contract (`approve`/`reject`, lowercase reasons) still differs from the API (`approved`/`rejected`), as it did before this change.
