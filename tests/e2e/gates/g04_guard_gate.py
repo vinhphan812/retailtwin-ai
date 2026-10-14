@@ -354,7 +354,8 @@ def _run(run_id: str) -> dict[str, Any]:
             "no_usable_authorization",
             [e["stage"] for e in d1_events] == ["authorize"] and d1_events[0]["verdict"] != "ALLOW",
             "guard audit stages for D1: " + ",".join(f"{e['stage']}:{e['verdict']}" for e in d1_events)
-            + " (a commit-stage event exists only when the Executor redeems a token)",
+            + " (a token is issued only from the binding of an ALLOW authorize; the commit stage is the"
+            " recheck that follows one)",
         )
         _check(
             checks,
