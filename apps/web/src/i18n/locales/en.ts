@@ -224,6 +224,7 @@ export const en = {
     where: "{{sku}} · shelf {{shelf}}",
     whereShelf: "Shelf {{shelf}}",
     whereStore: "Whole store",
+    simulation: "Alerts describe the Live store. Switch to Live to see them.",
     notInTwin: "Not in the Digital Twin, cannot be shown",
     step: "Agent: {{step}}",
     steps: {

@@ -4,10 +4,12 @@ import { useTranslation } from "react-i18next";
 import { alertCategory, alertStep, alertTarget, sortAlerts } from "@/core/anomaly/alerts";
 import { format } from "@/core/utils/format";
 import { ALERT_CATEGORY, ALERT_STEPS } from "@/enums/anomaly.enum";
-import { useActiveState } from "@/hooks/activeTwin.hook";
+import { useShownSimulation } from "@/hooks/activeTwin.hook";
 import { useAnomalyStore } from "@/state/anomaly.store";
 import { useRunStore } from "@/state/run.store";
+import { useTwinStore } from "@/state/twin.store";
 import { useUiStore } from "@/state/ui.store";
+import type { ActivityEntry } from "@/types/agent.type";
 import type { Anomaly } from "@/types/anomaly.type";
 
 const CATEGORY_COLOR = {
@@ -30,19 +32,17 @@ function AlertWhere({ anomaly }: { anomaly: Anomaly }) {
  * and severity are the detector's (`GET /anomalies`). Picking one selects its product, or
  * its shelf when it has none, flies the camera there, and narrows the timeline to its run.
  * When a read of the anomalies fails it says so and keeps the last list, which may be out of date.
+ * Anomalies describe Live, so the Simulation view lists none and says so.
  */
 export function AlertsSection() {
   const { t } = useTranslation();
   const anomalies = useAnomalyStore((state) => state.anomalies);
   const readError = useAnomalyStore((state) => state.readError);
   const activity = useRunStore((state) => state.activity);
-  const active = useActiveState();
-  const selectedId = useUiStore((state) => state.selectedEntityId);
-  const selectedType = useUiStore((state) => state.selectedEntityType);
-  const focusedCorrelationId = useUiStore((state) => state.focusedCorrelationId);
-  const focusAlert = useUiStore((state) => state.focusAlert);
+  const live = useTwinStore((state) => state.live);
+  const simulation = useShownSimulation();
   const alerts = useMemo(() => sortAlerts(anomalies), [anomalies]);
-  const inTwin = useMemo(() => new Set(active?.products.map((product) => product.sku)), [active]);
+  const inTwin = useMemo(() => new Set(live?.products.map((product) => product.sku)), [live]);
 
   return (
     <section className="activity-section alerts-section">
@@ -52,6 +52,35 @@ export function AlertsSection() {
           <span className="activity-count">{alerts.length}</span>
         </h2>
       </div>
+      {simulation ? (
+        <p className="alerts-empty">{t("alerts.simulation")}</p>
+      ) : (
+        <AlertList alerts={alerts} readError={readError} activity={activity} inTwin={inTwin} />
+      )}
+    </section>
+  );
+}
+
+/** The alerts themselves, with the failed-read notice and the empty state. */
+function AlertList({
+  alerts,
+  readError,
+  activity,
+  inTwin,
+}: {
+  alerts: Anomaly[];
+  readError: string | null;
+  activity: ActivityEntry[];
+  inTwin: ReadonlySet<string>;
+}) {
+  const { t } = useTranslation();
+  const selectedId = useUiStore((state) => state.selectedEntityId);
+  const selectedType = useUiStore((state) => state.selectedEntityType);
+  const focusedCorrelationId = useUiStore((state) => state.focusedCorrelationId);
+  const focusAlert = useUiStore((state) => state.focusAlert);
+
+  return (
+    <>
       {readError ? (
         <p className="alerts-error" role="status">
           {t(alerts.length ? "alerts.readFailedKept" : "alerts.readFailed", { error: readError })}
@@ -122,6 +151,6 @@ export function AlertsSection() {
       ) : readError ? null : (
         <p className="alerts-empty">{t("alerts.empty")}</p>
       )}
-    </section>
+    </>
   );
 }

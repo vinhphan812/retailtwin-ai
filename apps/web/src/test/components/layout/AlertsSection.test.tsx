@@ -8,7 +8,9 @@ import { ENTITY_TYPE } from "@/enums/scene.enum";
 import { TWIN_STATUS } from "@/enums/twin.enum";
 import { DEMO_RUN_ID, demoAgentRun } from "@/fixtures/demo/agentRun";
 import { anomalyFor, demoAnomalies } from "@/fixtures/demo/anomalies";
+import { demoSimulation } from "@/fixtures/demo/simulation";
 import { demoStoreState } from "@/fixtures/demo/store";
+import { VIEW_MODE } from "@/enums/ui.enum";
 import { useAnomalyStore } from "@/state/anomaly.store";
 import { usePanelStore } from "@/state/panel.store";
 import { useRunStore } from "@/state/run.store";
@@ -33,8 +35,9 @@ beforeEach(() => {
   usePanelStore.setState({ open: true });
   useRunStore.getState().reset();
   useAnomalyStore.setState({ anomalies: [], readError: null });
-  useTwinStore.setState({ live: state, issues: [], status: TWIN_STATUS.Ready });
+  useTwinStore.setState({ live: state, issues: [], status: TWIN_STATUS.Ready, simulation: null, candidates: [], selectedCandidateId: null });
   useUiStore.getState().select(null);
+  useUiStore.getState().setViewMode(VIEW_MODE.Live);
 });
 
 afterEach(cleanup);
@@ -180,6 +183,17 @@ describe("Alerts & opportunities", () => {
     expect(selectedProductId(useUiStore.getState())).toBe("P003");
     expect(useUiStore.getState().focusedCorrelationId).toBeNull();
     expect(screen.queryByRole("button", { name: "Show every run" })).toBeNull();
+  });
+
+  test("lists nothing in the Simulation view, since anomalies describe Live", () => {
+    useAnomalyStore.getState().setAll(demoAnomalies(state));
+    useTwinStore.getState().setSimulation(demoSimulation(state));
+    render(<AgentActivityPanel />);
+    expect(screen.getByRole("list", { name: "Open alerts and opportunities" })).toBeTruthy();
+
+    act(() => useUiStore.getState().setViewMode(VIEW_MODE.Simulation));
+    expect(screen.queryByRole("list", { name: "Open alerts and opportunities" })).toBeNull();
+    expect(screen.getByText("Alerts describe the Live store. Switch to Live to see them.")).toBeTruthy();
   });
 
   test("an alert on a SKU missing from the twin cannot be picked, and says so", () => {
