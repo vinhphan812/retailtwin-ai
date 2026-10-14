@@ -59,3 +59,23 @@ ADR 0009. The registry in `tool_registry.py` is the only tool list the orchestra
 None of those handlers change the store or issue a commit authorization. `forecast_demand`, `get_stockout_risk`, `get_promotions`, and the other analytical catalog names stay off this list until a deterministic port is bound with `bind_catalog_tool`. A call also needs the matching capability in `granted`. Unknown names, invalid arguments, missing permission, and timeouts return a controlled `ToolResult`.
 
 The live Vertex proof that Gemini calls `get_inventory` stays with issue #2. Tests use `FakeLlmProvider` and the same `LlmTool` list.
+
+## Stale recovery
+
+ADR 0018. Import `replan` from `retailtwin_api.agents.orchestrator.replan`. It is the recovery loop for a `REFRESH_REQUIRED` verdict.
+
+| Input | Role |
+| --- | --- |
+| `Decision` | The decision the guard is about to accept or reject. It is not modified. |
+| `InvestigationStart` | The original sale. The correlation id and store id stay on every refresh. |
+| `LlmProvider` | One injected provider. Investigator and planner both receive it. |
+| `ToolRegistry` | Read tools for the refresh. The caller binds them to current evidence. |
+| `NoStaleCommit` | Authorizes, then rechecks, on fresh Live Twin reads. |
+| `CommitPort` | Called only after `ALLOW` survives `recheck`, with that binding. |
+| `SimulationPort` | Optional. Scores the new decisions. Absent means `kpi_score` stays `-1.0`. |
+
+`RETAILTWIN_REPLAN_MAX_REFRESHES` defaults to 1. `0` is valid and stops on the first stale verdict. The count is the number of evidence refreshes, not model retries and not live commit attempts.
+
+`COMMITTED` is the only status that called the commit port. `DENIED` and `HUMAN_REVIEW` stop. `RETRY_LIMIT` means the next refresh would pass the bound; nothing is committed. `FAILED` means the provider, planner, simulation port, or commit port stopped the run. Logs carry `correlation_id`, `decision_id`, the status, and the reason code. They do not carry model prose or credentials.
+
+The commit port is not a Live Twin writer by itself. A production adapter still has to redeem a guarded Executor authorization. This module does not import that executor, the simulator, or a model SDK. No route calls `replan`.
