@@ -73,10 +73,6 @@ def get_promotions(request: Request) -> PromotionRepository:
     return request.app.state.promotions
 
 
-def _repo_available(repo: object) -> bool:
-    """Return True unless repo has available=False (graceful-degraded stub)."""
-    return getattr(repo, "available", True)
-
 
 def require_simulations(repository: SimulationReadRepository) -> None:
     if not repository.available:
@@ -102,9 +98,10 @@ def health(
 ) -> HealthResponse:
     """Liveness probe: is the process alive?
 
-    - status="ok"      when store is loaded AND all analytics repos are available
-    - status="degraded" when store is loaded but analytics repos are unavailable
-                       (e.g. GCP credentials not configured); never exposes paths.
+    - status="ok"      when store is loaded AND no analytics calls raise an exception
+    - status="degraded" only when store is not loaded OR when an analytics call
+                       actually raises (e.g. GCP unreachable).  Empty responses
+                       (a store with no anomalies today) are NOT degraded.
     """
     if not store.loaded:
         return HealthResponse(
@@ -115,11 +112,21 @@ def health(
             store_id=store.store_id,
             fixture_loaded=False,
         )
-    analytics_ok = all(
-        _repo_available(r) for r in (anomalies, revenue, promotions)
-    )
+    try:
+        anomalies.list_anomalies(store_id=store.store_id, limit=1)
+        revenue.get_revenue(store_id=store.store_id, period="hourly", start=datetime.now(timezone.utc), end=datetime.now(timezone.utc))
+        promotions.list_promotions(store_id=store.store_id, limit=1)
+    except Exception:
+        return HealthResponse(
+            status="degraded",
+            service="retailtwin-api",
+            environment=request.app.state.settings.app_env,
+            app_env=request.app.state.settings.app_env,
+            store_id=store.store_id,
+            fixture_loaded=True,
+        )
     return HealthResponse(
-        status="ok" if analytics_ok else "degraded",
+        status="ok",
         service="retailtwin-api",
         environment=request.app.state.settings.app_env,
         app_env=request.app.state.settings.app_env,
