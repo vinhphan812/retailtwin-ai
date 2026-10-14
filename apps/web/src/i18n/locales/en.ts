@@ -228,7 +228,7 @@ export const en = {
       verifying: "Verifying",
     },
     filtered: "Only the agent run of the picked alert",
-    showAll: "Show all",
+    showAll: "Show every run",
     noRunYet: "The agent has not started on this yet.",
   },
   agentFocus: {

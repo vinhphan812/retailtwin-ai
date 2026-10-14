@@ -109,7 +109,7 @@ describe("Alerts & opportunities", () => {
     await waitFor(() => expect(within(timeline()).queryByText("Another run.")).toBeNull());
     expect(within(timeline()).getAllByRole("listitem")).toHaveLength(demoAgentRun().length);
 
-    fireEvent.click(screen.getByRole("button", { name: "Show all" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show every run" }));
     expect(within(timeline()).getByText("Another run.")).toBeTruthy();
     expect(selectedProductId(useUiStore.getState())).toBe("P003");
   });
@@ -121,7 +121,7 @@ describe("Alerts & opportunities", () => {
     expect(screen.getByText("The agent has not started on this yet.")).toBeTruthy();
 
     act(() => useUiStore.getState().select("P005"));
-    expect(screen.queryByRole("button", { name: "Show all" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Show every run" })).toBeNull();
     expect(useUiStore.getState().focusedCorrelationId).toBeNull();
   });
 
