@@ -21,7 +21,11 @@ const listOf = (...runs: Simulation[]): SimulationsResponse => ({
   })),
 });
 
-function fakeClient(simulations: RetailTwinClient["simulations"], simulation: RetailTwinClient["simulation"]): RetailTwinClient {
+function fakeClient(
+  simulations: RetailTwinClient["simulations"],
+  simulation: RetailTwinClient["simulation"],
+  candidates: RetailTwinClient["candidates"] = vi.fn().mockResolvedValue({ candidates: [] }),
+): RetailTwinClient {
   return {
     health: vi.fn(),
     store: vi.fn(),
@@ -30,6 +34,7 @@ function fakeClient(simulations: RetailTwinClient["simulations"], simulation: Re
     promotions: vi.fn(),
     simulations,
     simulation,
+    candidates,
     reviewSimulation: vi.fn(),
   };
 }
@@ -79,7 +84,7 @@ describe("simulationSource", () => {
     await vi.advanceTimersByTimeAsync(2500);
     expect(simulation).toHaveBeenCalledWith("sim-001");
     expect(onSimulation).toHaveBeenCalledTimes(1);
-    expect(onSimulation).toHaveBeenCalledWith(expect.objectContaining({ simulation_id: "sim-001" }));
+    expect(onSimulation).toHaveBeenCalledWith(expect.objectContaining({ simulation_id: "sim-001" }), expect.any(Array));
 
     unsubscribe();
     await vi.advanceTimersByTimeAsync(5000);
@@ -99,6 +104,54 @@ describe("simulationSource", () => {
     await vi.advanceTimersByTimeAsync(2500);
     expect(simulation).toHaveBeenCalledTimes(1);
     expect(onSimulation.mock.calls.map(([next]) => next?.simulation_id ?? null)).toEqual(["sim-001", null]);
+  });
+
+  it("fetches candidates together with the open simulation and clears stale candidates on run change/closure", async () => {
+    const run1 = run("sim-001");
+    const run2 = run("sim-002");
+    const simulations = vi
+      .fn<RetailTwinClient["simulations"]>()
+      .mockResolvedValueOnce(listOf(run1))
+      .mockResolvedValueOnce(listOf(run2))
+      .mockResolvedValueOnce({ simulations: [] });
+    const simulation = vi
+      .fn<RetailTwinClient["simulation"]>()
+      .mockResolvedValueOnce(run1)
+      .mockResolvedValueOnce(run2);
+    const candidates = vi
+      .fn<RetailTwinClient["candidates"]>()
+      .mockResolvedValueOnce({
+        candidates: [
+          {
+            candidate_id: "cand-1",
+            simulation_id: "sim-001",
+            proposed_actions: ACTIONS,
+            state: run1.state,
+            kpis: [],
+            evaluator_version: "v1",
+            provenance: "test provenance",
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ candidates: [] });
+
+    const onUpdate = vi.fn();
+    createSimulationSource(fakeClient(simulations, simulation, candidates), 1000).subscribe(onUpdate);
+
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(candidates).toHaveBeenCalledWith("sim-001");
+    expect(onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ simulation_id: "sim-001" }),
+      expect.arrayContaining([expect.objectContaining({ candidate_id: "cand-1", provenance: "test provenance" })])
+    );
+
+    // Advance to sim-002
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(candidates).toHaveBeenCalledWith("sim-002");
+
+    // Advance to closure
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(onUpdate).toHaveBeenLastCalledWith(null, []);
   });
 
   it("keeps the last run on a failed or unreadable read, and waits longer up to the cap", async () => {

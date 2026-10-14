@@ -255,7 +255,7 @@ export const en = {
       title: "Candidate {{id}}",
       kpis: "KPI scores",
       noKpis: "No KPI scores available yet",
-      justification: "Why this plan",
+      provenance: "Provenance",
       selector: "Compare candidates",
       switchHint: "Switch to {{id}}",
       showSimulation: "Show the original proposal",
