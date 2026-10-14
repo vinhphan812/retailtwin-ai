@@ -32,7 +32,7 @@ A flagship decision whose evidence is one version behind the Live Twin can be re
 
 The caller supplies the registry, so the refreshed reads are only as current as the ports the caller bound. The commit port must still go through the guarded Executor; this record does not authorize any other writer. Scoring stays optional until #15. The BigQuery audit stays #35. This record does not mark gates G02–G06 or foundation gate #10 passed.
 
-- Pull request:
+- Pull request: https://github.com/vinhphan812/retailtwin-ai/pull/168
 - Issue: #20
 - Supersedes:
 - Superseded by:
