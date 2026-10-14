@@ -96,6 +96,14 @@ def format_timestamp(dt: datetime) -> str:
     return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+# Demo namespace prefix for all demo data
+DEMO_NAMESPACE = "retailtwin-demo"
+
+def demo_event_id(suffix: str) -> str:
+    """Create a deterministic event ID with demo namespace."""
+    return f"{DEMO_NAMESPACE}-{suffix}"
+
+
 # Historical sales data generator (deterministic)
 def generate_historical_sales(
     sku: str,
@@ -123,14 +131,15 @@ def generate_historical_sales(
                 # Each event represents a batch sale
                 quantity = max(1, daily_units // 6 + (1 if day % 3 == 0 else 0))
                 events.append({
-                    "event_id": f"hist-{sku.lower()}-{current.strftime('%Y%m%d')}-{hour_offset:02d}",
-                    "correlation_id": f"{correlation_prefix}-{current.strftime('%Y%m%d')}",
+                    "event_id": demo_event_id(f"hist-{sku.lower()}-{current.strftime('%Y%m%d')}-{hour_offset:02d}"),
+                    "correlation_id": demo_event_id(f"{correlation_prefix}-{current.strftime('%Y%m%d')}"),
                     "event_type": "sale.completed",
                     "store_id": STORE_ID,
                     "sku": sku,
                     "quantity": quantity,
                     "occurred_at": format_timestamp(event_time),
                     "source": "historical-pos",
+                    "run_id": "",  # Will be filled by seed_gcp.py
                 })
         current += timedelta(days=1)
     
@@ -149,53 +158,57 @@ def generate_p017_context() -> list[dict[str, Any]]:
         # Friday 8am-12pm: 40-50 units
         for i, hour in enumerate([8, 9, 10, 11]):
             events.append({
-                "event_id": f"hist-p017-week{week}-fri-{hour}",
-                "correlation_id": f"hist-week{week}",
+                "event_id": demo_event_id(f"hist-p017-week{week}-fri-{hour}"),
+                "correlation_id": demo_event_id(f"hist-week{week}"),
                 "event_type": "sale.completed",
                 "store_id": STORE_ID,
                 "sku": "P017",
                 "quantity": 10 + (i % 2) * 2,  # 10-12 units per hour
                 "occurred_at": format_timestamp(week_start + timedelta(hours=hour)),
                 "source": "historical-pos",
+                "run_id": "",
             })
         
         # Saturday 8am-12pm: 55-73 units (surge)
         for i, hour in enumerate([8, 9, 10, 11, 12]):
             events.append({
-                "event_id": f"hist-p017-week{week}-sat-{hour}",
-                "correlation_id": f"hist-week{week}",
+                "event_id": demo_event_id(f"hist-p017-week{week}-sat-{hour}"),
+                "correlation_id": demo_event_id(f"hist-week{week}"),
                 "event_type": "sale.completed",
                 "store_id": STORE_ID,
                 "sku": "P017",
                 "quantity": 11 + (i % 3) * 2,  # 11-15 units per hour = 55-73 total
                 "occurred_at": format_timestamp(week_start + timedelta(days=1, hours=hour)),
                 "source": "historical-pos",
+                "run_id": "",
             })
         
         # Sunday 8am-12pm: 30-40 units
         for i, hour in enumerate([8, 9, 10, 11]):
             events.append({
-                "event_id": f"hist-p017-week{week}-sun-{hour}",
-                "correlation_id": f"hist-week{week}",
+                "event_id": demo_event_id(f"hist-p017-week{week}-sun-{hour}"),
+                "correlation_id": demo_event_id(f"hist-week{week}"),
                 "event_type": "sale.completed",
                 "store_id": STORE_ID,
                 "sku": "P017",
                 "quantity": 8 + (i % 2) * 2,  # 8-10 units per hour
                 "occurred_at": format_timestamp(week_start + timedelta(days=2, hours=hour)),
                 "source": "historical-pos",
+                "run_id": "",
             })
         
         # Weekday baseline: ~25 units per day
         for day_offset, day_name in [(3, "mon"), (4, "tue"), (5, "wed")]:
             events.append({
-                "event_id": f"hist-p017-week{week}-{day_name}",
-                "correlation_id": f"hist-week{week}",
+                "event_id": demo_event_id(f"hist-p017-week{week}-{day_name}"),
+                "correlation_id": demo_event_id(f"hist-week{week}"),
                 "event_type": "sale.completed",
                 "store_id": STORE_ID,
                 "sku": "P017",
                 "quantity": 8 + (day_offset % 3) * 2,  # 8-10 units per event
                 "occurred_at": format_timestamp(week_start + timedelta(days=day_offset, hours=10)),
                 "source": "historical-pos",
+                "run_id": "",
             })
     
     return events
