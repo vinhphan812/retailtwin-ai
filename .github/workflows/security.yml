@@ -13,14 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Scan committed files for secrets (Trivy)
-        uses: aquasecurity/trivy-action@v0.33.1
-        with:
-          scan-type: fs
-          scan-ref: .
-          scanners: secret
-          exit-code: '1'
-          severity: HIGH,CRITICAL
+      - name: Scan committed files for secrets (Trivy container)
+        run: |
+          docker run --rm -v "$PWD:/work:ro" aquasec/trivy:0.65.0 fs --scanners secret --severity HIGH,CRITICAL --exit-code 1 /work
       - name: Python project dependency vulnerabilities
         run: |
           python -m pip install --upgrade pip pip-audit
@@ -32,10 +27,5 @@ jobs:
           npm ci --ignore-scripts
           npm audit --omit=dev --audit-level=high
       - name: Repository vulnerability scan
-        uses: aquasecurity/trivy-action@v0.33.1
-        with:
-          scan-type: fs
-          scan-ref: .
-          scanners: vuln
-          exit-code: '1'
-          severity: HIGH,CRITICAL
+        run: |
+          docker run --rm -v "$PWD:/work:ro" aquasec/trivy:0.65.0 fs --scanners vuln --severity HIGH,CRITICAL --exit-code 1 /work
