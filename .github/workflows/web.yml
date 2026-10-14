@@ -17,6 +17,13 @@ on:
       - '.firebaserc'
       - '.github/workflows/web.yml'
 
+# Least-privilege permissions at workflow level.
+# id-token: write is required for google-github-actions/auth to exchange
+# a GitHub OIDC token for short-lived GCP credentials (WIF/OIDC).
+permissions:
+  contents: read
+  id-token: write
+
 concurrency:
   group: web-ci-${{ github.ref }}
   cancel-in-progress: true
@@ -116,8 +123,7 @@ jobs:
           path: apps/web/dist/
 
       - name: Deploy to Firebase Hosting
-        run: |
-          npx firebase-tools use retailtwin-ai-511002 --token-only --project retailtwin-ai-511002
-          npx firebase-tools deploy --only hosting --project retailtwin-ai-511002 --non-interactive
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        # Uses ADC from WIF auth step above — no FIREBASE_TOKEN secret required.
+        # google-github-actions/auth sets up Application Default Credentials that
+        # Firebase CLI 15+ picks up automatically.
+        run: npx firebase-tools@20.0.0 deploy --only hosting --project retailtwin-ai-511002 --non-interactive
