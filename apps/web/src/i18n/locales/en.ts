@@ -80,6 +80,7 @@ export const en = {
       stockout: "Stockout",
       low_stock: "Low stock",
       sales_drop: "Sales drop",
+      demand_surge: "Demand surge",
     },
     severity: {
       low: "low",

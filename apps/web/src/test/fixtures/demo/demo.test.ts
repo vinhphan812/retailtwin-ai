@@ -4,6 +4,7 @@ import { parseStoreState } from "@/core/api/validate";
 import { isDemoMode } from "@/core/twin/demoMode";
 import { ANOMALY_KIND, ANOMALY_SEVERITIES } from "@/enums/anomaly.enum";
 import { PAYMENT_METHODS } from "@/enums/checkout.enum";
+import { DEMO_RUN_ID, demoAgentRun } from "@/fixtures/demo/agentRun";
 import { demoAnomalies } from "@/fixtures/demo/anomalies";
 import { DEMO_PRICES, demoCheckout, demoTransactions } from "@/fixtures/demo/checkouts";
 import { demoStoreState } from "@/fixtures/demo/store";
@@ -61,6 +62,21 @@ describe("demo anomalies", () => {
     for (const severity of ANOMALY_SEVERITIES) {
       expect(anomalies.some((anomaly) => anomaly.severity === severity && onShelf(anomaly.sku) > 0)).toBe(true);
     }
+  });
+
+  it("give each anomaly its own agent run, and the demo run handles the P003 stockout", () => {
+    const { anomalies } = demoAnomalies();
+    expect(new Set(anomalies.map((anomaly) => anomaly.correlation_id)).size).toBe(anomalies.length);
+    const handled = anomalies.filter((anomaly) => anomaly.correlation_id === DEMO_RUN_ID);
+    expect(handled.map(({ sku, kind }) => [sku, kind])).toEqual([["P003", ANOMALY_KIND.Stockout]]);
+    expect(demoAgentRun().every((entry) => entry.correlation_id === DEMO_RUN_ID)).toBe(true);
+  });
+
+  it("include a demand-surge opportunity on a product with stock to sell", () => {
+    const state = demoStoreState();
+    const surge = demoAnomalies(state).anomalies.filter((anomaly) => anomaly.kind === ANOMALY_KIND.DemandSurge);
+    expect(surge).toHaveLength(1);
+    expect(state.products.find((item) => item.sku === surge[0].sku)!.shelf_quantity).toBeGreaterThan(0);
   });
 });
 

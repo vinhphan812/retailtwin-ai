@@ -10,7 +10,11 @@ import { demoStoreState } from "./store";
  */
 
 const DETECTED_AT = "2026-10-09T08:00:00Z";
-const CORRELATION_ID = "run-20261009-001";
+
+/** The agent run that handles the anomaly of `kind` on `sku`: one run per anomaly. */
+export function demoCorrelationId(sku: string, kind: AnomalyKind) {
+  return `run-${sku}-${kind}`;
+}
 
 /** An anomaly on `product`, read from the twin state at `contextVersion`. */
 export function anomalyFor(
@@ -30,7 +34,7 @@ export function anomalyFor(
     severity,
     detected_at: detectedAt,
     context_version: contextVersion,
-    correlation_id: CORRELATION_ID,
+    correlation_id: demoCorrelationId(product.sku, kind),
   };
 }
 
@@ -44,6 +48,8 @@ const ANOMALIES: [sku: string, kind: AnomalyKind, severity: AnomalySeverity][] =
   // Shelves full but not selling, so their halos show at every severity.
   ["P009", ANOMALY_KIND.SalesDrop, ANOMALY_SEVERITY.Medium],
   ["P006", ANOMALY_KIND.SalesDrop, ANOMALY_SEVERITY.High],
+  // Selling faster than forecast with stock to spare: an opportunity rather than an alert.
+  ["P008", ANOMALY_KIND.DemandSurge, ANOMALY_SEVERITY.Medium],
 ];
 
 /** Open anomalies of `state`; a product that left the state takes its anomaly with it. */

@@ -6,6 +6,8 @@ export const ANOMALY_KIND = {
   LowStock: "low_stock",
   /** Sales fell below forecast; seen in POS data, not in shelf figures. */
   SalesDrop: "sales_drop",
+  /** Demand rose above forecast: an opportunity, not a fault. Same value as apps/api `AnomalyType`. */
+  DemandSurge: "demand_surge",
 } as const;
 export type AnomalyKind = (typeof ANOMALY_KIND)[keyof typeof ANOMALY_KIND];
 
