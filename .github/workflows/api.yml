@@ -182,7 +182,9 @@ jobs:
           project_id: retailtwin-ai-511002
           image: gcr.io/retailtwin-ai-511002/retailtwin-api:${{ github.sha }}
           service_account: ${{ secrets.GCP_RUNTIME_SA }}
-          allow_unauthenticated: false
+          # Public API: explicitly maintain allUsers as Cloud Run Invoker so browser clients
+          # and the anonymous production health/readiness probes use the same access policy.
+          flags: --allow-unauthenticated
           port: 8080
           min_instances: 1
           max_instances: 10
