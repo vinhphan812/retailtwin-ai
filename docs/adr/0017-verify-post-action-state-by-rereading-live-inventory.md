@@ -32,7 +32,7 @@ A mismatch between the committed actions and the next inventory read is visible 
 
 An expected score other than `-1.0` stays `INCONCLUSIVE` until the caller passes the decimal it observed. This record does not define how that decimal is measured.
 
-- Pull request:
+- Pull request: https://github.com/vinhphan812/retailtwin-ai/pull/167
 - Issue: #19
 - Supersedes:
 - Superseded by:
