@@ -29,7 +29,7 @@ The matrix is read-only verification, not provisioning. All values are non-secre
 | **BigQuery Table** | `retailtwin.agent_actions` | `us-central1` | [#7](https://github.com/vinhphan812/retailtwin-ai/issues/7) | (see dataset) | (see dataset) | — | — | owns | `bq show --project_id=retailtwin-ai-511002 retailtwin.agent_actions` |
 | **BigQuery Table** | `retailtwin.agent_action_audit` | `us-central1` | [#35](https://github.com/vinhphan812/retailtwin-ai/issues/35) | (operator / audit writer) | `roles/bigquery.dataEditor` | — | — | owns | `bq show --project_id=retailtwin-ai-511002 retailtwin.agent_action_audit` |
 | **Vertex AI API** | `aiplatform.googleapis.com` | `us-central1` | [#2](https://github.com/vinhphan812/retailtwin-ai/issues/2), [#134](https://github.com/vinhphan812/retailtwin-ai/issues/134) | `retailtwin-agent@retailtwin-ai-511002.iam.gserviceaccount.com` | `roles/aiplatform.user` | `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION` | — | owns | `gcloud ai models list --region=us-central1 --project=retailtwin-ai-511002` |
-| **Vertex AI Model** | `gemini-2.0-flash` (canonical) | `us-central1` | [#2](https://github.com/vinhphan812/retailtwin-ai/issues/2) | (see Vertex AI API) | (see Vertex AI API) | `LLM_PROVIDER=vertex_gemini`, `LLM_MODEL=gemini-2.0-flash` | — | owns | `gcloud ai models describe gemini-2.0-flash --region=us-central1 --project=retailtwin-ai-511002` |
+| **Vertex AI Model** | `gemini-2.5-flash` (canonical) | `us-central1` | [#2](https://github.com/vinhphan812/retailtwin-ai/issues/2) | (see Vertex AI API) | (see Vertex AI API) | `LLM_PROVIDER=vertex_gemini`, `LLM_MODEL=gemini-2.5-flash` | — | owns | `gcloud ai models describe gemini-2.5-flash --region=us-central1 --project=retailtwin-ai-511002` |
 | **Cloud Storage Bucket** | `gs://retailtwin-ai-511002-assets` | `us-central1` | [#5](https://github.com/vinhphan812/retailtwin-ai/issues/5) | (operator) | `roles/storage.objectViewer` (for read) | `GCS_BUCKET` | — | owns | `gcloud storage buckets describe gs://retailtwin-ai-511002-assets --project=retailtwin-ai-511002` |
 | **Secret Manager** | (project-level) | — | [#9](https://github.com/vinhphan812/retailtwin-ai/issues/9), [#134](https://github.com/vinhphan812/retailtwin-ai/issues/134) | `retailtwin-api@retailtwin-ai-511002.iam.gserviceaccount.com` (future) | `roles/secretmanager.secretAccessor` (future) | — | Future: `STORE_FIXTURE_PATH`, `LLM_API_KEY` (never) | owns | `gcloud secrets list --project=retailtwin-ai-511002` |
 | **Firebase Hosting** | `retailtwin-ai-511002` | (global) | [#43](https://github.com/vinhphan812/retailtwin-ai/issues/43), [#132](https://github.com/vinhphan812/retailtwin-ai/issues/132) | Firebase project | `roles/firebase.hosting.Admin` (CI/CD) | `VITE_API_BASE_URL` | — | not owned | `firebase hosting:channel:list --project=retailtwin-ai-511002` |
@@ -41,26 +41,31 @@ The matrix is read-only verification, not provisioning. All values are non-secre
 
 The project uses **two runtime service accounts** and **one CI/CD service account**:
 
-| Account | Email | Purpose | Owned By |
-|---|---|---|---|
-| `retailtwin-api` | `retailtwin-api@retailtwin-ai-511002.iam.gserviceaccount.com` | Cloud Run API runtime | [#9](https://github.com/vinhphan812/retailtwin-ai/issues/9) |
-| `retailtwin-agent` | `retailtwin-agent@retailtwin-ai-511002.iam.gserviceaccount.com` | Vertex AI / agent inference | [#2](https://github.com/vinhphan812/retailtwin-ai/issues/2) |
-| `github-actions` | `github-actions@retailtwin-ai-511002.iam.gserviceaccount.com` | GitHub Actions CI/CD | [#9](https://github.com/vinhphan812/retailtwin-ai/issues/9) |
+| Account | Email | Purpose | Owned By | Workflow Secret |
+|---|---|---|---|---|
+| `retailtwin-api` | `retailtwin-api@retailtwin-ai-511002.iam.gserviceaccount.com` | Cloud Run API runtime | [#9](https://github.com/vinhphan812/retailtwin-ai/issues/9) | `GCP_RUNTIME_SA` |
+| `retailtwin-agent` | `retailtwin-agent@retailtwin-ai-511002.iam.gserviceaccount.com` | Vertex AI / agent inference | [#2](https://github.com/vinhphan812/retailtwin-ai/issues/2) | — |
+| `github-actions` | `github-actions@retailtwin-ai-511002.iam.gserviceaccount.com` | GitHub Actions CI/CD | [#9](https://github.com/vinhphan812/retailtwin-ai/issues/9) | `GCP_DEPLOY_SA` |
 
-> **Note on `retailtwin-runtime`**: The GitHub Actions workflow (`api.yml`) step `deploy-cloudrun` referenced `retailtwin-runtime@retailtwin-ai-511002.iam.gserviceaccount.com` in a draft configuration. This account **does not exist** and was never provisioned. The canonical runtime SA is `retailtwin-api`. The workflow reference was removed in the reconciliation; use only `retailtwin-api`.
+> **Note**: The GitHub Actions workflow (`api.yml`) currently uses `secrets.GCP_RUNTIME_SA` to specify the Cloud Run runtime service account, not a hardcoded email. The secret value should be `retailtwin-api@retailtwin-ai-511002.iam.gserviceaccount.com`.
+
+> **Note on `retailtwin-runtime`**: The workflow previously referenced `retailtwin-runtime@retailtwin-ai-511002.iam.gserviceaccount.com` in a draft configuration. This account **does not exist** and was never provisioned. The canonical runtime SA is `retailtwin-api`.
 
 ---
 
-## Container Registry Canonical Path
+## Container Registry Current State
 
-**Artifact Registry** is the canonical registry. The legacy `gcr.io` path in the GitHub Actions workflow (`api.yml`) was a draft that is superseded by Artifact Registry.
+> **Migration in progress**: The GitHub Actions workflow (`api.yml`) currently uses `gcr.io`. Artifact Registry is the **target canonical registry**. Migration tracked in issue #134.
 
-| | Canonical | Legacy (do not use) |
+| | Current (in use) | Target Canonical |
 |---|---|---|
-| Registry | `us-central1-docker.pkg.dev` | `gcr.io` |
-| Repository | `retailtwin-ai-511002/retailtwin` | — |
+| Registry | `gcr.io` | `us-central1-docker.pkg.dev` |
+| Repository | `retailtwin-ai-511002` | `retailtwin-ai-511002/retailtwin` |
 | Image | `retailtwin-api` | `retailtwin-api` |
-| Full canonical path | `us-central1-docker.pkg.dev/retailtwin-ai-511002/retailtwin/retailtwin-api:<tag>` | `gcr.io/retailtwin-ai-511002/retailtwin-api:<tag>` |
+| Full current path | `gcr.io/retailtwin-ai-511002/retailtwin-api:<tag>` | — |
+| Full target path | — | `us-central1-docker.pkg.dev/retailtwin-ai-511002/retailtwin/retailtwin-api:<tag>` |
+
+Terraform #99 will own the migration to Artifact Registry.
 
 ---
 
@@ -80,27 +85,25 @@ Future secrets planned:
 
 ## GitHub Actions Workload Identity Federation
 
-The `api.yml` workflow requires Workload Identity Federation (WIF) for production deployment:
+The `api.yml` workflow uses Workload Identity Federation (WIF) for production deployment. Current workflow references:
 
-### Required Repository Variables (non-secret)
+### Current Repository Variables and Secrets (from `api.yml`)
 
-| Variable | Value | Set In |
+| Variable/Secret | Source in Workflow | Value |
 |---|---|---|
-| `GCP_WORKLOAD_IDENTITY_PROVIDER` | Full resource name of the WIF provider | GitHub repo settings → Variables |
+| `vars.GCP_WORKLOAD_IDENTITY_PROVIDER` | Workflow uses `vars.GCP_WORKLOAD_IDENTITY_PROVIDER` | Full resource name of the WIF provider |
+| `secrets.GCP_DEPLOY_SA` | Workflow uses `secrets.GCP_DEPLOY_SA` | CI/CD service account for docker/auth |
+| `secrets.GCP_RUNTIME_SA` | Workflow uses `secrets.GCP_RUNTIME_SA` | Cloud Run runtime service account |
 
-### Required Repository Secrets (non-secret SA reference)
+> **Note**: The workflow does not currently use `GCP_WORKLOAD_IDENTITY_SERVICE_ACCOUNT`. The actual variable names are `GCP_WORKLOAD_IDENTITY_PROVIDER`, `GCP_DEPLOY_SA`, and `GCP_RUNTIME_SA`.
 
-| Secret | Value | Set In |
-|---|---|---|
-| `GCP_WORKLOAD_IDENTITY_SERVICE_ACCOUNT` | `github-actions@retailtwin-ai-511002.iam.gserviceaccount.com` | GitHub repo settings → Variables |
-
-### Minimum Roles for `github-actions` SA
+### Minimum Roles for CI/CD Service Account
 
 | Role | Purpose |
 |---|---|
 | `roles/run.admin` | Deploy Cloud Run services |
-| `roles/artifactregistry.writer` | Push container images (canonical registry) |
-| `roles/secretmanager.secretAccessor` | Read future secrets (not yet provisioned) |
+| `roles/artifactregistry.writer` | Push container images (gcr.io currently; migration to Artifact Registry planned) |
+| `roles/iam.workloadIdentityUser` | WIF impersonation |
 
 ### WIF Provider Configuration (Terraform #99 owns this)
 

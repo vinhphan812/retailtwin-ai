@@ -33,7 +33,7 @@ DATASET="${BIGQUERY_DATASET:-retailtwin}"
 REPO="${ARTIFACT_REGISTRY_REPO:-retailtwin}"
 BUCKET="${GCS_BUCKET:-retailtwin-ai-511002-assets}"
 FIREBASE_SITE="${FIREBASE_SITE:-retailtwin-ai-511002}"
-VERTEX_MODEL="${VERTEX_MODEL:-gemini-2.0-flash}"
+VERTEX_MODEL="${VERTEX_MODEL:-gemini-2.5-flash}"
 
 # Production CORS origins (from docs/CLOUD_RUNTIME_MATRIX.md)
 PRODUCTION_CORS_ORIGINS=(
@@ -152,11 +152,14 @@ echo "--- IAM Bindings (runtime SAs) ---"
 policy_file="$(mktemp)"
 gcloud projects get-iam-policy "$PROJECT" --format=json >"$policy_file" 2>/dev/null
 
-python3 - "$policy_file" "$API_SA" "$AGENT_SA" <<'PY'
+# Run IAM checks and count failures
+iam_failures=$(python3 - "$policy_file" "$API_SA" "$AGENT_SA" <<'PY' 2>&1)
 import json, sys
 path, api_sa, agent_sa = sys.argv[1:]
 policy = json.load(open(path))
 roles = {}
+failures = 0
+
 for binding in policy.get("bindings", []):
     for member in binding.get("members", []):
         roles.setdefault(member, set()).add(binding.get("role"))
@@ -167,7 +170,10 @@ def members():
             yield member
 
 def check(condition, message):
+    global failures
     prefix = "PASS" if condition else "FAIL"
+    if not condition:
+        failures += 1
     print(f"{prefix}  {message}")
 
 public = [m for m in members() if m in ("allUsers", "allAuthenticatedUsers")]
@@ -187,7 +193,25 @@ for forbidden in ("roles/datastore.user", "roles/datastore.owner",
                   "roles/editor", "roles/owner", "roles/viewer",
                   "roles/pubsub.publisher", "roles/pubsub.admin"):
     check(forbidden not in agent_roles, f"retailtwin-agent does not have {forbidden}")
+
+# Exit with failure count so bash can track it
+sys.exit(failures)
 PY
+)
+iam_status=$?
+
+# Add failures to counter
+iam_fail_count=$(echo "$iam_failures" | grep -c "^FAIL" || true)
+_failures=$((_failures + iam_fail_count))
+
+# Print all output
+echo "$iam_failures"
+
+# If Python itself failed, count as failure
+if [[ $iam_status -ne 0 ]]; then
+  fail "IAM check script failed"
+fi
+
 rm -f "$policy_file"
 
 # ── Firestore ──────────────────────────────────────────────────────────────────
