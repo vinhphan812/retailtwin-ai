@@ -1,0 +1,74 @@
+name: GCP Service Account Setup
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup-sa:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: github-actions@retailtwin-ai-511002.iam.gserviceaccount.com
+
+      - name: Add IAM bindings for WIF
+        run: |
+          # Add principalSet binding to github-actions SA
+          # This requires Cloud Asset API or direct IAM patching
+          echo "Setting up WIF IAM binding..."
+          
+          # Get the current policy
+          gcloud iam service-accounts get-iam-policy \
+            github-actions@retailtwin-ai-511002.iam.gserviceaccount.com \
+            --project=retailtwin-ai-511002 \
+            --format=json > /tmp/policy.json
+          
+          # Add the binding using python
+          python3 << 'PYEOF'
+          import json
+          with open('/tmp/policy.json') as f:
+              policy = json.load(f)
+          
+          wif_member = 'principalSet://iam.googleapis.com/projects/537192856637/locations/global/workloadIdentityPools/github-actions-pool'
+          
+          # Check if binding exists
+          wif_binding = None
+          for b in policy.get('bindings', []):
+              if b['role'] == 'roles/iam.workloadIdentityUser':
+                  wif_binding = b
+                  break
+          
+          if wif_binding is None:
+              policy['bindings'].append({
+                  'role': 'roles/iam.workloadIdentityUser',
+                  'members': [wif_member]
+              })
+          elif wif_member not in wif_binding.get('members', []):
+              wif_binding['members'].append(wif_member)
+          
+          with open('/tmp/policy.json', 'w') as f:
+              json.dump(policy, f)
+          print('Policy updated')
+          PYEOF
+          
+          # Set the policy
+          gcloud iam service-accounts set-iam-policy \
+            github-actions@retailtwin-ai-511002.iam.gserviceaccount.com \
+            /tmp/policy.json \
+            --project=retailtwin-ai-511002
+
+      - name: Verify setup
+        run: |
+          echo "Verifying WIF binding..."
+          gcloud iam service-accounts get-iam-policy \
+            github-actions@retailtwin-ai-511002.iam.gserviceaccount.com \
+            --project=retailtwin-ai-511002 \
+            --format=json | python3 -c "import sys,json; p=json.load(sys.stdin); print('WIF bindings:'); [print(' ', b['role'], b.get('members',[])) for b in p.get('bindings',[]) if 'workloadIdentityUser' in b['role']]"
