@@ -59,10 +59,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
     # Analytics repositories: GCP-backed (BigQuery + Firestore); empty adapters in dev.
     # Swap app.state.anomalies / .revenue / .promotions in integration tests.
-    anomalies, revenue, promotions = unavailable_analytics_repositories()
+    anomalies, revenue, promotions, checkouts = unavailable_analytics_repositories()
     app.state.anomalies = anomalies
     app.state.revenue = revenue
     app.state.promotions = promotions
+    app.state.checkouts = checkouts
 
     # Correlation + structured logging middleware (must be outermost)
     app.add_middleware(CorrelationMiddleware)
