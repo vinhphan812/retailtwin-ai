@@ -71,10 +71,11 @@ ADR 0018. Import `replan` from `retailtwin_api.agents.orchestrator.replan`. It i
 | `LlmProvider` | One injected provider. Investigator and planner both receive it. |
 | `ToolRegistry` | Read tools for the refresh. The caller binds them to current evidence. |
 | `NoStaleCommit` | Authorizes, then rechecks, on fresh Live Twin reads. |
+| `ContextVersionSource` | Read after each evidence refresh, for the same store. `plan` receives that version. The rejected decision is not copied. |
 | `CommitPort` | Called only after `ALLOW` survives `recheck`, with that binding. |
 | `SimulationPort` | Optional. Scores the new decisions. Absent means `kpi_score` stays `-1.0`. |
 
-`RETAILTWIN_REPLAN_MAX_REFRESHES` defaults to 1. `0` is valid and stops on the first stale verdict. The count is the number of evidence refreshes, not model retries and not live commit attempts.
+`RETAILTWIN_REPLAN_MAX_REFRESHES` defaults to 1. `0` is valid and stops on the first stale verdict, before the context source is read. The count is the number of evidence refreshes, not model retries and not live commit attempts. Each refresh that does run reads the context source once, after `investigate` returns and before `plan`. A second stale verdict reads it again. A blank or failed read stops the run. A new decision that does not carry the version just read stops the run, including when the simulation port rewrites it.
 
 `COMMITTED` is the only status that called the commit port. `DENIED` and `HUMAN_REVIEW` stop. `RETRY_LIMIT` means the next refresh would pass the bound; nothing is committed. `FAILED` means the provider, planner, simulation port, or commit port stopped the run. Logs carry `correlation_id`, `decision_id`, the status, and the reason code. They do not carry model prose or credentials.
 
