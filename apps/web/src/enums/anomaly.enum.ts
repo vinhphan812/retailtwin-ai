@@ -19,3 +19,22 @@ export const ANOMALY_SEVERITY = {
 export type AnomalySeverity = (typeof ANOMALY_SEVERITY)[keyof typeof ANOMALY_SEVERITY];
 export const ANOMALY_KINDS: readonly AnomalyKind[] = Object.values(ANOMALY_KIND);
 export const ANOMALY_SEVERITIES: readonly AnomalySeverity[] = Object.values(ANOMALY_SEVERITY);
+
+/** How the operator reads an anomaly: a fault to fix, or a chance to sell more. */
+export const ALERT_CATEGORY = {
+  Alert: "alert",
+  Opportunity: "opportunity",
+} as const;
+export type AlertCategory = (typeof ALERT_CATEGORY)[keyof typeof ALERT_CATEGORY];
+
+/** How far the agent run that handles an anomaly has got, in order. */
+export const ALERT_STEP = {
+  Detected: "detected",
+  Investigating: "investigating",
+  Planning: "planning",
+  Guarding: "guarding",
+  Acting: "acting",
+  Verifying: "verifying",
+} as const;
+export type AlertStep = (typeof ALERT_STEP)[keyof typeof ALERT_STEP];
+export const ALERT_STEPS: readonly AlertStep[] = Object.values(ALERT_STEP);
