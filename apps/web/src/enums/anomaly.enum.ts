@@ -1,23 +1,29 @@
-/** What the detector found wrong with a product. TODO(BE): agree the values with the anomaly API. */
-export const ANOMALY_KIND = {
+/** What the detector found, as apps/api `AnomalyType` serves it (`GET /anomalies`). */
+export const ANOMALY_TYPE = {
   /** Nothing left on the shelf. */
   Stockout: "stockout",
-  /** Fewer units on the shelf than facings to fill. */
-  LowStock: "low_stock",
-  /** Sales fell below forecast; seen in POS data, not in shelf figures. */
-  SalesDrop: "sales_drop",
-  /** Demand rose above forecast: an opportunity, not a fault. Same value as apps/api `AnomalyType`. */
+  /** Demand rose above forecast: an opportunity, not a fault. */
   DemandSurge: "demand_surge",
+  /** Sales below forecast while the shelf is stocked. */
+  SlowMoving: "slow_moving",
+  /** More stock than the product sells. */
+  ExcessInventory: "excess_inventory",
+  /** The price charged does not match the expected one. */
+  PriceAnomaly: "price_anomaly",
+  /** The shelf breaks its planogram. */
+  ShelfViolation: "shelf_violation",
 } as const;
-export type AnomalyKind = (typeof ANOMALY_KIND)[keyof typeof ANOMALY_KIND];
+export type AnomalyType = (typeof ANOMALY_TYPE)[keyof typeof ANOMALY_TYPE];
 
+/** As apps/api `AnomalySeverity`, mildest first. */
 export const ANOMALY_SEVERITY = {
   Low: "low",
   Medium: "medium",
   High: "high",
+  Critical: "critical",
 } as const;
 export type AnomalySeverity = (typeof ANOMALY_SEVERITY)[keyof typeof ANOMALY_SEVERITY];
-export const ANOMALY_KINDS: readonly AnomalyKind[] = Object.values(ANOMALY_KIND);
+export const ANOMALY_TYPES: readonly AnomalyType[] = Object.values(ANOMALY_TYPE);
 export const ANOMALY_SEVERITIES: readonly AnomalySeverity[] = Object.values(ANOMALY_SEVERITY);
 
 /** How the operator reads an anomaly: a fault to fix, or a chance to sell more. */

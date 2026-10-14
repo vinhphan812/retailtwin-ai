@@ -19,8 +19,8 @@ type AnomalyStore = {
 
 /**
  * Read-side copy of the open anomalies. Never the source of truth.
- * TODO(BE): apps/api serves no anomalies yet; fill this from `GET /anomalies` and its
- * event feed once they exist. Until then only `?twin=demo` and tests fill it.
+ * TODO(#95): fill this from `GET /anomalies` (`setAll`, and `fail` when a read fails).
+ * Until then only `?twin=demo` and tests fill it.
  */
 export const useAnomalyStore = create<AnomalyStore>()((set) => ({
   anomalies: [],
@@ -35,16 +35,17 @@ export const useAnomalyStore = create<AnomalyStore>()((set) => ({
     set((state) => ({ anomalies: state.anomalies.filter((open) => open.anomaly_id !== anomalyId) })),
 }));
 
-/** Open anomalies on one product, oldest first. */
+/** Open anomalies on one product, oldest first. One about a whole shelf (no SKU) is on none. */
 export function anomaliesOf(anomalies: Anomaly[], sku: string) {
   return anomalies.filter((anomaly) => anomaly.sku === sku);
 }
 
-/** Each product with open anomalies and the worst severity among them. */
+/** Each product with open anomalies and the worst severity among them. Shelf-wide ones have no product halo. */
 export function worstSeverities(anomalies: Anomaly[]): Map<string, AnomalySeverity> {
   const rank = (severity: AnomalySeverity) => ANOMALY_SEVERITIES.indexOf(severity);
   const worst = new Map<string, AnomalySeverity>();
   for (const { sku, severity } of anomalies) {
+    if (!sku) continue;
     const current = worst.get(sku);
     if (!current || rank(severity) > rank(current)) worst.set(sku, severity);
   }

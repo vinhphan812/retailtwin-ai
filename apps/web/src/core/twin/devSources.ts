@@ -5,7 +5,7 @@ import { createMemoryTwin, patchProduct, type MemoryTwin } from "@/core/api/sour
 import type { TwinSource } from "@/core/api/sources/TwinSource";
 import type { ProductInventory, StoreResponse } from "@/types/twin.type";
 import { FIXTURE_P001 } from "@/constants/twin.constant";
-import { ANOMALY_KIND, ANOMALY_SEVERITY, type AnomalyKind, type AnomalySeverity } from "@/enums/anomaly.enum";
+import { ANOMALY_SEVERITY, ANOMALY_TYPE, type AnomalySeverity, type AnomalyType } from "@/enums/anomaly.enum";
 import { demoAnomalies } from "@/fixtures/demo/anomalies";
 import { resolveAnomalies, simulateAnomaly } from "./simulateAnomaly";
 import { useAnomalyStore } from "@/state/anomaly.store";
@@ -82,13 +82,13 @@ function memoryTwinSource(initial: StoreResponse = fixtureStoreState()): TwinSou
       anomalies: () => demoAnomalies(twin.current()),
       raise: (
         sku: string,
-        kind: AnomalyKind = ANOMALY_KIND.Stockout,
+        type: AnomalyType = ANOMALY_TYPE.Stockout,
         severity: AnomalySeverity = ANOMALY_SEVERITY.High,
       ) => {
         const state = twin.current();
         const product = state.products.find((candidate) => candidate.sku === sku);
         if (!product) throw new Error(`${sku} is not in the twin`);
-        return simulateAnomaly(product, kind, severity, state.context_version);
+        return simulateAnomaly(product, type, severity, state.context_version);
       },
       resolve: resolveAnomalies,
       failAnomalies: (message = "GET /anomalies did not answer.") => useAnomalyStore.getState().fail(message),

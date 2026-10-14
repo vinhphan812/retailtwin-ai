@@ -1,11 +1,14 @@
+import { fixtureTypeOf } from "@/core/agent/agentFocus";
 import {
   ALERT_CATEGORY,
   ALERT_STEP,
-  ANOMALY_KIND,
+  ANOMALY_TYPE,
   ANOMALY_SEVERITIES,
   type AlertCategory,
   type AlertStep,
 } from "@/enums/anomaly.enum";
+import { ENTITY_TYPE, type EntityType } from "@/enums/scene.enum";
+import { storeLayout } from "@/scene/layout";
 import type { ActivityEntry, ControlStage } from "@/types/agent.type";
 import type { Anomaly } from "@/types/anomaly.type";
 
@@ -22,8 +25,8 @@ const STEP_OF_STAGE: Record<ControlStage, AlertStep> = {
 };
 
 /** A demand surge is an opportunity; every other anomaly is an alert. */
-export function alertCategory(anomaly: Pick<Anomaly, "kind">): AlertCategory {
-  return anomaly.kind === ANOMALY_KIND.DemandSurge ? ALERT_CATEGORY.Opportunity : ALERT_CATEGORY.Alert;
+export function alertCategory(anomaly: Pick<Anomaly, "anomaly_type">): AlertCategory {
+  return anomaly.anomaly_type === ANOMALY_TYPE.DemandSurge ? ALERT_CATEGORY.Opportunity : ALERT_CATEGORY.Alert;
 }
 
 /**
@@ -45,4 +48,25 @@ export function sortAlerts(anomalies: Anomaly[]): Anomaly[] {
   return [...anomalies].sort(
     (a, b) => rank(b) - rank(a) || Date.parse(b.detected_at) - Date.parse(a.detected_at),
   );
+}
+
+/** The 3D entity an alert points at. */
+export type AlertTarget = { entityId: string; entityType: EntityType };
+
+/** Every gondola and piece of equipment of the store. */
+const FIXTURE_IDS = new Set([
+  ...storeLayout.shelves.map((shelf) => shelf.shelfId),
+  ...storeLayout.equipment.map((item) => item.equipmentId),
+]);
+
+/**
+ * What picking an alert focuses: its product while the twin on screen has it, else its
+ * shelf or piece of equipment. Null when neither is in the store, so it cannot be shown.
+ */
+export function alertTarget(anomaly: Pick<Anomaly, "sku" | "shelf_id">, skusInTwin: ReadonlySet<string>): AlertTarget | null {
+  if (anomaly.sku) return skusInTwin.has(anomaly.sku) ? { entityId: anomaly.sku, entityType: ENTITY_TYPE.Product } : null;
+  if (anomaly.shelf_id && FIXTURE_IDS.has(anomaly.shelf_id)) {
+    return { entityId: anomaly.shelf_id, entityType: fixtureTypeOf(anomaly.shelf_id) };
+  }
+  return null;
 }

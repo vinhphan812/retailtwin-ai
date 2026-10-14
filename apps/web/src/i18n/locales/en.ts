@@ -76,16 +76,19 @@ export const en = {
     list: "Open anomalies",
     detected: "since {{time}}",
     olderState: "read from an older twin state",
-    kind: {
+    type: {
       stockout: "Stockout",
-      low_stock: "Low stock",
-      sales_drop: "Sales drop",
       demand_surge: "Demand surge",
+      slow_moving: "Slow moving",
+      excess_inventory: "Excess inventory",
+      price_anomaly: "Price anomaly",
+      shelf_violation: "Shelf violation",
     },
     severity: {
       low: "low",
       medium: "medium",
       high: "high",
+      critical: "critical",
     },
   },
   productDetails: {
@@ -217,8 +220,10 @@ export const en = {
       alert: "Alert",
       opportunity: "Opportunity",
     },
-    select: "{{category}}: {{kind}} on {{sku}}. Show it in the store",
+    select: "{{category}}: {{title}}. Show it in the store",
     where: "{{sku}} · shelf {{shelf}}",
+    whereShelf: "Shelf {{shelf}}",
+    whereStore: "Whole store",
     notInTwin: "Not in the Digital Twin, cannot be shown",
     step: "Agent: {{step}}",
     steps: {

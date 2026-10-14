@@ -1,4 +1,4 @@
-import { ANOMALY_KIND } from "@/enums/anomaly.enum";
+import { ANOMALY_TYPE } from "@/enums/anomaly.enum";
 import { useRunStore } from "@/state/run.store";
 import type { ActivityEntry } from "@/types/agent.type";
 import { demoCorrelationId } from "./anomalies";
@@ -11,7 +11,7 @@ import { demoCorrelationId } from "./anomalies";
  */
 
 /** The demo run's correlation id: the one of the demo P003 stockout, so its alert follows the run. */
-export const DEMO_RUN_ID = demoCorrelationId("P003", ANOMALY_KIND.Stockout);
+export const DEMO_RUN_ID = demoCorrelationId("P003", ANOMALY_TYPE.Stockout);
 
 /** Milliseconds between two steps of the replay. */
 export const DEMO_AGENT_STEP_MS = 2500;

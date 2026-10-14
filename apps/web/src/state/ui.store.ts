@@ -42,8 +42,11 @@ type UiStore = {
   showDetails: (sku: string | null) => void;
   /** Switches to the Promotions lens on one promotion; `null` once it has been shown. */
   focusPromotion: (promotionId: string | null) => void;
-  /** Selects the product of an alert and flies to it, and narrows the timeline to the run that handles it. */
-  focusAlert: (correlationId: string, sku: string) => void;
+  /**
+   * Selects what an alert is about and flies to it, and narrows the timeline to the run that
+   * handles it; an alert with no run (`null`) leaves the timeline whole.
+   */
+  focusAlert: (correlationId: string | null, entityId: string, entityType: EntityType) => void;
   /** Shows every run in the timeline again; the selection stays. */
   showAllActivity: () => void;
 };
@@ -88,10 +91,10 @@ export const useUiStore = create<UiStore>()((set) => ({
   showDetails: (detailsSku) => set({ detailsSku }),
   focusPromotion: (focusedPromotionId) =>
     set(focusedPromotionId ? { focusedPromotionId, lens: LENS.Promotions } : { focusedPromotionId }),
-  focusAlert: (focusedCorrelationId, sku) =>
+  focusAlert: (focusedCorrelationId, selectedEntityId, selectedEntityType) =>
     set((ui) => ({
-      selectedEntityId: sku,
-      selectedEntityType: ENTITY_TYPE.Product,
+      selectedEntityId,
+      selectedEntityType,
       focusSource: FOCUS_SOURCE.User,
       focusReason: null,
       focusSeq: ui.focusSeq + 1,
