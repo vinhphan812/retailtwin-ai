@@ -26,7 +26,7 @@ A planner decision can be compared by the deterministic score without changing t
 
 The 3D simulation view stays issue #92. A live Vertex call remains issue #2. This record does not change the KPI formula, the planner, the Decision Context Guard, or No-Stale-Commit.
 
-- Pull request: this pull request
+- Pull request: https://github.com/vinhphan812/retailtwin-ai/pull/161
 - Issue: #15
 - Supersedes:
 - Superseded by:
