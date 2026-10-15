@@ -244,8 +244,57 @@ def _store_fields(now: str) -> dict[str, Any]:
     }
 
 
-def seed_firestore(transport: HttpTransport, dry_run: bool = False) -> dict[str, Any]:
+def check_existing_state(transport: HttpTransport) -> dict[str, Any]:
+    """Check if there's existing live state in Firestore."""
+    results = {"has_existing": False, "store_count": 0, "inventory_count": 0}
+    
+    # Check store
+    store_url = f"{database_root()}/stores/{STORE_ID}"
+    resp = transport.request("GET", store_url, None, {"Content-Type": "application/json"})
+    if resp.status == 200:
+        results["has_existing"] = True
+        results["store_count"] = 1
+    
+    # Check inventory
+    inv_url = f"{database_root()}/stores/{STORE_ID}/inventory"
+    resp = transport.request("GET", inv_url, None, {"Content-Type": "application/json"})
+    if resp.status == 200:
+        try:
+            data = json.loads(resp.body)
+            docs = data.get("documents", [])
+            results["inventory_count"] = len(docs)
+            if docs:
+                results["has_existing"] = True
+        except json.JSONDecodeError:
+            pass
+    
+    return results
+
+
+def seed_firestore(transport: HttpTransport, dry_run: bool = False, force: bool = False) -> dict[str, Any]:
     """Seed Firestore Live Twin with demo products."""
+    # Check for existing state first
+    existing = check_existing_state(transport)
+    
+    if existing["has_existing"] and not force:
+        return {
+            "skipped": True,
+            "message": "Existing live state detected. Use --force to overwrite.",
+            "existing_state": {
+                "stores": existing["store_count"],
+                "inventory": existing["inventory_count"],
+            },
+            "safety": "blocked - existing state detected"
+        }
+    
+    if dry_run:
+        return {
+            "dry_run": True,
+            "stores_to_write": 1,
+            "inventory_to_write": len(DEMO_PRODUCTS),
+            "would_overwrite": existing["has_existing"],
+        }
+    
     now = datetime.now(timezone.utc).isoformat()
     writes: list[dict[str, Any]] = []
 
@@ -550,6 +599,11 @@ def main() -> int:
         action="store_true",
         help="Publish only Pub/Sub events"
     )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Force overwrite existing live state"
+    )
     args = parser.parse_args()
 
     confirm = os.environ.get("CONFIRM_SEED", "")
@@ -592,7 +646,7 @@ def main() -> int:
             runner = SubprocessRunner()
             token_provider = GcloudTokenProvider(runner)
             transport = HttpTransport(token_provider)
-            results["firestore"] = seed_firestore(transport, dry_run)
+            results["firestore"] = seed_firestore(transport, dry_run, args.force)
             print(f"  Result: {json.dumps(results['firestore'], indent=4)}")
             print()
 
