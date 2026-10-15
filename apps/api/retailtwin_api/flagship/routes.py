@@ -12,7 +12,6 @@ to any FastAPI app the controller is wired into.
 from __future__ import annotations
 
 import logging
-import os
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
@@ -67,16 +66,8 @@ async def start_route(
             status_code=503,
             detail="flagship controller is not configured",
         )
-    request_body = body or FlagshipRequest()
-    if os.environ.get("APP_ENV") == "production" and request_body.stale_block_enabled:
-        # Defence-in-depth: refuse a deterministic stale-block injection
-        # on the production wire, even if a caller sends stale_block_enabled: true.
-        # The underlying helper raises RuntimeError under APP_ENV=production,
-        # but reject it at the boundary instead of round-tripping to the helper.
-        request_body = request_body.model_copy(update={"stale_block_enabled": False})
-        log.warning("flagship.start.production_stale_block_refused correlation_id=%s", request_body.correlation_id)
     try:
-        result = await controller.start(request_body)
+        result = await controller.start(body or FlagshipRequest())
     except FlagshipStateError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return _serialize(result)

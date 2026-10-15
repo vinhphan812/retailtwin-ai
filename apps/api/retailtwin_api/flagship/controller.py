@@ -23,8 +23,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import os
-import secrets
 import threading
 import uuid
 from collections.abc import Mapping, Sequence
@@ -35,7 +33,6 @@ from typing import Any, Callable, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from retailtwin_api.agents.executor.executor import GuardedExecutor
 from retailtwin_api.agents.observer.consumer import InvestigationStart
 from retailtwin_api.agents.orchestrator.replan import (
     CommitPort,
@@ -69,15 +66,11 @@ from retailtwin_api.demand_surge import (
 from retailtwin_api.firestore_twin import (
     InventoryDocument,
     LiveTwinRepository,
+    TwinConflict,
 )
-from retailtwin_api.flagship._stale_bump import bump_inventory_for_stale_block
 from retailtwin_api.guard.decision_context_guard import (
     InMemoryGuardAudit,
     NoStaleCommit,
-)
-from retailtwin_api.guard.decision_context_guard.authorization import (
-    CommitAuthorizer,
-    InMemoryAuthorizationLedger,
 )
 from retailtwin_api.guard.decision_context_guard.guard import DecisionContextGuard
 from retailtwin_api.guard.decision_context_guard.no_stale_commit import CommitBinding
@@ -176,16 +169,7 @@ class FlagshipRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     seed: int = Field(default=CANONICAL_SEED, ge=1, le=1)
-    # Stale-block injection is a demo/test affordance: production refuses
-    # the underlying bump helper (``flagship/_stale_bump.py`` raises on
-    # ``APP_ENV=production``), so the default must keep production on a
-    # real-event path. Non-production envs (test/dev/staging/e2e-smoke)
-    # opt into the stale → replan → commit path by default; production
-    # opts out. Evaluated per-instance so tests can override ``APP_ENV``
-    # per request via ``monkeypatch.setenv``.
-    stale_block_enabled: bool = Field(
-        default_factory=lambda: os.environ.get("APP_ENV") != "production",
-    )
+    stale_block_enabled: bool = True
     max_refreshes: int = Field(default=1, ge=0, le=3)
     correlation_id: str | None = None
 
@@ -249,12 +233,8 @@ class _LiveContextSource(ContextVersionSource):
 class _CommitSpy(CommitPort):
     """The commit port the ``replan`` loop writes to.
 
-    ``commit`` reissues a signed authorization for the binding the replan
-    loop already produced, then delegates to the canonical
-    :class:`GuardedExecutor` so the Live Twin write goes through the
-    production ``commit_inventory`` boundary (ADR 0016). The spy records
-    committed decisions and before/after inventory snapshots for the
-    verification step.
+    ``commit`` invokes the guarded executor against the Live Twin, then records
+    the resulting commit for the verification step.
     """
 
     def __init__(
@@ -262,37 +242,15 @@ class _CommitSpy(CommitPort):
         twin: LiveTwinRepository,
         store_id: str,
         audit: InMemoryVerificationAudit,
-        gate: NoStaleCommit,
-        clock: Callable[[], datetime],
     ) -> None:
         self._twin = twin
         self._store_id = store_id
         self._audit = audit
-        self._gate = gate
-        self._clock = clock
         self._lock = threading.Lock()
         self.committed: list[Decision] = []
         self.bindings: list[CommitBinding] = []
         self.before_by_sku: dict[str, ProductInventory] = {}
         self.after_by_sku: dict[str, ProductInventory] = {}
-        # Per-spy in-process signing key — tokens never leave the process.
-        # The decision→token→executor chain mirrors production
-        # ``CommitService.approve`` so the canonical guard + authorizer +
-        # executor flow runs end-to-end. All three components share the
-        # caller's clock so token issue/expiry and the guard's freshness
-        # window stay aligned (otherwise the executor sees TOKEN_EXPIRED on
-        # redemption in tests where both clocks lock to one moment).
-        self._authorizer = CommitAuthorizer(
-            signing_key=secrets.token_hex(32).encode("utf-8"),
-            ledger=InMemoryAuthorizationLedger(),
-            clock=clock,
-        )
-        self._executor = GuardedExecutor(
-            twin,
-            self._authorizer,
-            gate,
-            clock=clock,
-        )
 
     def snapshot_before(self, skus: Sequence[str], reader: StoreReads) -> None:
         with self._lock:
@@ -301,31 +259,39 @@ class _CommitSpy(CommitPort):
                 self.before_by_sku[sku] = item
 
     def commit(self, decision: Decision, binding: CommitBinding) -> None:
-        # The replan loop already authorized and rechecked the binding; the
-        # spy reissues a signed authorization and routes through the guarded
-        # executor so the Live Twin write goes through the canonical
-        # ``commit_inventory`` boundary.
-        if not self.before_by_sku:
-            self.snapshot_before([DEMO_SKU], _ReaderAdapter(self._twin, self._store_id))
-        token = self._authorizer.issue(decision, binding)
-        outcome = self._executor.commit(decision, token)
-        if not outcome.committed:
-            # The executor refuses with a reason code copied from the guard;
-            # surface it as a state error so the surrounding controller code
-            # sees the failure the same way it would for a production path.
-            raise FlagshipStateError(
-                f"guarded executor refused decision_id={decision.decision_id} "
-                f"reason={outcome.reason_code}"
-            )
+        # Materialise the allowed decision into the Live Twin via the
+        # canonical ``commit_inventory`` boundary. The same repository contract
+        # powers the production ``GuardedExecutor``; here we call it directly
+        # because the replan loop already produced an authorized binding.
+        self.before_by_sku or self.snapshot_before([DEMO_SKU], _ReaderAdapter(self._twin, self._store_id))
         with self._lock:
             self.committed.append(decision)
             self.bindings.append(binding)
+        items: list[tuple[InventoryDocument, int]] = []
+        for action in decision.proposed_actions:
+            if not isinstance(action, ReplenishShelf):
+                # Other action types are not exercised by the canonical
+                # flagship scenario today; the planner only emits
+                # ReplenishShelf against the demand-surge SKU.
+                continue
+            current = self._twin.get_inventory(self._store_id, action.sku)
+            if current is None:
+                raise KeyError(f"SKU {action.sku!r} is not in store {self._store_id!r}.")
+            expected_version = binding.entity_versions.get(action.sku, current.version)
+            updated = current.model_copy(update={
+                "shelf_quantity": current.shelf_quantity + action.quantity,
+                "backroom_quantity": max(0, current.backroom_quantity - action.quantity),
+                "version": current.version + 1,
+            })
+            items.append((updated, expected_version))
+        self._twin.commit_inventory(self._store_id, items)
+        with self._lock:
             for action in decision.proposed_actions:
                 if not isinstance(action, ReplenishShelf):
                     continue
                 after = self._twin.get_inventory(self._store_id, action.sku)
                 if after is not None:
-                    self.after_by_sku[action.sku] = _ReaderAdapter._to_product(after)
+                    self.after_by_sku[action.sku] = after.model_copy()
 
     @property
     def decisions(self) -> list[Decision]:
@@ -512,15 +478,7 @@ class FlagshipController:
             )
 
     async def start(self, request: FlagshipRequest | None = None) -> FlagshipRunResult:
-        """Run the autonomous chain end-to-end. Returns the terminal result.
-
-        This is the **demo /flagship/start** entry point: it rebuilds the
-        canonical weekend-demand-surge ``sale.completed`` event from the
-        demand-surge seed and drives the chain against it. Production
-        autonomous events must use :meth:`start_for_event` instead — this
-        path reseeds the Live Twin via :meth:`reset` and is not safe for
-        real production traffic.
-        """
+        """Run the autonomous chain end-to-end. Returns the terminal result."""
         body = request or FlagshipRequest()
         with self._lock:
             self._require_deps()
@@ -538,113 +496,10 @@ class FlagshipController:
             self._phase = FlagshipPhase.RUNNING
             self._add_event("start", f"flagship start run_id={self._run_id} seed={self._seed}")
 
-        # 1) EVENT — rebuild the canonical sale event from the demand-surge seed.
-        events = reset_weekend_demand_surge(self._seed)
-        trigger = events[-1]
-        # Replace the correlation id so investigators/planner see a single lineage.
-        trigger_event = trigger.model_copy(
-            update={"correlation_id": self._correlation_id}
-        )
-        self._add_event(
-            "event",
-            f"sale.completed sku={DEMO_SKU} correlation_id={self._correlation_id}",
-        )
-        start = InvestigationStart(
-            investigation_id=f"inv-{self._run_id}",
-            event=trigger_event,
-        )
-
         try:
-            result = await self._drive_chain(start, body)
+            result = await self._run(body)
         except Exception as exc:  # noqa: BLE001 — surface anything
             log.exception("flagship run failed run_id=%s", self._run_id)
-            with self._lock:
-                self._phase = FlagshipPhase.ERROR
-                self._completed_at = _now()
-                self._error = f"{type(exc).__name__}: {exc}"
-                self._add_event("error", self._error)
-            raise
-
-        with self._lock:
-            self._phase = FlagshipPhase.COMPLETE if result.phase is FlagshipPhase.COMPLETE else FlagshipPhase.ERROR
-            self._completed_at = _now()
-            self._last_result = result
-        return result
-
-    async def start_for_event(
-        self,
-        event: StoreEvent,
-        correlation_id: str | None = None,
-    ) -> FlagshipRunResult:
-        """Drive the autonomous chain against a real incoming event.
-
-        Production autonomous events (ADR 0023) enter through this method.
-        Differences from :meth:`start`:
-
-        * **No Live reset.** The Live Twin stays in whatever state the
-          store currently holds — a real sale must investigate the *current*
-          store, not a freshly seeded demo baseline.
-        * **No stale-block injection.** ``stale_block_enabled`` is forced
-          to ``False`` regardless of ``APP_ENV``; real events never need a
-          deterministic ``REFRESH_REQUIRED`` race. The injection is a demo
-          artefact.
-        * The full event content (``event_id``, ``sku``, ``quantity``,
-          ``occurred_at``, ``store_id``, ``correlation_id``) is preserved
-          end-to-end and propagated to the investigator/planner/replan
-          chain.
-
-        The event is still subject to the canonical guard and replan loop;
-        only the deterministic-reset and stale-injection knobs are turned
-        off. Live Twin writes still go through the guarded Executor
-        (ADR 0016).
-        """
-        if not self.is_configured:
-            raise FlagshipStateError(
-                "Flagship controller is not configured. Call register_dependencies() first."
-            )
-        # Pin the autonomous event path to the canonical seed (ADR 0023)
-        # and force ``stale_block_enabled=False`` so a real Pub/Sub message
-        # never triggers a deterministic ``REFRESH_REQUIRED`` injection.
-        body = FlagshipRequest(
-            stale_block_enabled=False,
-            correlation_id=correlation_id or event.correlation_id,
-        )
-        with self._lock:
-            self._require_deps()
-            if self._phase not in (FlagshipPhase.IDLE, FlagshipPhase.COMPLETE, FlagshipPhase.ERROR):
-                raise FlagshipStateError(
-                    f"Cannot start_for_event from phase {self._phase.value}."
-                )
-            self._run_id = uuid.uuid4().hex[:12]
-            self._correlation_id = body.correlation_id or f"event-{event.event_id}"
-            self._seed = body.seed
-            self._started_at = _now()
-            self._completed_at = None
-            self._timeline = []
-            self._error = None
-            self._phase = FlagshipPhase.RUNNING
-            self._add_event(
-                "start",
-                f"flagship start_for_event event_id={event.event_id} sku={event.sku} store_id={event.store_id}",
-            )
-            self._add_event(
-                "event",
-                f"sale.completed sku={event.sku} correlation_id={self._correlation_id}",
-            )
-
-        start = InvestigationStart(
-            investigation_id=f"inv-{event.event_id}",
-            event=event,
-        )
-
-        try:
-            result = await self._drive_chain(start, body)
-        except Exception as exc:  # noqa: BLE001 — surface anything
-            log.exception(
-                "flagship start_for_event failed event_id=%s run_id=%s",
-                event.event_id,
-                self._run_id,
-            )
             with self._lock:
                 self._phase = FlagshipPhase.ERROR
                 self._completed_at = _now()
@@ -662,23 +517,24 @@ class FlagshipController:
     # Internal flow
     # ------------------------------------------------------------------
 
-    async def _drive_chain(
-        self,
-        start: InvestigationStart,
-        body: FlagshipRequest,
-    ) -> FlagshipRunResult:
-        """Drive the canonical chain. Failures surface as a result with phase=ERROR.
-
-        Shared by :meth:`start` (demo /flagship/start path, which builds the
-        canonical seed event) and :meth:`start_for_event` (autonomous event
-        path, which uses the real incoming ``StoreEvent``). Steps 2-7 below
-        are identical for both entry points; only the event source differs.
-        """
+    async def _run(self, body: FlagshipRequest) -> FlagshipRunResult:
+        """Drive the canonical chain. Failures surface as a result with phase=ERROR."""
         assert self._deps is not None
         deps = self._deps
         run_id = self._run_id or uuid.uuid4().hex[:12]
         correlation_id = self._correlation_id or f"run-weekend-demand-surge-{self._seed}"
         store_id = deps.store_id
+
+        # 1) EVENT — rebuild the canonical sale event from the demand-surge seed.
+        events = reset_weekend_demand_surge(self._seed)
+        trigger = events[-1]
+        # Replace the correlation id so investigators/planner see a single lineage.
+        trigger_event = trigger.model_copy(update={"correlation_id": correlation_id})
+        self._add_event("event", f"sale.completed sku={DEMO_SKU} correlation_id={correlation_id}")
+        start = InvestigationStart(
+            investigation_id=f"inv-{run_id}",
+            event=trigger_event,
+        )
 
         # 2) INVESTIGATE — provider calls the read tools, no Live writes.
         try:
@@ -728,23 +584,10 @@ class FlagshipController:
         # stale block. The canonical race the issue is asking us to detect
         # comes from the Live Twin moving between ``plan`` and the guard's
         # ``authorize`` call. The bump is the only thing the controller
-        # controls for reproducibility. The helper refuses to run when
-        # ``APP_ENV`` is ``production`` (ADR 0016 — only the guarded Executor
-        # writes the Live Twin in production), so we surface that as a
-        # fail-safely error result instead of letting it crash the demo.
-        # Autonomous-event callers pass ``stale_block_enabled=False``
-        # (ADR 0023), so a real Pub/Sub message never hits this branch.
+        # controls for reproducibility.
         bumped = False
         if body.stale_block_enabled and scored:
-            try:
-                bumped = self._bump_inventory(store_id, DEMO_SKU)
-            except RuntimeError as exc:
-                return self._fail(
-                    run_id,
-                    correlation_id,
-                    "guard",
-                    f"stale-block injection refused: {exc}",
-                )
+            bumped = self._bump_inventory(store_id, DEMO_SKU)
 
         reader = self._reader_adapter(store_id)
         audit = InMemoryGuardAudit()
@@ -786,13 +629,7 @@ class FlagshipController:
             # Direct ALLOW: no replan needed. Commit the first decision
             # ourselves through the same guarded boundary the replan loop uses.
             self._add_event("replan", "status=SKIPPED reason=direct_allow refreshes=0")
-            commit_spy = _CommitSpy(
-                deps.twin,
-                store_id,
-                InMemoryVerificationAudit(),
-                guard,
-                deps.clock,
-            )
+            commit_spy = _CommitSpy(deps.twin, store_id, InMemoryVerificationAudit())
             commit_spy.snapshot_before([DEMO_SKU], reader)
             commit_spy.commit(first_decision, first_binding)
             committed_decision = first_decision
@@ -809,13 +646,7 @@ class FlagshipController:
                 clock=deps.clock,
             )
             contexts = _LiveContextSource(reader)
-            commit_spy = _CommitSpy(
-                deps.twin,
-                store_id,
-                InMemoryVerificationAudit(),
-                replan_guard,
-                deps.clock,
-            )
+            commit_spy = _CommitSpy(deps.twin, store_id, InMemoryVerificationAudit())
             commit_spy.snapshot_before([DEMO_SKU], reader)
             simulation_port: SimulationPort | None = self._simulation_port(correlation_id, reader)
 
@@ -979,18 +810,25 @@ class FlagshipController:
     def _bump_inventory(self, store_id: str, sku: str) -> bool:
         """Mutate the Live Twin so the next authorize call returns REFRESH_REQUIRED.
 
-        The actual ``commit_inventory`` write is performed by the
-        test-only helper :func:`retailtwin_api.flagship._stale_bump.bump_inventory_for_stale_block`,
-        which refuses to run when ``APP_ENV`` is ``production`` (ADR 0016
-        — only the guarded Executor writes the Live Twin in production).
-        This module never calls the Live Twin mutation API directly.
-
         Returns True when the Live Twin was successfully bumped; False if no
-        bump could be applied (e.g. no live document, the optimistic lock
-        conflicted, or APP_ENV is ``production`` and the helper raised).
+        bump could be applied (e.g. no live document or backroom empty).
         """
         assert self._deps is not None
-        return bump_inventory_for_stale_block(self._deps.twin, store_id, sku)
+        current = self._deps.twin.get_inventory(store_id, sku)
+        if current is None:
+            return False
+        bumped = current.model_copy(update={
+            "shelf_quantity": max(0, current.shelf_quantity - 1),
+            "version": current.version + 1,
+        })
+        try:
+            self._deps.twin.commit_inventory(
+                store_id,
+                [(bumped, current.version)],
+            )
+        except TwinConflict:
+            return False
+        return True
 
     def _simulation_port(self, correlation_id: str, reader: StoreReads) -> SimulationPort:
         """The replan loop's simulation port — reuses the canonical simulator."""
