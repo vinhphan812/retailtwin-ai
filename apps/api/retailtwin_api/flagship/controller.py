@@ -263,7 +263,8 @@ class _CommitSpy(CommitPort):
         # canonical ``commit_inventory`` boundary. The same repository contract
         # powers the production ``GuardedExecutor``; here we call it directly
         # because the replan loop already produced an authorized binding.
-        self.before_by_sku or self.snapshot_before([DEMO_SKU], _ReaderAdapter(self._twin, self._store_id))
+        if not self.before_by_sku:
+            self.snapshot_before([DEMO_SKU], _ReaderAdapter(self._twin, self._store_id))
         with self._lock:
             self.committed.append(decision)
             self.bindings.append(binding)
@@ -291,7 +292,7 @@ class _CommitSpy(CommitPort):
                     continue
                 after = self._twin.get_inventory(self._store_id, action.sku)
                 if after is not None:
-                    self.after_by_sku[action.sku] = after.model_copy()
+                    self.after_by_sku[action.sku] = _ReaderAdapter._to_product(after)
 
     @property
     def decisions(self) -> list[Decision]:
