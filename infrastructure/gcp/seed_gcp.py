@@ -273,6 +273,16 @@ def check_existing_state(transport: HttpTransport) -> dict[str, Any]:
 
 def seed_firestore(transport: HttpTransport, dry_run: bool = False, force: bool = False) -> dict[str, Any]:
     """Seed Firestore Live Twin with demo products."""
+    if dry_run:
+        # Dry run is intentionally offline: it validates deterministic payload
+        # construction without acquiring credentials or touching Firestore.
+        return {
+            "dry_run": True,
+            "stores_to_write": 1,
+            "inventory_to_write": len(DEMO_PRODUCTS),
+            "claim_strategy": "reset_demo.py deletes only retailtwin-demo-* claims before deterministic replay",
+        }
+
     # Check for existing state first
     existing = check_existing_state(transport)
     
@@ -421,8 +431,6 @@ def seed_bigquery(dry_run: bool = False) -> dict[str, Any]:
     
     table = qualified_table("sales_events")
     inserted = 0
-    skipped = 0
-    
     for event in events:
         sql = f"""
             INSERT INTO {table} 
@@ -433,7 +441,6 @@ def seed_bigquery(dry_run: bool = False) -> dict[str, Any]:
             FROM (SELECT 1)
             WHERE NOT EXISTS (SELECT 1 FROM {table} WHERE event_id = @event_id)
         """
-        
         try:
             run_bq([
                 "query", "--nouse_legacy_sql", "--format=json",
@@ -448,11 +455,18 @@ def seed_bigquery(dry_run: bool = False) -> dict[str, Any]:
                 "--maximum_bytes_billed=100000000",
                 sql,
             ])
-            inserted += 1
-        except Exception:
-            skipped += 1
-    
-    return {"table": "sales_events", "inserted": inserted, "skipped": skipped}
+        except Exception as exc:
+            # NOT EXISTS makes an existing matching deterministic ID safe.  A
+            # command failure is not evidence of a duplicate, so do not report
+            # it as skipped or write a success manifest after a partial seed.
+            raise RuntimeError(
+                "BigQuery seed failed after "
+                f"{inserted}/{len(events)} event(s); failed event_id={event['event_id']}. "
+                "The manifest was not written; reset the demo namespace before retrying."
+            ) from exc
+        inserted += 1
+
+    return {"table": "sales_events", "inserted": inserted, "expected": len(events)}
 
 
 # ─── Pub/Sub Event Publishing ─────────────────────────────────────────────────

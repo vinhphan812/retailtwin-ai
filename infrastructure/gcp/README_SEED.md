@@ -112,13 +112,33 @@ The demand-surge event series:
 - 8 surge events (Saturday, 73 units total)
 - All events share correlation_id `run-weekend-demand-surge-1`
 
-## Idempotency
+## Idempotency and reset safety
 
-All seed operations are idempotent:
-- Safe to run multiple times
-- Same seed always produces the same data
-- BigQuery uses `NOT EXISTS` to avoid duplicate rows
-- Firestore uses update semantics
+All demo event IDs use the `retailtwin-demo-` namespace and remain
+**deterministic** so fixture replay is reproducible.  A reset deletes only:
+
+- `stores/store-001/inventory/*`; and
+- `store_event_claims` documents whose final document ID begins
+  `retailtwin-demo-`.
+
+The claim deletion and inventory reset use one Firestore commit. This means a
+successful reset removes stale demo claims before deterministic demo events are
+published again. Claims with any other event ID are locally filtered out before
+they can become delete writes. If cleanup cannot fit in one atomic Firestore
+commit, reset fails closed rather than partially cleaning claims. BigQuery
+cleanup has the same namespace predicate: `event_id LIKE 'retailtwin-demo-%'`.
+
+Seed writes use `NOT EXISTS` for deterministic event IDs; this makes a
+completed seed replay idempotent. A BigQuery command error is **not** treated as
+"skipped" or a duplicate: seed exits non-zero with the failed event ID and does
+not write a success manifest, preserving the manifest from the last complete
+seed for reset/recovery.
+
+### Dry run and confirmation
+
+`--dry-run` is offline and makes no GCP API, `gcloud`, or `bq` request. It
+prints only the bounded namespace and payload plan. Without `--dry-run`, reset
+requires `CONFIRM_RESET=yes`; seed requires `CONFIRM_SEED=yes`.
 
 ## Prerequisites
 

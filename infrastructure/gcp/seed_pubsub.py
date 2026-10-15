@@ -48,7 +48,13 @@ CANONICAL_PROJECT = "retailtwin-ai-511002"
 STORE_ID = "store-001"
 SKU = "P017"  # Demand surge target
 SOURCE = "synthetic-pos"
-CORRELATION_ID = "run-weekend-demand-surge-1"
+DEMO_NAMESPACE = "retailtwin-demo"
+CORRELATION_ID = f"{DEMO_NAMESPACE}-run-weekend-demand-surge-1"
+
+
+def demo_event_id(suffix: str) -> str:
+    """Return a deterministic event ID that reset_demo.py can safely own."""
+    return f"{DEMO_NAMESPACE}-{suffix}"
 
 # Event timing (from data/synthetic/weekend-demand-surge.json)
 BASELINE_START = datetime(2026, 10, 9, 8, 0, tzinfo=timezone.utc)
@@ -126,7 +132,7 @@ def generate_baseline_events() -> list[dict[str, Any]]:
     
     for index, quantity in enumerate(quantities, start=1):
         event = {
-            "event_id": f"evt-p017-base-{index:04d}",
+            "event_id": demo_event_id(f"evt-p017-base-{index:04d}"),
             "correlation_id": CORRELATION_ID,
             "event_type": "sale.completed",
             "store_id": STORE_ID,
@@ -148,7 +154,7 @@ def generate_surge_events() -> list[dict[str, Any]]:
     
     for index, quantity in enumerate(quantities, start=1):
         event = {
-            "event_id": f"evt-p017-surge-{index:04d}",
+            "event_id": demo_event_id(f"evt-p017-surge-{index:04d}"),
             "correlation_id": CORRELATION_ID,
             "event_type": "sale.completed",
             "store_id": STORE_ID,

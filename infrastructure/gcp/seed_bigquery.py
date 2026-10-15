@@ -307,20 +307,22 @@ def seed_table(
         }
     
     inserted = 0
-    skipped = 0
-    
+
     for event in events:
         try:
-            result = insert_sales_event(event, dry_run=False)
-            if result.get("inserted"):
-                inserted += 1
-            else:
-                skipped += 1
-        except Exception as e:
-            # Event might already exist or other issue
-            skipped += 1
-    
-    return {"table": table, "inserted": inserted, "skipped": skipped}
+            insert_sales_event(event, dry_run=False)
+        except Exception as exc:
+            # A failed DML command is never proof that a deterministic event
+            # already exists.  Fail closed so callers do not report partial
+            # data as a successful/skipped seed.
+            raise RuntimeError(
+                "BigQuery seed failed after "
+                f"{inserted}/{len(events)} event(s); failed event_id={event['event_id']}. "
+                "Reset the demo namespace before retrying."
+            ) from exc
+        inserted += 1
+
+    return {"table": table, "inserted": inserted, "expected": len(events)}
 
 
 def seed_bigquery(dry_run: bool = False, reset: bool = False) -> dict[str, Any]:
