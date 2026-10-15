@@ -33,7 +33,7 @@ jobs:
   #   true by itself — both conditions must hold independently.
   detect-changes:
     name: Detect Changed Files
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     outputs:
       api_changed: ${{ steps.changes.outputs.api_changed }}
       web_changed: ${{ steps.changes.outputs.web_changed }}
@@ -122,7 +122,7 @@ jobs:
   # Always runs. No path filter — catches any file, including docs-only changes.
   repository-hygiene:
     name: Repository Hygiene
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     # Always run this job regardless of changes
     if: always()
 
@@ -200,7 +200,7 @@ jobs:
   # ── API Build & Test ─────────────────────────────────────────────────────────
   api-build-test:
     name: API Build & Test
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: [detect-changes]
     # Run when API paths changed or on push to main
     if: |
@@ -285,7 +285,7 @@ jobs:
   # ── API E2E Smoke ──────────────────────────────────────────────────────────
   api-e2e-smoke:
     name: API E2E Smoke
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: [detect-changes, repository-hygiene, api-build-test]
     # Run when API paths changed or on push to main
     if: |
@@ -315,7 +315,7 @@ jobs:
   # ── Web Build & Test ─────────────────────────────────────────────────────────
   web-build-test:
     name: Web Build & Test
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: [detect-changes]
     # Run when Web paths changed or on push to main
     if: |
