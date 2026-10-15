@@ -1003,43 +1003,18 @@ class InMemoryTwinRepository(LiveTwinRepository):
 # ---------------------------------------------------------------------------
 # Admin / test-only Live Twin writes
 # ---------------------------------------------------------------------------
-
-def bump_inventory_for_stale_block(
-    twin: LiveTwinRepository, store_id: str, sku: str
-) -> bool:
-    """Advance a single SKU's Live Twin version without an agent decision.
-
-    This is a non-decision admin operation used by tests and by the flagship
-    controller to deliberately provoke a stale ``REFRESH_REQUIRED`` from the
-    Decision Context Guard. The actual ``commit_inventory`` write happens
-    inside :mod:`retailtwin_api.firestore_twin`, so callers outside this
-    module never call :meth:`LiveTwinRepository.commit_inventory` directly
-    (ADR 0016 — the guarded Executor is the only production mutation path).
-
-    The bump reduces the SKU's shelf quantity by one (clamped at zero) and
-    advances its version by one; the store-level ``v<N>`` advances with the
-    SKU because :meth:`InMemoryTwinRepository.commit_inventory` (and its
-    Firestore counterpart) always bumps the store version on a write.
-
-    Returns:
-        ``True`` when the bump landed, ``False`` when the SKU is missing or
-        a concurrent change raised :class:`TwinConflict` because the
-        optimistic-lock version moved underneath us.
-    """
-    current = twin.get_inventory(store_id, sku)
-    if current is None:
-        return False
-    bumped = current.model_copy(
-        update={
-            "shelf_quantity": max(0, current.shelf_quantity - 1),
-            "version": current.version + 1,
-        }
-    )
-    try:
-        twin.commit_inventory(store_id, [(bumped, current.version)])
-    except TwinConflict:
-        return False
-    return True
+#
+# ``bump_inventory_for_stale_block`` deliberately mutates the Live Twin
+# without an agent decision so the flagship demo controller can reproduce
+# a stale ``REFRESH_REQUIRED`` race. It is **test-only**: in production the
+# helper raises immediately. The implementation lives in
+# :mod:`retailtwin_api.flagship._stale_bump` (a dedicated module so the
+# production invariant enforced by
+# ``tests/e2e/test_simulation_live_isolation.py`` holds — only that helper
+# module is allowed to call ``commit_inventory`` from outside the
+# repository class). The name is re-exported here for backward
+# compatibility with callers that import it from
+# ``retailtwin_api.firestore_twin``.
 
 
 # ---------------------------------------------------------------------------
