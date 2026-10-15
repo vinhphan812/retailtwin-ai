@@ -23,6 +23,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import secrets
 import threading
 import uuid
 from collections.abc import Mapping, Sequence
@@ -33,6 +34,7 @@ from typing import Any, Callable, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from retailtwin_api.agents.executor.executor import GuardedExecutor
 from retailtwin_api.agents.observer.consumer import InvestigationStart
 from retailtwin_api.agents.orchestrator.replan import (
     CommitPort,
@@ -66,11 +68,15 @@ from retailtwin_api.demand_surge import (
 from retailtwin_api.firestore_twin import (
     InventoryDocument,
     LiveTwinRepository,
-    TwinConflict,
+    bump_inventory_for_stale_block,
 )
 from retailtwin_api.guard.decision_context_guard import (
     InMemoryGuardAudit,
     NoStaleCommit,
+)
+from retailtwin_api.guard.decision_context_guard.authorization import (
+    CommitAuthorizer,
+    InMemoryAuthorizationLedger,
 )
 from retailtwin_api.guard.decision_context_guard.guard import DecisionContextGuard
 from retailtwin_api.guard.decision_context_guard.no_stale_commit import CommitBinding
@@ -233,8 +239,12 @@ class _LiveContextSource(ContextVersionSource):
 class _CommitSpy(CommitPort):
     """The commit port the ``replan`` loop writes to.
 
-    ``commit`` invokes the guarded executor against the Live Twin, then records
-    the resulting commit for the verification step.
+    ``commit`` reissues a signed authorization for the binding the replan
+    loop already produced, then delegates to the canonical
+    :class:`GuardedExecutor` so the Live Twin write goes through the
+    production ``commit_inventory`` boundary (ADR 0016). The spy records
+    committed decisions and before/after inventory snapshots for the
+    verification step.
     """
 
     def __init__(
@@ -242,15 +252,37 @@ class _CommitSpy(CommitPort):
         twin: LiveTwinRepository,
         store_id: str,
         audit: InMemoryVerificationAudit,
+        gate: NoStaleCommit,
+        clock: Callable[[], datetime],
     ) -> None:
         self._twin = twin
         self._store_id = store_id
         self._audit = audit
+        self._gate = gate
+        self._clock = clock
         self._lock = threading.Lock()
         self.committed: list[Decision] = []
         self.bindings: list[CommitBinding] = []
         self.before_by_sku: dict[str, ProductInventory] = {}
         self.after_by_sku: dict[str, ProductInventory] = {}
+        # Per-spy in-process signing key — tokens never leave the process.
+        # The decision→token→executor chain mirrors production
+        # ``CommitService.approve`` so the canonical guard + authorizer +
+        # executor flow runs end-to-end. All three components share the
+        # caller's clock so token issue/expiry and the guard's freshness
+        # window stay aligned (otherwise the executor sees TOKEN_EXPIRED on
+        # redemption in tests where both clocks lock to one moment).
+        self._authorizer = CommitAuthorizer(
+            signing_key=secrets.token_hex(32).encode("utf-8"),
+            ledger=InMemoryAuthorizationLedger(),
+            clock=clock,
+        )
+        self._executor = GuardedExecutor(
+            twin,
+            self._authorizer,
+            gate,
+            clock=clock,
+        )
 
     def snapshot_before(self, skus: Sequence[str], reader: StoreReads) -> None:
         with self._lock:
@@ -259,34 +291,25 @@ class _CommitSpy(CommitPort):
                 self.before_by_sku[sku] = item
 
     def commit(self, decision: Decision, binding: CommitBinding) -> None:
-        # Materialise the allowed decision into the Live Twin via the
-        # canonical ``commit_inventory`` boundary. The same repository contract
-        # powers the production ``GuardedExecutor``; here we call it directly
-        # because the replan loop already produced an authorized binding.
+        # The replan loop already authorized and rechecked the binding; the
+        # spy reissues a signed authorization and routes through the guarded
+        # executor so the Live Twin write goes through the canonical
+        # ``commit_inventory`` boundary.
         if not self.before_by_sku:
             self.snapshot_before([DEMO_SKU], _ReaderAdapter(self._twin, self._store_id))
+        token = self._authorizer.issue(decision, binding)
+        outcome = self._executor.commit(decision, token)
+        if not outcome.committed:
+            # The executor refuses with a reason code copied from the guard;
+            # surface it as a state error so the surrounding controller code
+            # sees the failure the same way it would for a production path.
+            raise FlagshipStateError(
+                f"guarded executor refused decision_id={decision.decision_id} "
+                f"reason={outcome.reason_code}"
+            )
         with self._lock:
             self.committed.append(decision)
             self.bindings.append(binding)
-        items: list[tuple[InventoryDocument, int]] = []
-        for action in decision.proposed_actions:
-            if not isinstance(action, ReplenishShelf):
-                # Other action types are not exercised by the canonical
-                # flagship scenario today; the planner only emits
-                # ReplenishShelf against the demand-surge SKU.
-                continue
-            current = self._twin.get_inventory(self._store_id, action.sku)
-            if current is None:
-                raise KeyError(f"SKU {action.sku!r} is not in store {self._store_id!r}.")
-            expected_version = binding.entity_versions.get(action.sku, current.version)
-            updated = current.model_copy(update={
-                "shelf_quantity": current.shelf_quantity + action.quantity,
-                "backroom_quantity": max(0, current.backroom_quantity - action.quantity),
-                "version": current.version + 1,
-            })
-            items.append((updated, expected_version))
-        self._twin.commit_inventory(self._store_id, items)
-        with self._lock:
             for action in decision.proposed_actions:
                 if not isinstance(action, ReplenishShelf):
                     continue
@@ -630,7 +653,13 @@ class FlagshipController:
             # Direct ALLOW: no replan needed. Commit the first decision
             # ourselves through the same guarded boundary the replan loop uses.
             self._add_event("replan", "status=SKIPPED reason=direct_allow refreshes=0")
-            commit_spy = _CommitSpy(deps.twin, store_id, InMemoryVerificationAudit())
+            commit_spy = _CommitSpy(
+                deps.twin,
+                store_id,
+                InMemoryVerificationAudit(),
+                guard,
+                deps.clock,
+            )
             commit_spy.snapshot_before([DEMO_SKU], reader)
             commit_spy.commit(first_decision, first_binding)
             committed_decision = first_decision
@@ -647,7 +676,13 @@ class FlagshipController:
                 clock=deps.clock,
             )
             contexts = _LiveContextSource(reader)
-            commit_spy = _CommitSpy(deps.twin, store_id, InMemoryVerificationAudit())
+            commit_spy = _CommitSpy(
+                deps.twin,
+                store_id,
+                InMemoryVerificationAudit(),
+                replan_guard,
+                deps.clock,
+            )
             commit_spy.snapshot_before([DEMO_SKU], reader)
             simulation_port: SimulationPort | None = self._simulation_port(correlation_id, reader)
 
@@ -811,25 +846,18 @@ class FlagshipController:
     def _bump_inventory(self, store_id: str, sku: str) -> bool:
         """Mutate the Live Twin so the next authorize call returns REFRESH_REQUIRED.
 
+        The actual ``commit_inventory`` write is performed by
+        :func:`bump_inventory_for_stale_block` inside
+        :mod:`retailtwin_api.firestore_twin` so this module never calls the
+        Live Twin mutation API directly (ADR 0016 — only the guarded Executor
+        writes the Live Twin in production).
+
         Returns True when the Live Twin was successfully bumped; False if no
-        bump could be applied (e.g. no live document or backroom empty).
+        bump could be applied (e.g. no live document or the optimistic lock
+        conflicted).
         """
         assert self._deps is not None
-        current = self._deps.twin.get_inventory(store_id, sku)
-        if current is None:
-            return False
-        bumped = current.model_copy(update={
-            "shelf_quantity": max(0, current.shelf_quantity - 1),
-            "version": current.version + 1,
-        })
-        try:
-            self._deps.twin.commit_inventory(
-                store_id,
-                [(bumped, current.version)],
-            )
-        except TwinConflict:
-            return False
-        return True
+        return bump_inventory_for_stale_block(self._deps.twin, store_id, sku)
 
     def _simulation_port(self, correlation_id: str, reader: StoreReads) -> SimulationPort:
         """The replan loop's simulation port — reuses the canonical simulator."""
