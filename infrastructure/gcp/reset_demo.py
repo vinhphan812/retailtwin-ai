@@ -234,7 +234,11 @@ def run_bq(args: list[str]) -> str:
 
 
 def reset_bigquery(dry_run: bool = False) -> dict[str, Any]:
-    """Reset BigQuery demo data by deleting rows scoped to demo namespace."""
+    """Reset BigQuery demo data by deleting rows scoped to demo namespace.
+    
+    Raises:
+        RuntimeError: If any BigQuery cleanup operation fails (fail-closed).
+    """
     results: dict[str, Any] = {"bigquery": {}}
     
     run_id = current_run_id()
@@ -253,6 +257,7 @@ def reset_bigquery(dry_run: bool = False) -> dict[str, Any]:
     # Since we use deterministic event IDs with the namespace prefix, we can delete by prefix
     
     deleted_counts: dict[str, int] = {}
+    errors: list[str] = []
     table_names = ["sales_events", "inventory_events", "agent_actions"]
     
     for table in table_names:
@@ -269,20 +274,24 @@ def reset_bigquery(dry_run: bool = False) -> dict[str, Any]:
                 data = json.loads(result)
                 count = data[0]["cnt"] if data else 0
                 deleted_counts[table] = count
-            except Exception:
+            except Exception as e:
+                # On dry-run failure, note it but continue
                 deleted_counts[table] = 0
+                errors.append(f"{table}: {e}")
         else:
-            # Delete demo-scoped rows
+            # Delete demo-scoped rows - fail-closed on error
+            delete_query = f"""
+                DELETE FROM {qualified_table}
+                WHERE event_id LIKE '{DEMO_NAMESPACE}-%'
+            """
             try:
-                delete_query = f"""
-                    DELETE FROM {qualified_table}
-                    WHERE event_id LIKE '{DEMO_NAMESPACE}-%'
-                """
                 run_bq(["query", "--nouse_legacy_sql", delete_query])
                 deleted_counts[table] = 1  # DML doesn't return count easily
             except Exception as e:
-                deleted_counts[table] = 0
-                results["bigquery"]["error"] = str(e)
+                # Fail-closed: propagate error so main() knows cleanup failed
+                raise RuntimeError(
+                    f"BigQuery cleanup failed for table {table}: {e}"
+                ) from e
     
     results["bigquery"] = {
         "reset": True,
@@ -290,8 +299,11 @@ def reset_bigquery(dry_run: bool = False) -> dict[str, Any]:
         "namespace": DEMO_NAMESPACE,
         "deleted_by_table": deleted_counts,
         "message": "Deleted all demo-scoped rows from BigQuery",
-        "manifest_pending_removal": not dry_run,  # Will be removed by caller after all phases
+        "manifest_pending_removal": not dry_run,
     }
+    
+    if errors:
+        results["bigquery"]["dry_run_errors"] = errors
     
     return results
 
