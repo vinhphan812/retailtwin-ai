@@ -118,22 +118,28 @@ class CheckoutRepository(Protocol):
 
 
 class InMemoryCheckoutRepository:
-    """Seedable checkout read model for tests and local development."""
+    """Seedable checkout read model for tests and local development.
+
+    Uses a (store_id, checkout_id) composite key to enforce store isolation.
+    """
 
     available = True
 
     def __init__(self) -> None:
         self._lock = threading.RLock()
-        self._checkouts: dict[str, CheckoutResponse] = {}
+        self._checkouts: dict[tuple[str, str], CheckoutResponse] = {}
 
     def seed(self, responses: Iterable[CheckoutResponse]) -> None:
         with self._lock:
-            self._checkouts = {item.summary.checkout_id: item.model_copy(deep=True) for item in responses}
+            self._checkouts = {
+                (item.summary.store_id, item.summary.checkout_id): item.model_copy(deep=True)
+                for item in responses
+            }
 
     def get_checkout(self, checkout_id: str, store_id: str) -> CheckoutResponse:
         with self._lock:
-            response = self._checkouts.get(checkout_id)
-            if response is None or response.summary.store_id != store_id:
+            response = self._checkouts.get((store_id, checkout_id))
+            if response is None:
                 raise CheckoutNotFound(checkout_id)
             return response.model_copy(deep=True)
 
@@ -627,7 +633,13 @@ class BigQueryPromotionRepository:
 
 
 class BigQueryCheckoutRepository:
-    """Queries checkout summary and transactions from BQ/Firestore."""
+    """Scaffold for BQ/Firestore checkout analytics — future work (issue #95).
+
+    This class is a placeholder. A verified BQ table/schema for checkouts does
+    not yet exist. Until then, use InMemoryCheckoutRepository (the default).
+    To implement: query the `checkouts` / `transactions` BQ table filtered by
+    store_id and checkout_id, then map rows to CheckoutResponse.
+    """
 
     def __init__(
         self,
@@ -640,7 +652,11 @@ class BigQueryCheckoutRepository:
         self._dataset = dataset
 
     def get_checkout(self, checkout_id: str, store_id: str) -> CheckoutResponse:
-        raise AnalyticsError("BigQuery checkout repository not implemented.")
+        raise AnalyticsError(
+            "BigQueryCheckoutRepository is scaffold-only (issue #95). "
+            "Use InMemoryCheckoutRepository for production until a verified BQ "
+            "checkout table exists."
+        )
 
 
 def _bq_promotions_query(
@@ -753,7 +769,13 @@ def get_promotion_repository() -> PromotionRepository:
 
 
 def get_checkout_repository() -> CheckoutRepository:
-    return BigQueryCheckoutRepository()
+    """Returns the production checkout repository.
+
+    Uses InMemoryCheckoutRepository by default. BigQueryCheckoutRepository is
+    scaffold-only (issue #95) — swap this function once a verified BQ checkout
+    table exists.
+    """
+    return InMemoryCheckoutRepository()
 
 
 def unavailable_analytics_repositories() -> tuple[AnomalyRepository, RevenueRepository, PromotionRepository, CheckoutRepository]:

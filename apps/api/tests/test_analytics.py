@@ -459,3 +459,97 @@ class TestCheckouts:
         response = client.get("/checkouts/CK01")
         assert response.status_code == 503
         assert response.json()["error"]["code"] == "analytics_unavailable"
+
+    def test_cashier_pii_redacted_by_default(self, client: TestClient, checkout_repo: InMemoryCheckoutRepository):
+        """Cashier staff_id and name are redacted unless redact_cashier=false."""
+        now = datetime.now(timezone.utc)
+        checkout_repo.seed([
+            CheckoutResponse(
+                summary=CheckoutSummary(
+                    checkout_id="CK01",
+                    store_id="store-001",
+                    status="open",
+                    cashier=Cashier(staff_id="EMP-014", name="Linh Tran"),
+                    shift_started_at=now - timedelta(hours=4),
+                    business_date="2026-10-09",
+                    revenue_today=26.52,
+                    transactions_today=3,
+                    items_scanned_today=8,
+                    queue_length=2,
+                    last_transaction_at=now,
+                ),
+                transactions=[
+                    CheckoutTransaction(
+                        transaction_id="CK01-0001",
+                        checkout_id="CK01",
+                        store_id="store-001",
+                        completed_at=now,
+                        cashier=Cashier(staff_id="EMP-014", name="Linh Tran"),
+                        items=3,
+                        total=9.97,
+                        payment_method="cash",
+                        lines=[],
+                    )
+                ],
+            )
+        ])
+        # Default: cashier is redacted from summary
+        resp = client.get("/checkouts/CK01")
+        assert resp.status_code == 200
+        assert resp.json()["summary"]["cashier"] is None
+        # Default: cashier is redacted from transactions
+        assert resp.json()["transactions"][0]["cashier"] is None
+
+        # With redact_cashier=false: cashier data is exposed (requires authorization)
+        resp2 = client.get("/checkouts/CK01", params={"redact_cashier": "false"})
+        assert resp2.status_code == 200
+        assert resp2.json()["summary"]["cashier"]["staff_id"] == "EMP-014"
+        assert resp2.json()["summary"]["cashier"]["name"] == "Linh Tran"
+
+    def test_cross_store_isolation(self, client: TestClient, checkout_repo: InMemoryCheckoutRepository):
+        """Same checkout_id exists in two stores — must NOT leak across stores."""
+        now = datetime.now(timezone.utc)
+        checkout_repo.seed([
+            CheckoutResponse(
+                summary=CheckoutSummary(
+                    checkout_id="CK01",
+                    store_id="store-001",
+                    status="open",
+                    cashier=None,
+                    shift_started_at=now - timedelta(hours=2),
+                    business_date="2026-10-09",
+                    revenue_today=100.0,
+                    transactions_today=5,
+                    items_scanned_today=15,
+                    queue_length=3,
+                    last_transaction_at=now,
+                ),
+                transactions=[],
+            ),
+            CheckoutResponse(
+                summary=CheckoutSummary(
+                    checkout_id="CK01",
+                    store_id="store-002",
+                    status="closed",
+                    cashier=None,
+                    shift_started_at=now - timedelta(hours=6),
+                    business_date="2026-10-09",
+                    revenue_today=50.0,
+                    transactions_today=2,
+                    items_scanned_today=6,
+                    queue_length=0,
+                    last_transaction_at=None,
+                ),
+                transactions=[],
+            ),
+        ])
+        # store-001 sees its own CK01
+        resp = client.get("/checkouts/CK01", params={"store_id": "store-001"})
+        assert resp.status_code == 200
+        assert resp.json()["summary"]["store_id"] == "store-001"
+        assert resp.json()["summary"]["revenue_today"] == 100.0
+        # store-002 sees its own CK01
+        resp2 = client.get("/checkouts/CK01", params={"store_id": "store-002"})
+        assert resp2.status_code == 200
+        assert resp2.json()["summary"]["store_id"] == "store-002"
+        assert resp2.json()["summary"]["revenue_today"] == 50.0
