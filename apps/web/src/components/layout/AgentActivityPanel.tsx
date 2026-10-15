@@ -12,6 +12,7 @@ import { usePanelStore } from "@/state/panel.store";
 import { useRunStore } from "@/state/run.store";
 import { selectedProductId, useUiStore } from "@/state/ui.store";
 import { AlertsSection } from "./AlertsSection";
+import { GuardSection } from "./GuardSection";
 import { LENS_VIEW } from "./lens";
 
 /** Panel slide: quick, settles without a visible bounce. Transform only, so the 3D view never resizes. */
@@ -61,7 +62,8 @@ export function AgentActivityOpenButton() {
 }
 
 /**
- * Operations lens: the store API check, the open alerts and opportunities, and the agent's timeline.
+ * Operations lens: the store API check, the guard's last answer, the open alerts and
+ * opportunities, and the agent's timeline.
  * A SKU in the timeline selects that product; picking an alert narrows the timeline to its run.
  * Follow agent lets the agent's own steps move the camera (`useAgentFocus`).
  */
@@ -81,6 +83,7 @@ function OperationsView() {
   return (
     <>
       <StoreStatus />
+      <GuardSection />
       <AlertsSection />
 
       <section className="activity-section">
