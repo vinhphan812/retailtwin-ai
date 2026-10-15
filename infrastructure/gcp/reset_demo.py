@@ -53,6 +53,9 @@ STORE_ID = "store-001"
 DEMO_NAMESPACE = "retailtwin-demo"
 DEMO_RUN_ID_PREFIX = f"{DEMO_NAMESPACE}-run-"
 
+# Firestore claim collection - demo event IDs live here
+CLAIM_COLLECTION = "store_event_claims"
+
 def current_run_id() -> str:
     """Get the current demo run ID from seed manifest."""
     manifest_path = Path(__file__).parent / "seed_manifest.json"
@@ -142,50 +145,124 @@ def doc_name(collection: str, *path: str) -> str:
     return f"{database_root()}/{'/'.join([collection, *path])}"
 
 
+def is_demo_claim(document: dict[str, Any]) -> bool:
+    """Return whether a claim document is owned by the demo namespace.
+
+    Claims are keyed by event_id.  We deliberately require the final document
+    path segment to start with the namespace rather than trusting a mutable
+    document field.  This makes cleanup bounded even if a non-demo claim has a
+    misleading field value.
+    """
+    name = document.get("name")
+    if not isinstance(name, str):
+        return False
+    event_id = name.rsplit("/", 1)[-1]
+    return event_id.startswith(f"{DEMO_NAMESPACE}-")
+
+
+def list_demo_claims(transport: HttpTransport) -> list[dict[str, Any]]:
+    """List only namespace-owned Firestore event claims.
+
+    The collection may contain non-demo production claims.  Pagination is
+    followed and every returned document is locally namespace-filtered before
+    it can become a delete write.
+    """
+    claims: list[dict[str, Any]] = []
+    page_token = ""
+    while True:
+        url = f"{database_root()}/{CLAIM_COLLECTION}?pageSize=300"
+        if page_token:
+            url += f"&pageToken={page_token}"
+        response = transport.request("GET", url, None, {"Content-Type": "application/json"})
+        if response.status == 404:
+            return claims
+        if response.status != 200:
+            raise RuntimeError(f"Failed to list Firestore claims: {response.body[:200]}")
+        try:
+            payload = json.loads(response.body)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError("Firestore claim list response is not JSON") from exc
+        documents = payload.get("documents", [])
+        if not isinstance(documents, list):
+            raise RuntimeError("Firestore claim list response has invalid documents")
+        claims.extend(doc for doc in documents if isinstance(doc, dict) and is_demo_claim(doc))
+        next_page_token = payload.get("nextPageToken", "")
+        if not isinstance(next_page_token, str) or not next_page_token:
+            return claims
+        page_token = next_page_token
+
+
 def reset_firestore(transport: HttpTransport, dry_run: bool = False) -> dict[str, Any]:
-    """Reset Firestore Live Twin by deleting inventory documents."""
+    """Reset Firestore Live Twin and demo event claims.
+
+    Deletes only inventory documents belonging to the demo store and only
+    claim documents whose event_id starts with the demo namespace.
+    Non-demo claims are never touched.
+    """
+    if dry_run:
+        # A normal dry run must be usable without credentials and must make no
+        # HTTP request.  Counts require a separately reviewed live inspection.
+        return {"firestore": {
+            "dry_run": True,
+            "inventory_scope": f"stores/{STORE_ID}/inventory",
+            "claim_scope": f"{CLAIM_COLLECTION}/{DEMO_NAMESPACE}-*",
+            "safety": "Only store-001 inventory and retailtwin-demo-* claim IDs are eligible.",
+        }}
+
     results: dict[str, Any] = {"firestore": {}}
-    
-    # List all inventory documents
-    url = f"{database_root()}/stores/{STORE_ID}/inventory"
-    response = transport.request("GET", url, None, {"Content-Type": "application/json"})
-    
+
+    # Both inventory and claims must be listed before deciding that reset is a
+    # no-op: a previous demo can leave claims after inventory was removed.
+    inventory_url = f"{database_root()}/stores/{STORE_ID}/inventory"
+    response = transport.request("GET", inventory_url, None, {"Content-Type": "application/json"})
     if response.status == 404:
-        results["firestore"] = {"reset": True, "deleted": 0, "message": "No inventory found"}
-        return results
-    
-    if response.status != 200:
+        inventory_documents: list[dict[str, Any]] = []
+    elif response.status != 200:
         raise RuntimeError(f"Failed to list inventory: {response.body[:200]}")
-    
-    try:
-        payload = json.loads(response.body)
-    except json.JSONDecodeError:
-        raise RuntimeError("Inventory list response is not JSON")
-    
-    documents = payload.get("documents", [])
-    results["firestore"]["found"] = len(documents)
-    
-    if not documents:
-        results["firestore"].update({"reset": True, "deleted": 0, "message": "No inventory to delete"})
-        return results
-    
+    else:
+        try:
+            payload = json.loads(response.body)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError("Inventory list response is not JSON") from exc
+        documents = payload.get("documents", [])
+        if not isinstance(documents, list):
+            raise RuntimeError("Inventory list response has invalid documents")
+        inventory_documents = [doc for doc in documents if isinstance(doc, dict)]
+
+    demo_claims = list_demo_claims(transport)
+    results["firestore"].update({
+        "inventory_found": len(inventory_documents),
+        "demo_claims_found": len(demo_claims),
+        "claim_namespace": DEMO_NAMESPACE,
+    })
+
+    inventory_deletes = [
+        {"delete": name}
+        for document in inventory_documents
+        if isinstance((name := document.get("name")), str) and name
+    ]
+    claim_deletes = [
+        {"delete": name}
+        for document in demo_claims
+        if isinstance((name := document.get("name")), str) and name
+    ]
+
     if dry_run:
         results["firestore"].update({
             "dry_run": True,
-            "documents_to_delete": len(documents),
-            "sample": [doc.get("name", "") for doc in documents[:5]],
+            "inventory_documents_to_delete": len(inventory_deletes),
+            "demo_claims_to_delete": len(claim_deletes),
+            "inventory_sample": [write["delete"] for write in inventory_deletes[:5]],
+            "claim_sample": [write["delete"] for write in claim_deletes[:5]],
+            "safety": "Only store-001 inventory and retailtwin-demo-* claim IDs are eligible.",
         })
         return results
-    
-    # Build delete writes
-    writes: list[dict[str, Any]] = []
-    for doc in documents:
-        name = doc.get("name", "")
-        if name:
-            writes.append({"delete": name})
-    
-    # Bump store version
+
+    # The claim IDs are deterministic.  Removing namespace-owned claims in the
+    # same commit as the inventory reset makes the following deterministic replay
+    # fresh; claims outside the namespace cannot be deleted by this code.
     now = datetime.now(timezone.utc).isoformat()
+    writes = [*inventory_deletes, *claim_deletes]
     writes.append({
         "update": {
             "name": doc_name("stores", STORE_ID),
@@ -193,27 +270,31 @@ def reset_firestore(transport: HttpTransport, dry_run: bool = False) -> dict[str
                 "store_id": {"stringValue": STORE_ID},
                 "version": {"stringValue": "v1"},
                 "updated_at": {"timestampValue": now},
-            }
+            },
         }
     })
-    
-    # Execute deletes
-    payload = {"writes": writes}
-    url = f"{database_root()}:commit"
-    raw = json.dumps(payload).encode("utf-8")
-    
-    response = transport.request("POST", url, raw, {"Content-Type": "application/json"})
-    
+    if len(writes) > 500:
+        raise RuntimeError(
+            "Firestore reset would exceed one atomic commit; refusing partial claim cleanup. "
+            "Reduce demo claims or add a reviewed batched reset strategy."
+        )
+
+    response = transport.request(
+        "POST",
+        f"{database_root()}:commit",
+        json.dumps({"writes": writes}).encode("utf-8"),
+        {"Content-Type": "application/json"},
+    )
     if response.status != 200:
         raise RuntimeError(f"Firestore reset failed (HTTP {response.status}): {response.body[:200]}")
-    
+
     results["firestore"].update({
         "reset": True,
-        "deleted": len(documents),
+        "inventory_deleted": len(inventory_deletes),
+        "demo_claims_deleted": len(claim_deletes),
         "version_bumped": True,
         "timestamp": now,
     })
-    
     return results
 
 
@@ -235,14 +316,25 @@ def run_bq(args: list[str]) -> str:
 
 def reset_bigquery(dry_run: bool = False) -> dict[str, Any]:
     """Reset BigQuery demo data by deleting rows scoped to demo namespace.
-    
+
     Raises:
         RuntimeError: If any BigQuery cleanup operation fails (fail-closed).
     """
+    if dry_run:
+        return {
+            "bigquery": {
+                "dry_run": True,
+                "namespace": DEMO_NAMESPACE,
+                "tables": ["sales_events", "inventory_events", "agent_actions"],
+                "predicate": f"event_id LIKE '{DEMO_NAMESPACE}-%'",
+                "safety": "No BigQuery command runs in dry-run mode.",
+            }
+        }
+
     results: dict[str, Any] = {"bigquery": {}}
-    
+
     run_id = current_run_id()
-    
+
     if not run_id:
         results["bigquery"] = {
             "reset": True,
@@ -251,18 +343,18 @@ def reset_bigquery(dry_run: bool = False) -> dict[str, Any]:
             "note": "Run seed_gcp.py first to create a seed manifest",
         }
         return results
-    
+
     # The run_id is stored in the manifest and used to scope all demo data
     # For BigQuery, we delete rows that were inserted with a matching run context
     # Since we use deterministic event IDs with the namespace prefix, we can delete by prefix
-    
+
     deleted_counts: dict[str, int] = {}
     errors: list[str] = []
     table_names = ["sales_events", "inventory_events", "agent_actions"]
-    
+
     for table in table_names:
         qualified_table = f"`{PROJECT}.{DATASET}.{table}`"
-        
+
         if dry_run:
             # Count rows to be deleted
             try:
@@ -292,7 +384,7 @@ def reset_bigquery(dry_run: bool = False) -> dict[str, Any]:
                 raise RuntimeError(
                     f"BigQuery cleanup failed for table {table}: {e}"
                 ) from e
-    
+
     results["bigquery"] = {
         "reset": True,
         "run_id": run_id,
@@ -301,10 +393,10 @@ def reset_bigquery(dry_run: bool = False) -> dict[str, Any]:
         "message": "Deleted all demo-scoped rows from BigQuery",
         "manifest_pending_removal": not dry_run,
     }
-    
+
     if errors:
         results["bigquery"]["dry_run_errors"] = errors
-    
+
     return results
 
 
@@ -323,33 +415,33 @@ def check_topic_exists() -> bool:
 def reset_pubsub(dry_run: bool = False) -> dict[str, Any]:
     """Reset Pub/Sub by seeking subscriptions to current message."""
     results: dict[str, Any] = {"pubsub": {}}
-    
+
     topic_exists = check_topic_exists()
     results["pubsub"]["topic_exists"] = topic_exists
-    
+
     if not topic_exists:
         results["pubsub"]["message"] = "Topic does not exist - nothing to reset"
         return results
-    
+
     if dry_run:
         results["pubsub"]["dry_run"] = True
         results["pubsub"]["message"] = "Would seek subscription to current (no messages to process)"
         return results
-    
+
     # For Pub/Sub, we don't delete messages (they're ephemeral by default)
     # Instead, we note that the subscription should be at the current head
     # Any new messages published will be picked up by consumers
-    
+
     # Check subscription exists
     try:
         result = subprocess.run(
-            ["gcloud", "pubsub", "subscriptions", "describe", SUBSCRIPTION, 
+            ["gcloud", "pubsub", "subscriptions", "describe", SUBSCRIPTION,
              "--project", PROJECT, "--format=value(name)"],
             capture_output=True, text=True, env=command_env()
         )
         sub_exists = result.returncode == 0
         results["pubsub"]["subscription_exists"] = sub_exists
-        
+
         if sub_exists:
             # Note: Pub/Sub subscriptions retain messages according to retention settings
             # For deterministic replay, we rely on event_id deduplication
@@ -357,11 +449,11 @@ def reset_pubsub(dry_run: bool = False) -> dict[str, Any]:
             results["pubsub"]["note"] = "Use deterministic event_ids for idempotent replay"
         else:
             results["pubsub"]["message"] = "Subscription does not exist"
-            
+
     except Exception as e:
         results["pubsub"]["error"] = str(e)
         results["pubsub"]["message"] = "Could not check subscription"
-    
+
     return results
 
 
@@ -374,10 +466,10 @@ def check_guardrails() -> None:
     """Validate environment before reset."""
     if PROJECT != CANONICAL_PROJECT:
         die(f"Refusing project {PROJECT}. Reset applies only to {CANONICAL_PROJECT}.")
-    
+
     if os.environ.get("CONFIRM_RESET", "") != "yes":
         die("Set CONFIRM_RESET=yes to reset all GCP services to baseline.")
-    
+
     # Check billing
     result = subprocess.run(
         ["gcloud", "billing", "projects", "describe", PROJECT,
@@ -422,14 +514,14 @@ def main() -> int:
     confirm = os.environ.get("CONFIRM_RESET", "")
     dry_run = args.dry_run or confirm == "dry"
     reseed = args.reseed or os.environ.get("CONFIRM_SEED", "") == "yes"
-    
+
     print(f"Project:   {PROJECT}")
     print(f"Region:    {REGION}")
     print(f"Store:     {STORE_ID}")
     print(f"Dry run:   {dry_run}")
     print(f"Reseed:    {reseed}")
     print(f"Scope:     ", end="")
-    
+
     if args.firestore_only:
         print("Firestore only")
     elif args.bigquery_only:
@@ -438,7 +530,7 @@ def main() -> int:
         print("Pub/Sub only")
     else:
         print("All services")
-    
+
     print()
 
     if not dry_run:
@@ -457,7 +549,7 @@ def main() -> int:
             runner = SubprocessRunner()
             token_provider = GcloudTokenProvider(runner)
             transport = HttpTransport(token_provider)
-            
+
             print("Resetting Firestore Live Twin...")
             results["firestore"] = reset_firestore(transport, dry_run)
             print(f"  Result: {json.dumps(results['firestore'], indent=4)}")
@@ -485,11 +577,11 @@ def main() -> int:
 
         print("Reset complete!")
         print()
-        
+
         if reseed and not dry_run:
             print("Reseeding services...")
             print("  Run seed_gcp.py to reseed all services")
-        
+
         return 0
     except Exception as e:
         all_phases_succeeded = False

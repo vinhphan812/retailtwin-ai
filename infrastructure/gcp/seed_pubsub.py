@@ -48,7 +48,13 @@ CANONICAL_PROJECT = "retailtwin-ai-511002"
 STORE_ID = "store-001"
 SKU = "P017"  # Demand surge target
 SOURCE = "synthetic-pos"
-CORRELATION_ID = "run-weekend-demand-surge-1"
+DEMO_NAMESPACE = "retailtwin-demo"
+CORRELATION_ID = f"{DEMO_NAMESPACE}-run-weekend-demand-surge-1"
+
+
+def demo_event_id(suffix: str) -> str:
+    """Return a deterministic event ID that reset_demo.py can safely own."""
+    return f"{DEMO_NAMESPACE}-{suffix}"
 
 # Event timing (from data/synthetic/weekend-demand-surge.json)
 BASELINE_START = datetime(2026, 10, 9, 8, 0, tzinfo=timezone.utc)
@@ -92,7 +98,7 @@ def publish_event(event: dict[str, Any]) -> dict[str, Any]:
     """Publish one event to the store-events topic."""
     body = canonical_body(event)
     attrs = message_attributes(event)
-    
+
     args = [
         "gcloud", "pubsub", "topics", "publish", TOPIC,
         "--project", PROJECT,
@@ -101,7 +107,7 @@ def publish_event(event: dict[str, Any]) -> dict[str, Any]:
     ]
     for key, value in attrs.items():
         args.append(f"--attribute={key}={value}")
-    
+
     completed = subprocess.run(
         args,
         check=False,
@@ -109,12 +115,12 @@ def publish_event(event: dict[str, Any]) -> dict[str, Any]:
         text=True,
         env=command_env(),
     )
-    
+
     if completed.returncode != 0:
         raise RuntimeError(
             f"Publish failed: {completed.stderr or completed.stdout or 'unknown error'}"
         )
-    
+
     return {"published": event["event_id"], "message_id": completed.stdout.strip()}
 
 
@@ -123,10 +129,10 @@ def generate_baseline_events() -> list[dict[str, Any]]:
     events = []
     quantities = (10, 10, 10, 10, 10)  # 5 events = 50 units
     step = timedelta(hours=WINDOW_HOURS) / len(quantities)
-    
+
     for index, quantity in enumerate(quantities, start=1):
         event = {
-            "event_id": f"evt-p017-base-{index:04d}",
+            "event_id": demo_event_id(f"evt-p017-base-{index:04d}"),
             "correlation_id": CORRELATION_ID,
             "event_type": "sale.completed",
             "store_id": STORE_ID,
@@ -136,7 +142,7 @@ def generate_baseline_events() -> list[dict[str, Any]]:
             "source": SOURCE,
         }
         events.append(event)
-    
+
     return events
 
 
@@ -145,10 +151,10 @@ def generate_surge_events() -> list[dict[str, Any]]:
     events = []
     quantities = (9, 9, 9, 9, 9, 9, 9, 10)  # 8 events = 73 units
     step = timedelta(hours=WINDOW_HOURS) / len(quantities)
-    
+
     for index, quantity in enumerate(quantities, start=1):
         event = {
-            "event_id": f"evt-p017-surge-{index:04d}",
+            "event_id": demo_event_id(f"evt-p017-surge-{index:04d}"),
             "correlation_id": CORRELATION_ID,
             "event_type": "sale.completed",
             "store_id": STORE_ID,
@@ -158,7 +164,7 @@ def generate_surge_events() -> list[dict[str, Any]]:
             "source": SOURCE,
         }
         events.append(event)
-    
+
     return events
 
 
@@ -178,9 +184,9 @@ def publish_events(
             "events_to_publish": len(events),
             "sample": events[:3],
         }
-    
+
     results = {"published": [], "errors": []}
-    
+
     for event in events:
         try:
             result = publish_event(event)
@@ -189,7 +195,7 @@ def publish_events(
         except Exception as e:
             results["errors"].append({"event_id": event["event_id"], "error": str(e)})
             print(f"  Error: {event['event_id']}: {e}", file=sys.stderr)
-    
+
     return results
 
 
@@ -202,10 +208,10 @@ def check_guardrails() -> None:
     """Validate environment before publishing."""
     if PROJECT != CANONICAL_PROJECT:
         die(f"Refusing project {PROJECT}. Events stay on {CANONICAL_PROJECT}.")
-    
+
     if os.environ.get("CONFIRM_SEED", "") not in ("yes", "dry"):
         die("Set CONFIRM_SEED=yes to publish, or CONFIRM_SEED=dry to preview.")
-    
+
     # Check billing
     result = subprocess.run(
         ["gcloud", "billing", "projects", "describe", PROJECT,
@@ -235,7 +241,7 @@ def main() -> int:
 
     confirm = os.environ.get("CONFIRM_SEED", "")
     dry_run = args.dry_run or confirm == "dry"
-    
+
     print(f"Project:       {PROJECT}")
     print(f"Topic:         {TOPIC}")
     print(f"Correlation:   {CORRELATION_ID}")
@@ -257,10 +263,10 @@ def main() -> int:
         events = generate_surge_events()
     else:
         events = get_all_events()
-    
+
     print(f"Events to publish: {len(events)}")
     print()
-    
+
     # Show event summary
     print("Event summary:")
     print(f"  Baseline (Friday): {len(generate_baseline_events())} events, "
@@ -285,11 +291,11 @@ def main() -> int:
         print("Publishing events...")
         result = publish_events(events, dry_run=False)
         print()
-        
+
         if result["errors"]:
             print(f"Errors: {len(result['errors'])}")
             return 1
-        
+
         print(f"Published: {len(result['published'])} events")
         return 0
     except Exception as e:

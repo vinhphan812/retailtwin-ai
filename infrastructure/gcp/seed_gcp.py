@@ -207,10 +207,10 @@ def die(msg: str) -> None:
 def check_guardrails() -> None:
     if PROJECT != CANONICAL_PROJECT:
         die(f"Refusing project {PROJECT}. Seed applies only to {CANONICAL_PROJECT}.")
-    
+
     if os.environ.get("CONFIRM_SEED", "") != "yes":
         die("Set CONFIRM_SEED=yes to seed all GCP services.")
-    
+
     result = subprocess.run(
         ["gcloud", "billing", "projects", "describe", PROJECT,
          "--format=value(billingEnabled)"],
@@ -247,14 +247,14 @@ def _store_fields(now: str) -> dict[str, Any]:
 def check_existing_state(transport: HttpTransport) -> dict[str, Any]:
     """Check if there's existing live state in Firestore."""
     results = {"has_existing": False, "store_count": 0, "inventory_count": 0}
-    
+
     # Check store
     store_url = f"{database_root()}/stores/{STORE_ID}"
     resp = transport.request("GET", store_url, None, {"Content-Type": "application/json"})
     if resp.status == 200:
         results["has_existing"] = True
         results["store_count"] = 1
-    
+
     # Check inventory
     inv_url = f"{database_root()}/stores/{STORE_ID}/inventory"
     resp = transport.request("GET", inv_url, None, {"Content-Type": "application/json"})
@@ -267,15 +267,25 @@ def check_existing_state(transport: HttpTransport) -> dict[str, Any]:
                 results["has_existing"] = True
         except json.JSONDecodeError:
             pass
-    
+
     return results
 
 
 def seed_firestore(transport: HttpTransport, dry_run: bool = False, force: bool = False) -> dict[str, Any]:
     """Seed Firestore Live Twin with demo products."""
+    if dry_run:
+        # Dry run is intentionally offline: it validates deterministic payload
+        # construction without acquiring credentials or touching Firestore.
+        return {
+            "dry_run": True,
+            "stores_to_write": 1,
+            "inventory_to_write": len(DEMO_PRODUCTS),
+            "claim_strategy": "reset_demo.py deletes only retailtwin-demo-* claims before deterministic replay",
+        }
+
     # Check for existing state first
     existing = check_existing_state(transport)
-    
+
     if existing["has_existing"] and not force:
         return {
             "skipped": True,
@@ -286,7 +296,7 @@ def seed_firestore(transport: HttpTransport, dry_run: bool = False, force: bool 
             },
             "safety": "blocked - existing state detected"
         }
-    
+
     if dry_run:
         return {
             "dry_run": True,
@@ -294,7 +304,7 @@ def seed_firestore(transport: HttpTransport, dry_run: bool = False, force: bool 
             "inventory_to_write": len(DEMO_PRODUCTS),
             "would_overwrite": existing["has_existing"],
         }
-    
+
     now = datetime.now(timezone.utc).isoformat()
     writes: list[dict[str, Any]] = []
 
@@ -322,16 +332,16 @@ def seed_firestore(transport: HttpTransport, dry_run: bool = False, force: bool 
     payload = {"writes": writes}
     url = f"{database_root()}:commit"
     raw = json.dumps(payload).encode("utf-8")
-    
+
     response = transport.request("POST", url, raw, {"Content-Type": "application/json"})
-    
+
     if response.status != 200:
         try:
             error = json.loads(response.body)
             raise RuntimeError(f"Firestore seed failed: {error.get('error', {}).get('message', response.body)}")
         except json.JSONDecodeError:
             raise RuntimeError(f"Firestore seed failed (HTTP {response.status}): {response.body[:200]}")
-    
+
     return {
         "seeded_products": len(DEMO_PRODUCTS),
         "store_id": STORE_ID,
@@ -357,15 +367,15 @@ def format_timestamp(dt: datetime) -> str:
 
 def generate_p017_context() -> list[dict[str, Any]]:
     """Generate P017 historical context showing weekend surge pattern.
-    
+
     All event_ids use DEMO_NAMESPACE prefix for bounded reset capability.
     """
     events = []
     base_date = datetime(2026, 9, 12, tzinfo=timezone.utc)
-    
+
     for week in range(4):
         week_start = base_date + timedelta(weeks=week)
-        
+
         # Friday surge
         for i, hour in enumerate([8, 9, 10, 11]):
             events.append({
@@ -378,7 +388,7 @@ def generate_p017_context() -> list[dict[str, Any]]:
                 "occurred_at": format_timestamp(week_start + timedelta(hours=hour)),
                 "source": "historical-pos",
             })
-        
+
         # Saturday surge (higher)
         for i, hour in enumerate([8, 9, 10, 11, 12]):
             events.append({
@@ -391,7 +401,7 @@ def generate_p017_context() -> list[dict[str, Any]]:
                 "occurred_at": format_timestamp(week_start + timedelta(days=1, hours=hour)),
                 "source": "historical-pos",
             })
-        
+
         # Weekday baseline
         for day_offset in [3, 4, 5]:
             events.append({
@@ -404,36 +414,33 @@ def generate_p017_context() -> list[dict[str, Any]]:
                 "occurred_at": format_timestamp(week_start + timedelta(days=day_offset, hours=10)),
                 "source": "historical-pos",
             })
-    
+
     return events
 
 
 def seed_bigquery(dry_run: bool = False) -> dict[str, Any]:
     """Seed BigQuery with historical context."""
     events = generate_p017_context()
-    
+
     if dry_run:
         return {
             "dry_run": True,
             "events_to_seed": len(events),
             "sample": events[:3],
         }
-    
+
     table = qualified_table("sales_events")
     inserted = 0
-    skipped = 0
-    
     for event in events:
         sql = f"""
-            INSERT INTO {table} 
+            INSERT INTO {table}
             (event_id, correlation_id, event_type, store_id, sku, quantity, occurred_at, source, ingested_at)
-            SELECT 
-                @event_id, @correlation_id, @event_type, @store_id, @sku, @quantity, 
+            SELECT
+                @event_id, @correlation_id, @event_type, @store_id, @sku, @quantity,
                 @occurred_at, @source, CURRENT_TIMESTAMP()
             FROM (SELECT 1)
             WHERE NOT EXISTS (SELECT 1 FROM {table} WHERE event_id = @event_id)
         """
-        
         try:
             run_bq([
                 "query", "--nouse_legacy_sql", "--format=json",
@@ -448,11 +455,18 @@ def seed_bigquery(dry_run: bool = False) -> dict[str, Any]:
                 "--maximum_bytes_billed=100000000",
                 sql,
             ])
-            inserted += 1
-        except Exception:
-            skipped += 1
-    
-    return {"table": "sales_events", "inserted": inserted, "skipped": skipped}
+        except Exception as exc:
+            # NOT EXISTS makes an existing matching deterministic ID safe.  A
+            # command failure is not evidence of a duplicate, so do not report
+            # it as skipped or write a success manifest after a partial seed.
+            raise RuntimeError(
+                "BigQuery seed failed after "
+                f"{inserted}/{len(events)} event(s); failed event_id={event['event_id']}. "
+                "The manifest was not written; reset the demo namespace before retrying."
+            ) from exc
+        inserted += 1
+
+    return {"table": "sales_events", "inserted": inserted, "expected": len(events)}
 
 
 # ─── Pub/Sub Event Publishing ─────────────────────────────────────────────────
@@ -480,11 +494,11 @@ def canonical_body(event: dict[str, Any]) -> str:
 
 def generate_demo_events() -> list[dict[str, Any]]:
     """Generate all demo events (baseline + surge).
-    
+
     All event_ids use DEMO_NAMESPACE prefix for bounded reset capability.
     """
     events = []
-    
+
     # Baseline (Friday)
     quantities = (10, 10, 10, 10, 10)
     step = timedelta(hours=WINDOW_HOURS) / len(quantities)
@@ -499,7 +513,7 @@ def generate_demo_events() -> list[dict[str, Any]]:
             "occurred_at": (BASELINE_START + step * (index - 1)).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "source": SOURCE,
         })
-    
+
     # Surge (Saturday)
     quantities = (9, 9, 9, 9, 9, 9, 9, 10)
     step = timedelta(hours=WINDOW_HOURS) / len(quantities)
@@ -514,14 +528,14 @@ def generate_demo_events() -> list[dict[str, Any]]:
             "occurred_at": (SURGE_START + step * (index - 1)).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "source": SOURCE,
         })
-    
+
     return events
 
 
 def publish_event(event: dict[str, Any]) -> dict[str, Any]:
     """Publish one event to the store-events topic."""
     body = canonical_body(event)
-    
+
     completed = subprocess.run(
         [
             "gcloud", "pubsub", "topics", "publish", TOPIC,
@@ -538,10 +552,10 @@ def publish_event(event: dict[str, Any]) -> dict[str, Any]:
         text=True,
         env=command_env(),
     )
-    
+
     if completed.returncode != 0:
         raise RuntimeError(f"Publish failed: {completed.stderr}")
-    
+
     return {"published": event["event_id"], "message_id": completed.stdout.strip()}
 
 
@@ -549,17 +563,17 @@ def publish_events(events: list[dict[str, Any]], dry_run: bool = False) -> dict[
     """Publish demo events to Pub/Sub."""
     if dry_run:
         return {"dry_run": True, "events": len(events), "sample": events[:3]}
-    
+
     published = []
     errors = []
-    
+
     for event in events:
         try:
             result = publish_event(event)
             published.append(result)
         except Exception as e:
             errors.append({"event_id": event["event_id"], "error": str(e)})
-    
+
     return {"published": len(published), "errors": len(errors)}
 
 
@@ -608,7 +622,7 @@ def main() -> int:
 
     confirm = os.environ.get("CONFIRM_SEED", "")
     dry_run = args.dry_run or confirm == "dry"
-    
+
     print("=" * 60)
     print("RETAILTWIN AI - DEMO DATA SEEDER")
     print("=" * 60)
