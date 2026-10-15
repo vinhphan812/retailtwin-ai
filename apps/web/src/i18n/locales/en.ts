@@ -202,7 +202,7 @@ export const en = {
   },
   activity: {
     title: "Agent Activity",
-    note: "store-001 from GET /store. Read only.",
+    note: "What needs attention in the store, and what the agent is doing about it.",
     empty: "No agent activity yet.",
     timeline: "Agent activity timeline",
     section: "Activity",
@@ -256,6 +256,19 @@ export const en = {
     },
     filtered: "Only the agent run of the picked alert",
     showAll: "Show every run",
+    showAllAlerts: "Show all {{count}}",
+    dialog: {
+      title: "Alerts & opportunities",
+      list: "All open alerts and opportunities",
+      filter: "Filter by kind",
+      all: "All",
+      category: {
+        alert: "Alerts",
+        opportunity: "Opportunities",
+      },
+      search: "Search title, SKU, or shelf",
+      empty: "No alerts match.",
+    },
     noRunYet: "The agent has not started on this yet.",
   },
   agentFocus: {
@@ -486,8 +499,8 @@ export const en = {
     loadFailed: "Could not load the sales figures.",
   },
   storeStatus: {
-    title: "Store API",
-    note: "Reads come from the API. This column does not change live inventory.",
+    title: "Inventory",
+    note: "Read only. Pick a row to find the product in the store.",
     loading: "Loading store…",
     loadFailed: "The API request failed.",
     health: "API {{status}} · {{environment}} · {{storeId}}",
