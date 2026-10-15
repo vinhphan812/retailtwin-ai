@@ -1,8 +1,10 @@
 """FastAPI application for the RetailTwin day-0 boundary."""
 
+import asyncio
 import logging
 import sys
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import AsyncIterator, Callable, Mapping, Sequence
+from contextlib import asynccontextmanager
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -14,18 +16,24 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from retailtwin_api.agent_activity import AgentActivityLog
 from retailtwin_api.agents.executor import build_commit_service
+from retailtwin_api.agents.observer.consumer import (
+    MemoryActivationLedger,
+    consume_available,
+)
 from retailtwin_api.agents.orchestrator.autonomy import AutonomousInvestigations
 from retailtwin_api.agents.orchestrator.tool_registry import build_store_registry
-from retailtwin_api.backbone import MemoryPipe, MemoryQuarantine
-from retailtwin_api.agents.observer.consumer import MemoryActivationLedger
+from retailtwin_api.backbone import EventPipe, MemoryPipe, MemoryQuarantine
+from retailtwin_api.backbone_gcp import GcpPubSubEventPipe
 from retailtwin_api.analytics_repository import (
     get_checkout_repository,
     unavailable_analytics_repositories,
 )
 from retailtwin_api.decisions import InMemoryDecisionSource, unavailable_decision_source
+from retailtwin_api.demand_surge import DemandSurgeScheduler
 from retailtwin_api.errors import ApiError, api_error_handler, http_error_handler, validation_error_handler
 from retailtwin_api.events import EventLog, ReviewAuditLog
 from retailtwin_api.firestore_twin import FirestoreLiveTwinRepository, LiveTwinRepository
+from retailtwin_api.flagship.agent_starter import FlagshipInvestigationStarter
 from retailtwin_api.guard.decision_context_guard import InMemoryGuardAudit
 from retailtwin_api.middleware import CorrelationMiddleware
 from retailtwin_api.routes import router
@@ -40,11 +48,73 @@ logger = logging.getLogger(__name__)
 def create_app(settings: Settings | None = None) -> FastAPI:
     resolved = settings or get_settings()
 
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        # Build the EventPipe based on the runtime environment. Production
+        # Cloud Run uses GcpPubSubEventPipe against the canonical
+        # ``store-events`` topic and ``store-events-agent`` subscription;
+        # every other environment uses MemoryPipe so a developer or test
+        # never opens a real GCP project.
+        event_pipe = _build_event_pipe(resolved)
+        activation_ledger = MemoryActivationLedger()
+        quarantine = MemoryQuarantine()
+        starter = FlagshipInvestigationStarter(
+            controller_getter=lambda: getattr(app.state, "flagship_controller", None),
+        )
+
+        app.state.event_pipe = event_pipe
+        app.state.activation_ledger = activation_ledger
+        app.state.observer_quarantine = quarantine
+        app.state.observer_starter = starter
+
+        trigger_task: asyncio.Task[None] | None = None
+        scheduler: DemandSurgeScheduler | None = None
+
+        if resolved.autonomous_trigger_enabled:
+            trigger_task = asyncio.create_task(
+                _autonomous_trigger_loop(
+                    event_pipe,
+                    activation_ledger,
+                    starter,
+                    quarantine,
+                ),
+                name="retailtwin-autonomous-trigger",
+            )
+        if resolved.autonomous_scheduled_publisher_enabled:
+            scheduler = DemandSurgeScheduler(
+                event_pipe,
+                float(resolved.autonomous_trigger_interval_seconds),
+            )
+            scheduler.start()
+
+        # Surface the running background work on app.state so tests and
+        # operators can introspect them without reaching into the lifespan
+        # closure.
+        app.state.trigger_task = trigger_task
+        app.state.scheduler = scheduler
+
+        try:
+            yield
+        finally:
+            if trigger_task is not None:
+                trigger_task.cancel()
+                try:
+                    await trigger_task
+                except asyncio.CancelledError:
+                    pass
+                except Exception:
+                    logger.exception("autonomous_trigger.teardown_failed")
+            if scheduler is not None:
+                await scheduler.stop()
+            app.state.trigger_task = None
+            app.state.scheduler = None
+
     app = FastAPI(
         title="RetailTwin API",
         version="0.1.0",
         description="Day-0 retail store event API. Structured JSON logs and "
         "correlation IDs are enabled in all environments.",
+        lifespan=lifespan,
     )
     app.state.settings = resolved
 
@@ -323,6 +393,59 @@ def _wire_flagship_controller(
 
 def _origins(value: str) -> list[str]:
     return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def _build_event_pipe(settings: Settings) -> EventPipe:
+    """Build the EventPipe the autonomous trigger pulls from.
+
+    Production wires :class:`GcpPubSubEventPipe` against the canonical
+    ``store-events`` topic and ``store-events-agent`` subscription. Every
+    other environment uses :class:`MemoryPipe` so the trigger can be
+    exercised end-to-end without a real GCP project.
+
+    When ``APP_ENV=production`` but no project is configured, the lifespan
+    logs a warning and falls back to :class:`MemoryPipe`. The trigger
+    simply does not fire in that case, mirroring the way the flagship
+    controller degrades when its wiring fails.
+    """
+
+    if settings.is_production:
+        project = settings.autonomous_pubsub_project or settings.google_cloud_project
+        if not project:
+            logger.warning(
+                "autonomous_trigger.pipe_unavailable reason=missing_project app_env=production"
+            )
+            return MemoryPipe()
+        return GcpPubSubEventPipe(
+            project=project,
+            topic="store-events",
+            subscription=settings.autonomous_pubsub_subscription,
+        )
+    return MemoryPipe()
+
+
+async def _autonomous_trigger_loop(
+    pipe: EventPipe,
+    ledger: MemoryActivationLedger,
+    starter: FlagshipInvestigationStarter,
+    quarantine: MemoryQuarantine,
+) -> None:
+    """Drive the observer consumer on the configured EventPipe.
+
+    The consumer is sync; :class:`FlagshipInvestigationStarter` runs the
+    flagship chain via :func:`asyncio.run` in the worker thread
+    :func:`asyncio.to_thread` selects, so the FastAPI event loop stays
+    responsive even when a flagship run takes seconds.
+    """
+
+    while True:
+        try:
+            await asyncio.to_thread(consume_available, pipe, ledger, starter, quarantine)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("autonomous_trigger.consume_failed")
+        await asyncio.sleep(0.5)
 
 
 app = create_app()

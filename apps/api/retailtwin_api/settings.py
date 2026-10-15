@@ -55,9 +55,26 @@ class Settings(BaseSettings):
     # ── Logging ──────────────────────────────────────────────────────────────
     log_level: str = Field(default="INFO")
 
+    # ── Autonomous trigger (ADR 0023) ────────────────────────────────────────
+    # Off by default in dev so a memory pipe never auto-publishes. Production
+    # Cloud Run sets these true so Pub/Sub push drives the agent.
+    autonomous_trigger_enabled: bool = Field(default=False)
+    autonomous_trigger_interval_seconds: int = Field(default=45, ge=5, le=3600)
+    autonomous_scheduled_publisher_enabled: bool = Field(default=False)
+    autonomous_pubsub_project: str | None = None
+    autonomous_pubsub_subscription: str = Field(default="store-events-agent")
+
     # ── Cloud Run production guard ────────────────────────────────────────────
     # Controls readiness/liveness separation and safety checks.
     # Set to "production" in Cloud Run environment variables.
+
+    # ── Pub/Sub push OIDC audience (ADR 0023) ─────────────────────────────────
+    # Cloud Run service URL the Pub/Sub push OIDC token must match. In
+    # production the gateway accepts push messages only when the verified
+    # ``aud`` claim equals this URL. Empty in dev / test so the route
+    # accepts the in-process MemoryPipe path without a real token.
+    app_base_url: str = Field(default="")
+
     @field_validator("app_env")
     @classmethod
     def validate_app_env(cls, v: str) -> str:
