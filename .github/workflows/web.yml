@@ -245,9 +245,13 @@ jobs:
       - name: Verify SPA rewrite works
         run: |
           # Test a non-root route that should be rewritten to index.html
+          # SPA rewrite returns the index.html content, verify app shell markers
           RESP=$(curl --fail --silent "${FRONTEND_URL}/twin")
-          if ! echo "${RESP}" | grep -q "index.html"; then
+          # Check for app shell markers (title, root element, or known text from index.html)
+          if ! echo "${RESP}" | grep -qE '<title>|<div id="root"|app|retailtwin'; then
             echo "ERROR: SPA rewrite not working for /twin route"
+            echo "Response does not contain expected app shell markers"
+            echo "First 200 chars: ${RESP:0:200}"
             exit 1
           fi
           echo "PASS: SPA rewrite works for /twin route"
@@ -257,7 +261,8 @@ jobs:
           HTML=$(curl --fail --silent "${FRONTEND_URL}/")
 
           # Extract first JS asset reference and verify it loads
-          JS_ASSET=$(echo "${HTML}" | grep -oE 'src="[^"]+\.js"' | head -1 | sed 's/src="//;s/"//')
+          # Use -E for extended regex and properly strip quotes
+          JS_ASSET=$(echo "${HTML}" | grep -oE 'src="[^"]+\.js"' | head -1 | sed -E 's/^src="//;s/"$//')
           if [ -n "${JS_ASSET}" ]; then
             if ! curl --fail --silent --head "${FRONTEND_URL}${JS_ASSET}" | grep -q "200\|301\|302"; then
               echo "ERROR: JS asset not loading: ${JS_ASSET}"
@@ -267,7 +272,7 @@ jobs:
           fi
 
           # Extract first CSS asset reference and verify it loads
-          CSS_ASSET=$(echo "${HTML}" | grep -oE 'href="[^"]+\.css"' | head -1 | sed 's/href="//;s/"//')
+          CSS_ASSET=$(echo "${HTML}" | grep -oE 'href="[^"]+\.css"' | head -1 | sed -E 's/^href="//;s/"$//')
           if [ -n "${CSS_ASSET}" ]; then
             if ! curl --fail --silent --head "${FRONTEND_URL}${CSS_ASSET}" | grep -q "200\|301\|302"; then
               echo "ERROR: CSS asset not loading: ${CSS_ASSET}"
