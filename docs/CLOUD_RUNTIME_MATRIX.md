@@ -173,17 +173,19 @@ The value is set in Cloud Run via `deploy-cloudrun.sh` or a manual `gcloud run s
 
 Issue [#99](https://github.com/vinhphan812/retailtwin-ai/issues/99) owns **all provisioning** of the resources listed in this document. This matrix is the specification that Terraform #99 must implement.
 
-| Resource Category | Terraform #99 Scope |
-|---|---|
-| Project, APIs, IAM | Full ownership |
-| Service accounts (retailtwin-api, retailtwin-agent, github-actions) | Full ownership |
-| Firestore, Pub/Sub, BigQuery, Cloud Storage | Full ownership |
-| Artifact Registry repository | Full ownership |
-| Cloud Run service definition | Full ownership |
-| Secret Manager secrets | Full ownership (future) |
-| WIF pool and provider | Full ownership |
-| Firebase Hosting | **Not owned** (firebase-tools) |
-| CORS environment variable | **Not owned** (runtime config) |
+> **Note on current state**: Resources listed here represent the **observed production state** as of October 2026. The current runtime contract is verified by `scripts/verify-cloud-preflight.sh`. Terraform #99 will codify and potentially migrate these resources.
+
+| Resource Category | Current State | Terraform #99 Scope |
+|---|---|---|
+| Project, APIs, IAM | **Already provisioned** | Codify existing |
+| Service accounts | **Already provisioned** | Import/adopt, no recreation |
+| Firestore, Pub/Sub, BigQuery, Cloud Storage | **Already provisioned** | Import/adopt |
+| Artifact Registry repository | **Target only** | Must create |
+| Cloud Run service | **Already deployed** | Import/adopt |
+| Secret Manager secrets | **Empty (day-0)** | Create when needed |
+| WIF pool and provider | **Already configured** | Import/adopt |
+| Firebase Hosting | **Already configured** | **Not owned** (firebase-tools) |
+| CORS environment variable | **Runtime config** | **Not owned** |
 
 ---
 
