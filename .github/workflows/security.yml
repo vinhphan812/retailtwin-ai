@@ -16,8 +16,6 @@ jobs:
       - name: Scan committed files for secrets (Trivy container)
         run: |
           docker run --rm -v "$PWD:/work:ro" aquasec/trivy:0.65.0 fs --scanners secret --severity HIGH,CRITICAL --exit-code 1 /work
-      - name: Install python3-venv (self-hosted runner)
-        run: sudo apt-get install -y python3-venv python3-pip
       - name: Python project dependency vulnerabilities
         run: |
           python3 -m venv /tmp/retailtwin-app-venv
