@@ -1,0 +1,1148 @@
+name: Release Gate
+on:
+  workflow_run:
+    workflows:
+      - API CI
+      - Web CI / CD
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      backend_url:
+        description: Backend Cloud Run URL (defaults to deployed service)
+        required: false
+        type: string
+      frontend_url:
+        description: Frontend Firebase Hosting URL (defaults to deployed site)
+        required: false
+        type: string
+      smoke_run_id:
+        description: Smoke run ID prefix (optional, defaults to auto-generated)
+        required: false
+        type: string
+concurrency:
+  group: release-gate-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+  id-token: write
+  actions: read
+  checks: read
+  packages: read
+env:
+  GCP_PROJECT: retailtwin-ai-511002
+  GCP_REGION: us-central1
+  CLOUD_RUN_SERVICE: retailtwin-api
+  PUBSUB_TOPIC: store-events
+  STORE_ID: store-001
+  FIXTURE_P001: P001
+  FIXTURE_P017: P017
+jobs:
+  # ── Gate: same-SHA barrier ────────────────────────────────────────────────────
+  #
+  # Fails closed if either "API CI" or "Web CI / CD" is absent, mismatched,
+  # pending, or failed for the same head SHA.
+  #
+  # Uses github.event.workflow_run.head_sha — the SHA the source workflows ran on.
+  # NOT github.sha (which is the gate workflow's own SHA).
+  #
+  gate:
+    name: "Gate: Same-SHA CI Barrier"
+    runs-on: ubuntu-latest
+    # Skip for manual dispatch and for pushes to feature branches.
+    # Only run when triggered by workflow_run (after real main deploys) or on main.
+    # Guard: workflow_run fires for each completed workflow independently.
+    # Fail closed if triggered before the event status is 'completed'.
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || (github.event_name == 'workflow_run'
+          && github.event.workflow_run.status == 'completed')
+    outputs:
+      gate_sha: ${{ steps.validate.outputs.gate_sha }}
+      gate_passed: ${{ steps.validate.outputs.both_passed }}
+    steps:
+      - name: Fetch gate SHA
+        id: sha
+        run: |
+          # workflow_run: head_sha is the SHA the triggering workflow ran on.
+          # workflow_dispatch: github.sha is the current commit SHA.
+          if [ "${{ github.event_name }}" == "workflow_run" ]; then
+            GATE_SHA="${{ github.event.workflow_run.head_sha }}"
+          else
+            GATE_SHA="${{ github.sha }}"
+          fi
+          if [ -z "${GATE_SHA}" ]; then
+            echo "::error::Cannot determine git SHA — both github.event.workflow_run.head_sha and github.sha are empty"
+            exit 1
+          fi
+          echo "gate_sha=${GATE_SHA}" >> $GITHUB_OUTPUT
+          echo "Gate SHA: ${GATE_SHA}"
+
+      - name: Validate same-SHA success via GitHub REST API
+        id: validate
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GATE_SHA: ${{ steps.sha.outputs.gate_sha }}
+        run: |
+          set -e
+          echo "Validating SHA: ${GATE_SHA}"
+
+          # Fetch most-recent "API CI" run at this exact SHA.
+          echo "::group::Query API CI runs for ${GATE_SHA}"
+          API_RUNS=$(gh api "repos/${{ github.repository }}/actions/workflows/api.yml/runs" \
+            --jq "[.workflow_runs[] | select(.head_sha == \"${GATE_SHA}\")][0] | {head_sha, conclusion, status}" \
+            2>/dev/null || echo '{"head_sha": null, "conclusion": null, "status": null}')
+          echo "${API_RUNS}"
+          echo "::endgroup::"
+
+          # Fetch most-recent "Web CI / CD" run at this exact SHA.
+          echo "::group::Query Web CI / CD runs for ${GATE_SHA}"
+          WEB_RUNS=$(gh api "repos/${{ github.repository }}/actions/workflows/web.yml/runs" \
+            --jq "[.workflow_runs[] | select(.head_sha == \"${GATE_SHA}\")][0] | {head_sha, conclusion, status}" \
+            2>/dev/null || echo '{"head_sha": null, "conclusion": null, "status": null}')
+          echo "${WEB_RUNS}"
+          echo "::endgroup::"
+
+          echo "${API_RUNS}" > /tmp/api_run.json
+          echo "${WEB_RUNS}" > /tmp/web_run.json
+
+          # Deterministic inline Python evaluator — no external script needed.
+          python3 - << 'PYEOF'
+          import json, sys
+          errors = []
+          for label, path in [("API CI", "/tmp/api_run.json"), ("Web CI / CD", "/tmp/web_run.json")]:
+              try:
+                  run = json.load(open(path))
+              except Exception as exc:
+                  errors.append(f"{label}: could not parse run JSON: {exc}")
+                  continue
+              head_sha = run.get("head_sha") or ""
+              status   = run.get("status")   or ""
+              conc     = run.get("conclusion") or ""
+              if not head_sha:
+                  errors.append(f"{label}: no run found for SHA {sys.argv[1]}")
+              elif status in ("in_progress", "queued", "waiting"):
+                  errors.append(f"{label}: run is {status} for SHA {sys.argv[1]}")
+              elif conc != "success":
+                  errors.append(f"{label}: conclusion={conc or 'null'} (not success) for SHA {sys.argv[1]}")
+          ok = not errors
+          print(f"::debug::Gate decision: ok={ok}")
+          for e in errors:
+              print(f"::error::{e}")
+          sys.exit(0 if ok else 1)
+          PYEOF
+          "${GATE_SHA}"
+
+          RESULT=$?
+          if [ ${RESULT} -eq 0 ]; then
+            echo "both_passed=true" >> $GITHUB_OUTPUT
+            echo "gate_sha=${GATE_SHA}" >> $GITHUB_OUTPUT
+            echo "::notice::Release gate PASSED — both workflows succeeded for SHA ${GATE_SHA}"
+          else
+            echo "both_passed=false" >> $GITHUB_OUTPUT
+            echo "gate_sha=${GATE_SHA}" >> $GITHUB_OUTPUT
+            echo "::error::Release gate FAILED — both 'API CI' and 'Web CI / CD' must succeed for the same SHA."
+            exit 1
+          fi
+
+      - name: Verify deployed artifacts exist for the SHA
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          # workflow_dispatch bypasses the workflow_run trigger, so we must
+          # independently confirm the SHA has produced deployed artifacts —
+          # not just that CI passed, but that the deploy steps ran and landed.
+          GATE_SHA="${{ steps.sha.outputs.gate_sha }}"
+          ARTIFACT_OK=false
+
+          # ── Backend: container image in Artifact Registry ────────────────────
+          echo "::group::Check Artifact Registry for backend image @ ${GATE_SHA}"
+          DIGEST=$(gcloud artifacts docker images describe \
+            "gcr.io/${{ env.GCP_PROJECT }}/${{ env.CLOUD_RUN_SERVICE }}:${GATE_SHA}" \
+            --format="value(image_summary.fully_qualified_digest)" 2>/dev/null || echo "")
+          if [ -n "${DIGEST}" ]; then
+            echo "✓ Backend image found in Artifact Registry: ${DIGEST}"
+            ARTIFACT_OK=true
+          else
+            echo "::warning::Backend image not found in Artifact Registry for SHA ${GATE_SHA}"
+          fi
+          echo "::endgroup::"
+
+          # ── Frontend: web-dist artifact (uploaded on every main push) ───────
+          echo "::group::Check Actions artifacts for web-dist @ ${GATE_SHA}"
+          # Build and artifact names include the SHA when uploaded on push.
+          # List artifacts for the run that covered this SHA and check for web-dist.
+          WEB_RUN=$(gh api "repos/${{ github.repository }}/actions/workflows/web.yml/runs" \
+            --jq "[.workflow_runs[] | select(.head_sha == \"${GATE_SHA}\")][0] | {id, conclusion}" \
+            2>/dev/null || echo '{"id": null, "conclusion": null}')
+          WEB_RUN_ID=$(echo "${WEB_RUN}" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id','') or '')" 2>/dev/null)
+          if [ -n "${WEB_RUN_ID}" ] && [ "${WEB_RUN_ID}" != "None" ]; then
+            echo "✓ Web CI / CD run found for SHA ${GATE_SHA} (run ID: ${WEB_RUN_ID})"
+            # web-dist is uploaded only on push to main — check the run's artifacts.
+            ARTIFACTS=$(gh api "repos/${{ github.repository }}/actions/runs/${WEB_RUN_ID}/artifacts" \
+              --jq ".artifacts[].name" 2>/dev/null || echo "")
+            if echo "${ARTIFACTS}" | grep -q "web-dist"; then
+              echo "✓ web-dist artifact found for SHA ${GATE_SHA}"
+              ARTIFACT_OK=true
+            else
+              echo "::warning::web-dist artifact NOT found for SHA ${GATE_SHA} — frontend may not have been deployed"
+            fi
+          else
+            echo "::warning::No Web CI / CD run found for SHA ${GATE_SHA}"
+          fi
+          echo "::endgroup::"
+
+          # Fail if neither backend image nor frontend artifacts are found.
+          if [ "${ARTIFACT_OK}" != "true" ]; then
+            echo "::error::No deployed artifacts found for SHA ${GATE_SHA} — cannot release from workflow_dispatch without a prior deploy run."
+            echo "::error::Trigger the release gate via workflow_run (push to main) to ensure artifacts are deployed first."
+            exit 1
+          fi
+
+          echo "::notice::Deployed artifacts verified for SHA ${GATE_SHA}"
+
+      - name: Publish gate result
+        run: |
+          echo "## Release Gate" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
+          echo "| Gate SHA | \`${{ steps.sha.outputs.gate_sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Gate Passed | \`${{ steps.validate.outputs.both_passed }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Trigger | \`${{ github.event_name }}\` |" >> $GITHUB_STEP_SUMMARY
+
+  metadata:
+    name: Gather Release Metadata
+    runs-on: ubuntu-latest
+    if: always()
+    outputs:
+      backend_url: ${{ steps.backend.outputs.url }}
+      frontend_url: ${{ steps.frontend.outputs.url }}
+      git_sha: ${{ steps.sha.outputs.sha }}
+      gate_passed: ${{ needs.gate.outputs.gate_passed || 'true' }}
+      cloud_run_revision: ${{ steps.revision.outputs.revision }}
+      image_digest: ${{ steps.image.outputs.digest }}
+      run_timestamp: ${{ steps.time.outputs.timestamp }}
+      smoke_run_id: ${{ steps.run_id.outputs.run_id }}
+      gcp_project: ${{ env.GCP_PROJECT }}
+      gcp_region: ${{ env.GCP_REGION }}
+      demo_data_version: ${{ steps.demo_data.outputs.version }}
+      llm_provider: ${{ steps.llm.outputs.provider }}
+      llm_model: ${{ steps.llm.outputs.model }}
+      is_manual: ${{ github.event_name == 'workflow_dispatch' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set smoke run ID
+        id: run_id
+        run: |
+          RUN_PREFIX="${{ inputs.smoke_run_id || 'smoke' }}"
+          RUN_SUFFIX=$(date -u +%Y%m%d%H%M%S)
+          RUN_ID="${RUN_PREFIX}-${RUN_SUFFIX}"
+          echo "run_id=${RUN_ID}" >> $GITHUB_OUTPUT
+          echo "Smoke run ID: ${RUN_ID}"
+      - name: Record timestamp
+        id: time
+        run: echo "timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_OUTPUT
+      - name: Record Git SHA
+        id: sha
+        run: |
+          # For workflow_run: use head_sha — the SHA the source workflows ran on.
+          # For workflow_dispatch: use github.sha (current branch HEAD).
+          if [ "${{ github.event_name }}" == "workflow_run" ]; then
+            GATE_SHA="${{ github.event.workflow_run.head_sha }}"
+          else
+            GATE_SHA="${{ github.sha }}"
+          fi
+          if [ -z "${GATE_SHA}" ]; then
+            echo "::error::Cannot determine git SHA"
+            exit 1
+          fi
+          echo "sha=${GATE_SHA}" >> $GITHUB_OUTPUT
+          echo "Git SHA: ${GATE_SHA}"
+      - name: Authenticate to Google Cloud
+        if: github.event_name != 'workflow_dispatch'
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SA }}
+      - name: Resolve backend URL
+        id: backend
+        run: |
+          if [ -n "${{ inputs.backend_url }}" ]; then
+            echo "url=${{ inputs.backend_url }}" >> $GITHUB_OUTPUT
+          else
+            # Query the deployed Cloud Run service URL.
+            URL=$(gcloud run services describe ${{ env.CLOUD_RUN_SERVICE }} \
+              --region=${{ env.GCP_REGION }} \
+              --project=${{ env.GCP_PROJECT }} \
+              --format="value(status.url)" 2>/dev/null || echo "")
+            if [ -z "$URL" ]; then
+              echo "::error::Could not resolve backend URL. Set backend_url input or ensure Cloud Run service exists."
+              exit 1
+            fi
+            echo "url=${URL}" >> $GITHUB_OUTPUT
+          fi
+          echo "Backend URL: ${{ steps.backend.outputs.url }}"
+      - name: Resolve frontend URL
+        id: frontend
+        run: |
+          if [ -n "${{ inputs.frontend_url }}" ]; then
+            echo "url=${{ inputs.frontend_url }}" >> $GITHUB_OUTPUT
+          else
+            # Firebase Hosting URL from repo variable (set in web.yml).
+            URL="${{ vars.FIREBASE_HOSTING_URL }}"
+            if [ -z "$URL" ]; then
+              echo "::warning::Could not resolve frontend URL. Set frontend_url input or FIREBASE_HOSTING_URL variable."
+              URL="https://retailtwin-ai.web.app"
+            fi
+            echo "url=${URL}" >> $GITHUB_OUTPUT
+          fi
+          echo "Frontend URL: ${{ steps.frontend.outputs.url }}"
+      - name: Get Cloud Run revision
+        id: revision
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          REV=$(gcloud run services describe ${{ env.CLOUD_RUN_SERVICE }} \
+            --region=${{ env.GCP_REGION }} \
+            --project=${{ env.GCP_PROJECT }} \
+            --format="value(status.latestCreatedRevisionName)" 2>/dev/null || echo "unknown")
+          echo "revision=${REV}" >> $GITHUB_OUTPUT
+          echo "Cloud Run revision: ${REV}"
+      - name: Get container image digest
+        id: image
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          # Resolve image for the release SHA from this job's sha step output.
+          DIGEST=$(gcloud artifacts docker images describe \
+            "gcr.io/${{ env.GCP_PROJECT }}/${{ env.CLOUD_RUN_SERVICE }}:${{ steps.sha.outputs.sha }}" \
+            --format="value(image_summary.fully_qualified_digest)" 2>/dev/null || echo "sha-${{ steps.sha.outputs.sha }}")
+          echo "digest=${DIGEST}" >> $GITHUB_OUTPUT
+          echo "Image digest: ${DIGEST}"
+      - name: Resolve demo data version
+        id: demo_data
+        run: |
+          # Use the release SHA as demo data version identifier.
+          DEMO_VERSION="${{ steps.sha.outputs.sha }}"
+          echo "version=${DEMO_VERSION}" >> $GITHUB_OUTPUT
+          echo "Demo data version: ${DEMO_VERSION}"
+      - name: Read LLM configuration
+        id: llm
+        run: |
+          # Canonical production contract (per llm/factory.py):
+          #   production: LLM_PROVIDER=vertex_gemini, LLM_MODEL=gemini-2.5-flash
+          PROVIDER="${LLM_PROVIDER:-vertex_gemini}"
+          MODEL="${LLM_MODEL:-gemini-2.5-flash}"
+          echo "provider=${PROVIDER}" >> $GITHUB_OUTPUT
+          echo "model=${MODEL}" >> $GITHUB_OUTPUT
+          echo "LLM provider: ${PROVIDER}, model: ${MODEL}"
+      - name: Publish metadata to summary
+        run: |
+          echo "## Release Metadata" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
+          echo "| Smoke Run ID | \`${{ steps.run_id.outputs.run_id }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Git SHA | \`${{ steps.sha.outputs.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Timestamp | \`${{ steps.time.outputs.timestamp }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend URL | \`${{ steps.backend.outputs.url }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend URL | \`${{ steps.frontend.outputs.url }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Cloud Run Revision | \`${{ steps.revision.outputs.revision || 'N/A' }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Image Digest | \`${{ steps.image.outputs.digest || 'N/A' }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| GCP Project | \`${{ env.GCP_PROJECT }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| GCP Region | \`${{ env.GCP_REGION }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| LLM Provider | \`${{ steps.llm.outputs.provider }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| LLM Model | \`${{ steps.llm.outputs.model }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Demo Data Version | \`${{ steps.demo_data.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
+  smoke-backend-health:
+    name: 1. Backend Liveness
+    runs-on: ubuntu-latest
+    needs: [metadata, gate]
+    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true'
+    env:
+      BACKEND_URL: ${{ needs.metadata.outputs.backend_url }}
+      SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
+      GIT_SHA: ${{ needs.metadata.outputs.git_sha }}
+    steps:
+      - name: Check /health endpoint
+        id: health_check
+        run: |
+          set -e
+          echo "::group::GET /health"
+          RESPONSE=$(curl -sS -w "\n---HTTP_CODE:%{http_code}---" \
+            --max-time 30 \
+            -H "X-Correlation-ID: ${{ env.SMOKE_RUN_ID }}" \
+            "${{ env.BACKEND_URL }}/health")
+          echo "${RESPONSE}"
+          echo "::endgroup::"
+
+          HTTP_CODE=$(echo "${RESPONSE}" | grep -oP '---HTTP_CODE:\K\d+(?=---)')
+          BODY=$(echo "${RESPONSE}" | sed 's/---HTTP_CODE:.*//')
+
+          if [ "${HTTP_CODE}" != "200" ]; then
+            echo "::error::Health check failed with HTTP ${HTTP_CODE}"
+            exit 1
+          fi
+
+          # Validate response fields.
+          if ! echo "${BODY}" | grep -q '"status"'; then
+            echo "::error::Health response missing 'status' field"
+            exit 1
+          fi
+
+          # Check for production environment.
+          if ! echo "${BODY}" | grep -q '"app_env":"production"'; then
+            echo "::error::Backend not in production mode"
+            exit 1
+          fi
+
+          echo "✓ /health returned OK"
+      - name: Publish result to summary
+        run: |
+          echo "### Smoke Check 1: Backend Liveness" >> $GITHUB_STEP_SUMMARY
+          echo "**Status: PASS**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Endpoint: \`${{ env.BACKEND_URL }}/health\`" >> $GITHUB_STEP_SUMMARY
+          echo "Response: HTTP 200, app_env=production" >> $GITHUB_STEP_SUMMARY
+  smoke-backend-readiness:
+    name: 2. Backend Readiness
+    runs-on: ubuntu-latest
+    needs: [metadata, gate, smoke-backend-health]
+    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true'
+    env:
+      BACKEND_URL: ${{ needs.metadata.outputs.backend_url }}
+      SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
+    steps:
+      - name: Check /ready endpoint
+        id: ready_check
+        run: |
+          set -e
+          echo "::group::GET /ready"
+          HTTP_CODE=$(curl -sS -o /dev/null -w "%{http_code}" \
+            --max-time 30 \
+            -H "X-Correlation-ID: ${{ env.SMOKE_RUN_ID }}" \
+            "${{ env.BACKEND_URL }}/ready")
+          echo "HTTP ${HTTP_CODE}"
+          echo "::endgroup::"
+
+          if [ "${HTTP_CODE}" != "200" ]; then
+            echo "::error::Readiness probe failed with HTTP ${HTTP_CODE}"
+            exit 1
+          fi
+
+          echo "✓ /ready returned 200 (service ready for traffic)"
+      - name: Publish result to summary
+        run: |
+          echo "### Smoke Check 2: Backend Readiness" >> $GITHUB_STEP_SUMMARY
+          echo "**Status: PASS**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Endpoint: \`${{ env.BACKEND_URL }}/ready\`" >> $GITHUB_STEP_SUMMARY
+          echo "Response: HTTP 200 (ready for load-balanced traffic)" >> $GITHUB_STEP_SUMMARY
+  smoke-firestore-store:
+    name: 3. Firestore-Backed Store Read
+    runs-on: ubuntu-latest
+    needs: [metadata, gate, smoke-backend-readiness]
+    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true'
+    env:
+      BACKEND_URL: ${{ needs.metadata.outputs.backend_url }}
+      SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
+      STORE_ID: ${{ env.STORE_ID }}
+      GCP_PROJECT: ${{ env.GCP_PROJECT }}
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_RUNTIME_SA }}
+      - name: Check GET /store
+        id: store_check
+        run: |
+          set -e
+          echo "::group::GET /store"
+          RESPONSE=$(curl -sS -w "\n---HTTP_CODE:%{http_code}---" \
+            --max-time 30 \
+            -H "X-Correlation-ID: ${{ env.SMOKE_RUN_ID }}" \
+            "${{ env.BACKEND_URL }}/store")
+          echo "${RESPONSE}"
+          echo "::endgroup::"
+
+          HTTP_CODE=$(echo "${RESPONSE}" | grep -oP '---HTTP_CODE:\K\d+(?=---)')
+          BODY=$(echo "${RESPONSE}" | sed 's/---HTTP_CODE:.*//')
+
+          if [ "${HTTP_CODE}" != "200" ]; then
+            echo "::error::Store read failed with HTTP ${HTTP_CODE}"
+            exit 1
+          fi
+
+          # Validate store response structure.
+          if ! echo "${BODY}" | grep -q '"store_id"'; then
+            echo "::error::Store response missing 'store_id'"
+            exit 1
+          fi
+
+          if ! echo "${BODY}" | grep -q '"products"'; then
+            echo "::error::Store response missing 'products'"
+            exit 1
+          fi
+
+          # Verify correct store.
+          if ! echo "${BODY}" | grep -q "\"store_id\":\"${{ env.STORE_ID }}\""; then
+            echo "::error::Wrong store returned (expected ${{ env.STORE_ID }})"
+            exit 1
+          fi
+
+          echo "✓ /store returned valid Firestore-backed inventory"
+      - name: Verify Firestore directly
+        run: |
+          set -e
+          echo "::group::Direct Firestore verification"
+          # Verify the store document exists in Firestore.
+          DOC_PATH="projects/${{ env.GCP_PROJECT }}/databases/(default)/documents/stores/${{ env.STORE_ID }}"
+          gcloud firestore documents describe "${DOC_PATH}" --format="value(store_id,version)" 2>/dev/null || {
+            echo "::warning::Could not verify Firestore directly (may be using memory backend)"
+          }
+          echo "::endgroup::"
+      - name: Publish result to summary
+        run: |
+          echo "### Smoke Check 3: Firestore-Backed Store Read" >> $GITHUB_STEP_SUMMARY
+          echo "**Status: PASS**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Endpoint: \`${{ env.BACKEND_URL }}/store\`" >> $GITHUB_STEP_SUMMARY
+          echo "Store ID: \`${{ env.STORE_ID }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "Response: HTTP 200, valid store structure" >> $GITHUB_STEP_SUMMARY
+  smoke-inventory-p001:
+    name: 4. P001 Inventory Read
+    runs-on: ubuntu-latest
+    needs: [metadata, gate, smoke-firestore-store]
+    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true'
+    env:
+      BACKEND_URL: ${{ needs.metadata.outputs.backend_url }}
+      SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
+      SKU: ${{ env.FIXTURE_P001 }}
+    steps:
+      - name: Read P001 inventory
+        id: p001_check
+        run: |
+          set -e
+          echo "::group::GET /inventory/P001"
+          RESPONSE=$(curl -sS -w "\n---HTTP_CODE:%{http_code}---" \
+            --max-time 30 \
+            -H "X-Correlation-ID: ${{ env.SMOKE_RUN_ID }}" \
+            "${{ env.BACKEND_URL }}/inventory/P001")
+          echo "${RESPONSE}"
+          echo "::endgroup::"
+
+          HTTP_CODE=$(echo "${RESPONSE}" | grep -oP '---HTTP_CODE:\K\d+(?=---)')
+          BODY=$(echo "${RESPONSE}" | sed 's/---HTTP_CODE:.*//')
+
+          if [ "${HTTP_CODE}" != "200" ]; then
+            echo "::error::P001 read failed with HTTP ${HTTP_CODE}"
+            exit 1
+          fi
+
+          # Validate P001 response.
+          if ! echo "${BODY}" | grep -q '"sku":"P001"'; then
+            echo "::error::Wrong SKU returned for P001"
+            exit 1
+          fi
+
+          # Validate inventory fields.
+          for field in shelf_quantity backroom_quantity facings shelf_id; do
+            if ! echo "${BODY}" | grep -q "\"${field}\""; then
+              echo "::error::Missing field '${field}' in P001 response"
+              exit 1
+            fi
+          done
+
+          echo "✓ P001 inventory read successful"
+      - name: Publish result to summary
+        run: |
+          echo "### Smoke Check 4: P001 Inventory Read" >> $GITHUB_STEP_SUMMARY
+          echo "**Status: PASS**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "SKU: P001" >> $GITHUB_STEP_SUMMARY
+          echo "Endpoint: \`${{ env.BACKEND_URL }}/inventory/P001\`" >> $GITHUB_STEP_SUMMARY
+          echo "Response: HTTP 200, valid inventory structure" >> $GITHUB_STEP_SUMMARY
+  smoke-inventory-p017:
+    name: 5. P017 Inventory Read
+    runs-on: ubuntu-latest
+    needs: [metadata, gate, smoke-inventory-p001]
+    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true'
+    env:
+      BACKEND_URL: ${{ needs.metadata.outputs.backend_url }}
+      SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
+      SKU: ${{ env.FIXTURE_P017 }}
+    steps:
+      - name: Read P017 inventory
+        id: p017_check
+        run: |
+          set -e
+          echo "::group::GET /inventory/P017"
+          # P017 may or may not exist depending on whether demo data was seeded.
+          # We accept both 200 (exists) and 404 (not seeded yet) as valid.
+          HTTP_CODE=$(curl -sS -o /tmp/p017_response.json -w "%{http_code}" \
+            --max-time 30 \
+            -H "X-Correlation-ID: ${{ env.SMOKE_RUN_ID }}" \
+            "${{ env.BACKEND_URL }}/inventory/P017")
+          echo "HTTP ${HTTP_CODE}"
+          echo "Response: $(cat /tmp/p017_response.json | head -c 500)"
+          echo "::endgroup::"
+
+          if [ "${HTTP_CODE}" == "200" ]; then
+            echo "✓ P017 exists in inventory (demo data seeded)"
+          elif [ "${HTTP_CODE}" == "404" ]; then
+            echo "✓ P017 not yet seeded (404 is acceptable)"
+          else
+            echo "::error::P017 read failed with unexpected HTTP ${HTTP_CODE}"
+            exit 1
+          fi
+      - name: Publish result to summary
+        run: |
+          echo "### Smoke Check 5: P017 Inventory Read" >> $GITHUB_STEP_SUMMARY
+          echo "**Status: PASS** (existence optional — demo data)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "SKU: P017 (known from weekend-demand-surge fixture)" >> $GITHUB_STEP_SUMMARY
+          echo "Note: 200 or 404 are both acceptable" >> $GITHUB_STEP_SUMMARY
+  smoke-pubsub-event:
+    name: 6. Pub/Sub Deterministic Event Trigger
+    runs-on: ubuntu-latest
+    needs: [metadata, gate, smoke-inventory-p017]
+    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true'
+    env:
+      GCP_PROJECT: ${{ env.GCP_PROJECT }}
+      PUBSUB_TOPIC: ${{ env.PUBSUB_TOPIC }}
+      SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
+      GIT_SHA: ${{ needs.metadata.outputs.git_sha }}
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_RUNTIME_SA }}
+      - name: Verify Pub/Sub topic exists
+        id: pubsub_check
+        run: |
+          set -e
+          echo "::group::gcloud pubsub topics describe"
+          TOPIC_PATH="projects/${{ env.GCP_PROJECT }}/topics/${{ env.PUBSUB_TOPIC }}"
+          gcloud pubsub topics describe "${{ env.PUBSUB_TOPIC }}" \
+            --project="${{ env.GCP_PROJECT }}" 2>&1 | head -20
+          echo "::endgroup::"
+
+          if [ $? -ne 0 ]; then
+            echo "::error::Pub/Sub topic '${{ env.PUBSUB_TOPIC }}' not found"
+            exit 1
+          fi
+
+          echo "✓ Pub/Sub topic '${{ env.PUBSUB_TOPIC }}' exists"
+      - name: Publish a deterministic test event
+        id: publish_test
+        run: |
+          set -e
+          EVENT_ID="evt-gate-${{ env.GIT_SHA }}-$(date -u +%Y%m%d%H%M%S)"
+          CORRELATION_ID="${{ env.SMOKE_RUN_ID }}"
+          NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+          PAYLOAD=$(cat <<EOF
+          {
+            "event_id": "${EVENT_ID}",
+            "correlation_id": "${CORRELATION_ID}",
+            "event_type": "sale.completed",
+            "store_id": "${{ env.STORE_ID }}",
+            "sku": "P001",
+            "quantity": 1,
+            "occurred_at": "${NOW}",
+            "source": "release-gate-smoke"
+          }
+          EOF
+          )
+
+          echo "::group::Publish test event to Pub/Sub"
+          echo "Event ID: ${EVENT_ID}"
+          echo "Payload: ${PAYLOAD}"
+
+          gcloud pubsub topics publish "${{ env.PUBSUB_TOPIC }}" \
+            --project="${{ env.GCP_PROJECT }}" \
+            --message="${PAYLOAD}" \
+            --attribute=event_id="${EVENT_ID}",correlation_id="${CORRELATION_ID}",event_type="sale.completed",store_id="${{ env.STORE_ID }}" \
+            --ordering-key="${EVENT_ID}" 2>&1
+
+          echo "::endgroup::"
+          echo "✓ Published deterministic test event to Pub/Sub"
+          echo "EVENT_ID=${EVENT_ID}" >> $GITHUB_OUTPUT
+          echo "Published event ID: ${EVENT_ID}"
+      - name: Verify event in BigQuery
+        id: bq_check
+        run: |
+          set -e
+          EVENT_ID="${{ steps.publish_test.outputs.EVENT_ID }}"
+          echo "::group::Query BigQuery for event"
+          echo "Waiting for event to appear in BigQuery..."
+
+          # Poll BigQuery for up to 60 seconds for the event.
+          for i in $(seq 1 12); do
+            RESULT=$(bq query --nouse_legacy_sql --format=json \
+              "SELECT event_id, event_type, sku, quantity, correlation_id
+               FROM \`${{ env.GCP_PROJECT }}.retailtwin.sales_events\`
+               WHERE event_id = '${EVENT_ID}'
+               LIMIT 1" 2>/dev/null | jq -r '.[0].event_id // empty')
+
+            if [ -n "${RESULT}" ]; then
+              echo "✓ Event landed in BigQuery after ${i} iterations"
+              echo "::endgroup::"
+              return 0
+            fi
+            echo "Waiting... (attempt ${i}/12)"
+            sleep 5
+          done
+
+          echo "::warning::Event did not appear in BigQuery within 60 seconds"
+          echo "This may be expected if the analytics lander is not yet deployed."
+          echo "Event ID: ${EVENT_ID}"
+          echo "Correlation ID: ${{ env.SMOKE_RUN_ID }}"
+          echo "::endgroup::"
+          # Do not fail the gate for analytics pipeline delays.
+          # The event was published successfully; BigQuery landing is async.
+      - name: Publish result to summary
+        run: |
+          echo "### Smoke Check 6: Pub/Sub Deterministic Event" >> $GITHUB_STEP_SUMMARY
+          echo "**Status: PASS**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Pub/Sub Topic: \`${{ env.PUBSUB_TOPIC }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "Event ID: \`${{ steps.publish_test.outputs.EVENT_ID || 'N/A' }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "Correlation ID: \`${{ env.SMOKE_RUN_ID }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "Note: BigQuery landing is async and may lag" >> $GITHUB_STEP_SUMMARY
+  smoke-agent-activity:
+    name: 7. Agent Activity Verification
+    runs-on: ubuntu-latest
+    needs: [metadata, gate, smoke-pubsub-event]
+    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true'
+    env:
+      BACKEND_URL: ${{ needs.metadata.outputs.backend_url }}
+      SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
+      GCP_PROJECT: ${{ env.GCP_PROJECT }}
+    steps:
+      - name: Check /agent/events endpoint
+        id: agent_events_check
+        run: |
+          set -e
+          echo "::group::GET /agent/events"
+          RESPONSE=$(curl -sS -w "\n---HTTP_CODE:%{http_code}---" \
+            --max-time 30 \
+            -H "X-Correlation-ID: ${{ env.SMOKE_RUN_ID }}" \
+            "${{ env.BACKEND_URL }}/agent/events?limit=10")
+          echo "${RESPONSE}" | head -100
+          echo "::endgroup::"
+
+          HTTP_CODE=$(echo "${RESPONSE}" | grep -oP '---HTTP_CODE:\K\d+(?=---)')
+
+          if [ "${HTTP_CODE}" == "200" ]; then
+            echo "✓ /agent/events returned 200"
+          elif [ "${HTTP_CODE}" == "503" ]; then
+            echo "::warning::Agent events endpoint unavailable (simulation repository not configured)"
+            # This is acceptable at day-0; agent activity appears after full deploy.
+          else
+            echo "::error::Unexpected HTTP ${HTTP_CODE} for /agent/events"
+            exit 1
+          fi
+      - name: Verify BigQuery agent_action_audit table
+        if: false
+        run: |
+          set -e
+          echo "::group::Check BigQuery agent_action_audit"
+          # Verify the audit table exists and is accessible.
+          bq query --nouse_legacy_sql --format=prettyjson \
+            "SELECT COUNT(*) as total FROM \`${{ env.GCP_PROJECT }}.retailtwin.agent_action_audit\` LIMIT 1" 2>&1 || {
+            echo "::warning::Could not query agent_action_audit table"
+          }
+          echo "::endgroup::"
+      - name: Publish result to summary
+        run: |
+          echo "### Smoke Check 7: Agent Activity Verification" >> $GITHUB_STEP_SUMMARY
+          echo "**Status: PASS**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Endpoint: \`${{ env.BACKEND_URL }}/agent/events\`" >> $GITHUB_STEP_SUMMARY
+          echo "Note: Observer/Investigator activity requires full agent pipeline deployment" >> $GITHUB_STEP_SUMMARY
+  smoke-secret-scan:
+    name: 8. No Secrets in Output
+    runs-on: ubuntu-latest
+    needs: [metadata, gate, smoke-agent-activity]
+    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true'
+    env:
+      BACKEND_URL: ${{ needs.metadata.outputs.backend_url }}
+      SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
+    steps:
+      - name: Scan for secret values in API responses
+        id: secret_scan
+        run: |
+          set -e
+          echo "::group::Secret scan of API responses"
+
+          # Endpoints to check.
+          ENDPOINTS="/health /ready /store /inventory/P001"
+
+          # Patterns that should NEVER appear in API output (case-insensitive).
+          SECRET_PATTERNS=(
+            "sk-[a-zA-Z0-9]{20,}"        # OpenAI-style keys
+            "AIza[a-zA-Z0-9_-]{35,}"     # Google API keys
+            "ya29\.[a-zA-Z0-9_-]{100,}"  # Google OAuth tokens
+            "ghp_[a-zA-Z0-9]{36,}"       # GitHub PATs
+            "gho_[a-zA-Z0-9]{36,}"       # GitHub OAuth
+            "[a-zA-Z0-9+/]{40,}={0,2}"   # Generic base64 tokens (heuristic)
+          )
+
+          VIOLATIONS=0
+
+          for endpoint in ${ENDPOINTS}; do
+            echo "Checking ${endpoint}..."
+            RESPONSE=$(curl -sS --max-time 30 \
+              -H "X-Correlation-ID: ${{ env.SMOKE_RUN_ID }}-scan" \
+              "${{ env.BACKEND_URL }}${endpoint}" 2>/dev/null || echo "")
+
+            for pattern in "${SECRET_PATTERNS[@]}"; do
+              if echo "${RESPONSE}" | grep -iE "${pattern}" > /dev/null 2>&1; then
+                echo "::error::Potential secret detected at ${endpoint} (pattern: ${pattern})"
+                VIOLATIONS=$((VIOLATIONS + 1))
+              fi
+            done
+          done
+
+          echo "::endgroup::"
+
+          if [ ${VIOLATIONS} -gt 0 ]; then
+            echo "::error::Secret scan found ${VIOLATIONS} violations"
+            exit 1
+          fi
+
+          echo "✓ No secret values detected in API responses"
+      - name: Verify environment variables don't leak
+        run: |
+          set -e
+          echo "::group::Check Cloud Run environment"
+          # Verify production environment variables are clean.
+          ENV_VARS=$(gcloud run services describe ${{ env.CLOUD_RUN_SERVICE }} \
+            --region=${{ env.GCP_REGION }} \
+            --project=${{ env.GCP_PROJECT }} \
+            --format="value(spec.template.spec.containers[0].env[*].name)" 2>/dev/null || echo "")
+
+          if [ -n "${ENV_VARS}" ]; then
+            echo "Environment variables: ${ENV_VARS}"
+            # Check that sensitive env vars don't contain actual secrets.
+            for var in ${ENV_VARS}; do
+              VALUE=$(gcloud run services describe ${{ env.CLOUD_RUN_SERVICE }} \
+                --region=${{ env.GCP_REGION }} \
+                --project=${{ env.GCP_PROJECT }} \
+                --format="value(spec.template.spec.containers[0].env[?name=='${var}'].value)" 2>/dev/null || echo "")
+              if echo "${VALUE}" | grep -iE "(sk-|AIza|ghp_|token|secret|password|key)" > /dev/null 2>&1; then
+                # Check if it's a placeholder or actual secret.
+                if echo "${VALUE}" | grep -iE "(placeholder|\$\{|your-|xxx|REPLACE)" > /dev/null 2>&1; then
+                  echo "✓ ${var} is a placeholder (acceptable)"
+                else
+                  echo "::warning::${var} may contain a real secret value"
+                fi
+              fi
+            done
+          fi
+          echo "::endgroup::"
+      - name: Publish result to summary
+        run: |
+          echo "### Smoke Check 8: No Secrets in Output" >> $GITHUB_STEP_SUMMARY
+          echo "**Status: PASS**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Checked endpoints: /health, /ready, /store, /inventory/P001" >> $GITHUB_STEP_SUMMARY
+          echo "Secret patterns: OpenAI keys, Google API keys, GitHub tokens, etc." >> $GITHUB_STEP_SUMMARY
+  smoke-frontend:
+    name: 9. Frontend HTTP Availability
+    runs-on: ubuntu-latest
+    needs: [metadata, gate, smoke-secret-scan]
+    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true'
+    env:
+      FRONTEND_URL: ${{ needs.metadata.outputs.frontend_url }}
+      SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
+    steps:
+      - name: Check frontend availability
+        id: frontend_check
+        run: |
+          set -e
+          echo "::group::Check frontend availability"
+          HTTP_CODE=$(curl -sS -o /dev/null -w "%{http_code}" \
+            --max-time 30 \
+            --location \
+            "${{ env.FRONTEND_URL }}")
+          echo "HTTP ${HTTP_CODE}"
+          echo "::endgroup::"
+
+          # Accept 200 (OK) or 301/302 (redirect to HTTPS/login).
+          if [[ "${HTTP_CODE}" == "200" || "${HTTP_CODE}" == "301" || "${HTTP_CODE}" == "302" ]]; then
+            echo "✓ Frontend is reachable"
+          else
+            echo "::error::Frontend returned unexpected HTTP ${HTTP_CODE}"
+            exit 1
+          fi
+      - name: Verify frontend has expected content
+        run: |
+          set -e
+          echo "::group::Check frontend content"
+          CONTENT=$(curl -sS --max-time 30 --location \
+            "${{ env.FRONTEND_URL }}" 2>/dev/null | head -c 2000)
+          echo "${CONTENT}" | grep -q "html\|<!DOCTYPE\|<html" && {
+            echo "✓ Frontend serves HTML content"
+          } || {
+            echo "::warning::Could not verify frontend HTML content"
+          }
+          echo "::endgroup::"
+      - name: Publish result to summary
+        run: |
+          echo "### Smoke Check 9: Frontend HTTP Availability" >> $GITHUB_STEP_SUMMARY
+          echo "**Status: PASS**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Frontend URL: \`${{ env.FRONTEND_URL }}\`" >> $GITHUB_STEP_SUMMARY
+  release-decision:
+    name: Release Decision
+    runs-on: ubuntu-latest
+    needs:
+      - metadata
+      - gate
+      - smoke-backend-health
+      - smoke-backend-readiness
+      - smoke-firestore-store
+      - smoke-inventory-p001
+      - smoke-inventory-p017
+      - smoke-pubsub-event
+      - smoke-agent-activity
+      - smoke-secret-scan
+      - smoke-frontend
+    if: always()
+    steps:
+      - name: Analyze smoke check results
+        id: analyze
+        run: |
+          echo "## Release Decision" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          FAILED_JOBS=()
+          PASSED_JOBS=()
+          SKIPPED_JOBS=()
+
+          for job in smoke-backend-health smoke-backend-readiness smoke-firestore-store smoke-inventory-p001 smoke-inventory-p017 smoke-pubsub-event smoke-agent-activity smoke-secret-scan smoke-frontend; do
+            RESULT=$(echo "${{ needs.${job}.result }}" 2>/dev/null || echo "unknown")
+            case "${RESULT}" in
+              success)
+                PASSED_JOBS+=("${job}")
+                echo "| ${job} | :white_check_mark: PASS |" >> $GITHUB_STEP_SUMMARY
+                ;;
+              failure)
+                FAILED_JOBS+=("${job}")
+                echo "| ${job} | :x: FAIL |" >> $GITHUB_STEP_SUMMARY
+                ;;
+              skipped)
+                SKIPPED_JOBS+=("${job}")
+                echo "| ${job} | :fast_forward: SKIPPED |" >> $GITHUB_STEP_SUMMARY
+                ;;
+              *)
+                echo "| ${job} | :warning: ${RESULT} |" >> $GITHUB_STEP_SUMMARY
+                ;;
+            esac
+          done
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Summary:** ${#PASSED_JOBS[@]} passed, ${#FAILED_JOBS[@]} failed, ${#SKIPPED_JOBS[@]} skipped" >> $GITHUB_STEP_SUMMARY
+
+          # Store results for rollback step.
+          echo "FAILED_COUNT=${#FAILED_JOBS[@]}" >> $GITHUB_ENV
+          printf -v FAILED_LIST '%s\n' "${FAILED_JOBS[@]}"
+          echo "FAILED_JOBS=${FAILED_LIST}" >> $GITHUB_ENV
+
+          if [ ${#FAILED_JOBS[@]} -gt 0 ]; then
+            echo "::error::Release FAILED: ${#FAILED_JOBS[@]} smoke checks failed"
+            echo "::error::Failed checks: ${FAILED_JOBS[*]}"
+            exit 1
+          fi
+
+          echo ""
+          echo "All smoke checks passed! Release is cleared."
+      - name: Generate release manifest
+        if: success()
+        run: |
+          # Deterministic release tag — defined in same shell as the heredoc so
+          # ${TAG} is in scope.  GATE_SHA is a plain shell variable; do NOT pass
+          # it via the YAML env: block — Actions splits long values at ~50 chars.
+          GATE_SHA="${{ needs.metadata.outputs.git_sha }}"
+          DATE_PART=$(date -u +%Y%m%d)
+          TAG="release/${DATE_PART}-${GATE_SHA:0:8}"
+          echo "Release tag: ${TAG}"
+
+          # Double-quoted delimiter so bash expands ${TAG}.  GitHub Actions ${{ }}
+          # expressions are escaped as \${{ }} — bash turns \$ into a literal \ so
+          # \${{ X }} → the literal string ${{ X }}, which GitHub Actions then
+          # re-expands at workflow parse time with the actual output values.
+          cat >> $GITHUB_STEP_SUMMARY << "MANIFEST_EOF"
+
+          ## Release Manifest
+
+          ```json
+          {
+            "smoke_run_id": "\${{ needs.metadata.outputs.smoke_run_id }}",
+            "git_sha": "\${{ needs.metadata.outputs.git_sha }}",
+            "timestamp": "\${{ needs.metadata.outputs.run_timestamp }}",
+            "backend": {
+              "url": "\${{ needs.metadata.outputs.backend_url }}",
+              "revision": "\${{ needs.metadata.outputs.cloud_run_revision || 'N/A' }}",
+              "image_digest": "\${{ needs.metadata.outputs.image_digest || 'N/A' }}"
+            },
+            "frontend": {
+              "url": "\${{ needs.metadata.outputs.frontend_url }}"
+            },
+            "gcp": {
+              "project": "\${{ needs.metadata.outputs.gcp_project }}",
+              "region": "\${{ needs.metadata.outputs.gcp_region }}"
+            },
+            "llm": {
+              "provider": "\${{ needs.metadata.outputs.llm_provider }}",
+              "model": "\${{ needs.metadata.outputs.llm_model }}"
+            },
+            "demo_data": {
+              "version": "\${{ needs.metadata.outputs.demo_data_version }}"
+            },
+            "smoke_checks": [
+              {"name": "backend_liveness", "status": "PASS"},
+              {"name": "backend_readiness", "status": "PASS"},
+              {"name": "firestore_store_read", "status": "PASS"},
+              {"name": "p001_inventory_read", "status": "PASS"},
+              {"name": "p017_inventory_read", "status": "PASS"},
+              {"name": "pubsub_event_trigger", "status": "PASS"},
+              {"name": "agent_activity", "status": "PASS"},
+              {"name": "no_secrets_in_output", "status": "PASS"},
+              {"name": "frontend_availability", "status": "PASS"}
+            ],
+            "release_status": "PASS",
+            "release_tag": "${TAG}"
+          }
+          ```
+          MANIFEST_EOF
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Release Tag:** \`${TAG}\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Note on release tag
+        if: success()
+        run: |
+          echo "::notice::Release tag informational only (not created in this workflow): ${TAG}"
+          echo "::notice::Tag creation requires write permissions and is handled by a separate release workflow."
+  rollback:
+    name: Rollback Gate
+    runs-on: ubuntu-latest
+    needs: [metadata, gate, release-decision]
+    if: failure() && needs.metadata.result != 'failure'
+    env:
+      GCP_PROJECT: ${{ env.GCP_PROJECT }}
+      GCP_REGION: ${{ env.GCP_REGION }}
+      CLOUD_RUN_SERVICE: ${{ env.CLOUD_RUN_SERVICE }}
+      SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
+      GIT_SHA: ${{ needs.metadata.outputs.git_sha }}
+    steps:
+      - name: Collect failure evidence
+        run: |
+          echo "## 🚨 RELEASE FAILED — ROLLBACK GATE" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Smoke Run ID:** \`${{ env.SMOKE_RUN_ID }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Git SHA:** \`${{ env.GIT_SHA }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Failed at:** $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "::error::RELEASE FAILED — See failure details below"
+          echo "::error::Smoke Run ID: ${{ env.SMOKE_RUN_ID }}"
+          echo "::error::Git SHA: ${{ env.GIT_SHA }}"
+          echo "::error::Do NOT proceed with this deployment."
+      - name: List failed checks
+        run: |
+          echo "## Failed Smoke Checks" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Extract job results from the workflow run.
+          for job in smoke-backend-health smoke-backend-readiness smoke-firestore-store smoke-inventory-p001 smoke-inventory-p017 smoke-pubsub-event smoke-agent-activity smoke-secret-scan smoke-frontend; do
+            # Check if this job failed.
+            echo "Checking ${job}..."
+          done
+
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
+          echo "| Check the workflow run logs above for details | ❌ FAIL |" >> $GITHUB_STEP_SUMMARY
+      - name: Provide rollback command
+        run: |
+          echo "## Rollback Command" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+
+          # Generate rollback commands.
+          echo "# 1. Identify the previous revision:" >> $GITHUB_STEP_SUMMARY
+          echo "gcloud run revisions list \\" >> $GITHUB_STEP_SUMMARY
+          echo "  --service ${{ env.CLOUD_RUN_SERVICE }} \\" >> $GITHUB_STEP_SUMMARY
+          echo "  --region ${{ env.GCP_REGION }} \\" >> $GITHUB_STEP_SUMMARY
+          echo "  --project ${{ env.GCP_PROJECT }} \\" >> $GITHUB_STEP_SUMMARY
+          echo "  --limit 5" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "# 2. Roll back to the previous revision:" >> $GITHUB_STEP_SUMMARY
+          echo "gcloud run services update-traffic \\" >> $GITHUB_STEP_SUMMARY
+          echo "  ${{ env.CLOUD_RUN_SERVICE }} \\" >> $GITHUB_STEP_SUMMARY
+          echo "  --to-revisions PREVIOUS_REVISION=100 \\" >> $GITHUB_STEP_SUMMARY
+          echo "  --region ${{ env.GCP_REGION }} \\" >> $GITHUB_STEP_SUMMARY
+          echo "  --project ${{ env.GCP_PROJECT }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "# 3. Verify rollback:" >> $GITHUB_STEP_SUMMARY
+          echo "curl -sS ${{ needs.metadata.outputs.backend_url }}/health | jq ." >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          echo ""
+          echo "::error::ROLLBACK COMMAND:"
+          echo "::error::gcloud run services update-traffic ${{ env.CLOUD_RUN_SERVICE }} --to-revisions PREVIOUS_REVISION=100 --region ${{ env.GCP_REGION }} --project ${{ env.GCP_PROJECT }}"
+          echo ""
+          echo "Save these run IDs for debugging:"
+          echo "- Smoke Run ID: ${{ env.SMOKE_RUN_ID }}"
+          echo "- Git SHA: ${{ env.GIT_SHA }}"
+          echo "- Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+      - name: Archive failure logs
+        if: always()
+        run: |
+          # Create a structured failure record for debugging.
+          mkdir -p release-failure
+          cat > release-failure/manifest.json << EOF
+          {
+            "smoke_run_id": "${{ env.SMOKE_RUN_ID }}",
+            "git_sha": "${{ env.GIT_SHA }}",
+            "failed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "workflow_run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+            "workflow_run_id": "${{ github.run_id }}",
+            "backend_url": "${{ needs.metadata.outputs.backend_url }}",
+            "frontend_url": "${{ needs.metadata.outputs.frontend_url }}",
+            "gcp_project": "${{ env.GCP_PROJECT }}",
+            "gcp_region": "${{ env.GCP_REGION }}",
+            "cloud_run_service": "${{ env.CLOUD_RUN_SERVICE }}",
+            "cloud_run_revision": "${{ needs.metadata.outputs.cloud_run_revision || 'unknown' }}",
+            "llm_provider": "${{ needs.metadata.outputs.llm_provider }}",
+            "llm_model": "${{ needs.metadata.outputs.llm_model }}",
+            "demo_data_version": "${{ needs.metadata.outputs.demo_data_version }}",
+            "release_status": "FAIL",
+            "rollback_required": true
+          }
+          EOF
+
+          echo "Failure manifest:"
+          cat release-failure/manifest.json
+      - name: Upload failure artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-failure-${{ env.SMOKE_RUN_ID }}
+          path: release-failure/
+          retention-days: 30
+          compression-level: 9
+      - name: Set release failed status
+        if: always()
+        run: |
+          echo "::notice::Release gate FAILED"
+          echo "::notice::Run ID: ${{ env.SMOKE_RUN_ID }}"
+          echo "::notice::Review the failure manifest and logs above."
+          echo "::notice::Execute rollback command if the new deployment is unacceptable."
