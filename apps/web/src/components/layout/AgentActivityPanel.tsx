@@ -12,9 +12,10 @@ import { ACTIVITY_VIEW, ACTIVITY_VIEWS } from "@/enums/agent.enum";
 import { LENS } from "@/enums/ui.enum";
 import { usePanelStore } from "@/state/panel.store";
 import { useRunStore } from "@/state/run.store";
-import { useUiStore } from "@/state/ui.store";
+import { selectedProductId, useUiStore } from "@/state/ui.store";
 import { ActivityLog } from "./ActivityLog";
 import { AgentRunCard } from "./AgentRunCard";
+import { AiImpactSection } from "./AiImpactSection";
 import { AlertsSection } from "./AlertsSection";
 import { GuardSection } from "./GuardSection";
 import { LENS_VIEW } from "./lens";
@@ -86,6 +87,7 @@ function OperationsView() {
     <>
       <AlertsSection />
       <GuardSection />
+      <AiImpactSection />
 
       <section className="activity-section">
         <div className="activity-section-head">
