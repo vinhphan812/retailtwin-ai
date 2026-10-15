@@ -754,8 +754,10 @@ tr[data-open="true"] .receipt-caret {
 
 /* ─── Candidate Panel ─────────────────────────────────────────────────────────── */
 
+/* A row of its own under the run details and Accept / Reject, so every column fits. */
 .candidate-panel {
-  margin-top: 10px;
+  flex: 1 1 100%;
+  min-width: 0;
   padding: 10px 12px;
   border: 1px solid color-mix(in srgb, var(--color-simulation) 40%, transparent);
   border-radius: 8px;
