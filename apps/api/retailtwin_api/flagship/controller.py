@@ -68,8 +68,8 @@ from retailtwin_api.demand_surge import (
 from retailtwin_api.firestore_twin import (
     InventoryDocument,
     LiveTwinRepository,
-    bump_inventory_for_stale_block,
 )
+from retailtwin_api.flagship._stale_bump import bump_inventory_for_stale_block
 from retailtwin_api.guard.decision_context_guard import (
     InMemoryGuardAudit,
     NoStaleCommit,
@@ -608,10 +608,21 @@ class FlagshipController:
         # stale block. The canonical race the issue is asking us to detect
         # comes from the Live Twin moving between ``plan`` and the guard's
         # ``authorize`` call. The bump is the only thing the controller
-        # controls for reproducibility.
+        # controls for reproducibility. The helper refuses to run when
+        # ``APP_ENV`` is ``production`` (ADR 0016 — only the guarded Executor
+        # writes the Live Twin in production), so we surface that as a
+        # fail-safely error result instead of letting it crash the demo.
         bumped = False
         if body.stale_block_enabled and scored:
-            bumped = self._bump_inventory(store_id, DEMO_SKU)
+            try:
+                bumped = self._bump_inventory(store_id, DEMO_SKU)
+            except RuntimeError as exc:
+                return self._fail(
+                    run_id,
+                    correlation_id,
+                    "guard",
+                    f"stale-block injection refused: {exc}",
+                )
 
         reader = self._reader_adapter(store_id)
         audit = InMemoryGuardAudit()
@@ -846,15 +857,15 @@ class FlagshipController:
     def _bump_inventory(self, store_id: str, sku: str) -> bool:
         """Mutate the Live Twin so the next authorize call returns REFRESH_REQUIRED.
 
-        The actual ``commit_inventory`` write is performed by
-        :func:`bump_inventory_for_stale_block` inside
-        :mod:`retailtwin_api.firestore_twin` so this module never calls the
-        Live Twin mutation API directly (ADR 0016 — only the guarded Executor
-        writes the Live Twin in production).
+        The actual ``commit_inventory`` write is performed by the
+        test-only helper :func:`retailtwin_api.flagship._stale_bump.bump_inventory_for_stale_block`,
+        which refuses to run when ``APP_ENV`` is ``production`` (ADR 0016
+        — only the guarded Executor writes the Live Twin in production).
+        This module never calls the Live Twin mutation API directly.
 
         Returns True when the Live Twin was successfully bumped; False if no
-        bump could be applied (e.g. no live document or the optimistic lock
-        conflicted).
+        bump could be applied (e.g. no live document, the optimistic lock
+        conflicted, or APP_ENV is ``production`` and the helper raised).
         """
         assert self._deps is not None
         return bump_inventory_for_stale_block(self._deps.twin, store_id, sku)
