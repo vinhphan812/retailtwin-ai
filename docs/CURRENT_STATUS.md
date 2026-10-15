@@ -79,9 +79,9 @@ The monthly budget `retailtwin-dev-guard` is 25,000 VND, about 1 USD, on this pr
 
 ## Work in progress
 
-Issue #134 (cloud-config, PR #185) is open for review on branch `issue/134-cloud-config`. It owns the canonical production cloud runtime matrix, service-account naming, Artifact Registry path reconciliation, WIF/CI deployment configuration, Secret Manager contract, and `.env.example` update. It does not implement the runtime wiring itself; that contract is verified once the issue merges.
+Issue #134 (cloud-config) is merged via PR #185. It owns the canonical production cloud runtime matrix, service-account naming, Artifact Registry path reconciliation, WIF/CI deployment configuration, Secret Manager contract, and `.env.example` update. It does not implement the runtime wiring itself; that contract is verified once the issue merges.
 
-Issue #135 (demo-data, PR #186) is open for review on branch `issue/135-demo-data`. It provides a deterministic GCP seed/reset/replay workflow for Firestore, BigQuery, and Pub/Sub using the P017 Weekend Demand Surge scenario and P001 foundation data. Checkout, payment, and promotion production datasets are not in scope until their respective backend contracts land.
+Issue #135 (demo-data) is in progress on branch `issue/135-demo-data` via active implementation PR #197. It provides a deterministic GCP seed/reset/replay workflow for Firestore, BigQuery, and Pub/Sub using the P017 Weekend Demand Surge scenario and P001 foundation data. Checkout, payment, and promotion production datasets are not in scope until their respective backend contracts land.
 
 Issue #58 is closed. The web build and test workflow is on `main`.
 
@@ -133,7 +133,7 @@ Do not infer implementation merely because a component is documented in the targ
 - Later analytical tables such as product performance and simulation results;
 - end-to-end autonomous scenario;
 - Cloud Run production wiring for Vertex AI with ADC (issue #134);
-- Demo data for production build (issue #135);
+- Demo data for production build (issue #135, active PR #197);
 - submission gates G02–G06.
 
 ## Current release-gate status
@@ -153,7 +153,7 @@ Gate status changes only when the corresponding issue contains reproducible evid
 
 1. Issue #58 is closed. The web build and test workflow is on `main`. Issue #60 adds the coverage baseline and threshold to that gate.
 2. The Firestore Live Twin boundary is on `main` (issue #6, PR #106). The scene reads `GET /store` from `apps/api` and places products on the layout (ADR 0007). The scene polls `GET /store` every 5 s. When reads fail, it backs off up to 60 s. It keeps the last state, or empty shelves, on screen when the API is down.
-3. Issue #134 (cloud-config, PR #185 OPEN/APPROVED) owns the canonical production cloud runtime matrix, WIF/CI deployment configuration, and Secret Manager contract. It does not implement the runtime wiring itself; that contract is verified once it merges. The `vertex_gemini` provider name cannot be replaced or removed (ADR 0020). Cloud Run runtime evidence is pending until #134 lands.
+3. Cloud Run production wiring for Vertex AI with ADC (Foundation #10) is pending runtime evidence. The `vertex_gemini` provider name cannot be replaced or removed (ADR 0020). The cloud-config config/runtime-matrix (issue #134, merged via PR #185) owns the canonical production cloud runtime matrix, WIF/CI deployment configuration, and Secret Manager contract; it does not implement the runtime wiring itself.
 4. The allow-listed tool registry (#11, ADR 0009), the observer (#12, ADR 0010), the investigator (#13, ADR 0011), the planner (#14, ADR 0012), the Decision Context Guard with No-Stale-Commit (#16, ADR 0014 and #17, ADR 0015), the guarded Executor (#18, ADR 0016), the post-action Verifier (#19, ADR 0017), and automatic re-plan (#20, ADR 0018) are in the API. Simulation clone scoring (#15) evaluates candidates. Provider selection is a registry (ADR 0020): production construction requires Vertex ADC, uses the shipped Vertex builder, and rejects a fake provider, a loopback endpoint, and an API key. The `vertex_gemini` name cannot be replaced or removed. The one Gemini read is `read_inventory` (ADR 0021). The agent-action audit (#35, ADR 0019) records the correlated trace. Gates G02–G06 and foundation gate #10 stay unpassed.
 5. Bind state changes to the 3D Live/Simulation views. The 3D move, facings, and replenishment cues are implemented. The 3D binding to Live/Simulation Twin state is wired through the state diff (#91).
 6. Pass G02 → G03 → G04 → G05 → G06 in order.
