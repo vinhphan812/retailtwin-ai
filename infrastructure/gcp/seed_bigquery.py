@@ -82,7 +82,7 @@ def check_guardrails() -> None:
     """Validate environment before seeding."""
     if PROJECT != CANONICAL_PROJECT:
         die(f"Refusing project {PROJECT}. Seed applies only to {CANONICAL_PROJECT}.")
-    
+
     if os.environ.get("CONFIRM_SEED", "") not in ("yes", "dry"):
         die("Set CONFIRM_SEED=yes to seed, or CONFIRM_SEED=dry to validate without writing.")
 
@@ -115,15 +115,15 @@ def generate_historical_sales(
     """Generate deterministic historical sales for a SKU."""
     events = []
     current = start_date
-    
+
     for day in range(days):
         # Daily pattern: higher on weekends
         is_weekend = current.weekday() >= 5
         multiplier = 1.5 if is_weekend else 1.0
-        
+
         # Add some variation based on day
         daily_units = int(avg_daily_units * multiplier * (0.9 + 0.2 * ((day % 7) / 7)))
-        
+
         # Generate hourly events (simplified - aggregate into single event per 4 hours)
         for hour_offset in [0, 4, 8, 12, 16, 20]:
             if daily_units > 0:
@@ -142,7 +142,7 @@ def generate_historical_sales(
                     "run_id": "",  # Will be filled by seed_gcp.py
                 })
         current += timedelta(days=1)
-    
+
     return events
 
 
@@ -151,10 +151,10 @@ def generate_p017_context() -> list[dict[str, Any]]:
     # P017 shows consistent Friday-Sunday surge pattern in history
     events = []
     base_date = datetime(2026, 9, 12, tzinfo=timezone.utc)  # Start 4 weeks back
-    
+
     for week in range(4):  # 4 weeks of history
         week_start = base_date + timedelta(weeks=week)
-        
+
         # Friday 8am-12pm: 40-50 units
         for i, hour in enumerate([8, 9, 10, 11]):
             events.append({
@@ -168,7 +168,7 @@ def generate_p017_context() -> list[dict[str, Any]]:
                 "source": "historical-pos",
                 "run_id": "",
             })
-        
+
         # Saturday 8am-12pm: 55-73 units (surge)
         for i, hour in enumerate([8, 9, 10, 11, 12]):
             events.append({
@@ -182,7 +182,7 @@ def generate_p017_context() -> list[dict[str, Any]]:
                 "source": "historical-pos",
                 "run_id": "",
             })
-        
+
         # Sunday 8am-12pm: 30-40 units
         for i, hour in enumerate([8, 9, 10, 11]):
             events.append({
@@ -196,7 +196,7 @@ def generate_p017_context() -> list[dict[str, Any]]:
                 "source": "historical-pos",
                 "run_id": "",
             })
-        
+
         # Weekday baseline: ~25 units per day
         for day_offset, day_name in [(3, "mon"), (4, "tue"), (5, "wed")]:
             events.append({
@@ -210,17 +210,17 @@ def generate_p017_context() -> list[dict[str, Any]]:
                 "source": "historical-pos",
                 "run_id": "",
             })
-    
+
     return events
 
 
 def get_all_sales_events() -> list[dict[str, Any]]:
     """Generate all historical sales events."""
     events = []
-    
+
     # P017 historical context (shows surge pattern)
     events.extend(generate_p017_context())
-    
+
     # P001 baseline (consistent sales)
     events.extend(generate_historical_sales(
         sku="P001",
@@ -229,7 +229,7 @@ def get_all_sales_events() -> list[dict[str, Any]]:
         avg_daily_units=12,
         correlation_prefix="hist-p001",
     ))
-    
+
     # Other key products
     for sku, avg_units in [("P002", 8), ("P003", 5), ("P005", 10), ("P012", 15)]:
         events.extend(generate_historical_sales(
@@ -239,7 +239,7 @@ def get_all_sales_events() -> list[dict[str, Any]]:
             avg_daily_units=avg_units,
             correlation_prefix=f"hist-{sku.lower()}",
         ))
-    
+
     return events
 
 
@@ -255,22 +255,22 @@ def check_table_exists(table: str) -> bool:
 def insert_sales_event(event: dict[str, Any], dry_run: bool = False) -> dict[str, Any]:
     """Insert a single sales event using NOT EXISTS pattern."""
     table = qualified_table("sales_events")
-    
+
     sql = f"""
-        INSERT INTO {table} 
+        INSERT INTO {table}
         (event_id, correlation_id, event_type, store_id, sku, quantity, occurred_at, source, ingested_at)
-        SELECT 
-            @event_id, @correlation_id, @event_type, @store_id, @sku, @quantity, 
+        SELECT
+            @event_id, @correlation_id, @event_type, @store_id, @sku, @quantity,
             @occurred_at, @source, CURRENT_TIMESTAMP()
         FROM (SELECT 1)
         WHERE NOT EXISTS (
             SELECT 1 FROM {table} WHERE event_id = @event_id
         )
     """
-    
+
     if dry_run:
         return {"dry_run": True, "event_id": event["event_id"]}
-    
+
     args = [
         "query", "--nouse_legacy_sql", "--format=json",
         "--parameter=event_id:STRING:" + event["event_id"],
@@ -284,7 +284,7 @@ def insert_sales_event(event: dict[str, Any], dry_run: bool = False) -> dict[str
         "--maximum_bytes_billed=100000000",
         sql,
     ]
-    
+
     run_bq(args)
     return {"inserted": event["event_id"]}
 
@@ -297,7 +297,7 @@ def seed_table(
     """Seed a BigQuery table with events."""
     if not events:
         return {"table": table, "inserted": 0, "skipped": 0}
-    
+
     if dry_run:
         return {
             "table": table,
@@ -305,28 +305,30 @@ def seed_table(
             "events_to_insert": len(events),
             "sample": events[:3],
         }
-    
+
     inserted = 0
-    skipped = 0
-    
+
     for event in events:
         try:
-            result = insert_sales_event(event, dry_run=False)
-            if result.get("inserted"):
-                inserted += 1
-            else:
-                skipped += 1
-        except Exception as e:
-            # Event might already exist or other issue
-            skipped += 1
-    
-    return {"table": table, "inserted": inserted, "skipped": skipped}
+            insert_sales_event(event, dry_run=False)
+        except Exception as exc:
+            # A failed DML command is never proof that a deterministic event
+            # already exists.  Fail closed so callers do not report partial
+            # data as a successful/skipped seed.
+            raise RuntimeError(
+                "BigQuery seed failed after "
+                f"{inserted}/{len(events)} event(s); failed event_id={event['event_id']}. "
+                "Reset the demo namespace before retrying."
+            ) from exc
+        inserted += 1
+
+    return {"table": table, "inserted": inserted, "expected": len(events)}
 
 
 def seed_bigquery(dry_run: bool = False, reset: bool = False) -> dict[str, Any]:
     """Seed BigQuery with historical data."""
     results = {}
-    
+
     # Check tables exist
     required_tables = ["sales_events", "inventory_events", "agent_actions"]
     for table in required_tables:
@@ -335,14 +337,14 @@ def seed_bigquery(dry_run: bool = False, reset: bool = False) -> dict[str, Any]:
                 f"Table {table} does not exist. "
                 "Run infrastructure/gcp/apply-store-events.sh first."
             )
-    
+
     # Generate sales events
     sales_events = get_all_sales_events()
     results["sales_events"] = seed_table("sales_events", sales_events, dry_run)
-    
+
     # Note: inventory_events and agent_actions are typically empty at baseline
     # They are populated by the event backbone and agent actions during demo runs
-    
+
     return results
 
 
@@ -350,7 +352,7 @@ def reset_bigquery() -> dict[str, Any]:
     """Reset BigQuery tables by deleting demo-related events."""
     # For BigQuery, we don't delete rows (they're historical)
     # Instead, we document that the tables should be queried with date filters
-    
+
     return {
         "reset": True,
         "message": "BigQuery tables retain historical data.",
@@ -377,7 +379,7 @@ def main() -> int:
 
     confirm = os.environ.get("CONFIRM_SEED", "")
     dry_run = args.dry_run or confirm == "dry"
-    
+
     print(f"Project:   {PROJECT}")
     print(f"Dataset:   {DATASET}")
     print(f"Dry run:   {dry_run}")
@@ -415,7 +417,7 @@ def main() -> int:
         print("Seeding BigQuery...")
         result = seed_bigquery(dry_run=False, reset=False)
         print(f"Seed complete: {json.dumps(result, indent=2)}")
-        
+
         return 0
     except Exception as e:
         print(f"error: {e}", file=sys.stderr)

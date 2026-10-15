@@ -249,19 +249,19 @@ def total_backroom_quantity() -> int:
 def validate_seed() -> list[str]:
     """Validate seed data consistency. Returns list of warnings."""
     warnings = []
-    
+
     # Check for duplicate SKUs
     skus = [p.sku for p in DEMO_PRODUCTS]
     if len(skus) != len(set(skus)):
         warnings.append("Duplicate SKU found in seed data")
-    
+
     # Check P017 is present
     if "P017" not in skus:
         warnings.append("P017 (demand surge target) is missing from seed data")
-    
+
     # Check for zero stockout products
     for p in DEMO_PRODUCTS:
         if p.shelf_quantity == 0:
             warnings.append(f"{p.sku} has zero shelf_quantity (stockout)")
-    
+
     return warnings

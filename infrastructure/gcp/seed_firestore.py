@@ -163,7 +163,7 @@ def _store_fields(now: str) -> dict[str, Any]:
 
 class FirestoreSeeder:
     """Seeds the Firestore Live Twin with demo baseline data."""
-    
+
     def __init__(self, transport: HttpTransport) -> None:
         self._transport = transport
         self._available: bool | None = None
@@ -183,7 +183,7 @@ class FirestoreSeeder:
         """Seed the Live Twin with demo products."""
         if dry_run:
             return self._dry_run(products)
-        
+
         now = _timestamp()
         writes: list[dict[str, Any]] = []
 
@@ -209,16 +209,16 @@ class FirestoreSeeder:
         payload: dict[str, Any] = {"writes": writes}
         url = f"{database_root()}:commit"
         raw = json.dumps(payload).encode("utf-8")
-        
+
         response = self._transport.request("POST", url, raw, {"Content-Type": "application/json"})
-        
+
         if response.status != 200:
             try:
                 error = json.loads(response.body)
                 raise RuntimeError(f"Seed failed: {error.get('error', {}).get('message', response.body)}")
             except json.JSONDecodeError:
                 raise RuntimeError(f"Seed failed (HTTP {response.status}): {response.body[:200]}")
-        
+
         return {
             "seeded_products": len(products),
             "store_id": STORE_ID,
@@ -251,28 +251,28 @@ class FirestoreSeeder:
         # List all inventory documents
         url = f"{database_root()}/stores/{STORE_ID}/inventory"
         response = self._transport.request("GET", url, None, {"Content-Type": "application/json"})
-        
+
         if response.status == 404:
             return {"reset": True, "deleted": 0, "message": "No inventory found"}
-        
+
         if response.status != 200:
             raise RuntimeError(f"Failed to list inventory: {response.body[:200]}")
-        
+
         try:
             payload = json.loads(response.body)
         except json.JSONDecodeError:
             raise RuntimeError("Inventory list response is not JSON")
-        
+
         documents = payload.get("documents", [])
         if not documents:
             return {"reset": True, "deleted": 0, "message": "No inventory to delete"}
-        
+
         writes: list[dict[str, Any]] = []
         for doc in documents:
             name = doc.get("name", "")
             if name:
                 writes.append({"delete": name})
-        
+
         # Bump store version
         store_doc = doc_name(COLLECTION_STORES, STORE_ID)
         writes.append({
@@ -281,16 +281,16 @@ class FirestoreSeeder:
                 "fields": _store_fields(_timestamp()),
             }
         })
-        
+
         payload = {"writes": writes}
         url = f"{database_root()}:commit"
         raw = json.dumps(payload).encode("utf-8")
-        
+
         response = self._transport.request("POST", url, raw, {"Content-Type": "application/json"})
-        
+
         if response.status != 200:
             raise RuntimeError(f"Reset failed (HTTP {response.status}): {response.body[:200]}")
-        
+
         return {"reset": True, "deleted": len(documents)}
 
 
@@ -303,10 +303,10 @@ def check_guardrails() -> None:
     """Validate environment before seeding."""
     if PROJECT != CANONICAL_PROJECT:
         die(f"Refusing project {PROJECT}. Seed applies only to {CANONICAL_PROJECT}.")
-    
+
     if os.environ.get("CONFIRM_SEED", "") != "yes" and os.environ.get("CONFIRM_SEED", "") != "dry":
         die("Set CONFIRM_SEED=yes to seed, or CONFIRM_SEED=dry to validate without writing.")
-    
+
     # Check billing
     result = subprocess.run(
         ["gcloud", "billing", "projects", "describe", PROJECT,
@@ -336,7 +336,7 @@ def main() -> int:
     # Determine mode
     confirm = os.environ.get("CONFIRM_SEED", "")
     dry_run = args.dry_run or confirm == "dry"
-    
+
     print(f"Project:    {PROJECT}")
     print(f"Region:     {REGION}")
     print(f"Store:      {STORE_ID}")
@@ -360,7 +360,7 @@ def main() -> int:
     # Check availability
     if not seeder.is_available():
         die("Firestore is not available. Check credentials and project.")
-    
+
     print("Firestore is available")
 
     try:
@@ -369,15 +369,15 @@ def main() -> int:
             result = seeder.reset()
             print(f"Reset complete: {json.dumps(result, indent=2)}")
             print()
-        
+
         if not args.reset and not dry_run:
             print("Skipping seed (use without --reset to seed)")
             return 0
-        
+
         print(f"Seeding Live Twin with {len(DEMO_PRODUCTS)} products...")
         result = seeder.seed(DEMO_PRODUCTS, dry_run=dry_run)
         print(f"Seed complete: {json.dumps(result, indent=2)}")
-        
+
         return 0
     except Exception as e:
         print(f"error: {e}", file=sys.stderr)
