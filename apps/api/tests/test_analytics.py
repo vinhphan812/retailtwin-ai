@@ -500,11 +500,11 @@ class TestCheckouts:
         # Default: cashier is redacted from transactions
         assert resp.json()["transactions"][0]["cashier"] is None
 
-        # With redact_cashier=false: cashier data is exposed (requires authorization)
-        resp2 = client.get("/checkouts/CK01", params={"redact_cashier": "false"})
+        # Cashier data remains redacted even when a caller supplies unrelated query values.
+        resp2 = client.get("/checkouts/CK01", params={"store_id": "store-001"})
         assert resp2.status_code == 200
-        assert resp2.json()["summary"]["cashier"]["staff_id"] == "EMP-014"
-        assert resp2.json()["summary"]["cashier"]["name"] == "Linh Tran"
+        assert resp2.json()["summary"]["cashier"] is None
+        assert resp2.json()["transactions"][0]["cashier"] is None
 
     def test_cross_store_isolation(self, client: TestClient, checkout_repo: InMemoryCheckoutRepository):
         """Same checkout_id exists in two stores — must NOT leak across stores."""

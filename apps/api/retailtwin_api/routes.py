@@ -341,26 +341,24 @@ def get_checkout(
     request: Request,
     checkout_id: str,
     store_id: str | None = Query(default=None, min_length=1),
-    redact_cashier: bool = Query(default=True, description="Redact cashier staff_id and name from the response. Set to false only when caller holds cashier_data authorization scope."),
     repo: CheckoutRepository = Depends(get_checkouts),
 ) -> CheckoutResponse:
-    """Return checkout summary and transactions for a checkout lane.
+    """Return a demo-safe checkout summary and transactions for a checkout lane.
 
     Degrades gracefully: if analytics are unavailable, raises 503 analytics_unavailable.
     Unknown checkout returns 404 checkout_not_found.
 
-    PII policy: cashier staff_id and name are redacted by default (redact_cashier=true).
-    Only set redact_cashier=false when the caller has been authorized for cashier_data scope.
+    PII policy: cashier staff_id and name are never returned by this public
+    endpoint. Cashier data is retained only within the repository read model.
     """
     target_store = store_id or request.app.state.settings.store_id
     try:
         response = repo.get_checkout(checkout_id=checkout_id, store_id=target_store)
-        if redact_cashier:
-            if response.summary.cashier is not None:
-                response.summary.cashier = None
-            response.transactions = [
-                txn.model_copy(update={"cashier": None}) for txn in response.transactions
-            ]
+        if response.summary.cashier is not None:
+            response.summary.cashier = None
+        response.transactions = [
+            txn.model_copy(update={"cashier": None}) for txn in response.transactions
+        ]
         return response
     except CheckoutNotFound as exc:
         raise ApiError(404, "checkout_not_found", f"Checkout {checkout_id!r} was not found.") from exc
