@@ -290,13 +290,8 @@ def reset_bigquery(dry_run: bool = False) -> dict[str, Any]:
         "namespace": DEMO_NAMESPACE,
         "deleted_by_table": deleted_counts,
         "message": "Deleted all demo-scoped rows from BigQuery",
+        "manifest_pending_removal": not dry_run,  # Will be removed by caller after all phases
     }
-    
-    # Remove seed manifest after successful reset
-    manifest_path = Path(__file__).parent / "seed_manifest.json"
-    if not dry_run and manifest_path.exists():
-        manifest_path.unlink()
-        results["bigquery"]["manifest_removed"] = True
     
     return results
 
@@ -441,6 +436,7 @@ def main() -> int:
         print()
 
     results: dict[str, Any] = {"dry_run": dry_run}
+    all_phases_succeeded = True
 
     # Reset selected services
     try:
@@ -467,6 +463,14 @@ def main() -> int:
             print(f"  Result: {json.dumps(results['pubsub'], indent=4)}")
             print()
 
+        # Only remove manifest after ALL phases succeeded
+        if all_phases_succeeded and not dry_run:
+            manifest_path = Path(__file__).parent / "seed_manifest.json"
+            if manifest_path.exists():
+                manifest_path.unlink()
+                print("Seed manifest removed.")
+                print()
+
         print("Reset complete!")
         print()
         
@@ -476,7 +480,10 @@ def main() -> int:
         
         return 0
     except Exception as e:
+        all_phases_succeeded = False
         print(f"error: {e}", file=sys.stderr)
+        print()
+        print("Reset failed - manifest preserved for retry.")
         return 1
 
 
