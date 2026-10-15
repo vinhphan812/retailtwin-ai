@@ -132,7 +132,6 @@ Do not infer implementation merely because a component is documented in the targ
 
 - Later analytical tables such as product performance and simulation results;
 - end-to-end autonomous scenario;
-- Cloud Run production wiring for Vertex AI with ADC (issue #134);
 - Demo data for production build (issue #135, active PR #197);
 - submission gates G02–G06.
 
