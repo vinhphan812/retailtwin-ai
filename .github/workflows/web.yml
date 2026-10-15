@@ -248,7 +248,7 @@ jobs:
           # SPA rewrite returns the index.html content, verify app shell markers
           RESP=$(curl --fail --silent "${FRONTEND_URL}/twin")
           # Check for app shell markers (title, root element, or known text from index.html)
-          if ! echo "${RESP}" | grep -qE '<title>|<div id="root"|app|retailtwin'; then
+          if ! echo "${RESP}" | grep -qE '(<title>|<div id="root">|app|retailtwin)'; then
             echo "ERROR: SPA rewrite not working for /twin route"
             echo "Response does not contain expected app shell markers"
             echo "First 200 chars: ${RESP:0:200}"
@@ -299,7 +299,7 @@ jobs:
         run: |
           HTML=$(curl --fail --silent "${FRONTEND_URL}/")
           # Check all linked assets for localhost references
-          ASSETS=$(echo "${HTML}" | grep -oE '(src|href)="[^"]+' | sed 's/(src|href)="//;s/"//')
+          ASSETS=$(echo "${HTML}" | grep -oE '(src|href)="[^"]+' | sed -E 's/(src|href)="//;s/"$//')
           for ASSET in ${ASSETS}; do
             CONTENT=$(curl --fail --silent "${FRONTEND_URL}${ASSET}" 2>/dev/null || echo "")
             if echo "${CONTENT}" | grep -qE "https?://(localhost|127\.0\.0\.1):"; then
