@@ -13,19 +13,3 @@ const store: Record<string, string> = {};
   get length() { return Object.keys(store).length; },
 } as Storage;
 
-// Mock HTMLCanvasElement.getContext for Three.js tests in jsdom
-if (typeof HTMLCanvasElement !== "undefined") {
-  HTMLCanvasElement.prototype.getContext = function (
-    contextType: string,
-    _attributes?: CanvasRenderingContext2DSettings | ImageBitmapRenderingContextSettings | WebGLRenderingContextSettings | WebGL2RenderingContextSettings
-  ) {
-    if (contextType === "2d" || contextType === "webgl" || contextType === "webgl2") {
-      return {
-        canvas: this,
-        drawingBufferWidth: this.width || 800,
-        drawingBufferHeight: this.height || 600,
-      } as unknown as CanvasRenderingContext2D | WebGLRenderingContext | WebGL2RenderingContext;
-    }
-    return null;
-  } as unknown as HTMLCanvasElement["getContext"];
-}
