@@ -98,7 +98,16 @@ class TestExecutorIsolation:
     """Executor is the sole live mutation path."""
 
     def test_only_the_guarded_executor_writes_the_live_twin(self) -> None:
-        """No production module other than the guarded Executor calls a Live Twin write."""
+        """No production module other than the guarded Executor calls a Live Twin write.
+
+        ``firestore_twin.py`` is the canonical Live Twin repository and owns
+        the low-level ``commit_inventory`` call that every other module
+        must route through. The flagship controller's deliberate stale-block
+        bump is also implemented there as a non-decision admin helper, so
+        the test stays consistent with ADR 0016 — the guarded Executor is
+        the only path for agent decisions, and the repository is the only
+        path for the raw mutation primitive.
+        """
         import ast
         import pathlib
         repo_root = pathlib.Path(__file__).parent.parent.parent
