@@ -62,8 +62,8 @@ export function AgentActivityOpenButton() {
 }
 
 /**
- * Operations lens: the store API check, the guard's last answer, the open alerts and
- * opportunities, and the agent's timeline.
+ * Operations lens: the open alerts and opportunities, the guard's last answer, the agent's
+ * timeline, and the inventory check last, as it is reference rather than the work in hand.
  * A SKU in the timeline selects that product; picking an alert narrows the timeline to its run.
  * Follow agent lets the agent's own steps move the camera (`useAgentFocus`).
  */
@@ -82,9 +82,8 @@ function OperationsView() {
 
   return (
     <>
-      <StoreStatus />
-      <GuardSection />
       <AlertsSection />
+      <GuardSection />
 
       <section className="activity-section">
         <div className="activity-section-head">
@@ -165,6 +164,8 @@ function OperationsView() {
           )}
         </AnimatePresence>
       </section>
+
+      <StoreStatus />
     </>
   );
 }

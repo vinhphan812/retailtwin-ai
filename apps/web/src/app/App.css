@@ -253,7 +253,7 @@ body {
   color: var(--color-ink);
 }
 
-/* Alerts & opportunities, above the timeline. Capped so the timeline stays in view. */
+/* Alerts & opportunities, above the timeline. Capped by count, not height: no scroll box inside the panel. */
 .alerts-section {
   margin-bottom: 18px;
 }
@@ -262,11 +262,27 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 280px;
   margin: 0;
   padding: 0;
-  overflow: auto;
   list-style: none;
+}
+
+.alerts-more {
+  width: 100%;
+  margin-top: 8px;
+  padding: 6px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-accent);
+  background: none;
+  border: 1px dashed var(--color-line);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.alerts-more:hover {
+  border-color: var(--color-line-strong);
 }
 
 .alert-item {
