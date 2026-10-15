@@ -9,6 +9,7 @@ from retailtwin_api.analytics_repository import (
     InMemoryAnomalyRepository,
     InMemoryPromotionRepository,
     InMemoryRevenueRepository,
+    InMemoryCheckoutRepository,
 )
 from retailtwin_api.schemas import (
     Anomaly,
@@ -18,6 +19,11 @@ from retailtwin_api.schemas import (
     PromotionStatus,
     PromotionType,
     RevenueBucket,
+    CheckoutResponse,
+    CheckoutSummary,
+    CheckoutTransaction,
+    CheckoutLine,
+    Cashier,
 )
 
 
@@ -394,3 +400,62 @@ class TestPromotions:
         data = response.json()
         assert data["total"] == 3
         assert data["active_count"] == 1  # only ACTIVE counts
+
+
+# ─── /checkouts tests ──────────────────────────────────────────────────────────
+
+class TestCheckouts:
+    def test_returns_checkout(self, client: TestClient, checkout_repo: InMemoryCheckoutRepository):
+        now = datetime.now(timezone.utc)
+        checkout_repo.seed([
+            CheckoutResponse(
+                summary=CheckoutSummary(
+                    checkout_id="CK01",
+                    store_id="store-001",
+                    status="open",
+                    cashier=Cashier(staff_id="EMP-014", name="Linh Tran"),
+                    shift_started_at=now - timedelta(hours=4),
+                    business_date="2026-10-09",
+                    revenue_today=26.52,
+                    transactions_today=3,
+                    items_scanned_today=8,
+                    queue_length=2,
+                    last_transaction_at=now,
+                ),
+                transactions=[
+                    CheckoutTransaction(
+                        transaction_id="CK01-0001",
+                        checkout_id="CK01",
+                        store_id="store-001",
+                        completed_at=now,
+                        cashier=Cashier(staff_id="EMP-014", name="Linh Tran"),
+                        items=3,
+                        total=9.97,
+                        payment_method="cash",
+                        lines=[
+                            CheckoutLine(sku="P001", quantity=2, unit_price=3.49, line_total=6.98),
+                            CheckoutLine(sku="P002", quantity=1, unit_price=2.99, line_total=2.99),
+                        ],
+                    )
+                ],
+            )
+        ])
+        response = client.get("/checkouts/CK01")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["summary"]["checkout_id"] == "CK01"
+        assert data["summary"]["revenue_today"] == 26.52
+        assert len(data["transactions"]) == 1
+        assert data["transactions"][0]["transaction_id"] == "CK01-0001"
+
+    def test_checkout_not_found(self, client: TestClient):
+        response = client.get("/checkouts/UNKNOWN")
+        assert response.status_code == 404
+        assert response.json()["error"]["code"] == "checkout_not_found"
+
+    def test_checkout_analytics_unavailable(self, client: TestClient):
+        from retailtwin_api.analytics_repository import _UnavailableCheckoutRepository
+        client.app.state.checkouts = _UnavailableCheckoutRepository()
+        response = client.get("/checkouts/CK01")
+        assert response.status_code == 503
+        assert response.json()["error"]["code"] == "analytics_unavailable"
