@@ -338,6 +338,10 @@ jobs:
       run:
         working-directory: apps/web
 
+    # Job level, so the validation step and the build see the same value.
+    env:
+      VITE_API_BASE_URL: ${{ vars.FIREBASE_API_BASE_URL }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -366,8 +370,6 @@ jobs:
 
       - name: TypeScript & build
         run: npm run build
-        env:
-          VITE_API_BASE_URL: ${{ vars.FIREBASE_API_BASE_URL }}
 
       - name: Run tests
         run: npm test
