@@ -49,7 +49,7 @@ The feature is gated by `AUTONOMY_ENABLED` (default `false`). When enabled, the 
 - **Missing bindings in production.** The non-inventory mandatory sources (sales, forecast, promotions, planogram) need production read ports. Until those are bound, a real run stops at `INVESTIGATE insufficient_evidence` / `PLAN failed`.
 - **Follow-up work.** Scoring with the simulator (#15) inside the run, a Pub/Sub trigger, and autonomous commit remain later decisions.
 
-- Pull request:
+- Pull request: https://github.com/vinhphan812/retailtwin-ai/pull/199
 - Issue: #50
 - Supersedes:
 - Superseded by:
