@@ -62,6 +62,8 @@ SKU = "P017"
 
 # Demo namespace for all demo-scoped data
 DEMO_NAMESPACE = "retailtwin-demo"
+# Must match CANONICAL_SEED_VERSION in data/seed/demo_seed.py
+DEMO_SEED_VERSION = "v1"
 
 
 def demo_event_id(suffix: str) -> str:
@@ -232,6 +234,7 @@ def _inventory_fields(seed: SeedProduct, now: str) -> dict[str, Any]:
         "shelf_quantity": {"integerValue": str(seed.shelf_quantity)},
         "backroom_quantity": {"integerValue": str(seed.backroom_quantity)},
         "version": {"integerValue": "1"},
+        "demo_seed_version": {"stringValue": DEMO_SEED_VERSION},
         "updated_at": {"timestampValue": now},
     }
 

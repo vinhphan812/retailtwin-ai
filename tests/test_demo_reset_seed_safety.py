@@ -27,13 +27,27 @@ seed_bigquery = load_module("seed_bigquery_under_test", "infrastructure/gcp/seed
 
 
 class FakeFirestore:
-    """In-memory Firestore REST fixture; never contacts GCP."""
+    """In-memory Firestore REST fixture; never contacts GCP.
+
+    Inventory documents are stored as full Firestore document dicts so that
+    is_demo_seed_inventory() can inspect the fields without needing a live
+    Firestore API call.
+    """
 
     def __init__(self) -> None:
         root = reset_demo.database_root()
-        self.inventory = {
-            f"{root}/stores/store-001/inventory/P017",
-        }
+        # Each inventory entry is a full Firestore document dict.
+        # demo-seeded docs have demo_seed_version; others don't.
+        self.inventory: list[dict[str, Any]] = [
+            {
+                "name": f"{root}/stores/store-001/inventory/P017",
+                "fields": {
+                    "store_id": {"stringValue": "store-001"},
+                    "sku": {"stringValue": "P017"},
+                    "demo_seed_version": {"stringValue": reset_demo.DEMO_SEED_VERSION},
+                },
+            },
+        ]
         self.claims = {
             f"{root}/store_event_claims/retailtwin-demo-evt-p017-base-0001",
             f"{root}/store_event_claims/retailtwin-demo-evt-p017-surge-0001",
@@ -47,9 +61,13 @@ class FakeFirestore:
         assert headers["Content-Type"] == "application/json"
         root = reset_demo.database_root()
         if method == "GET" and url == f"{root}/stores/store-001/inventory":
-            return reset_demo.HttpResponse(200, json.dumps({"documents": [{"name": name} for name in self.inventory]}))
+            return reset_demo.HttpResponse(
+                200, json.dumps({"documents": self.inventory})
+            )
         if method == "GET" and url.startswith(f"{root}/store_event_claims?"):
-            return reset_demo.HttpResponse(200, json.dumps({"documents": [{"name": name} for name in self.claims]}))
+            return reset_demo.HttpResponse(
+                200, json.dumps({"documents": [{"name": name} for name in self.claims]})
+            )
         if method == "POST" and url == f"{root}:commit":
             assert payload is not None
             commit = json.loads(payload)
@@ -57,8 +75,10 @@ class FakeFirestore:
             for write in commit["writes"]:
                 deleted = write.get("delete")
                 if deleted:
-                    self.inventory.discard(deleted)
                     self.claims.discard(deleted)
+                    self.inventory = [
+                        doc for doc in self.inventory if doc.get("name") != deleted
+                    ]
             return reset_demo.HttpResponse(200, json.dumps({"writeResults": [{}]}))
         raise AssertionError(f"Unexpected request: {method} {url}")
 
@@ -70,6 +90,7 @@ def test_reset_firestore_deletes_only_demo_claims_and_replay_is_fresh() -> None:
     assert first["firestore"]["demo_claims_deleted"] == 2
     assert transport.claims == {next(name for name in transport.claims if name.endswith("production-event-0001"))}
     deleted = {write["delete"] for write in transport.commits[0]["writes"] if "delete" in write}
+    # P017 is demo-seeded (demo_seed_version=v1) so it IS eligible for deletion.
     assert all("retailtwin-demo-" in name or "/inventory/" in name for name in deleted)
     assert not any("production-event-0001" in name for name in deleted)
 
@@ -87,6 +108,45 @@ def test_reset_firestore_dry_run_has_no_mutation_and_exposes_bounded_scope() -> 
     assert result["firestore"]["claim_scope"] == "store_event_claims/retailtwin-demo-*"
     assert transport.commits == []
     assert any(name.endswith("production-event-0001") for name in transport.claims)
+
+
+def test_reset_firestore_preserves_non_demo_inventory() -> None:
+    """Negative test: non-demo inventory (no demo_seed_version) is NOT deleted.
+
+    A document without demo_seed_version is treated as live/production state and
+    must survive a reset.  This is the core safety fix for issue #135.
+    """
+    root = reset_demo.database_root()
+    # Live inventory document — no demo_seed_version field, simulating production
+    # state created by the live-twin system after seeding.
+    LIVE_SKU = "LIVE-P001"
+    fake = FakeFirestore()
+    fake.inventory.append({
+        "name": f"{root}/stores/store-001/inventory/{LIVE_SKU}",
+        "fields": {
+            "store_id": {"stringValue": "store-001"},
+            "sku": {"stringValue": LIVE_SKU},
+            # intentionally missing demo_seed_version
+            "shelf_quantity": {"integerValue": "50"},
+        },
+    })
+
+    result = reset_demo.reset_firestore(fake)
+
+    # Reset should report the demo-seeded P017 as deleted.
+    assert result["firestore"]["inventory_deleted"] == 1
+
+    # Live document must be preserved.
+    assert result["firestore"]["non_demo_inventory_preserved"] == 1
+    assert any(doc["name"].endswith(f"/{LIVE_SKU}") for doc in fake.inventory)
+
+    # The live document must NOT appear in any delete write.
+    all_deleted = set()
+    for commit in fake.commits:
+        for write in commit.get("writes", []):
+            if "delete" in write:
+                all_deleted.add(write["delete"])
+    assert not any(LIVE_SKU in name for name in all_deleted)
 
 
 def test_seed_gcp_partial_bigquery_failure_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:

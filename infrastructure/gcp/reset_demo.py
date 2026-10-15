@@ -51,7 +51,9 @@ STORE_ID = "store-001"
 
 # Demo data namespace - all demo rows are tagged with this prefix
 DEMO_NAMESPACE = "retailtwin-demo"
-DEMO_RUN_ID_PREFIX = f"{DEMO_NAMESPACE}-run-"
+
+# Must match DEMO_SEED_VERSION in seed_gcp.py / CANONICAL_SEED_VERSION in data/seed/demo_seed.py
+DEMO_SEED_VERSION = "v1"
 
 # Firestore claim collection - demo event IDs live here
 CLAIM_COLLECTION = "store_event_claims"
@@ -192,21 +194,37 @@ def list_demo_claims(transport: HttpTransport) -> list[dict[str, Any]]:
         page_token = next_page_token
 
 
+def is_demo_seed_inventory(document: dict[str, Any]) -> bool:
+    """Return whether an inventory document is owned by the demo seed.
+
+    A document is demo-seed-owned when its demo_seed_version field matches the
+    current DEMO_SEED_VERSION.  Documents without that field are treated as
+    non-demo (live/production) and are never deleted by reset.
+    """
+    fields = document.get("fields", {})
+    version_field = fields.get("demo_seed_version", {})
+    if not isinstance(version_field, dict):
+        return False
+    value = version_field.get("stringValue", "")
+    return isinstance(value, str) and value == DEMO_SEED_VERSION
+
+
 def reset_firestore(transport: HttpTransport, dry_run: bool = False) -> dict[str, Any]:
     """Reset Firestore Live Twin and demo event claims.
 
-    Deletes only inventory documents belonging to the demo store and only
-    claim documents whose event_id starts with the demo namespace.
-    Non-demo claims are never touched.
+    Deletes only inventory documents that are marked as demo-seed-owned
+    (demo_seed_version matches DEMO_SEED_VERSION).  Non-demo inventory
+    documents are preserved.  Only claim documents whose event_id starts
+    with the demo namespace are deleted.  Non-demo claims are never touched.
     """
     if dry_run:
         # A normal dry run must be usable without credentials and must make no
         # HTTP request.  Counts require a separately reviewed live inspection.
         return {"firestore": {
             "dry_run": True,
-            "inventory_scope": f"stores/{STORE_ID}/inventory",
+            "inventory_scope": f"stores/{STORE_ID}/inventory?demo_seed_version={DEMO_SEED_VERSION}",
             "claim_scope": f"{CLAIM_COLLECTION}/{DEMO_NAMESPACE}-*",
-            "safety": "Only store-001 inventory and retailtwin-demo-* claim IDs are eligible.",
+            "safety": "Only demo-seed-owned inventory (demo_seed_version=v1) and retailtwin-demo-* claim IDs are eligible.",
         }}
 
     results: dict[str, Any] = {"firestore": {}}
@@ -230,8 +248,14 @@ def reset_firestore(transport: HttpTransport, dry_run: bool = False) -> dict[str
         inventory_documents = [doc for doc in documents if isinstance(doc, dict)]
 
     demo_claims = list_demo_claims(transport)
+
+    demo_inventory = [doc for doc in inventory_documents if is_demo_seed_inventory(doc)]
+    non_demo_inventory = [doc for doc in inventory_documents if not is_demo_seed_inventory(doc)]
+
     results["firestore"].update({
         "inventory_found": len(inventory_documents),
+        "demo_inventory_found": len(demo_inventory),
+        "non_demo_inventory_found": len(non_demo_inventory),
         "demo_claims_found": len(demo_claims),
         "claim_namespace": DEMO_NAMESPACE,
     })
@@ -239,7 +263,9 @@ def reset_firestore(transport: HttpTransport, dry_run: bool = False) -> dict[str
     inventory_deletes = [
         {"delete": name}
         for document in inventory_documents
-        if isinstance((name := document.get("name")), str) and name
+        if is_demo_seed_inventory(document)
+        and isinstance((name := document.get("name")), str)
+        and name
     ]
     claim_deletes = [
         {"delete": name}
@@ -252,9 +278,10 @@ def reset_firestore(transport: HttpTransport, dry_run: bool = False) -> dict[str
             "dry_run": True,
             "inventory_documents_to_delete": len(inventory_deletes),
             "demo_claims_to_delete": len(claim_deletes),
+            "non_demo_inventory_preserved": len(non_demo_inventory),
             "inventory_sample": [write["delete"] for write in inventory_deletes[:5]],
             "claim_sample": [write["delete"] for write in claim_deletes[:5]],
-            "safety": "Only store-001 inventory and retailtwin-demo-* claim IDs are eligible.",
+            "safety": "Only demo-seed-owned inventory (demo_seed_version=v1) and retailtwin-demo-* claim IDs are eligible.",
         })
         return results
 
@@ -292,6 +319,7 @@ def reset_firestore(transport: HttpTransport, dry_run: bool = False) -> dict[str
         "reset": True,
         "inventory_deleted": len(inventory_deletes),
         "demo_claims_deleted": len(claim_deletes),
+        "non_demo_inventory_preserved": len(non_demo_inventory),
         "version_bumped": True,
         "timestamp": now,
     })
