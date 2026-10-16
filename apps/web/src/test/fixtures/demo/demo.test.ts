@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { parseStoreState } from "@/core/api/validate";
 import { isDemoMode } from "@/core/twin/demoMode";

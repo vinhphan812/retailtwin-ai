@@ -11,10 +11,12 @@ const POLL_INTERVAL_MS = 30_000;
 
 /**
  * Start/stop state to prevent duplicate pollers.
- * Uses a ref to track if polling is active.
+ * - `mounted`: whether a component using this hook is currently mounted
+ * - `inFlight`: whether a request is currently in progress (prevents duplicate requests)
  */
 const pollingState = {
-  active: false,
+  mounted: false,
+  inFlight: false,
   timerId: null as ReturnType<typeof setInterval> | null,
 };
 
@@ -37,18 +39,26 @@ export function useAnomalyPolling(): void {
   const pollRef = useRef<() => void>(() => {});
 
   const doPoll = useCallback(async () => {
-    // Skip if already polling - but this check happens AFTER we set active=false when done
-    // The key fix: we set active=false AFTER the poll completes, not before
+    // Skip if another request is already in flight
+    if (pollingState.inFlight) return;
+    // Skip if no component is currently mounted (cleanup ran)
+    if (!pollingState.mounted) return;
+
+    pollingState.inFlight = true;
+
     try {
-      pollingState.active = true;
       const response = await client.anomalies();
-      setAll(response);
+      // Check mounted again after async in case component unmounted during request
+      if (pollingState.mounted) {
+        setAll(response);
+      }
     } catch (error) {
-      fail(i18n.t("anomalies.loadFailed"));
-      notify.error(i18n.t("anomalies.loadFailed"), error);
+      if (pollingState.mounted) {
+        fail(i18n.t("anomaly.loadFailed"));
+        notify.error(i18n.t("anomaly.loadFailed"), error);
+      }
     } finally {
-      // Mark as not active AFTER the poll completes, allowing next poll
-      pollingState.active = false;
+      pollingState.inFlight = false;
     }
   }, [client, setAll, fail]);
 
@@ -56,20 +66,25 @@ export function useAnomalyPolling(): void {
   pollRef.current = doPoll;
 
   useEffect(() => {
-    // Prevent duplicate pollers - but now we check if a timer is already running
-    // rather than blocking on the 'active' flag which was being set too early
-    if (pollingState.timerId) {
-      // Already polling
+    // Prevent duplicate pollers - if already mounted, skip
+    if (pollingState.mounted) {
       return;
     }
 
-    // Initial poll - runs immediately
+    pollingState.mounted = true;
+
+    // Initial poll
     doPoll();
 
-    // If demo mode, don't start interval polling, but still register cleanup below
-    if (!isDemo) {
-      // Start interval polling
-      pollingState.timerId = setInterval(doPoll, POLL_INTERVAL_MS);
+    // If demo mode, still register cleanup (don't return early without cleanup)
+    if (isDemo) {
+      return () => {
+        pollingState.mounted = false;
+        if (pollingState.timerId) {
+          clearInterval(pollingState.timerId);
+          pollingState.timerId = null;
+        }
+      };
     }
 
     // Handle visibility change: pause when hidden, resume when visible
@@ -82,7 +97,7 @@ export function useAnomalyPolling(): void {
         }
       } else {
         // Tab is visible - resume polling immediately if not already polling
-        if (!pollingState.timerId && !pollingState.active) {
+        if (!pollingState.timerId && !pollingState.inFlight) {
           pollRef.current();
           pollingState.timerId = setInterval(pollRef.current, POLL_INTERVAL_MS);
         }
@@ -91,9 +106,13 @@ export function useAnomalyPolling(): void {
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
+    // Start interval polling
+    pollingState.timerId = setInterval(doPoll, POLL_INTERVAL_MS);
+
     // Cleanup on unmount - this ALWAYS runs now, including in demo mode
     return () => {
-      pollingState.active = false;
+      pollingState.mounted = false;
+      pollingState.inFlight = false;
       if (pollingState.timerId) {
         clearInterval(pollingState.timerId);
         pollingState.timerId = null;
