@@ -1,6 +1,6 @@
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo } from "react";
-import type { QuadraticBezierCurve3 } from "three";
+import { useEffect, useMemo, useRef } from "react";
+import type { Group, QuadraticBezierCurve3 } from "three";
 import { Line2 } from "three/addons/lines/Line2.js";
 import { LineGeometry } from "three/addons/lines/LineGeometry.js";
 import { LineMaterial } from "three/addons/lines/LineMaterial.js";
@@ -11,6 +11,7 @@ import {
   MOVE_ARROW_WIDTH_PX,
 } from "@/constants/scene.constant";
 import { moveColor } from "@/core/utils/theme";
+import { exteriorLevel } from "@/scene/camera/exterior";
 
 /** Points along a move's line; enough for a smooth arc at any zoom. */
 const LINE_POINTS = 40;
@@ -42,11 +43,20 @@ function lineMaterials() {
   return materials;
 }
 
-/** Sets how strongly the move lines show, from 0 to 1. */
+/** How strongly the marks of the move show, from 0 to 1, as `showArrows` last set it. */
+let markLevel = 1;
+
+/** Sets how strongly the move lines show, from 0 to 1, along with the other marks of the move. */
 export function showArrows(level: number) {
-  const { line, outline } = lineMaterials();
-  line.opacity = MOVE_ARROW_OPACITY * level;
-  outline.opacity = MOVE_ARROW_OUTLINE_OPACITY * level;
+  markLevel = level;
+}
+
+/**
+ * How strongly a line shows: the move's own level, faded out as the roof fades in. The line is
+ * drawn over everything, so once the store is a closed building it would float over the roof.
+ */
+export function lineLevel(mark: number, exterior: number): number {
+  return mark * (1 - exterior);
 }
 
 const NO_RAYCAST = () => null;
@@ -62,23 +72,34 @@ function lineParts(curve: QuadraticBezierCurve3, line: LineMaterial, outline: Li
 
 /**
  * One line per move, from where the product stood to where it stands: a solid line of a
- * fixed width on screen over a thin dark outline. It fades with the other marks of the move
- * and never animates on its own. Takes no pointer events and casts no shadow.
+ * fixed width on screen over a thin dark outline. It fades with the other marks of the move,
+ * and out as the camera zooms back far enough for the roof to close the store over it
+ * (`exteriorLevel`). Takes no pointer events and casts no shadow.
  */
 export function MoveArrows({ curves }: { curves: QuadraticBezierCurve3[] }) {
   const { line, outline } = lineMaterials();
   const parts = useMemo(() => curves.map((curve) => lineParts(curve, line, outline)), [curves, line, outline]);
   useEffect(() => () => parts.forEach(({ geometry }) => geometry.dispose()), [parts]);
   const size = useThree((state) => state.size);
+  const controls = useThree((state) => state.controls) as { distance?: number; maxDistance?: number } | null;
+  const group = useRef<Group>(null);
 
   useFrame(() => {
     if (!parts.length) return;
     line.resolution.set(size.width, size.height);
     outline.resolution.set(size.width, size.height);
+    const exterior =
+      controls?.distance !== undefined && controls.maxDistance !== undefined
+        ? exteriorLevel({ distance: controls.distance, maxDistance: controls.maxDistance })
+        : 0;
+    const level = lineLevel(markLevel, exterior);
+    line.opacity = MOVE_ARROW_OPACITY * level;
+    outline.opacity = MOVE_ARROW_OUTLINE_OPACITY * level;
+    if (group.current) group.current.visible = level > 0.01;
   });
 
   return (
-    <group name="stock-arrows">
+    <group ref={group} name="stock-arrows">
       {parts.map(({ shaft, under }, index) => (
         <group key={index} name="stock-move-arrow">
           <primitive object={under} raycast={NO_RAYCAST} renderOrder={3} />

@@ -22,6 +22,12 @@ export const MAX_DISTANCE_FACTOR = 2.4;
  * The fitted view, where the app opens, stays open.
  */
 export const EXTERIOR_VIEW = { from: 1.25, to: 1.6 } as const;
+/**
+ * Switching to the Simulation view while zoomed out to the closed building brings the camera
+ * in to this share of the distance that fits the store: a little closer than the fitted view,
+ * so the store opens and the proposal's changes show.
+ */
+export const SIMULATION_ZOOM = 0.9;
 
 export const INITIAL_CAMERA_POSITION: Tuple3 = [
   ORBIT_TARGET[0] + INITIAL_CAMERA_OFFSET[0],

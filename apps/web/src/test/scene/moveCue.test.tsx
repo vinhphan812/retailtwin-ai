@@ -14,6 +14,7 @@ import { demoStoreState } from "@/fixtures/demo/store";
 import { toSceneStore } from "@/scene/layout";
 import { TwinStoreContents } from "@/scene/StoreScene";
 import { buildStock } from "@/scene/entities/stock/Stock";
+import { lineLevel } from "@/scene/entities/stock/MoveArrows";
 import {
   ghostOutlines,
   markLevels,
@@ -75,6 +76,14 @@ describe("moveCueOf", () => {
     expect(near.v2.y).toBeCloseTo(1 + MOVE_ARROW_LIFT);
     expect(far.v1.y).toBeGreaterThan(near.v1.y);
     expect(near.v1.x).toBeCloseTo(0.5);
+  });
+
+  it("fades a move's line out as the roof closes the store over it", () => {
+    expect(lineLevel(1, 0)).toBe(1);
+    expect(lineLevel(0.5, 0)).toBe(0.5);
+    expect(lineLevel(1, 0.5)).toBe(0.5);
+    // Zoomed out to a closed building: the line would float over the roof, so it is gone.
+    expect(lineLevel(1, 1)).toBe(0);
   });
 
   it("shows nothing when the scene does not have the product where the move put it", () => {

@@ -1,4 +1,6 @@
-import { EXTERIOR_VIEW, MAX_DISTANCE_FACTOR } from "@/constants/camera.constant";
+import { EXTERIOR_VIEW, MAX_DISTANCE_FACTOR, ORBIT_TARGET, SIMULATION_ZOOM } from "@/constants/camera.constant";
+import type { Tuple3 } from "@/types/scene.type";
+import type { FocusView } from "./focus";
 
 /** The camera controls' distance and zoom-out cap, as `CameraControls` has them. */
 type Zoom = { distance: number; maxDistance: number };
@@ -18,3 +20,21 @@ export function exteriorLevel({ distance, maxDistance }: Zoom): number {
 
 /** At or past this level the store counts as closed up: every wall stands. */
 export const EXTERIOR_WALLS_AT = 0.5;
+
+/**
+ * Where the camera goes when the Simulation view opens: in to `SIMULATION_ZOOM` of the fitted
+ * distance, looking at the store from where it looks now. Null when the store is already open
+ * (no roof showing), so a camera the user has brought in stays where it is.
+ */
+export function simulationView(position: Tuple3, zoom: Zoom): FocusView | null {
+  if (exteriorLevel(zoom) <= 0) return null;
+  const fitted = zoom.maxDistance / MAX_DISTANCE_FACTOR;
+  const offset = position.map((value, axis) => value - ORBIT_TARGET[axis]);
+  const length = Math.hypot(...offset);
+  if (length <= 0) return null;
+  const distance = fitted * SIMULATION_ZOOM;
+  return {
+    position: offset.map((value, axis) => ORBIT_TARGET[axis] + (value / length) * distance) as Tuple3,
+    target: ORBIT_TARGET,
+  };
+}
