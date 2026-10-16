@@ -10,7 +10,7 @@ permissions:
 jobs:
   scan:
     name: Secrets and dependency security
-    runs-on: self-hosted
+    runs-on: [self-hosted, Linux, X64]
     steps:
       - uses: actions/checkout@v4
       - name: Scan committed files for secrets (Trivy container)
