@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { impactOf, runVerified } from "@/core/twin/aiImpact";
+import { impactOf, runVerify } from "@/core/twin/aiImpact";
 import { BASELINE_CANDIDATE_ID, KPI_TREND } from "@/enums/simulation.enum";
 import { demoAgentRun } from "@/fixtures/demo/agentRun";
 import { demoCandidates } from "@/fixtures/demo/candidates";
@@ -41,17 +41,17 @@ describe("impactOf", () => {
   });
 });
 
-describe("runVerified", () => {
-  it("is true once a run naming the simulation has a VERIFY entry", () => {
+describe("runVerify", () => {
+  it("is the VERIFY entry once a run naming the simulation has one, with the verifier's status", () => {
     const run = demoAgentRun();
-    expect(runVerified(run, DEMO_SIMULATION_ID)).toBe(true);
-    expect(runVerified(run.slice(0, 7), DEMO_SIMULATION_ID)).toBe(false);
-    expect(runVerified(run, "sim-other")).toBe(false);
+    expect(runVerify(run, DEMO_SIMULATION_ID)?.status).toBe("INCONCLUSIVE");
+    expect(runVerify(run.slice(0, 7), DEMO_SIMULATION_ID)).toBeNull();
+    expect(runVerify(run, "sim-other")).toBeNull();
   });
 
   it("ignores a VERIFY of another run", () => {
     const ours = demoAgentRun("run-a").slice(0, 6);
     const other = demoAgentRun("run-b").map((entry) => ({ ...entry, simulation_id: undefined }));
-    expect(runVerified([...ours, ...other], DEMO_SIMULATION_ID)).toBe(false);
+    expect(runVerify([...ours, ...other], DEMO_SIMULATION_ID)).toBeNull();
   });
 });

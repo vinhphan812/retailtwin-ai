@@ -9,7 +9,8 @@ import { DEMO_SIMULATION_ID } from "./simulation";
  * control loop on P003, which the demo store has out of stock on A01 with 18 in the
  * backroom. INVESTIGATE and ACT name the product, VERIFY only its shelf, so following
  * the agent focuses both a product and a fixture. From SIMULATE on, the entries name the demo
- * simulation, so once it is accepted its AI Impact shows when the run reaches VERIFY.
+ * simulation, so once it is accepted its projected impact shows when the run reaches VERIFY.
+ * VERIFY is INCONCLUSIVE, as the verifier reports it while no post-action KPI is observed.
  * Until #94 reads `GET /agent/events`.
  */
 
@@ -32,7 +33,13 @@ const STEPS: Step[] = [
   { stage: "SIMULATE", summary: "Simulated the restock: P003 back on the shelf, no other slot changes.", ...SIM },
   { stage: "GUARD", summary: "Guard allowed the commit: Live has not moved since the simulation.", ...SIM },
   { stage: "ACT", summary: "Restocking P003 +12 on A01-S21.", ...P003, ...SIM },
-  { stage: "VERIFY", summary: "Verifying gondola A01: P003 is back on the shelf.", shelf_id: "A01", ...SIM },
+  {
+    stage: "VERIFY",
+    summary: "Verifying gondola A01: P003 is back on the shelf; no post-action KPI observed yet.",
+    status: "INCONCLUSIVE",
+    shelf_id: "A01",
+    ...SIM,
+  },
 ];
 
 /** The demo run's entries, stamped from `start`, one second apart. A new array per call. */

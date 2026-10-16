@@ -4,15 +4,17 @@ import { useTranslation } from "react-i18next";
 import { IMPACT_TOAST_MS, IMPACT_TOAST_ROWS } from "@/constants/app.constant";
 import { useVerifiedImpact } from "@/hooks/aiImpact.hook";
 import { useImpactStore } from "@/state/impact.store";
-import { CompareButton, ImpactRowView } from "./AiImpactCard";
+import { CompareButton, ImpactRowView, VerifierStatus } from "./AiImpactCard";
 
 /**
- * The AI Impact over the 3D view, for `IMPACT_TOAST_MS`, the moment the agent's run of an
- * executed approval reaches VERIFY. Once per simulation; the card stays in the Operations lens.
+ * The projected impact over the 3D view, for `IMPACT_TOAST_MS`, the moment the agent's run of
+ * an executed approval reaches VERIFY, with the verifier's status apart. Once per simulation;
+ * the card stays in the Operations lens.
  */
 export function AiImpactToast() {
   const { t } = useTranslation();
-  const impact = useVerifiedImpact();
+  const verified = useVerifiedImpact();
+  const impact = verified?.impact ?? null;
   const shownFor = useImpactStore((state) => state.toastShownFor);
   const markToastShown = useImpactStore((state) => state.markToastShown);
   const visible = impact !== null && shownFor !== impact.simulation_id;
@@ -57,6 +59,7 @@ export function AiImpactToast() {
             <span className="impact-note">{t("impact.note", { version: impact.evaluator_version })}</span>
             <CompareButton />
           </div>
+          <VerifierStatus verify={verified!.verify} />
         </motion.div>
       ) : null}
     </AnimatePresence>

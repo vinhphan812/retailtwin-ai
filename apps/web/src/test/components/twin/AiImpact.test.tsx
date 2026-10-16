@@ -74,8 +74,8 @@ afterEach(() => {
   useUiStore.getState().setViewMode(VIEW_MODE.Live);
 });
 
-describe("AI Impact", () => {
-  it("shows the fixture before/after numbers once the run of an accepted candidate reaches VERIFY", async () => {
+describe("Projected impact", () => {
+  it("shows the fixture baseline/simulated numbers once the run of an accepted candidate reaches VERIFY", async () => {
     const twin = openDemo("cand-b");
     renderAll(twin);
     await accept();
@@ -94,7 +94,35 @@ describe("AI Impact", () => {
     const cost = within(card).getByText("Movement cost").closest("li")!;
     expect(within(cost).getByLabelText("+0.12, worse")).toBeTruthy();
     expect(within(card).queryByText(/\$/)).toBeNull();
-    expect(toast()).not.toBeNull();
+    expect(within(card).getByText("Projected impact")).toBeTruthy();
+    expect(within(card).queryByText(/AI Impact|Before|After/)).toBeNull();
+    expect(within(card).getByText(/Not measured in the store/)).toBeTruthy();
+    expect(within(card).getByText("Verifier: inconclusive")).toBeTruthy();
+    expect(within(toast()!).getByText("Verifier: inconclusive")).toBeTruthy();
+  });
+
+  it("shows the verifier's status as served, apart from the projection", async () => {
+    const twin = openDemo("cand-b");
+    renderAll(twin);
+    await accept();
+    const run = demoAgentRun();
+    act(() => {
+      run.slice(0, 7).forEach((entry) => useRunStore.getState().append(entry));
+      useRunStore.getState().append({ ...run[7], status: "REGRESSION" });
+    });
+    expect(within(impactCard()!).getByText("Verifier: regression")).toBeTruthy();
+  });
+
+  it("says so when the VERIFY entry serves no status", async () => {
+    const twin = openDemo("cand-b");
+    renderAll(twin);
+    await accept();
+    const run = demoAgentRun();
+    act(() => {
+      run.slice(0, 7).forEach((entry) => useRunStore.getState().append(entry));
+      useRunStore.getState().append({ ...run[7], status: undefined });
+    });
+    expect(within(impactCard()!).getByText("Verifier: no status served")).toBeTruthy();
   });
 
   it("shows no impact card for a run the guard sent back with REFRESH_REQUIRED", async () => {
@@ -138,7 +166,7 @@ describe("AI Impact", () => {
     renderAll(twin);
     await accept();
     playRun();
-    fireEvent.click(screen.getByRole("button", { name: "Dismiss the AI Impact" }));
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss the projected impact" }));
     await waitFor(() => expect(toast()).toBeNull());
   });
 

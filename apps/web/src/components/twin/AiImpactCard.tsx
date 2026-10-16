@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import type { AiImpact, ImpactRow } from "@/core/twin/aiImpact";
+import type { ActivityEntry } from "@/types/agent.type";
 import { useImpactStore } from "@/state/impact.store";
 import { formatKpiValue, formatNumber } from "./CandidatePanel";
 
@@ -38,10 +39,27 @@ export function CompareButton() {
 }
 
 /**
- * The AI Impact of an executed approval: each KPI of the baseline (before) next to the
- * accepted candidate's (after), with the move between them. Every value is the evaluator's.
+ * What the verifier reported for the run, as served on its VERIFY entry. Shown apart from
+ * the projection: a VERIFY entry is not a measurement of the projected KPIs.
  */
-export function AiImpactCard({ impact }: { impact: AiImpact }) {
+export function VerifierStatus({ verify }: { verify: ActivityEntry }) {
+  const { t } = useTranslation();
+  const status = verify.status
+    ? t(`impact.verifier.${verify.status}`, { defaultValue: verify.status })
+    : t("impact.verifier.unknown");
+  return (
+    <p className="impact-verifier" data-status={verify.status ?? "unknown"}>
+      {t("impact.verifier.label", { status })}
+    </p>
+  );
+}
+
+/**
+ * The projected impact of an executed approval: each KPI of the baseline next to the
+ * accepted candidate's, as the evaluator simulated them, and the verifier's status apart.
+ * Every value is the evaluator's projection, never an observed post-action KPI.
+ */
+export function AiImpactCard({ impact, verify }: { impact: AiImpact; verify: ActivityEntry }) {
   const { t } = useTranslation();
   return (
     <div className="impact-card" data-testid="ai-impact" role="region" aria-label={t("impact.title")}>
@@ -62,6 +80,7 @@ export function AiImpactCard({ impact }: { impact: AiImpact }) {
         <span className="impact-note">{t("impact.note", { version: impact.evaluator_version })}</span>
         <CompareButton />
       </div>
+      <VerifierStatus verify={verify} />
     </div>
   );
 }

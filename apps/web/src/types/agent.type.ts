@@ -20,6 +20,8 @@ export type ActivityEntry = {
   decision_id?: string;
   /** The simulation the entry is about, as `GET /agent/events` serves it. */
   simulation_id?: string;
+  /** The stage's outcome as `GET /agent/events` serves it; on VERIFY, the verifier's report status. */
+  status?: string;
   sku?: string;
   /** The shelf or piece of equipment the entry is about; focused when there is no SKU. */
   shelf_id?: string;

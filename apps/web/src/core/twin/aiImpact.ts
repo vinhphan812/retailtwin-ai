@@ -14,9 +14,10 @@ export type ImpactRow = {
 };
 
 /**
- * What an executed approval changed, as the evaluator scored it: the baseline candidate's
- * KPIs (before) against the accepted candidate's (after). Kept after the run closes, with
- * the run's candidates, so the comparison can still be shown.
+ * What an executed approval is projected to change, as the evaluator scored it in the
+ * simulation: the baseline candidate's KPIs against the accepted candidate's. A projection,
+ * never an observed post-action KPI; the verifier's own status is shown next to it. Kept
+ * after the run closes, with the run's candidates, so the comparison can still be shown.
  */
 export type AiImpact = {
   simulation_id: string;
@@ -54,12 +55,12 @@ export function impactOf(candidates: Candidate[], simulationId: string, candidat
 }
 
 /**
- * Whether an agent run of simulation `simulationId` has reached VERIFY: a run with an entry
- * naming the simulation, and a VERIFY entry under the same `correlation_id`.
+ * The VERIFY entry of an agent run of simulation `simulationId`: a run with an entry naming
+ * the simulation, and a VERIFY entry under the same `correlation_id`. The latest one, or null.
  */
-export function runVerified(activity: readonly ActivityEntry[], simulationId: string): boolean {
+export function runVerify(activity: readonly ActivityEntry[], simulationId: string): ActivityEntry | null {
   const runs = new Set(
     activity.filter((entry) => entry.simulation_id === simulationId && entry.correlation_id).map((entry) => entry.correlation_id),
   );
-  return activity.some((entry) => entry.stage === "VERIFY" && runs.has(entry.correlation_id));
+  return activity.filter((entry) => entry.stage === "VERIFY" && runs.has(entry.correlation_id)).at(-1) ?? null;
 }
