@@ -17,18 +17,18 @@ on:
       - '.firebaserc'
       - '.github/workflows/web.yml'
 
-# Least-privilege permissions at workflow level. `id-token: write` is
-# only required by the `deploy:` job and is granted on that job's
-# `permissions:` block (ADR 0026).
+# Least-privilege permissions at workflow level.
+# id-token: write is required for google-github-actions/auth to exchange
+# a GitHub OIDC token for short-lived GCP credentials (WIF/OIDC).
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: web-ci-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  NODE_OPTIONS: --max-old-space-size=4096
   VITE_API_BASE_URL: ${{ vars.FIREBASE_API_BASE_URL }}
   FIREBASE_SITE_ID: ${{ vars.FIREBASE_SITE_ID }}
   PRODUCTION_API_ORIGIN: ${{ vars.FIREBASE_API_BASE_URL }}
@@ -39,7 +39,7 @@ jobs:
 
   build-test:
     name: Build & Test
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: self-hosted
 
     outputs:
       api_origin: ${{ env.VITE_API_BASE_URL }}
@@ -143,15 +143,9 @@ jobs:
   deploy:
     name: Deploy to Firebase Hosting
     needs: [build-test, security]
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: self-hosted
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment: production
-
-    # ADR 0026 — only the deploy job needs the OIDC token to exchange for
-    # short-lived GCP credentials via google-github-actions/auth.
-    permissions:
-      contents: read
-      id-token: write
 
     outputs:
       frontend_url: ${{ steps.deploy.outputs.frontend_url }}
@@ -165,7 +159,7 @@ jobs:
 
       - name: Authenticate to Google Cloud (WIF/OIDC)
         id: gcp_auth
-        uses: google-github-actions/auth@v2.1.7  # 6fc4af4b145ae7821d527454aa9bd537d1f2dc5f
+        uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_DEPLOY_SA }}
@@ -243,7 +237,7 @@ jobs:
   verify:
     name: Smoke Verification
     needs: deploy
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: self-hosted
     timeout-minutes: 10
 
     env:
