@@ -27,7 +27,7 @@ from retailtwin_api.analytics_repository import (
     get_checkout_repository,
     unavailable_analytics_repositories,
 )
-from retailtwin_api.decisions import InMemoryDecisionSource, unavailable_decision_source
+from retailtwin_api.decisions import DecisionSource
 from retailtwin_api.demand_surge import DemandSurgeScheduler
 from retailtwin_api.errors import ApiError, api_error_handler, http_error_handler, validation_error_handler
 from retailtwin_api.events import EventLog, ReviewAuditLog
@@ -35,6 +35,7 @@ from retailtwin_api.firestore_twin import FirestoreLiveTwinRepository, LiveTwinR
 from retailtwin_api.flagship.agent_starter import FlagshipInvestigationStarter
 from retailtwin_api.guard.decision_context_guard import InMemoryGuardAudit
 from retailtwin_api.middleware import CorrelationMiddleware
+from retailtwin_api.persistence import get_persistence
 from retailtwin_api.routes import router
 from retailtwin_api.llm.factory import create_provider, llm_config_from_settings
 from retailtwin_api.settings import Settings, get_settings
@@ -147,7 +148,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         else None
     )
     # The planner does not persist Decisions yet. A test or a later orchestrator injects a source.
-    app.state.decisions = unavailable_decision_source()
+    # ADR 0024: ``get_persistence`` selects the cross-instance adapter from
+    # ``LIVE_TWIN_BACKEND``. For ``"firestore"`` that is a Firestore-backed
+    # ``DecisionSource``; for ``"memory"`` the in-process one; for ``"fixture"``
+    # an adapter that returns ``available=False`` so a fixture-only deploy
+    # cannot pretend a missing backend is healthy.
+    adapters = get_persistence(resolved)
+    app.state.decisions = adapters.decisions
     app.state.events = EventLog()
     app.state.review_audit = ReviewAuditLog()
     app.state.live_context_version = store.view().context_version if store.loaded else ""
@@ -168,8 +175,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     else:
         provider = None
     if provider is not None:
-        decisions = InMemoryDecisionSource()
-        app.state.decisions = decisions
+        # Reuse the durable adapter from the factory so the autonomy path
+        # writes Decisions to the same backend the review route reads from.
+        # ADR 0024: when ``LIVE_TWIN_BACKEND=firestore``, ``app.state.decisions``
+        # is already a Firestore-backed source; constructing a fresh
+        # in-memory one would lose that durability.
+        decisions = app.state.decisions
         app.state.autonomy = AutonomousInvestigations(
             provider=provider,
             registry=build_store_registry(store),
