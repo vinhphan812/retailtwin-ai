@@ -1,72 +1,88 @@
+import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
-import { ConeGeometry, MeshBasicMaterial, Quaternion, TubeGeometry, Vector3, type QuadraticBezierCurve3 } from "three";
+import type { QuadraticBezierCurve3 } from "three";
+import { Line2 } from "three/addons/lines/Line2.js";
+import { LineGeometry } from "three/addons/lines/LineGeometry.js";
+import { LineMaterial } from "three/addons/lines/LineMaterial.js";
 import {
-  MOVE_ARROW_HEAD_LENGTH,
-  MOVE_ARROW_HEAD_RADIUS,
   MOVE_ARROW_OPACITY,
-  MOVE_ARROW_RADIUS,
+  MOVE_ARROW_OUTLINE_OPACITY,
+  MOVE_ARROW_OUTLINE_PX,
+  MOVE_ARROW_WIDTH_PX,
 } from "@/constants/scene.constant";
-import { changeColor } from "@/core/utils/theme";
+import { moveColor } from "@/core/utils/theme";
 
-const UP = new Vector3(0, 1, 0);
+/** Points along a move's line; enough for a smooth arc at any zoom. */
+const LINE_POINTS = 40;
+/** The outline under the line: dark, so the line reads over light shelves and floor. */
+const OUTLINE_COLOR = "#121820";
 
-/** Made on first use, once the theme stylesheet has loaded; `showArrows` fades it. */
-let arrowMaterial: MeshBasicMaterial | null = null;
-function moveArrowMaterial() {
-  // Drawn over the shelves, so an arrow between two gondolas is never hidden behind one.
-  arrowMaterial ??= new MeshBasicMaterial({
-    color: changeColor(),
-    transparent: true,
-    opacity: MOVE_ARROW_OPACITY,
-    depthTest: false,
-    depthWrite: false,
-  });
-  return arrowMaterial;
+/**
+ * The line materials, made on first use once the theme stylesheet has loaded. Lines are
+ * drawn over the shelves (no depth test), so a move between two gondolas is never hidden.
+ * `showArrows` fades them.
+ */
+let materials: { line: LineMaterial; outline: LineMaterial } | null = null;
+function lineMaterials() {
+  const flat = { transparent: true, depthTest: false, depthWrite: false };
+  materials ??= {
+    line: new LineMaterial({
+      ...flat,
+      color: moveColor(),
+      linewidth: MOVE_ARROW_WIDTH_PX,
+      opacity: MOVE_ARROW_OPACITY,
+    }),
+    outline: new LineMaterial({
+      ...flat,
+      color: OUTLINE_COLOR,
+      linewidth: MOVE_ARROW_OUTLINE_PX,
+      opacity: MOVE_ARROW_OUTLINE_OPACITY,
+    }),
+  };
+  return materials;
 }
 
-/** Sets how strongly the arrows show, from 0 to 1. */
+/** Sets how strongly the move lines show, from 0 to 1. */
 export function showArrows(level: number) {
-  moveArrowMaterial().opacity = MOVE_ARROW_OPACITY * level;
+  const { line, outline } = lineMaterials();
+  line.opacity = MOVE_ARROW_OPACITY * level;
+  outline.opacity = MOVE_ARROW_OUTLINE_OPACITY * level;
 }
 
 const NO_RAYCAST = () => null;
 
-/** A shaft along `curve` and a head at its end, pointing the way the curve arrives. */
-function arrowParts(curve: QuadraticBezierCurve3) {
-  const shaft = new TubeGeometry(curve, 24, MOVE_ARROW_RADIUS, 6, false);
-  const head = new ConeGeometry(MOVE_ARROW_HEAD_RADIUS, MOVE_ARROW_HEAD_LENGTH, 12);
-  const direction = curve.getTangent(1).normalize();
-  // A cone stands on its base with its tip up: turn it onto the curve, its tip at the end.
-  const quaternion = new Quaternion().setFromUnitVectors(UP, direction);
-  const position = curve.v2.clone().addScaledVector(direction, -MOVE_ARROW_HEAD_LENGTH / 2);
-  return { shaft, head, position, quaternion };
+/** A move's line along `curve`, and the outline under it, sharing one geometry. */
+function lineParts(curve: QuadraticBezierCurve3, line: LineMaterial, outline: LineMaterial) {
+  const positions = curve
+    .getSpacedPoints(LINE_POINTS)
+    .flatMap((point) => point.toArray());
+  const geometry = new LineGeometry().setPositions(positions);
+  return { geometry, shaft: new Line2(geometry, line), under: new Line2(geometry, outline) };
 }
 
-/** One arrow per move, from where the product stood to where it stands. Takes no pointer events and casts no shadow. */
+/**
+ * One line per move, from where the product stood to where it stands: a solid line of a
+ * fixed width on screen over a thin dark outline. It fades with the other marks of the move
+ * and never animates on its own. Takes no pointer events and casts no shadow.
+ */
 export function MoveArrows({ curves }: { curves: QuadraticBezierCurve3[] }) {
-  const parts = useMemo(() => curves.map(arrowParts), [curves]);
-  useEffect(
-    () => () =>
-      parts.forEach(({ shaft, head }) => {
-        shaft.dispose();
-        head.dispose();
-      }),
-    [parts],
-  );
-  const material = moveArrowMaterial();
+  const { line, outline } = lineMaterials();
+  const parts = useMemo(() => curves.map((curve) => lineParts(curve, line, outline)), [curves, line, outline]);
+  useEffect(() => () => parts.forEach(({ geometry }) => geometry.dispose()), [parts]);
+  const size = useThree((state) => state.size);
+
+  useFrame(() => {
+    if (!parts.length) return;
+    line.resolution.set(size.width, size.height);
+    outline.resolution.set(size.width, size.height);
+  });
+
   return (
     <group name="stock-arrows">
-      {parts.map(({ shaft, head, position, quaternion }, index) => (
+      {parts.map(({ shaft, under }, index) => (
         <group key={index} name="stock-move-arrow">
-          <mesh geometry={shaft} material={material} raycast={NO_RAYCAST} renderOrder={3} />
-          <mesh
-            geometry={head}
-            material={material}
-            position={position}
-            quaternion={quaternion}
-            raycast={NO_RAYCAST}
-            renderOrder={3}
-          />
+          <primitive object={under} raycast={NO_RAYCAST} renderOrder={3} />
+          <primitive object={shaft} raycast={NO_RAYCAST} renderOrder={4} />
         </group>
       ))}
     </group>

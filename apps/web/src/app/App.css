@@ -34,6 +34,8 @@
 @theme static {
   /* Glow of the selected product, shelf, or equipment. */
   --color-selection: #ffffff;
+  /* The line a moved product leaves in 3D, from its old slot to its new one. */
+  --color-move: #ffd400;
   /* Halo of a product with an open anomaly, by severity. */
   --color-anomaly-critical: #e5177e;
   --color-anomaly-high: #ff4d3d;
