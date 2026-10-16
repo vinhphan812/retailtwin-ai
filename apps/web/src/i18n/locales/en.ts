@@ -1,4 +1,20 @@
 export const en = {
+  brand: {
+    name: "RetailTwin AI",
+    tagline: "Autonomous Store Intelligence",
+    storeHint: "The store the Live Twin reports",
+    live: "LIVE",
+    simulation: "SIMULATION",
+    demo: "Demo data",
+    openLive: "Open the live twin",
+    openDemo: "Open the demo",
+  },
+  footer: {
+    context: "Context {{version}}",
+    contextHint: "The Live Twin's context_version, as served. It moves after each execution.",
+    build: "Build {{build}}",
+    devBuild: "dev",
+  },
   cameraHelp: {
     label: "Camera controls help",
     title: "Camera controls",

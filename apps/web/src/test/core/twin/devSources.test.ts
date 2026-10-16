@@ -41,6 +41,17 @@ describe("pickSource", () => {
     expect(createApiSource).toHaveBeenCalledTimes(1);
   });
 
+  it("opens the demo on /demo in development, and apps/api on / and /live", () => {
+    at("/demo");
+    expect(isDemoMode()).toBe(true);
+    expect(pickSource()).not.toBe(apiSource);
+    for (const path of ["/", "/live"]) {
+      at(path);
+      expect(isDemoMode()).toBe(false);
+      expect(pickSource()).toBe(apiSource);
+    }
+  });
+
   it("swaps in the demo store and its anomalies under ?twin=demo in development", async () => {
     at("/?twin=demo");
     const source = pickSource();
@@ -75,8 +86,8 @@ describe("pickSource", () => {
 
   it("never turns on demo mode in a production build", () => {
     vi.stubEnv("DEV", false);
-    for (const mode of ["demo", "memory", "fixture", "offline", "slow", "flaky"]) {
-      at(`/?twin=${mode}`);
+    for (const url of ["/demo", "/", "/live", ...["demo", "memory", "fixture", "offline", "slow", "flaky"].map((mode) => `/?twin=${mode}`)]) {
+      at(url);
       expect(pickSource()).toBe(apiSource);
       expect(isDemoMode()).toBe(false);
     }
@@ -85,7 +96,7 @@ describe("pickSource", () => {
     expect(useTwinStore.getState().candidates).toEqual([]);
   });
 
-  it("opens only ?twin=demo in a production build made with VITE_ALLOW_DEMO=true", async () => {
+  it("opens only the demo in a production build made with VITE_ALLOW_DEMO=true, at /, /demo or ?twin=demo", async () => {
     vi.stubEnv("DEV", false);
     vi.stubEnv("VITE_ALLOW_DEMO", "true");
     for (const mode of ["memory", "fixture", "offline", "slow", "flaky"]) {
@@ -93,8 +104,16 @@ describe("pickSource", () => {
       expect(pickSource()).toBe(apiSource);
       expect(isDemoMode()).toBe(false);
     }
-    at("/");
+    // The live twin stays reachable on /live.
+    at("/live");
     expect(pickSource()).toBe(apiSource);
+    expect(isDemoMode()).toBe(false);
+    expect(pickSimulationSource()).not.toBeNull();
+    for (const path of ["/", "/demo"]) {
+      at(path);
+      expect(isDemoMode()).toBe(true);
+      expect(pickSource()).not.toBe(apiSource);
+    }
     at("/?twin=demo");
     const source = pickSource();
     expect(source).not.toBe(apiSource);

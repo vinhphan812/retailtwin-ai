@@ -44,6 +44,8 @@ export default defineConfig({
     "import.meta.env.VITE_GIT_SHA": JSON.stringify(resolveGitSha()),
   },
   plugins: [react(), tailwindcss()],
+  // The footer's build label (`core/app/buildInfo.ts`). `VITE_APP_VERSION` comes from the environment.
+  define: { "import.meta.env.VITE_GIT_SHA": JSON.stringify(gitSha()) },
   resolve: {
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
   },

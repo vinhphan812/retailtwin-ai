@@ -17,7 +17,11 @@ import { ProductDetailsDialog } from "@/components/twin/ProductDetailsDialog";
 import { SimulationBanner } from "@/components/twin/SimulationBanner";
 import { TwinIssuesNotice } from "@/components/twin/TwinIssuesNotice";
 import { TwinStatusOverlay } from "@/components/twin/TwinStatusOverlay";
-import { pickSimulationReviewer, pickSimulationSource, pickSource } from "@/core/twin/devSources";
+import {
+  pickSimulationReviewer,
+  pickSimulationSource,
+  pickSource,
+} from "@/core/twin/devSources";
 import { useAgentFocus } from "@/hooks/agentFocus.hook";
 import { useAnomalyPolling } from "@/hooks/anomalyPolling.hook";
 import { useNetworkStatus } from "@/hooks/networkStatus.hook";
@@ -41,11 +45,13 @@ export function TwinPage() {
 
   return (
     <>
-      <main className="viewport relative">
-        <StoreScene />
-        <SimulationBanner reviewer={reviewer} />
-        <TwinStatusOverlay />
-        {/* TODO(BE): apps/api does not serve GET /revenue and GET /promotions yet; until it does the
+      <TwinHeader />
+      <div className="twin-body">
+        <main className="viewport relative">
+          <StoreScene />
+          <SimulationBanner reviewer={reviewer} />
+          <TwinStatusOverlay />
+          {/* TODO(BE): apps/api does not serve GET /revenue and GET /promotions yet; until it does the
           Revenue and Promotions lenses show their empty report and a toast, or the demo data under ?twin=demo. */}
         <div className="lens-switcher">
           <LensSwitcher />
