@@ -221,26 +221,30 @@ def _active_account() -> str:
 
 
 def _bq_query(query: str) -> list[dict[str, Any]]:
+    # The ``bq`` wrapper script re-parses the command line; calling it via
+    # ``shell=True`` with a single string sidesteps the wrapper's argument
+    # splitter, which otherwise flags ``--maximum_bytes_billed`` as
+    # "appears after final command line argument". ``shlex.quote`` keeps
+    # the query safe.
+    import shlex
+
+    cmd = (
+        f"bq --project_id={shlex.quote(CANONICAL_PROJECT)} "
+        f"--format=json query --use_legacy_sql=false "
+        f"--maximum_bytes_billed={MAX_BILLING_BYTES} {shlex.quote(query)}"
+    )
     proc = subprocess.run(
-        [
-            "bq",
-            "--project_id",
-            CANONICAL_PROJECT,
-            "query",
-            "--use_legacy_sql",
-            "false",
-            "--format",
-            "json",
-            "--maximum_bytes_billed",
-            str(MAX_BILLING_BYTES),
-            query,
-        ],
+        cmd,
+        shell=True,
         capture_output=True,
         text=True,
         check=False,
     )
     if proc.returncode != 0:
-        raise RuntimeError(f"bq query failed: {proc.stderr.strip()[:300]}")
+        raise RuntimeError(
+            f"bq query failed (rc={proc.returncode}): "
+            f"stdout={proc.stdout.strip()[:200]} stderr={proc.stderr.strip()[:300]}"
+        )
     try:
         return json.loads(proc.stdout)
     except json.JSONDecodeError as exc:
@@ -248,20 +252,98 @@ def _bq_query(query: str) -> list[dict[str, Any]]:
 
 
 def _check_preconditions() -> None:
-    """Reject if not on the canonical project and the canonical billing owner."""
-    account = _active_account()
-    if account != "j.dangkhoa.1108@gmail.com":
-        raise _PreconditionError(
-            f"Refusing to run as {account!r}. The Day-0 Gate requires "
-            "j.dangkhoa.1108@gmail.com (billing owner) on "
-            f"{CANONICAL_PROJECT}."
-        )
+    """Reject if the caller is not on the canonical project or cannot read it.
+
+    The Day-0 Gate is capability-based: any gcloud identity that can
+    read the canonical project, read ``stores/store-001`` in Firestore,
+    and query ``retailtwinsales_events`` in BigQuery is accepted. The
+    previous version hard-coded one human account; the new version
+    accepts the configured ADC identity (gcloud user account, WIF
+    impersonation, self-hosted runner service account, etc.) so the
+    gate can run from CI, the WIF provider, or another authorized
+    maintainer.
+
+    An optional ``DAY0_REQUIRED_ACCOUNTS`` env var can pin execution
+    to one or more specific accounts (comma-separated). When unset, any
+    account with the required IAM is accepted.
+    """
     project = _gcloud(["config", "get-value", "project"])
     if project != CANONICAL_PROJECT:
         raise _PreconditionError(
             f"Refusing project {project!r}. Day-0 Gate is locked to "
             f"{CANONICAL_PROJECT}."
         )
+    required = os.environ.get("DAY0_REQUIRED_ACCOUNTS", "").strip()
+    if required:
+        account = _active_account()
+        allowed = {a.strip() for a in required.split(",") if a.strip()}
+        if account not in allowed:
+            raise _PreconditionError(
+                f"Refusing to run as {account!r}. "
+                f"DAY0_REQUIRED_ACCOUNTS={sorted(allowed)}."
+            )
+    # Capability probes: cheap, read-only, and prove the identity can
+    # actually read what the gate depends on. Failures raise and abort.
+    _assert_can_read_firestore()
+    _assert_can_query_bigquery()
+
+
+def _assert_can_read_firestore() -> None:
+    """Refuse the gate if the active identity cannot read Firestore stores/store-001."""
+    token = _access_token()
+    url = (
+        f"https://firestore.googleapis.com/v1/projects/{CANONICAL_PROJECT}"
+        f"/databases/(default)/documents/stores/{CANONICAL_STORE}"
+    )
+    try:
+        request = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+        with urllib.request.urlopen(request, timeout=15) as response:
+            if response.status == 403:
+                raise _PreconditionError(
+                    f"Firestore GET stores/{CANONICAL_STORE} returned HTTP 403. "
+                    "The active gcloud identity does not have datastore.user "
+                    f"on {CANONICAL_PROJECT}. Run `gcloud auth login` as a "
+                    "user with that role or impersonate the runtime SA."
+                )
+            if response.status >= 500:
+                raise _PreconditionError(
+                    f"Firestore GET stores/{CANONICAL_STORE} returned HTTP "
+                    f"{response.status}; Firestore is unreachable from this host."
+                )
+    except urllib.error.HTTPError as exc:
+        if exc.code == 403:
+            raise _PreconditionError(
+                f"Firestore GET returned HTTP 403 (active identity lacks "
+                f"datastore.user on {CANONICAL_PROJECT})."
+            ) from exc
+        raise _PreconditionError(
+            f"Firestore GET returned HTTP {exc.code}; the gate cannot verify "
+            f"the identity's IAM from this host."
+        ) from exc
+    except urllib.error.URLError as exc:
+        raise _PreconditionError(
+            f"Firestore is unreachable from this host: {exc.reason}. "
+            "The Day-0 Gate requires a path to Firestore."
+        ) from exc
+
+
+def _assert_can_query_bigquery() -> None:
+    """Refuse the gate if the active identity cannot query BigQuery sales."""
+    try:
+        rows = _bq_query(
+            f"SELECT 1 AS one FROM `{CANONICAL_PROJECT}.{BIGQUERY_DATASET}."
+            f"{BIGQUERY_TABLE}` LIMIT 1"
+        )
+        if not isinstance(rows, list):
+            raise _PreconditionError(
+                "BigQuery SELECT did not return a list; the active identity "
+                "may be missing bigquery.user on the canonical dataset."
+            )
+    except RuntimeError as exc:
+        raise _PreconditionError(
+            f"BigQuery probe failed: {exc}. The Day-0 Gate requires "
+            f"bigquery.user on {CANONICAL_PROJECT}:{BIGQUERY_DATASET}."
+        ) from exc
 
 
 # ── Individual checks ────────────────────────────────────────────────────────
@@ -387,13 +469,18 @@ def check_local_api_firestore(log: EvidenceLog) -> None:
 def check_pubsub_event_path(log: EvidenceLog) -> None:
     """Publish one sale.completed event and verify the Pub/Sub delivery path.
 
-    The Day-0 contract is that ``backbone_cli.py publish`` lands the event
-    on topic ``store-events`` with the ordering key set, and the message
-    is then delivered to subscription ``store-events-analytics``. The
-    analytics lander (a separate process) is responsible for the BigQuery
-    row. If the BigQuery row is found we record a richer PASS; otherwise
-    we still record a PASS on the publish + delivery leg and surface the
-    BigQuery row count as ``bq_landed`` detail.
+    The Day-0 contract is that ``backbone_cli.py publish`` lands the
+    event on topic ``store-events`` with the ordering key set, and the
+    message is then delivered to subscription ``store-events-analytics``.
+    The analytics lander (a separate process) is responsible for the
+    BigQuery row.
+
+    By default the gate records a PASS on the publish + delivery leg
+    and surfaces whether the BigQuery row was landed as ``bq_landed``.
+    When ``DAY0_REQUIRE_BQ_ROW=1`` is set the BigQuery row is required:
+    a missing row fails the check. The env var is off by default so
+    the gate does not depend on a long-running lander process; CI and
+    ops can flip it on when the lander is known to be up.
     """
     with check(log, "pubsub-event-path"):
         event_id = f"day0-gate-{_run_id().lower()}"
@@ -483,10 +570,10 @@ def check_pubsub_event_path(log: EvidenceLog) -> None:
                 raise RuntimeError(
                     f"Pub/Sub store-events-analytics did not deliver event_id={event_id}"
                 )
-            # Try to find the row in BigQuery (landed by the separate
-            # analytics lander process; the gate does not require this
-            # row to be present — it documents whether the lander caught
-            # up). If the lander is down, ``bq_row`` is None.
+            # Try to find the row in BigQuery (landed by the separate analytics
+            # lander process). The default is to record whether the row
+            # was landed without requiring it. ``DAY0_REQUIRE_BQ_ROW=1``
+            # flips the check to require the row.
             try:
                 rows = _bq_query(
                     f"SELECT event_id, sku, quantity FROM `{CANONICAL_PROJECT}."
@@ -496,16 +583,26 @@ def check_pubsub_event_path(log: EvidenceLog) -> None:
                 bq_row = rows[0] if rows else None
             except Exception:
                 bq_row = None
+            require_bq = os.environ.get("DAY0_REQUIRE_BQ_ROW", "").strip() == "1"
+            if require_bq and bq_row is None:
+                raise RuntimeError(
+                    f"DAY0_REQUIRE_BQ_ROW=1 but BigQuery {BIGQUERY_DATASET}."
+                    f"{BIGQUERY_TABLE} did not land event_id={event_id}. The "
+                    "analytics lander must be running before the gate can "
+                    "claim Pub/Sub → BigQuery landing end to end."
+                )
             record(
                 log,
                 "pubsub-event-path",
                 "pass",
-                f"Published {event_id} and verified delivery to {PIPELINE_TOPIC}",
+                f"Published {event_id} and verified delivery to {PIPELINE_TOPIC}"
+                + ("; BigQuery row landed" if bq_row is not None else ""),
                 event_id=event_id,
                 correlation_id=correlation_id,
                 delivery=delivered,
                 bq_landed=bool(bq_row),
                 bq_row=bq_row,
+                bq_required=require_bq,
             )
         finally:
             fixture_path.unlink(missing_ok=True)
@@ -690,7 +787,18 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Skip the deployed Cloud Run probe",
     )
+    parser.add_argument(
+        "--require-bq-row",
+        action="store_true",
+        help=(
+            "Require the BigQuery sales_events row landed by the analytics "
+            "lander (sets DAY0_REQUIRE_BQ_ROW=1). Off by default; the gate "
+            "only verifies Pub/Sub delivery when the lander is not running."
+        ),
+    )
     args = parser.parse_args(argv)
+    if args.require_bq_row:
+        os.environ["DAY0_REQUIRE_BQ_ROW"] = "1"
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)

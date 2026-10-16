@@ -123,15 +123,49 @@ def test_orchestrator_calls_evidence_script() -> None:
 
 
 def test_orchestrator_rejects_wrong_account() -> None:
-    """The shell must not allow running the gate as a non-billing-owner."""
+    """The shell must not allow running the gate without the right account
+    when DAY0_REQUIRED_ACCOUNTS is set. By default the gate is
+    capability-based and does not require a named human identity."""
     text = ORCHESTRATOR_SCRIPT.read_text(encoding="utf-8")
-    assert "j.dangkhoa.1108@gmail.com" in text
-    assert "Refusing" in text or "requires" in text
+    # The default behaviour (no env var) does not pin to a specific
+    # personal email; identity is verified by capability probes in the
+    # Python helper.
+    assert "DAY0_REQUIRED_ACCOUNTS" in text
+    assert "Refusing" in text or "requires" in text or "missing" in text
+
+
+def test_evidence_script_uses_capability_based_identity_check() -> None:
+    """The Python helper must not hard-code a personal account.
+
+    An optional ``DAY0_REQUIRED_ACCOUNTS`` env var may pin execution to
+    a specific identity, but the default must accept any gcloud identity
+    that can read the canonical project and dataset.
+    """
+    text = EVIDENCE_SCRIPT.read_text(encoding="utf-8")
+    assert "DAY0_REQUIRED_ACCOUNTS" in text
+    # The preconditions check should probe Firestore + BigQuery capabilities
+    # rather than comparing to a literal email address.
+    assert "_assert_can_read_firestore" in text
+    assert "_assert_can_query_bigquery" in text
 
 
 def test_orchestrator_runs_npm_build() -> None:
     text = ORCHESTRATOR_SCRIPT.read_text(encoding="utf-8")
     assert "npm run build" in text or "npm ci" in text
+
+
+def test_orchestrator_propagates_require_bq_row_flag() -> None:
+    """The shell must pass --require-bq-row through to the Python helper."""
+    text = ORCHESTRATOR_SCRIPT.read_text(encoding="utf-8")
+    assert "--require-bq-row" in text
+    assert "REQUIRE_BQ_ROW" in text
+
+
+def test_evidence_script_supports_require_bq_row_env() -> None:
+    """The Python helper must accept DAY0_REQUIRE_BQ_ROW=1 to flip BQ to required."""
+    text = EVIDENCE_SCRIPT.read_text(encoding="utf-8")
+    assert "DAY0_REQUIRE_BQ_ROW" in text
+    assert "--require-bq-row" in text
 
 
 # ── Live evidence schema (using the dry-run JSON we write during a run) ─────

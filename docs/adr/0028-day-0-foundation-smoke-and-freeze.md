@@ -54,10 +54,13 @@ overall summary, and a JSON evidence file. The gate script:
   `/inventory/P001` response comes from the Firestore adapter, then
   shuts the process down.
 - Publishes a single deterministic `sale.completed` event through
-  `retailtwin_api.backbone_cli publish`, then queries
-  `retailtwin.sales_events` in BigQuery (capped at
-  `--maximum_bytes_billed=100000000`) and asserts exactly one row for
-  that `event_id`.
+  `retailtwin_api.backbone_cli publish`, then asserts the message is
+  delivered to subscription `store-events-analytics` within 30 s.
+  Whether the message is then written to `retailtwin.sales_events` by
+  the analytics lander is recorded as `bq_landed` in the evidence; the
+  default run does not require the row. Pass `--require-bq-row` (or
+  set `DAY0_REQUIRE_BQ_ROW=1`) to make the row mandatory when the
+  lander is known to be up.
 - Runs the opt-in Vertex live read
   (`apps/api/tests/test_vertex_inventory_live.py`,
   `RETAILTWIN_VERTEX_LIVE=1`), asserts the returned `ProductInventory`
@@ -69,21 +72,30 @@ overall summary, and a JSON evidence file. The gate script:
   confirm no `.env` files, no committed secrets, no conflict markers,
   and no malformed workflow YAML.
 
-The script refuses to run unless the active `gcloud` account is the
-billing owner `j.dangkhoa.1108@gmail.com` on
-`retailtwin-ai-511002`. Exit codes:
+The script is **capability-based**. It refuses to run unless the
+active gcloud project is `retailtwin-ai-511002`, the active identity
+can read `stores/store-001` in Firestore, and the active identity can
+query `retailtwinsales_events` in BigQuery. The active gcloud user
+account, a WIF impersonation, or a self-hosted runner service account
+are all accepted as long as the IAM allows the probes above. The
+optional `DAY0_REQUIRED_ACCOUNTS` environment variable pins execution
+to one or more named accounts (comma-separated) for environments that
+want a closed identity allowlist.
+
+Exit codes:
 
 - `0` — every check passed; an evidence JSON is written to
   `artifacts/day0-foundation/<run-id>.json`.
 - `1` — at least one check failed; the JSON file is written with the
   failing checks populated.
 - `2` — script precondition was not met (wrong project, missing
-  ADC, missing npm).
+  ADC, missing npm, capability probe refused).
 
 The `day0-foundation` git tag is **only** applied to `main` when the
-script exits `0` for the same day, and only after the PR that lands
-this ADR is merged. The tag points at the merge commit and carries the
-evidence file path in its annotation.
+script exits `0` on the merge commit that lands this ADR. The gate
+prints a "Tag day0-foundation is now permitted" line on exit `0`, then
+the human runs `git tag -a day0-foundation -m "..."` separately. The tag
+itself is never created by the script.
 
 ## Consequences
 

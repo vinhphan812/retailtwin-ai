@@ -11,7 +11,15 @@ proves that the real production cloud path works end to end:
 
 1. The web app and 3D scene build.
 2. SKU `P001` is visible through a Firestore-backed API.
-3. A `sale.completed` event lands in BigQuery through the Pub/Sub backbone.
+3. A `sale.completed` event is published and delivered to the
+   `store-events-analytics` subscription. Whether the row is then
+   written to `retailtwin.sales_events` by the analytics lander is an
+   **operational observation** recorded by the gate; the gate only
+   *requires* the BigQuery row when `--require-bq-row` is passed (or
+   `DAY0_REQUIRE_BQ_ROW=1` is set). The default `verify-day0-gate.sh`
+   run therefore proves the publish-and-deliver leg; the BigQuery row
+   leg is gated by an explicit flag so it does not block the canonical
+   run when the lander is offline.
 4. Gemini (Vertex AI, `gemini-2.5-flash`) executes a real
    `get_inventory(P001)` tool call and the typed Live Twin document is the
    result.
@@ -20,8 +28,9 @@ proves that the real production cloud path works end to end:
 6. The repository has no committed secrets, no `.env` files, and no
    merge conflict markers.
 
-The gate emits a single `day0-foundation` git tag on `main` only when all
-checks pass on the same commit.
+The gate **authorises** the `day0-foundation` git tag on `main`. It does
+not create the tag itself; tagging is a separate manual step after the
+script returns exit code `0` on the same commit.
 
 ## What the gate runs
 
@@ -42,10 +51,24 @@ check or change the evidence schema.
 
 - A POSIX shell with `bash`, `gcloud`, `bq`, `node`, and `python3` on
   `PATH`.
-- An authenticated `gcloud` account equal to the billing owner
-  `j.dangkhoa.1108@gmail.com`. The script refuses any other account.
+- An authenticated gcloud identity (user account, WIF impersonation, or
+  self-hosted runner service account) that can read the canonical
+  project `retailtwin-ai-511002`. The script is **capability-based**:
+  it probes Firestore and BigQuery at startup and refuses to run if the
+  active identity cannot read either. The previous version hard-coded a
+  single personal account; the new version accepts any identity with
+  the right IAM.
+- To pin execution to a specific identity (for example, to make CI fail
+  closed when a developer runs the gate locally), set the
+  `DAY0_REQUIRED_ACCOUNTS` environment variable to a comma-separated
+  list of accepted accounts before invoking the script:
+
+  ```bash
+  DAY0_REQUIRED_ACCOUNTS=j.dangkhoa.1108@gmail.com,github-actions@retailtwin-ai-511002.iam.gserviceaccount.com \
+    ./scripts/verify-day0-gate.sh
+  ```
 - Application Default Credentials configured for the canonical project
-  `retailtwin-ai-511002`:
+  when running a Vertex check (or any check that uses `google.auth.default`):
 
   ```bash
   gcloud auth application-default login
@@ -81,13 +104,20 @@ Useful flags:
 ```bash
 ./scripts/verify-day0-gate.sh --skip-vertex          # skip the billable Gemini call
 ./scripts/verify-day0-gate.sh --skip-pubsub          # skip the sale.completed publish
+./scripts/verify-day0-gate.sh --require-bq-row       # require the BigQuery row landed (analytics lander must be running)
+DAY0_REQUIRE_BQ_ROW=1 ./scripts/verify-day0-gate.sh  # same as --require-bq-row
+DAY0_REQUIRED_ACCOUNTS=alice@...,bob@... \
+  ./scripts/verify-day0-gate.sh                      # pin execution to specific identities
 CLOUD_RUN_URL=https://staging-...run.app \
   ./scripts/verify-day0-gate.sh                      # target a non-production revision
 ```
 
 Skipped checks are recorded as `SKIP` in the evidence JSON and do not
 contribute to PASS / FAIL counts. **Skipping Vertex or Pub/Sub prevents
-the gate from tagging `day0-foundation`.**
+the gate from authorising `day0-foundation`.** The default run proves
+the publish + delivery leg; pass `--require-bq-row` only when the
+analytics lander is known to be up and a fresh row must land for the
+gate to pass.
 
 ## Evidence file
 
@@ -123,11 +153,13 @@ evidence files that drop the top-level keys.
 
 ## Tagging `day0-foundation`
 
-Once the script exits `0` for the same day, on the same commit you want
-to freeze, tag it:
+The gate **authorises** the tag; it does not apply it. Once
+`scripts/verify-day0-gate.sh` exits `0` for the same day, on the same
+commit you want to freeze, run:
 
 ```bash
-git tag -a day0-foundation -m "Day-0 Foundation Gate PASS on $(git rev-parse HEAD)"
+git tag -a day0-foundation \
+    -m "Day-0 Foundation Gate PASS on $(git rev-parse HEAD); evidence: artifacts/day0-foundation/<run-id>.json"
 ```
 
 The tag annotation must mention the evidence file path. The canonical

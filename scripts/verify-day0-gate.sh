@@ -33,11 +33,13 @@ _section() { echo ""; echo "─── $* ───"; }
 # ── Parse flags ───────────────────────────────────────────────────────────────
 SKIP_VERTEX=0
 SKIP_PUBSUB=0
+REQUIRE_BQ_ROW=0
 CLOUD_RUN_URL="${CLOUD_RUN_URL:-https://retailtwin-api-5rgtvr4gpa-uc.a.run.app}"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --skip-vertex) SKIP_VERTEX=1; shift;;
     --skip-pubsub) SKIP_PUBSUB=1; shift;;
+    --require-bq-row) REQUIRE_BQ_ROW=1; shift;;
     --cloud-run-url) CLOUD_RUN_URL="$2"; shift 2;;
     --help|-h)
       sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
@@ -67,11 +69,29 @@ if [[ ! -f "${EVIDENCE_SCRIPT}" ]]; then
 fi
 
 active_account="$("${PYTHON_BIN}" -c "import subprocess,sys; r=subprocess.run(['gcloud','config','get-value','account'],capture_output=True,text=True); sys.stdout.write(r.stdout.strip())" 2>/dev/null || true)"
-if [[ "${active_account}" != "j.dangkhoa.1108@gmail.com" ]]; then
-  _fail "Active gcloud account is '${active_account}'. Day-0 Gate requires j.dangkhoa.1108@gmail.com."
+active_project="$("${PYTHON_BIN}" -c "import subprocess,sys; r=subprocess.run(['gcloud','config','get-value','project'],capture_output=True,text=True); sys.stdout.write(r.stdout.strip())" 2>/dev/null || true)"
+
+# Project lock is mandatory; identity is capability-based (see
+# scripts/day0_evidence.py). An optional DAY0_REQUIRED_ACCOUNTS env var
+# pins execution to one or more specific accounts when set.
+if [[ "${active_project}" != "retailtwin-ai-511002" ]]; then
+  _fail "Active gcloud project is '${active_project}'. Day-0 Gate requires retailtwin-ai-511002."
   exit 2
 fi
-_pass="true"  # sentinel so the script can continue
+if [[ -n "${DAY0_REQUIRED_ACCOUNTS:-}" ]]; then
+  IFS=',' read -ra expected_accounts <<< "${DAY0_REQUIRED_ACCOUNTS}"
+  matched=0
+  for acct in "${expected_accounts[@]}"; do
+    if [[ "${active_account}" == "${acct// /}" ]]; then
+      matched=1
+      break
+    fi
+  done
+  if [[ "${matched}" -eq 0 ]]; then
+    _fail "Active gcloud account is '${active_account}'. DAY0_REQUIRED_ACCOUNTS=${DAY0_REQUIRED_ACCOUNTS}."
+    exit 2
+  fi
+fi
 echo "PASS  gcloud + bq + python available; account ${active_account} on retailtwin-ai-511002"
 
 # ── 1. Web + 3D build ────────────────────────────────────────────────────────
@@ -110,6 +130,7 @@ _section "2-6. Cloud + repository checks (day0_evidence.py)"
 EVIDENCE_FLAGS=(--cloud-run-url "${CLOUD_RUN_URL}")
 [[ "${SKIP_VERTEX}" -eq 1 ]] && EVIDENCE_FLAGS+=(--skip-vertex)
 [[ "${SKIP_PUBSUB}" -eq 1 ]] && EVIDENCE_FLAGS+=(--skip-pubsub)
+[[ "${REQUIRE_BQ_ROW}" -eq 1 ]] && EVIDENCE_FLAGS+=(--require-bq-row)
 
 EVIDENCE_OUTPUT_DIR="${REPO_ROOT}/artifacts/day0-foundation"
 mkdir -p "${EVIDENCE_OUTPUT_DIR}"
