@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { createElement } from "react";
 import { cleanup, render } from "@testing-library/react";
+import { renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApiSource } from "@/core/api/sources/apiSource";
 import { isDemoMode } from "@/core/twin/demoMode";
@@ -109,8 +110,12 @@ describe("pickSource", () => {
     expect(useAnomalyStore.getState().anomalies).toEqual([]);
     expect(useTwinStore.getState().simulation).toBeNull();
     expect(useTwinStore.getState().candidates).toEqual([]);
-    expect(useCheckoutSummary("CK01")).toBeNull();
-    expect(useCheckoutTransactions("CK01", true)).toEqual([]);
+    const { result: summaryResult } = renderHook(() => useCheckoutSummary("CK01"));
+    expect(summaryResult.current).toBeNull();
+    const { result: transactionsResult } = renderHook(({ enabled }) => useCheckoutTransactions("CK01", enabled), {
+      initialProps: { enabled: true }
+    });
+    expect(transactionsResult.current).toEqual([]);
     expect(render(createElement(DemoBadge)).container.innerHTML).toBe("");
   });
 });
