@@ -1,11 +1,11 @@
 import type { RevenuePeriod } from "@/enums/commerce.enum";
-import type { PromotionsSummary } from "./promotion.type";
-import type { RevenueSummary } from "./revenue.type";
+import type { PromotionsSummary } from "@/types/promotion.type";
+import type { RevenueSummary } from "@/types/revenue.type";
 import type { ReviewDecision } from "@/enums/simulation.enum";
-import type { CandidatesResponse, ReviewRequest, ReviewResult, Simulation, SimulationsResponse } from "./simulation.type";
-import type { ProductInventory, StoreResponse } from "./twin.type";
-import type { AnomaliesResponse } from "./anomaly.type";
-import type { CheckoutResponse } from "./checkout.type";
+import type { CandidatesResponse, ReviewRequest, ReviewResult, Simulation, SimulationsResponse } from "@/types/simulation.type";
+import type { ProductInventory, StoreResponse } from "@/types/twin.type";
+import type { AnomaliesResponse } from "@/types/anomaly.type";
+import type { CheckoutResponse } from "@/types/checkout.type";
 
 export type HealthResponse = {
   status: "ok" | "degraded";
