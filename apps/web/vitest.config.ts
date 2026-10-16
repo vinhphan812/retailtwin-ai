@@ -10,6 +10,8 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
+    // React Three Fiber scene tests can exceed Vitest's 5s default on self-hosted runners.
+    testTimeout: 20_000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
