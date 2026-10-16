@@ -76,6 +76,7 @@ export const en = {
     list: "Open anomalies",
     detected: "since {{time}}",
     olderState: "read from an older twin state",
+    loadFailed: "Could not load anomalies.",
     type: {
       stockout: "Stockout",
       demand_surge: "Demand surge",

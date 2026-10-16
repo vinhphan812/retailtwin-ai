@@ -1,4 +1,6 @@
 import i18n from "@/i18n";
+import type { AnomaliesResponse } from "@/types/anomaly.type";
+import type { CheckoutResponse } from "@/types/checkout.type";
 import type { HealthResponse, RetailTwinClient } from "@/types/api.type";
 import type { ProductInventory, StoreResponse } from "@/types/twin.type";
 import type { PromotionsSummary } from "@/types/promotion.type";
