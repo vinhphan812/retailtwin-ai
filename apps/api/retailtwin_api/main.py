@@ -39,7 +39,7 @@ from retailtwin_api.persistence import get_persistence
 from retailtwin_api.routes import router
 from retailtwin_api.llm.factory import create_provider, llm_config_from_settings
 from retailtwin_api.settings import Settings, get_settings
-from retailtwin_api.simulation import SimulationRepository, _build_state
+from retailtwin_api.simulation import _build_state
 from retailtwin_api.store import LiveTwinStore, StoreReader, open_memory_live_store, open_store
 from retailtwin_api.version import __version__, git_sha
 
@@ -148,18 +148,33 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         else None
     )
     # The planner does not persist Decisions yet. A test or a later orchestrator injects a source.
+    # The activity log is the cross-cutting sink every agent stage writes to.
+    # Build it once and hand the same instance to the persistence factory so
+    # the in-memory ``SimulationRepository`` shares the live feed with the
+    # routes. Sub-PR 3 (FirestoreAgentActivityLog) replaces this with a
+    # durable adapter.
+    app.state.activity = AgentActivityLog()
     # ADR 0024: ``get_persistence`` selects the cross-instance adapter from
     # ``LIVE_TWIN_BACKEND``. For ``"firestore"`` that is a Firestore-backed
     # ``DecisionSource``; for ``"memory"`` the in-process one; for ``"fixture"``
     # an adapter that returns ``available=False`` so a fixture-only deploy
-    # cannot pretend a missing backend is healthy.
-    adapters = get_persistence(resolved)
+    # cannot pretend a missing backend is healthy. The memory backend also
+    # needs the store view to seed the canonical simulation; the firestore
+    # backend does not.
+    adapters = get_persistence(
+        resolved,
+        store_view_fn=store.view,
+        activity=app.state.activity,
+    )
     app.state.decisions = adapters.decisions
     app.state.events = EventLog()
     app.state.review_audit = ReviewAuditLog()
     app.state.live_context_version = store.view().context_version if store.loaded else ""
-    app.state.activity = AgentActivityLog()
-    app.state.simulations = SimulationRepository(store.view, resolved.store_id, activity=app.state.activity)
+    # ``app.state.simulations`` is selected by the factory above. The
+    # autonomy block below reuses the factory's bundle instead of
+    # constructing a fresh ``SimulationRepository`` so the durable adapter
+    # is used end-to-end.
+    app.state.simulations = adapters.simulations
     # Observer plumbing for POST /events (G03). The pipe and ledger are process memory.
     app.state.event_pipe = MemoryPipe()
     app.state.activation_ledger = MemoryActivationLedger()

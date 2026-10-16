@@ -1,7 +1,7 @@
 """Composition root for durable agent state (ADR 0024).
 
 Selects the process-memory or Firestore-backed adapters that back
-``DecisionSource``, ``SimulationRepository``, ``AgentActivityLog`` and
+``DecisionSource``, ``SimulationReadRepository``, ``AgentActivityLog`` and
 ``MemoryActivationLedger``. The factory is the single place that decides
 which storage backend a Cloud Run instance uses; the lifespan wires the
 returned adapters into ``app.state`` once at startup.
@@ -26,11 +26,13 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Callable
 
 from retailtwin_api.decisions import DecisionSource, InMemoryDecisionSource
 from retailtwin_api.firestore_decisions import FirestoreDecisionSource
+from retailtwin_api.firestore_simulations import FirestoreSimulationRepository
 from retailtwin_api.settings import Settings
+from retailtwin_api.simulation_repository import SimulationReadRepository
 
 log = logging.getLogger(__name__)
 
@@ -40,6 +42,7 @@ class DurableAdapters:
     """Bundle of cross-instance adapters returned by :func:`get_persistence`."""
 
     decisions: DecisionSource
+    simulations: SimulationReadRepository
 
 
 class _UnavailableDecisionSourceAdapter:
@@ -67,8 +70,54 @@ def _unavailable_decisions_source() -> DecisionSource:
     return _UnavailableDecisionSourceAdapter()  # type: ignore[return-value]
 
 
-def get_persistence(settings: Settings) -> DurableAdapters:
+def _unavailable_simulations_source() -> SimulationReadRepository:
+    """Read-only simulation repository used when LIVE_TWIN_BACKEND=fixture."""
+
+    class _Unavailable(SimulationReadRepository):
+        @property
+        def available(self) -> bool:
+            return False
+
+        def list_simulations(self, filters):  # noqa: D401 — typed boundary
+            from retailtwin_api.simulation_schemas import (
+                SimulationListResponse,
+            )
+
+            return SimulationListResponse(
+                simulations=[],
+                page=filters.page,
+                page_size=filters.page_size,
+                total=0,
+                next_cursor=None,
+            )
+
+        def get_simulation(self, simulation_id):
+            return None
+
+        def list_candidates(self, simulation_id, page):
+            return None
+
+        def list_agent_events(self, cursor):
+            return [], None
+
+        def set_status(self, simulation_id, status, at):
+            return None
+
+    return _Unavailable()
+
+
+def get_persistence(
+    settings: Settings,
+    *,
+    store_view_fn: Callable[[], Any] | None = None,
+    activity: Any | None = None,
+) -> DurableAdapters:
     """Build the cross-instance adapter bundle for the configured backend.
+
+    The ``memory`` backend needs a live ``store_view_fn`` (and an optional
+    ``activity`` sink) so the seeded simulation matches the same Live view the
+    rest of the API serves. The Firestore backend needs neither because the
+    ``SimulationDetail`` payload is self-contained.
 
     Returns the same Protocol objects regardless of backend, so the rest of
     the code is agnostic. The factory logs the chosen backend so a
@@ -80,16 +129,38 @@ def get_persistence(settings: Settings) -> DurableAdapters:
             "persistence.firestore project=%s",
             settings.google_cloud_project or "retailtwin-ai-511002",
         )
-        return DurableAdapters(decisions=FirestoreDecisionSource())
+        return DurableAdapters(
+            decisions=FirestoreDecisionSource(),
+            simulations=FirestoreSimulationRepository(),
+        )
     if backend == "fixture":
         log.warning(
-            "persistence.fixture_decisions_unwritable store_id=%s",
+            "persistence.fixture_read_only store_id=%s",
             settings.store_id,
         )
-        return DurableAdapters(decisions=_unavailable_decisions_source())
+        return DurableAdapters(
+            decisions=_unavailable_decisions_source(),
+            simulations=_unavailable_simulations_source(),
+        )
     if backend == "memory":
         log.info("persistence.memory store_id=%s", settings.store_id)
-        return DurableAdapters(decisions=InMemoryDecisionSource())
+        if store_view_fn is None:
+            raise ValueError(
+                "memory backend requires a store_view_fn so the seeded "
+                "simulation matches the Live view."
+            )
+        from retailtwin_api.agent_activity import AgentActivityLog
+        from retailtwin_api.simulation import SimulationRepository
+
+        simulations = SimulationRepository(
+            store_view_fn,
+            settings.store_id,
+            activity=activity or AgentActivityLog(),
+        )
+        return DurableAdapters(
+            decisions=InMemoryDecisionSource(),
+            simulations=simulations,
+        )
     raise ValueError(f"Unknown LIVE_TWIN_BACKEND {backend!r}")
 
 
