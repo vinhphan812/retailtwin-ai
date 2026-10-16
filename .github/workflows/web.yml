@@ -39,7 +39,7 @@ jobs:
 
   build-test:
     name: Build & Test
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     outputs:
       api_origin: ${{ env.VITE_API_BASE_URL }}
@@ -143,7 +143,7 @@ jobs:
   deploy:
     name: Deploy to Firebase Hosting
     needs: [build-test, security]
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment: production
 
@@ -158,10 +158,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Authenticate to Google Cloud (WIF/OIDC)
+        id: auth
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_DEPLOY_SA }}
+          token_format: access_token
 
       - name: Download web dist
         uses: actions/download-artifact@v4
@@ -171,9 +173,14 @@ jobs:
 
       - name: Deploy to Firebase Hosting
         id: deploy
+        env:
+          FIREBASE_TOKEN: ${{ steps.auth.outputs.access_token }}
         run: |
-          # Deploy using firebase-tools CLI with ADC from WIF auth
-          # Capture deployment output for verification
+          # Deploy using firebase-tools CLI with WIF OAuth access token.
+          # firebase-tools auth chain does not read GOOGLE_APPLICATION_CREDENTIALS
+          # (external_account files); it only accepts --token / FIREBASE_TOKEN.
+          # token_format: access_token from google-github-actions/auth gives us a
+          # short-lived OAuth 2.0 access token for the impersonated SA.
           DEPLOY_OUTPUT=$(npx firebase-tools@20.0.0 deploy \
             --only hosting \
             --project retailtwin-ai-511002 \
@@ -223,7 +230,7 @@ jobs:
   verify:
     name: Smoke Verification
     needs: deploy
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 10
 
     env:
