@@ -17,6 +17,19 @@ on:
   workflow_call:
   workflow_dispatch:
   pull_request:
+    paths:
+      # Only run dependency + container scans when relevant files change.
+      # Secrets scan (Trivy) runs on all files regardless.
+      - 'apps/api/**'
+      - 'apps/web/**'
+      - 'Dockerfile'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'apps/api/pyproject.toml'
+      - 'apps/web/package.json'
+      - '.github/workflows/security.yml'
+      - '.github/workflows/api.yml'
+      - '.github/workflows/web.yml'
   push:
     branches: [main]
 
