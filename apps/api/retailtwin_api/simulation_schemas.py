@@ -120,18 +120,20 @@ class SimulationCandidateResponse(BaseModel):
     evaluator_version: str = Field(min_length=1)
     provenance: str = Field(min_length=1)
     created_at: datetime
-    # DCG visualization fields per candidate. Only the candidate that becomes
-    # the live decision carries a guard evaluation; the others stay at the
-    # "none" defaults.
+    # DCG visualization fields per candidate. The guard evaluates exactly one
+    # decision per simulation, so only the candidate whose ``candidate_id``
+    # matches the decision's ``decision_id`` carries a verdict, gates, and an
+    # authorization receipt. Every other candidate reports
+    # ``guard_verdict=None``, ``guard_reason="not_evaluated"``,
+    # ``guard_gates=[]``, ``authorization=None`` so the FE card can clearly
+    # distinguish the chosen plan from the alternatives.
     guard_verdict: DCGVerdict | None = None
     guard_reason: str | None = None
     guard_gates: list[GuardGateResult] = Field(default_factory=list)
     decision_context_version: str | None = Field(default=None, min_length=1)
     decision_context_timestamp: datetime | None = None
     freshness_seconds: int | None = Field(default=None, ge=0)
-    authorization: CommitAuthorizationReceipt = Field(
-        default_factory=lambda: CommitAuthorizationReceipt(status="none")
-    )
+    authorization: CommitAuthorizationReceipt | None = None
 
 
 class CandidateListResponse(BaseModel):

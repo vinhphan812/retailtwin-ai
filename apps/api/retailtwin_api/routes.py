@@ -455,13 +455,17 @@ def list_candidates(
     result = repository.list_candidates(simulation_id, PageParameters(page=page, page_size=page_size))
     if result is None:
         raise ApiError(404, "simulation_not_found", f"Simulation {simulation_id!r} was not found.")
-    fields = _guard_fields_for_simulation(simulation_id, decisions, audit)
-    if fields is None:
+    summary = _guard_fields_for_simulation(simulation_id, decisions, audit)
+    if summary is None:
         return result
+    evaluated_candidate_id, fields = summary
     return result.model_copy(
         update={
             "candidates": [
-                candidate.model_copy(update=fields) for candidate in result.candidates
+                candidate.model_copy(update=fields)
+                if candidate.candidate_id == evaluated_candidate_id
+                else _not_evaluated_candidate(candidate)
+                for candidate in result.candidates
             ]
         }
     )
@@ -528,12 +532,24 @@ def _authorization_from_token(token: SignedAuthorization | None) -> CommitAuthor
     )
 
 
+# Reason reported by candidates the guard did not evaluate. The guard runs
+# exactly once per simulation, against the chosen decision; every other
+# candidate is an alternative the guard never saw.
+NOT_EVALUATED_REASON = "not_evaluated"
+
+
 def _guard_fields_for_simulation(
     simulation_id: str,
     decisions: DecisionSource,
     audit: GuardAuditSink,
-) -> dict[str, object] | None:
-    """Latest guard summary fields for a simulation, or None if no decision ran yet."""
+) -> tuple[str, dict[str, object]] | None:
+    """Evaluated candidate id and latest guard summary fields, or None if no decision ran yet.
+
+    The returned ``candidate_id`` matches the guard's ``decision.decision_id``;
+    the candidates route uses it to bind the verdict to the one candidate the
+    guard actually evaluated, leaving every other candidate at
+    :data:`NOT_EVALUATED_REASON` defaults.
+    """
     decision = decisions.get_for_simulation(simulation_id) if decisions.available else None
     if decision is None:
         return None
@@ -561,7 +577,28 @@ def _guard_fields_for_simulation(
             status="none",
             binding_id=binding_id,
         )
-    return fields
+    return decision.decision_id, fields
+
+
+def _not_evaluated_candidate(candidate: SimulationCandidateResponse) -> SimulationCandidateResponse:
+    """Reset the DCG fields on a candidate the guard never saw.
+
+    The verdict is bound only to the candidate the guard actually evaluated.
+    Alternatives must read as ``verdict=None``, ``reason="not_evaluated"``,
+    ``gates=[]`` and ``authorization=None`` so the FE card never paints an
+    authorization on a plan that was never authorized.
+    """
+    return candidate.model_copy(
+        update={
+            "guard_verdict": None,
+            "guard_reason": NOT_EVALUATED_REASON,
+            "guard_gates": [],
+            "decision_context_version": None,
+            "decision_context_timestamp": None,
+            "freshness_seconds": None,
+            "authorization": None,
+        }
+    )
 
 
 def _with_guard_summary(
@@ -570,9 +607,10 @@ def _with_guard_summary(
     audit: GuardAuditSink,
 ) -> SimulationDetail:
     """Return ``detail`` with DCG visualization fields populated when available."""
-    fields = _guard_fields_for_simulation(detail.simulation_id, decisions, audit)
-    if fields is None:
+    summary = _guard_fields_for_simulation(detail.simulation_id, decisions, audit)
+    if summary is None:
         return detail
+    _, fields = summary
     return detail.model_copy(update=fields)
 
 

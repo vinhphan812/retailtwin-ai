@@ -117,8 +117,11 @@ def _decision(
 
 def _candidate(simulation_id: str = SIM) -> SimulationCandidateResponse:
     sim = _simulation(simulation_id)
+    # The simulator binds a candidate to a decision by reusing
+    # ``decision.decision_id`` as ``candidate_id`` so the candidates route can
+    # identify the one the guard evaluated.
     return SimulationCandidateResponse(
-        candidate_id=f"candidate-{simulation_id}",
+        candidate_id=f"dec-{simulation_id}",
         simulation_id=simulation_id,
         proposed_actions=sim.actions,
         state=sim.state,
@@ -214,15 +217,26 @@ def test_simulation_response_includes_guard_verdict(client: TestClient) -> None:
 
 
 def test_candidate_response_includes_guard_breakdown(client: TestClient) -> None:
-    """``GET /simulations/{id}/candidates`` mirrors the guard fields per candidate."""
-    # No approval yet: candidates carry the empty defaults.
+    """``GET /simulations/{id}/candidates`` binds the verdict to the evaluated candidate.
+
+    The simulator reuses ``decision.decision_id`` as ``candidate_id``, so the
+    only candidate in this fixture is the one the guard will evaluate. Before
+    any guard run the DCG fields are all null (the guard has nothing to
+    report). After an ALLOW the chosen candidate carries the full breakdown;
+    the not_evaluated marker is reserved for alternatives the guard ran
+    against a different candidate (see
+    ``test_list_candidates_distinguishes_evaluated_from_not_evaluated``).
+    """
+    # No approval yet: every DCG field is null on every candidate.
     before = client.get(f"/simulations/{SIM}/candidates").json()
     assert before["candidates"][0]["guard_verdict"] is None
+    assert before["candidates"][0]["guard_reason"] is None
     assert before["candidates"][0]["guard_gates"] == []
-    assert before["candidates"][0]["authorization"]["status"] == "none"
+    assert before["candidates"][0]["authorization"] is None
 
-    # After an approval the same fields appear on every candidate, so the
-    # FE card can render them next to the chosen decision.
+    # After an approval the chosen candidate (the one whose id matches the
+    # decision's decision_id) carries the full DCG breakdown. This fixture
+    # only has the chosen candidate.
     client.post(
         f"/simulations/{SIM}/approve",
         json={"base_context_version": BASE_VERSION, "proposal_context_version": f"{SIM}:v1"},
@@ -314,3 +328,152 @@ def test_refresh_required_response_includes_context_versions(
     assert body["binding_id"] is None
     assert body["expires_at"] is None
     assert body["action_hashes"] == []
+
+
+# ─── Per-candidate DCG scoping (CHANGES_REQUESTED #40) ────────────────────────
+
+EVALUATED_CANDIDATE_ID = f"dec-{SIM}"  # matches the decision's decision_id
+ALT_CANDIDATE_ID_A = f"candidate-alt-A-{SIM}"
+ALT_CANDIDATE_ID_B = f"candidate-alt-B-{SIM}"
+
+
+def _alt_candidate(candidate_id: str) -> SimulationCandidateResponse:
+    """A candidate the guard will not evaluate. Same KPIs, different id."""
+    sim = _simulation()
+    return SimulationCandidateResponse(
+        candidate_id=candidate_id,
+        simulation_id=sim.simulation_id,
+        proposed_actions=sim.actions,
+        state=sim.state,
+        kpis=[CandidateKPI(name="sales_uplift", value=1.7, unit="percent", source="d11")],
+        evaluator_version="d11:v1",
+        provenance="kpi-evaluator",
+        created_at=sim.created_at,
+    )
+
+
+@pytest.fixture
+def multi_candidate_client(settings: Settings) -> Iterator[TestClient]:
+    """Client with one simulation that has a chosen candidate and two alternatives.
+
+    The chosen candidate's ``candidate_id`` matches the decision's
+    ``decision_id`` (``f"dec-{SIM}"``), matching the simulator's contract. The
+    two alternative candidates are not bound to any decision and must read as
+    ``not_evaluated`` once the guard has run.
+    """
+    app = create_app(settings)
+    activity_entry = AgentActivityEntry(
+        id="activity-dcg-multi-001",
+        ts=datetime(2026, 10, 14, 12, 0, tzinfo=timezone.utc),
+        stage=ControlStage.GUARD,
+        status="completed",
+        correlation_id=f"corr-{SIM}",
+        run_id="run-001",
+        decision=f"dec-{SIM}",
+        simulation_id=SIM,
+        acquired_at=datetime(2026, 10, 14, 12, 0, tzinfo=timezone.utc),
+        verdict="ALLOW",
+    )
+    candidates = [
+        _alt_candidate(ALT_CANDIDATE_ID_A),  # alternatives first
+        _candidate(),
+        _alt_candidate(ALT_CANDIDATE_ID_B),
+    ]
+    repo = InMemorySimulationRepository([_simulation()], candidates, [activity_entry])
+    app.state.simulations = repo
+    decisions = InMemoryDecisionSource()
+    decisions.put(SIM, _decision())
+    app.state.decisions = decisions
+    app.state.live_context_version = LIVE_VERSION
+    with TestClient(app) as test_client:
+        yield test_client
+
+
+def test_list_candidates_distinguishes_evaluated_from_not_evaluated(
+    multi_candidate_client: TestClient,
+) -> None:
+    """The verdict is bound only to the candidate the guard actually evaluated.
+
+    Regression test for the CHANGES_REQUESTED review on PR #252: the previous
+    implementation applied the simulation-level verdict to every candidate in
+    the response. The route now binds the verdict to the candidate whose
+    ``candidate_id`` matches the decision's ``decision_id``; every other
+    candidate reports ``verdict=None``, ``reason="not_evaluated"``,
+    ``gates=[]`` and ``authorization=None``.
+    """
+    # Run the guard exactly once, against the chosen candidate.
+    approval = multi_candidate_client.post(
+        f"/simulations/{SIM}/approve",
+        json={"base_context_version": BASE_VERSION, "proposal_context_version": f"{SIM}:v1"},
+    )
+    assert approval.status_code == 200
+    assert approval.json()["verdict"] == "ALLOW"
+
+    body = multi_candidate_client.get(f"/simulations/{SIM}/candidates").json()
+    by_id: dict[str, dict[str, object]] = {c["candidate_id"]: c for c in body["candidates"]}
+    assert set(by_id) == {EVALUATED_CANDIDATE_ID, ALT_CANDIDATE_ID_A, ALT_CANDIDATE_ID_B}
+
+    # The chosen candidate carries the full DCG breakdown + an authorization.
+    chosen = by_id[EVALUATED_CANDIDATE_ID]
+    assert chosen["guard_verdict"] == "ALLOW"
+    assert chosen["guard_reason"] == "ALLOWED"
+    assert [row["gate_id"] for row in chosen["guard_gates"]] == [
+        "integrity", "evidence", "context", "freshness", "feasibility", "policy",
+    ]
+    assert all(row["status"] == "passed" for row in chosen["guard_gates"])
+    assert chosen["decision_context_version"] == BASE_VERSION
+    assert chosen["decision_context_timestamp"] is not None
+    assert chosen["freshness_seconds"] is not None and chosen["freshness_seconds"] >= 0
+    assert chosen["authorization"] is not None
+    assert chosen["authorization"]["binding_id"]
+
+    # Every alternative reads as not_evaluated: the FE card must never paint
+    # an authorization on a plan that was never authorized.
+    for alt_id in (ALT_CANDIDATE_ID_A, ALT_CANDIDATE_ID_B):
+        alt = by_id[alt_id]
+        assert alt["guard_verdict"] is None, alt
+        assert alt["guard_reason"] == "not_evaluated", alt
+        assert alt["guard_gates"] == [], alt
+        assert alt["decision_context_version"] is None, alt
+        assert alt["decision_context_timestamp"] is None, alt
+        assert alt["freshness_seconds"] is None, alt
+        assert alt["authorization"] is None, alt
+
+
+def test_list_candidates_with_no_guard_run_returns_all_not_evaluated(
+    settings: Settings,
+) -> None:
+    """Before any guard run every candidate reports the all-null DCG defaults.
+
+    The review review rejected the previous behaviour because it painted the
+    same simulation-level verdict on every candidate. The flip side is that
+    before the guard has run at all there is no verdict and no authorization
+    for any candidate, so the card should report a null verdict everywhere.
+    """
+    app = create_app(settings)
+    candidates = [
+        _alt_candidate(ALT_CANDIDATE_ID_A),
+        _candidate(),
+        _alt_candidate(ALT_CANDIDATE_ID_B),
+    ]
+    repo = InMemorySimulationRepository([_simulation()], candidates, [])
+    app.state.simulations = repo
+    decisions = InMemoryDecisionSource()
+    decisions.put(SIM, _decision())
+    app.state.decisions = decisions
+    app.state.live_context_version = LIVE_VERSION
+
+    with TestClient(app) as client:
+        body = client.get(f"/simulations/{SIM}/candidates").json()
+
+    assert [c["candidate_id"] for c in body["candidates"]] == [
+        ALT_CANDIDATE_ID_A, EVALUATED_CANDIDATE_ID, ALT_CANDIDATE_ID_B,
+    ]
+    for candidate in body["candidates"]:
+        assert candidate["guard_verdict"] is None, candidate
+        assert candidate["guard_reason"] is None, candidate
+        assert candidate["guard_gates"] == [], candidate
+        assert candidate["decision_context_version"] is None, candidate
+        assert candidate["decision_context_timestamp"] is None, candidate
+        assert candidate["freshness_seconds"] is None, candidate
+        assert candidate["authorization"] is None, candidate
