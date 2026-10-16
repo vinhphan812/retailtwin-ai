@@ -313,11 +313,10 @@ class TestTrafficHeatmapRoute:
             params = {"window_minutes": 30, "seed": CANONICAL_SEED, "customer_count": 12}
             first = client.get("/traffic/heatmap", params=params).json()
             second = client.get("/traffic/heatmap", params=params).json()
-        # started_at uses wall-clock time, so the heatmap body must match exactly.
-        # Equal seeds produce identical heatmaps; only the wall-clock started_at
-        # varies between requests, so we assert the heatmap portion here.
-        assert first["zone_customer_seconds"] == second["zone_customer_seconds"]
-        assert first["total_customer_seconds"] == second["total_customer_seconds"]
+        # With the stable-anchor fix, ``started_at`` also falls back to the
+        # documented fixed default, so two requests with identical inputs must
+        # produce byte-identical responses.
+        assert first == second
 
     def test_route_rejects_unknown_store(self) -> None:
         app = create_app(self._build_settings(traffic_enabled=True))
@@ -334,3 +333,65 @@ class TestTrafficHeatmapRoute:
         with TestClient(app) as client:
             response = client.get("/traffic/heatmap", params={"window_minutes": 0})
         assert response.status_code == 422
+
+    def test_traffic_heatmap_uses_supplied_started_at(self) -> None:
+        # Issue #36 review: explicit anchor must be echoed by the response so
+        # callers can reproduce a heatmap byte-for-byte.
+        anchor = "2026-10-16T12:00:00Z"
+        app = create_app(self._build_settings(traffic_enabled=True))
+        with TestClient(app) as client:
+            response = client.get(
+                "/traffic/heatmap",
+                params={"started_at": anchor, "seed": 42, "customer_count": 8},
+            )
+        assert response.status_code == 200
+        body = response.json()
+        # FastAPI normalizes the timezone to +00:00; accept the same wall value.
+        assert datetime.fromisoformat(body["started_at"]) == datetime(
+            2026, 10, 16, 12, 0, 0, tzinfo=timezone.utc
+        )
+        assert body["simulator_seed"] == 42
+
+    def test_traffic_heatmap_deterministic_for_same_seed_and_anchor(self) -> None:
+        # Two requests with the same seed AND the same explicit anchor must
+        # produce byte-identical responses, even when issued at different
+        # wall-clock times.
+        anchor = "2026-10-16T12:00:00+00:00"
+        app = create_app(self._build_settings(traffic_enabled=True))
+        with TestClient(app) as client:
+            params = {
+                "started_at": anchor,
+                "seed": 42,
+                "customer_count": 8,
+                "window_minutes": 30,
+            }
+            first = client.get("/traffic/heatmap", params=params).json()
+            second = client.get("/traffic/heatmap", params=params).json()
+        assert first == second
+        # And the same seed with the same anchor yields a stable, equal response.
+        assert first["started_at"] == second["started_at"]
+        assert first["zone_customer_seconds"] == second["zone_customer_seconds"]
+        assert first["total_customer_seconds"] == second["total_customer_seconds"]
+
+    def test_traffic_heatmap_anchor_in_optional_path(self) -> None:
+        # Omitting started_at must fall back to the documented fixed anchor so
+        # the route stays deterministic without a caller-supplied value.
+        app = create_app(self._build_settings(traffic_enabled=True))
+        with TestClient(app) as client:
+            response = client.get(
+                "/traffic/heatmap",
+                params={"seed": 42, "customer_count": 8, "window_minutes": 30},
+            )
+        assert response.status_code == 200
+        body = response.json()
+        assert (
+            datetime.fromisoformat(body["started_at"])
+            == DEFAULT_STARTED_AT.astimezone(timezone.utc)
+        )
+        # Same call repeated immediately must hit the same anchor; the route
+        # never reads datetime.now(), so it cannot drift between requests.
+        again = client.get(
+            "/traffic/heatmap",
+            params={"seed": 42, "customer_count": 8, "window_minutes": 30},
+        ).json()
+        assert again["started_at"] == body["started_at"]

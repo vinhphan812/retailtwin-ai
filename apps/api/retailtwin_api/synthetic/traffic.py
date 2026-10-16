@@ -55,7 +55,14 @@ class TrafficEvent:
 
 
 class TrafficHeatmapResponse(BaseModel):
-    """Wire shape for the public heatmap route."""
+    """Wire shape for the public heatmap route.
+
+    ``started_at`` is the **stable time anchor** the simulator used to start
+    the window — either the explicit ``started_at`` query parameter the
+    caller supplied, or :data:`DEFAULT_STARTED_AT` when omitted. It is never
+    read from the wall clock, so the response is fully deterministic for a
+    given ``seed``, ``window_minutes``, ``customer_count``, and anchor.
+    """
 
     model_config = ConfigDict(extra="forbid")
 

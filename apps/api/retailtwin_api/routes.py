@@ -51,6 +51,9 @@ from retailtwin_api.synthetic.traffic import (
     CANONICAL_SEED as TRAFFIC_CANONICAL_SEED,
 )
 from retailtwin_api.synthetic.traffic import (
+    DEFAULT_STARTED_AT as TRAFFIC_DEFAULT_STARTED_AT,
+)
+from retailtwin_api.synthetic.traffic import (
     TrafficEvent as TrafficEventModel,
 )
 from retailtwin_api.synthetic.traffic import (
@@ -594,6 +597,11 @@ def traffic_heatmap(
     window_minutes: int = Query(default=60, ge=1, le=1440),
     seed: int = Query(default=TRAFFIC_CANONICAL_SEED, ge=0),
     customer_count: int = Query(default=42, ge=0, le=10_000),
+    started_at: datetime | None = Query(default=None, description=(
+        "ISO-8601 timezone-aware window start. Defaults to the deterministic "
+        f"anchor {TRAFFIC_DEFAULT_STARTED_AT.isoformat()} so two requests with "
+        "the same seed, window, and customer_count map to identical responses."
+    )),
     store: StoreReader = Depends(get_store),
     settings: Settings = Depends(get_settings_dep),
 ) -> TrafficHeatmapResponse:
@@ -603,6 +611,13 @@ def traffic_heatmap(
     ``traffic_disabled`` when the flag is off, so the day-0 routes stay
     unchanged. The simulator and aggregator are always importable; only the
     public route is gated.
+
+    Determinism contract: ``started_at`` is taken from the ``started_at``
+    query parameter when supplied (must be timezone-aware ISO-8601), otherwise
+    it falls back to the documented fixed anchor. It is **never** read from
+    the wall clock, so two requests with the same ``seed``, ``window_minutes``,
+    ``customer_count``, and (optional) ``started_at`` map to byte-identical
+    responses regardless of when the request is issued.
     """
     if not getattr(settings, "traffic_enabled", False):
         raise ApiError(
@@ -619,7 +634,14 @@ def traffic_heatmap(
             f"Store {target_store!r} is not served by this API.",
         )
     snapshot = store.view()
-    started_at = datetime.now(timezone.utc)
+    if started_at is None:
+        started_at = TRAFFIC_DEFAULT_STARTED_AT
+    elif started_at.tzinfo is None:
+        raise ApiError(
+            422,
+            "started_at_not_timezone_aware",
+            "started_at must be timezone-aware (use ISO-8601 with offset).",
+        )
     events = simulate_traffic(
         snapshot=snapshot,
         duration_minutes=window_minutes,
