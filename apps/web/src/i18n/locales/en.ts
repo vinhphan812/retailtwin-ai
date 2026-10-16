@@ -90,6 +90,7 @@ export const en = {
       high: "high",
       critical: "critical",
     },
+    loadFailed: "Could not load anomalies.",
   },
   productDetails: {
     title: "Product {{sku}}",

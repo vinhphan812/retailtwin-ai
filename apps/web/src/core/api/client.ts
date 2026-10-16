@@ -1,11 +1,11 @@
 import i18n from "@/i18n";
+import type { AnomaliesResponse } from "@/types/anomaly.type";
+import type { CheckoutResponse } from "@/types/checkout.type";
 import type { HealthResponse, RetailTwinClient } from "@/types/api.type";
 import type { ProductInventory, StoreResponse } from "@/types/twin.type";
 import type { PromotionsSummary } from "@/types/promotion.type";
 import type { RevenueSummary } from "@/types/revenue.type";
 import type { CandidatesResponse, ReviewResult, Simulation, SimulationsResponse } from "@/types/simulation.type";
-import type { AnomaliesResponse } from "@/types/anomaly.type";
-import type { CheckoutResponse } from "@/types/checkout.type";
 
 export class ApiError extends Error {
   readonly status: number;
