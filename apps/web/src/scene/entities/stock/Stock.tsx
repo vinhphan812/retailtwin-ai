@@ -20,6 +20,8 @@ import {
   type QuadraticBezierCurve3,
 } from "three";
 import { selectedProductId, useUiStore } from "@/state/ui.store";
+import { MOVE_MARK_HOLD_SIMULATION_MS } from "@/constants/twin.constant";
+import { VIEW_MODE } from "@/enums/ui.enum";
 import { worstSeverities } from "@/state/anomaly.store";
 import { useShownAnomalies } from "@/hooks/activeTwin.hook";
 import { useRecentChanges } from "@/hooks/recentChanges.hook";
@@ -599,9 +601,10 @@ function pick(batches: Batches, keep: (productId: string) => boolean) {
  * A recent move (`useRecentChanges`) carries the product's items on an arc from its source
  * slot to its destination, outlines where it stood, and lights both slots: the light hands
  * over from source to destination as the items travel, flashes when they land, and fades
- * out (`markLevels`, `marksShown`), with a translucent ghost where it stood and an arrow from
+ * out (`markLevels`, `marksShown`); in the Simulation view they hold a while before they fade.
+ * A translucent ghost marks where it stood, with a line from
  * there to its destination. With reduced motion the items stand at the destination from the
- * start, and the ghost, arrow and lights hold still for as long as the change cue lasts.
+ * start, and the ghost, line and lights hold still for as long as the change cue lasts.
  */
 export function Stock({ store, models = NO_MODELS }: { store: StoreFixture; models?: StockModels }) {
   const batches = useMemo(() => buildStock(store, models), [store, models]);
@@ -631,13 +634,15 @@ export function Stock({ store, models = NO_MODELS }: { store: StoreFixture; mode
     [move, models],
   );
   const tween = motion ? move : null;
+  // The proposal is there to be looked at: in the Simulation view the marks stay a while.
+  const hold = useUiStore((state) => state.viewMode) === VIEW_MODE.Simulation ? MOVE_MARK_HOLD_SIMULATION_MS : 0;
   const marks = useRef<Group>(null);
   useFrame(({ clock }) => {
     if (motion && anomalies.length) pulseHalos(Math.sin(clock.elapsedTime * Math.PI * 2 * ANOMALY_PULSE_HZ));
     const now = Date.now();
-    const shown = move !== null && marksShown(move.at, now, motion);
+    const shown = move !== null && marksShown(move.at, now, motion, hold);
     if (marks.current) marks.current.visible = shown;
-    if (shown) showMarks(motion ? markLevels(move.at, now) : STEADY_MARKS);
+    if (shown) showMarks(motion ? markLevels(move.at, now, hold) : STEADY_MARKS);
   });
 
   return (

@@ -171,12 +171,13 @@ export function ghostOutlines(cue: MoveCue, items: { matrix: Matrix4; productId:
 
 /**
  * True while the ghost, arrow and slot lights of a move appeared at `at` still show at
- * `now`: while the items travel, then `MOVE_MARK_OUT_MS` more to fade out. With reduced
+ * `now`: while the items travel, `hold` more at full strength (the Simulation view's
+ * `MOVE_MARK_HOLD_SIMULATION_MS`, else none), then `MOVE_MARK_OUT_MS` to fade out. With reduced
  * motion nothing moves or fades: they hold still, the final state marked, for as long as
  * the change cue lasts (`CHANGE_CUE_MS`).
  */
-export function marksShown(at: number, now: number, motion = true): boolean {
-  return now - at < (motion ? MOVE_TWEEN_MS + MOVE_MARK_OUT_MS : CHANGE_CUE_MS);
+export function marksShown(at: number, now: number, motion = true, hold = 0): boolean {
+  return now - at < (motion ? MOVE_TWEEN_MS + hold + MOVE_MARK_OUT_MS : CHANGE_CUE_MS);
 }
 
 /** How strongly each mark of a move shows, from 0 to 1; `flash` is the destination's extra glow. */
@@ -187,20 +188,21 @@ export const STEADY_MARKS: MarkLevels = { ghost: 1, from: 1, to: 1, flash: 0 };
 
 /**
  * The marks of a move appeared at `at`, at `now`. They fade in over `MOVE_MARK_IN_MS`.
- * While the items travel the light hands over: the source slot dims and the destination
- * brightens. When the items land the destination flashes, and everything fades out over
- * `MOVE_MARK_OUT_MS`.
+ * While the items travel the light hands over: the source dims and the destination
+ * brightens. When the items land the destination flashes for `MOVE_MARK_OUT_MS`; the marks
+ * hold for `hold` more, then fade out over `MOVE_MARK_OUT_MS`.
  */
-export function markLevels(at: number, now: number): MarkLevels {
+export function markLevels(at: number, now: number, hold = 0): MarkLevels {
   const elapsed = now - at;
   const fadeIn = clamp01(elapsed / MOVE_MARK_IN_MS);
-  const fadeOut = 1 - clamp01((elapsed - MOVE_TWEEN_MS) / MOVE_MARK_OUT_MS);
+  const fadeOut = 1 - clamp01((elapsed - MOVE_TWEEN_MS - hold) / MOVE_MARK_OUT_MS);
   const level = fadeIn * fadeOut;
   const done = easeInOut(moveProgress(at, now));
+  const landed = elapsed - MOVE_TWEEN_MS;
   return {
     ghost: level,
     from: level * (1 - MOVE_SLOT_HANDOFF * done),
     to: level * (1 - MOVE_SLOT_HANDOFF * (1 - done)),
-    flash: elapsed >= MOVE_TWEEN_MS ? MOVE_ARRIVAL_FLASH * fadeOut : 0,
+    flash: landed >= 0 ? MOVE_ARRIVAL_FLASH * level * (1 - clamp01(landed / MOVE_MARK_OUT_MS)) : 0,
   };
 }

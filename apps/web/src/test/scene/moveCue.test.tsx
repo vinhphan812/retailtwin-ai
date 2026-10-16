@@ -5,7 +5,13 @@ import { Matrix4, Vector3, type InstancedMesh, type Object3D } from "three";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProductInspector } from "@/components/twin/ProductInspector";
 import { MOVE_ARC_HEIGHT, MOVE_ARROW_LIFT } from "@/constants/scene.constant";
-import { CHANGE_CUE_MS, MOVE_MARK_IN_MS, MOVE_MARK_OUT_MS, MOVE_TWEEN_MS } from "@/constants/twin.constant";
+import {
+  CHANGE_CUE_MS,
+  MOVE_MARK_HOLD_SIMULATION_MS,
+  MOVE_MARK_IN_MS,
+  MOVE_MARK_OUT_MS,
+  MOVE_TWEEN_MS,
+} from "@/constants/twin.constant";
 import { diffStates } from "@/core/twin/stateDiff";
 import { TWIN_STATUS } from "@/enums/twin.enum";
 import { VIEW_MODE } from "@/enums/ui.enum";
@@ -116,6 +122,18 @@ describe("moveCueOf", () => {
     expect(marksShown(1000, 1000 + CHANGE_CUE_MS, false)).toBe(false);
   });
 
+  it("holds the marks for `hold` before they fade, with the arrival flash still brief", () => {
+    const hold = MOVE_MARK_HOLD_SIMULATION_MS;
+    expect(MOVE_TWEEN_MS + hold + MOVE_MARK_OUT_MS).toBeLessThanOrEqual(CHANGE_CUE_MS);
+    expect(marksShown(1000, 1000 + MOVE_TWEEN_MS + MOVE_MARK_OUT_MS, true, hold)).toBe(true);
+    expect(marksShown(1000, 1000 + MOVE_TWEEN_MS + hold + MOVE_MARK_OUT_MS, true, hold)).toBe(false);
+    const holding = markLevels(1000, 1000 + MOVE_TWEEN_MS + hold - 1, hold);
+    expect(holding.ghost).toBe(1);
+    expect(holding.to).toBe(1);
+    expect(holding.flash).toBe(0);
+    expect(markLevels(1000, 1000 + MOVE_TWEEN_MS + hold + MOVE_MARK_OUT_MS / 2, hold).ghost).toBeCloseTo(0.5);
+  });
+
   it("fades the marks in, hands the light from source to destination, flashes on arrival and fades out", () => {
     expect(markLevels(1000, 1000)).toEqual({ ghost: 0, from: 0, to: 0, flash: 0 });
     const early = markLevels(1000, 1000 + MOVE_MARK_IN_MS);
@@ -224,11 +242,13 @@ describe("move cue in the scene", () => {
     expect(atState(scene.p007())).toBe(false);
     expect(scene.marked()).toBe(true);
 
-    // The items land where the state puts them; the outline and lights then fade out.
+    // The items land where the state puts them; in the Simulation view the marks hold a while, then fade out.
     await scene.frameAt(start + MOVE_TWEEN_MS);
     expect(atState(scene.p007())).toBe(true);
     expect(scene.marked()).toBe(true);
     await scene.frameAt(start + MOVE_TWEEN_MS + MOVE_MARK_OUT_MS);
+    expect(scene.marked()).toBe(true);
+    await scene.frameAt(start + MOVE_TWEEN_MS + MOVE_MARK_HOLD_SIMULATION_MS + MOVE_MARK_OUT_MS);
     expect(scene.marked()).toBe(false);
   });
 
