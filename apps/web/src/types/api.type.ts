@@ -19,7 +19,8 @@ export type FlagshipPhase = "IDLE" | "RUNNING" | "COMPLETE" | "ERROR";
 
 /**
  * `POST /flagship/start`: the run it started. TODO(BE): #41 (PR #202) answers only once the
- * run has ended; the web app needs it to answer at once (202) with the run's `correlation_id`.
+ * run has ended, so the web app sends it without waiting and follows `GET /flagship/status`;
+ * it needs `start` to answer at once (202) with the run's `correlation_id`.
  */
 export type FlagshipStartResponse = { run_id: string; correlation_id: string | null; phase: FlagshipPhase };
 

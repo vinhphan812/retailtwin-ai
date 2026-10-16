@@ -13,19 +13,27 @@ function status(phase: FlagshipStatusResponse["phase"], error: string | null = n
   return { run_id: "r", phase, correlation_id: "run-1", error };
 }
 
-/** A client whose feed and status answer from `pages` and `statuses`, one per poll. */
+/**
+ * A client whose feed and status answer from `pages` and `statuses`, one per poll. Like
+ * #41, `POST /flagship/start` answers only when the test calls `finishStart` (or `failStart`).
+ */
 function fakeClient(pages: AgentEvent[][], statuses: FlagshipStatusResponse[]) {
   const calls: string[] = [];
   let page = 0;
   let poll = 0;
+  let finishStart: (correlationId?: string | null) => void = () => {};
+  let failStart: (error: Error) => void = () => {};
   const client = {
     flagshipReset: vi.fn(async () => {
       calls.push("reset");
       return {};
     }),
-    flagshipStart: vi.fn(async () => {
+    flagshipStart: vi.fn(() => {
       calls.push("start");
-      return { run_id: "r", correlation_id: "run-1", phase: "RUNNING" as const };
+      return new Promise((resolve, reject) => {
+        finishStart = (correlation_id = "run-1") => resolve({ run_id: "r", correlation_id, phase: "COMPLETE" as const });
+        failStart = reject;
+      });
     }),
     flagshipStatus: vi.fn(async () => statuses[Math.min(poll++, statuses.length - 1)]),
     agentEvents: vi.fn(async (since?: string | null) => {
@@ -34,7 +42,7 @@ function fakeClient(pages: AgentEvent[][], statuses: FlagshipStatusResponse[]) {
       return { events, cursor };
     }),
   } as unknown as RetailTwinClient;
-  return { client, calls };
+  return { client, calls, finishStart: (id?: string | null) => finishStart(id), failStart: (error: Error) => failStart(error) };
 }
 
 beforeEach(() => {
@@ -59,6 +67,66 @@ describe("createApiDemoRunner", () => {
     expect(settled).toHaveBeenCalled();
     expect(useRunStore.getState().activity.map((entry) => entry.id)).toEqual(["a", "b", "c"]);
     expect(useRunStore.getState().activity[1].simulation_id).toBe("sim-run-1");
+  });
+
+  it("follows the stages live while POST /flagship/start has not answered yet", async () => {
+    const { client, finishStart } = fakeClient([], [status("IDLE"), status("RUNNING"), status("RUNNING"), status("COMPLETE")]);
+    // The feed grows as the controller runs: one more stage by each status read.
+    const feed = [event("a", "DETECT"), event("b", "SIMULATE"), event("c", "VERIFY")];
+    vi.mocked(client.agentEvents).mockImplementation(async (since) => {
+      const from = Number(since ?? 0);
+      const to = Math.max(from, vi.mocked(client.flagshipStatus).mock.calls.length - 1);
+      return { events: feed.slice(from, to), cursor: String(to) };
+    });
+    const starting = createApiDemoRunner(client, POLL).start();
+    await vi.advanceTimersByTimeAsync(0);
+    // The reset is still the status: nothing is read before the run is identified.
+    expect(client.agentEvents).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(POLL);
+    const run = await starting;
+    expect(run.correlationId).toBe("run-1");
+    expect(useRunStore.getState().activity.map((entry) => entry.id)).toEqual(["a"]);
+    await vi.advanceTimersByTimeAsync(POLL);
+    expect(useRunStore.getState().activity.map((entry) => entry.id)).toEqual(["a", "b"]);
+
+    const settled = vi.fn();
+    run.done.then(settled);
+    await vi.advanceTimersByTimeAsync(POLL);
+    expect(settled).toHaveBeenCalled();
+    expect(useRunStore.getState().activity.map((entry) => entry.id)).toEqual(["a", "b", "c"]);
+    expect(client.flagshipStart).toHaveBeenCalledTimes(1);
+    finishStart();
+  });
+
+  it("is identified by the answer to start when the status has not named the run", async () => {
+    const { client, finishStart } = fakeClient([[event("a", "VERIFY")]], [status("IDLE"), status("COMPLETE")]);
+    const starting = createApiDemoRunner(client, POLL).start();
+    await vi.advanceTimersByTimeAsync(0);
+    finishStart("run-1");
+    const run = await starting;
+    expect(run.correlationId).toBe("run-1");
+    await vi.advanceTimersByTimeAsync(POLL);
+    await expect(run.done).resolves.toBeUndefined();
+    expect(useRunStore.getState().activity.map((entry) => entry.id)).toEqual(["a"]);
+  });
+
+  it("fails when POST /flagship/start fails before the run is identified", async () => {
+    const { client, failStart } = fakeClient([], [status("IDLE")]);
+    const starting = createApiDemoRunner(client, POLL).start();
+    const failed = starting.catch((error: Error) => error.message);
+    await vi.advanceTimersByTimeAsync(0);
+    failStart(new Error("Cannot start from phase RUNNING."));
+    await vi.advanceTimersByTimeAsync(POLL);
+    await expect(failed).resolves.toBe("Cannot start from phase RUNNING.");
+  });
+
+  it("ends the run in error when POST /flagship/start fails after it was identified", async () => {
+    const { client, failStart } = fakeClient([], [status("RUNNING")]);
+    const run = await createApiDemoRunner(client, POLL).start();
+    const failed = run.done.catch((error: Error) => error.message);
+    failStart(new Error("Twin API unreachable."));
+    await vi.advanceTimersByTimeAsync(0);
+    await expect(failed).resolves.toBe("Twin API unreachable.");
   });
 
   it("fails with the controller's reason when the run ends in ERROR", async () => {

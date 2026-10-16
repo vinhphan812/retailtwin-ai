@@ -30,20 +30,31 @@ export function toActivityEntry(event: AgentEvent): ActivityEntry {
 
 /**
  * The flagship demo on apps/api (#41): `POST /flagship/reset`, then `POST /flagship/start`.
- * While the run plays, every `pollMs` it reads `GET /agent/events` into the timeline (only
- * this run's entries) and `GET /flagship/status`; the run ends when the status says COMPLETE
- * or ERROR. It never advances a stage itself: the stages are the feed's.
- * TODO(BE): needs #41 to record each stage in the feed and to answer `start` at once.
+ * `start` answers only once the whole chain has run, so it is sent and not awaited: from the
+ * moment it is sent, every `pollMs` the runner reads `GET /flagship/status` and, once the
+ * status names the run's `correlation_id`, `GET /agent/events` into the timeline (only this
+ * run's entries). `start()` resolves as soon as the run is identified, by the status or by
+ * the answer to `start`, whichever comes first; the run ends when the status says COMPLETE
+ * or ERROR, or when `start` fails. It never advances a stage itself: the stages are the feed's.
+ * TODO(BE): #41 (PR #202) to answer `start` at once (202) and to record each stage in the feed.
  */
 export function createApiDemoRunner(client: RetailTwinClient, pollMs = DEMO_RUN_POLL_MS): DemoRunner {
   return {
     async start() {
       await client.flagshipReset();
-      const started = await client.flagshipStart();
-      let correlationId = started.correlation_id;
+      let correlationId: string | null = null;
       let cursor: string | null = null;
       let stopped = false;
       let timer: ReturnType<typeof setTimeout> | undefined;
+      /** How `POST /flagship/start` answered, once it has. */
+      let answer: { ok: true } | { ok: false; error: unknown } | null = null;
+
+      let identify!: (id: string) => void;
+      let failStart!: (error: unknown) => void;
+      const identified = new Promise<string>((resolve, reject) => {
+        identify = resolve;
+        failStart = reject;
+      });
 
       const readFeed = async () => {
         if (!correlationId) return;
@@ -59,27 +70,48 @@ export function createApiDemoRunner(client: RetailTwinClient, pollMs = DEMO_RUN_
       };
 
       const done = new Promise<void>((resolve, reject) => {
+        const fail = (error: unknown) => {
+          failStart(error);
+          reject(error);
+        };
         const poll = async () => {
           if (stopped) return;
           try {
+            if (answer && !answer.ok) return fail(answer.error);
             const status = await client.flagshipStatus();
-            correlationId ??= status.correlation_id;
+            // IDLE is the reset, before `start` has reached the controller.
+            if (status.phase !== "IDLE") correlationId ??= status.correlation_id;
+            if (correlationId) identify(correlationId);
+            else if (answer?.ok) return fail(new Error("The flagship run named no correlation_id."));
             await readFeed();
             if (stopped) return;
             if (status.phase === "COMPLETE") return resolve();
-            if (status.phase === "ERROR") return reject(new Error(status.error ?? "The flagship run failed."));
+            if (status.phase === "ERROR") return fail(new Error(status.error ?? "The flagship run failed."));
             timer = setTimeout(poll, pollMs);
           } catch (error) {
-            reject(error);
+            fail(error);
           }
         };
+
+        client.flagshipStart().then(
+          (started) => {
+            answer = { ok: true };
+            correlationId ??= started.correlation_id;
+            if (correlationId) identify(correlationId);
+          },
+          (error: unknown) => {
+            answer = { ok: false, error };
+            if (!stopped) fail(error);
+          },
+        );
         void poll();
       });
+      // A run that fails before it is identified rejects `start()`; nobody waits on `done` then.
+      done.catch(() => {});
 
+      await identified;
       return {
-        get correlationId() {
-          return correlationId ?? started.run_id;
-        },
+        correlationId: correlationId!,
         done,
         stop: () => {
           stopped = true;

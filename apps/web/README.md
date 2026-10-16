@@ -273,9 +273,9 @@ For `CHANGE_CUE_MS` (4 s) the hook returns `{ diff, at, before }`, where `before
 
 **Runners.**
 - **`createApiDemoRunner`** (apps/api):
-  - calls `POST /flagship/reset`, then `POST /flagship/start` (#41);
-  - while the run plays, every `DEMO_RUN_POLL_MS` (1 s) reads `GET /flagship/status` and `GET /agent/events`, and appends this run's entries to `run.store` (`toActivityEntry`);
-  - the run ends when the status is COMPLETE, or fails with its `error` when it is ERROR.
+  - calls `POST /flagship/reset`, then sends `POST /flagship/start` (#41) **without awaiting it**: #41 answers `start` only once the whole chain has run;
+  - from the moment `start` is sent, every `DEMO_RUN_POLL_MS` (1 s) reads `GET /flagship/status`. Once the status (or the answer to `start`, whichever is first) names the run's `correlation_id`, it also reads `GET /agent/events` and appends this run's entries to `run.store` (`toActivityEntry`), so stages show as the controller records them;
+  - the run ends when the status is COMPLETE, or fails with its `error` when it is ERROR or when `start` itself fails (409, 503).
 - **`createFixtureDemoRunner`** (`?twin=demo`): fixtures stand in for the controller.
   - Reset puts the demo store, its anomalies, and its open simulation back.
   - Start replays the demo agent run (`DEMO_AGENT_STEP_MS` per stage).
@@ -285,7 +285,7 @@ For `CHANGE_CUE_MS` (4 s) the hook returns `{ diff, at, before }`, where `before
 
 **TODO(BE), on #41** ([comment](https://github.com/vinhphan812/retailtwin-ai/issues/41#issuecomment-6207603527)). Until these land, the button on apps/api shows the controller's error:
 - the controller must record each stage in `GET /agent/events` under one `correlation_id`, with `simulation_id` from SIMULATE on;
-- `POST /flagship/start` must answer at once (202) instead of after the whole run;
+- `POST /flagship/start` should answer at once (202) instead of after the whole run (the web app no longer waits on it, but a held request can hit the Cloud Run timeout);
 - `GET /flagship/status` must carry `correlation_id` and `error` while the run plays;
 - the `/flagship/*` routes must be mounted in the deployed API;
 - the run should be paced to about 60 s;
