@@ -14,9 +14,11 @@ export const LIVE_PATH = "/live";
 /**
  * Whether the URL asks for the demo: `?twin=demo`, or `/demo`. On `/` with no `?twin=`, a
  * hosted demo build (`VITE_ALLOW_DEMO=true`) opens the demo too, so its bare URL lands on it;
- * `/live` and any other `?twin=` never do.
+ * `/live` is always Live regardless of `?twin=` (pathname is authoritative over query params).
  */
 export function demoRequested({ pathname, search }: Pick<Location, "pathname" | "search">): boolean {
+  // LIVE_PATH is authoritative — never activate demo on /live regardless of ?twin=
+  if (pathname === LIVE_PATH) return false;
   const twin = new URLSearchParams(search).get("twin");
   if (twin !== null) return twin === "demo";
   if (pathname === DEMO_PATH) return true;
