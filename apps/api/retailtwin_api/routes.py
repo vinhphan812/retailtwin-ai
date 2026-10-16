@@ -90,6 +90,11 @@ def get_store(request: Request) -> StoreReader:
     return request.app.state.store
 
 
+def get_composition(request: Request) -> Any:
+    """Return the bound :class:`Composition` or ``None`` for the legacy fast path."""
+    return getattr(request.app.state, "composition", None)
+
+
 def get_events(request: Request) -> EventLog:
     return request.app.state.events
 
@@ -213,21 +218,70 @@ def version() -> VersionResponse:
 
 
 @router.get("/ready", response_model=ReadyResponse, include_in_schema=True)
-def ready(request: Request, store: StoreReader = Depends(get_store)) -> ReadyResponse:
+def ready(
+    request: Request,
+    store: StoreReader = Depends(get_store),
+    composition: Any = Depends(get_composition),
+) -> ReadyResponse:
     """Readiness probe: can the service handle traffic?
 
     Returns 503 when the store fixture is unavailable, causing Cloud Run
     load-balancer to drain traffic away from this instance until the
     fixture is reloaded.
+
+    ADR 0029 — when the production composition root is bound, the
+    response carries ``backend_identities`` so the release-gate and the
+    Cloud Run readiness probe can assert the canonical adapters are
+    attached (Firestore Live Twin, Vertex provider, BigQuery analytics,
+    durable decisions). Identities are names + sources only — never
+    credentials. The AI workflow tri-state (``ai_state`` /
+    ``ai_reason``) and BigQuery probe outcome
+    (``analytics_readiness``) are exposed so the release-gate can
+    distinguish intentional ``ai_disabled`` from misconfigured
+    ``ai_unconfigured`` and a degraded BigQuery from a hard
+    CompositionError.
     """
     if not store.loaded:
         raise ApiError(503, "store_unavailable", "Store fixture is not available.")
+    identities = composition.backend_identities if composition is not None else {}
+    analytics_readiness = (
+        _analytics_readiness_payload(composition)
+        if composition is not None
+        else {"ready": "false", "reason": "not_applicable"}
+    )
     return ReadyResponse(
         ready=True,
         service="retailtwin-api",
         store_id=store.store_id,
         correlation_id=_correlation_id(request),
+        backend_identities=dict(identities),
+        ai_state=getattr(composition, "ai_state", "ai_disabled") if composition is not None else "ai_disabled",
+        ai_reason=getattr(composition, "ai_reason", "autonomy_disabled_by_config") if composition is not None else "autonomy_disabled_by_config",
+        analytics_readiness=analytics_readiness,
     )
+
+
+def _analytics_readiness_payload(composition: Any) -> dict[str, str]:
+    """Pack the :class:`CompositionReadiness` into JSON-compatible dicts."""
+    readiness = getattr(composition, "analytics_readiness", None)
+    if readiness is None:
+        return {"ready": "true", "reason": "not_applicable"}
+    payload: dict[str, str] = {
+        "ready": "true" if getattr(readiness, "ready", False) else "false",
+        "reason": getattr(readiness, "reason", "not_applicable"),
+    }
+    source = getattr(readiness, "source", "")
+    if source:
+        payload["source"] = source
+    identity = getattr(readiness, "identity", {}) or {}
+    for key in ("project_id", "dataset", "location", "iam_scope", "probe_table"):
+        if key in identity and identity[key]:
+            payload[key] = identity[key]
+    detail = getattr(readiness, "detail", {}) or {}
+    if detail:
+        payload["error_type"] = detail.get("error_type", "")
+        payload["error_message"] = detail.get("error_message", "")
+    return payload
 
 
 @router.get("/store", response_model=StoreResponse, include_in_schema=True)

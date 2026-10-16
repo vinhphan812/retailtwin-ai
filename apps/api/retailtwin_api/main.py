@@ -14,7 +14,6 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from retailtwin_api.agent_activity import AgentActivityLog
 from retailtwin_api.agents.executor import build_commit_service
 from retailtwin_api.agents.observer.consumer import (
     MemoryActivationLedger,
@@ -23,9 +22,10 @@ from retailtwin_api.agents.observer.consumer import (
 from retailtwin_api.agents.orchestrator.autonomy import AutonomousInvestigations
 from retailtwin_api.agents.orchestrator.tool_registry import build_store_registry
 from retailtwin_api.backbone import EventPipe, MemoryPipe, MemoryQuarantine
-from retailtwin_api.analytics_repository import (
-    get_checkout_repository,
-    unavailable_analytics_repositories,
+from retailtwin_api.composition import (
+    Composition,
+    CompositionError,
+    build_composition,
 )
 from retailtwin_api.decisions import DecisionSource
 from retailtwin_api.demand_surge import DemandSurgeScheduler
@@ -35,7 +35,6 @@ from retailtwin_api.firestore_twin import FirestoreLiveTwinRepository, LiveTwinR
 from retailtwin_api.flagship.agent_starter import FlagshipInvestigationStarter
 from retailtwin_api.guard.decision_context_guard import InMemoryGuardAudit
 from retailtwin_api.middleware import CorrelationMiddleware
-from retailtwin_api.persistence import get_persistence
 from retailtwin_api.routes import router
 from retailtwin_api.llm.factory import create_provider, llm_config_from_settings
 from retailtwin_api.settings import Settings, get_settings
@@ -48,6 +47,29 @@ logger = logging.getLogger(__name__)
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     resolved = settings or get_settings()
+
+    # ADR 0029 — build the cross-cutting composition bundle ONCE at process
+    # startup. ``build_composition`` is the single source of truth for which
+    # adapters each environment binds. Routes never construct adapters on
+    # their own; they read from ``app.state`` populated below. A misconfigured
+    # production build raises :class:`CompositionError` so the lifespan
+    # refuses to start the Cloud Run revision.
+    try:
+        composition = build_composition(resolved)
+    except CompositionError as exc:
+        logger.error(
+            "composition.unavailable",
+            extra={
+                "app_env": resolved.app_env,
+                "is_production": resolved.is_production,
+                "error_type": type(exc).__name__,
+                "error_message": str(exc),
+            },
+        )
+        return _build_unhealthy_app(resolved, exc)
+
+    store = composition.store
+    live_twin: LiveTwinRepository | None = composition.live_twin_repository
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -134,12 +156,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     app.state.settings = resolved
+    app.state.composition = composition
 
-    # Default is an in-process Live Twin seeded from the fixture. Firestore is
-    # used only when LIVE_TWIN_BACKEND=firestore, so tests never open a live project.
-    store = _open_store(resolved)
+    # Live Twin + commit boundary + guard audit. The factory already selected
+    # the right adapter; we just bind it into ``app.state``.
     app.state.store = store
-    live_twin: LiveTwinRepository | None = store.twin if isinstance(store, LiveTwinStore) else None
     app.state.live_twin = live_twin
     app.state.guard_audit = InMemoryGuardAudit()
     app.state.commits = (
@@ -147,79 +168,63 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if live_twin is not None
         else None
     )
-    # The planner does not persist Decisions yet. A test or a later orchestrator injects a source.
-    # The activity log is the cross-cutting sink every agent stage writes to.
-    # Build it once and hand the same instance to the persistence factory so
-    # the in-memory ``SimulationRepository`` shares the live feed with the
-    # routes. Sub-PR 3 (FirestoreAgentActivityLog) replaces this with a
-    # durable adapter.
-    app.state.activity = AgentActivityLog()
-    # ADR 0024: ``get_persistence`` selects the cross-instance adapter from
-    # ``LIVE_TWIN_BACKEND``. For ``"firestore"`` that is a Firestore-backed
-    # ``DecisionSource``; for ``"memory"`` the in-process one; for ``"fixture"``
-    # an adapter that returns ``available=False`` so a fixture-only deploy
-    # cannot pretend a missing backend is healthy. The memory backend also
-    # needs the store view to seed the canonical simulation; the firestore
-    # backend does not.
-    adapters = get_persistence(
-        resolved,
-        store_view_fn=store.view,
-        activity=app.state.activity,
-    )
-    app.state.decisions = adapters.decisions
+
+    # Event intake + review audit are still process-local.
     app.state.events = EventLog()
     app.state.review_audit = ReviewAuditLog()
     app.state.live_context_version = store.view().context_version if store.loaded else ""
-    # ``app.state.simulations`` and ``app.state.activity`` are selected by
-    # the factory above. The autonomy block below reuses the factory's
-    # bundle instead of constructing fresh adapters so the durable
-    # implementations are used end-to-end.
+
+    # Decisions / simulations / activity / activation ledger come from the
+    # composition factory. The autonomy block below reuses the same
+    # adapters so the durable implementations are used end-to-end.
+    adapters = composition.durable_adapters
+    app.state.decisions = adapters.decisions
     app.state.simulations = adapters.simulations
     app.state.activity = adapters.activity
     app.state.activation_ledger = adapters.activation_ledger
-    # Observer plumbing for POST /events (G03). The pipe and ledger are process memory.
+
+    # Observer plumbing for POST /events (G03). The pipe is process memory;
+    # the activation ledger is the durable one from the factory.
     app.state.event_pipe = MemoryPipe()
-    app.state.activation_ledger = MemoryActivationLedger()
     app.state.quarantine = MemoryQuarantine()
     app.state.autonomy = None
-    if resolved.autonomy_enabled and store.loaded:
-        try:
-            provider = create_provider(llm_config_from_settings(resolved))
-        except Exception as exc:
-            # A misconfigured provider disables autonomy; the read and review routes keep serving.
-            provider = None
-            logger.error("autonomy.unavailable", extra={"error_type": type(exc).__name__})
-    else:
-        provider = None
-    if provider is not None:
-        # Reuse the durable adapter from the factory so the autonomy path
-        # writes Decisions to the same backend the review route reads from.
-        # ADR 0024: when ``LIVE_TWIN_BACKEND=firestore``, ``app.state.decisions``
-        # is already a Firestore-backed source; constructing a fresh
-        # in-memory one would lose that durability.
-        decisions = app.state.decisions
+
+    # Vertex provider comes from the composition factory. In production
+    # this is mandatory and the factory raises if ADC is not present; in
+    # dev / test the factory may return ``None`` when the configuration
+    # is incomplete, in which case autonomy is disabled and the read /
+    # review routes keep serving.
+    provider = composition.llm_provider
+    if provider is not None and resolved.autonomy_enabled and store.loaded:
         app.state.autonomy = AutonomousInvestigations(
             provider=provider,
             registry=build_store_registry(store),
             store_view=store.view,
             proposals=app.state.simulations,
-            decisions=decisions,
-            activity=app.state.activity,
+            decisions=adapters.decisions,
+            activity=adapters.activity,
             build_state=_build_state,
+        )
+    elif provider is None and resolved.autonomy_enabled:
+        logger.error(
+            "autonomy.unavailable",
+            extra={"app_env": resolved.app_env, "is_production": resolved.is_production},
         )
     if not store.loaded:
         logger.error(
             "fixture.unavailable",
             extra={"store_error": store.error, "fixture_path": str(resolved.store_fixture_path)},
         )
-    # Analytics repositories: GCP-backed (BigQuery + Firestore); empty adapters in dev.
-    # Checkout reads use the explicit in-memory scaffold pending a verified BQ schema.
-    # Swap app.state repositories in integration tests.
-    anomalies, revenue, promotions, _ = unavailable_analytics_repositories()
+
+    # Analytics repositories come from the composition factory. Production
+    # binds the BigQuery-backed adapters; dev / test bind the unavailable
+    # scaffolds. The factory fails closed in production if the canonical
+    # BigQuery project + dataset are unreachable.
+    anomalies, revenue, promotions, checkouts = composition.analytics_repositories
     app.state.anomalies = anomalies
     app.state.revenue = revenue
     app.state.promotions = promotions
-    app.state.checkouts = get_checkout_repository()
+    app.state.checkouts = checkouts
 
     # Correlation + structured logging middleware (must be outermost)
     app.add_middleware(CorrelationMiddleware)
@@ -240,10 +245,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # routes return 503 when the controller is not configured, so a
     # transient wiring failure (e.g. the production LLM provider could not
     # be built) leaves the rest of the API intact.
-    _wire_flagship_controller(app, resolved, live_twin, store)
+    _wire_flagship_controller(app, resolved, live_twin, store, composition)
 
     logger.info(
-        "app.startup",
+        "composition.ready",
         extra={
             "app_env": resolved.app_env,
             "is_production": resolved.is_production,
@@ -256,8 +261,60 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             else False,
             "version": __version__,
             "git_sha": git_sha,
+            "backend_identities": composition.backend_identities,
         },
     )
+    return app
+
+
+def _build_unhealthy_app(settings: Settings, exc: CompositionError) -> FastAPI:
+    """Build a degraded app that exposes only the readiness probe.
+
+    Used when :func:`build_composition` raises :class:`CompositionError` in
+    production. Cloud Run's readiness probe hits ``GET /ready``; while
+    the composition is unavailable the probe returns 503 so the revision
+    is removed from rotation. The operator sees the failure in
+    ``composition.ready`` structured logs and can fix the configuration.
+    """
+
+    from fastapi.responses import JSONResponse
+
+    app = FastAPI(
+        title="RetailTwin API (composition unavailable)",
+        version="0.1.0",
+        description=(
+            "The production composition root could not be built. The "
+            "service is intentionally unhealthy until the operator fixes "
+            "the configuration. See /ready for the failure reason."
+        ),
+    )
+    app.state.settings = settings
+
+    @app.get("/ready", include_in_schema=False)
+    async def _ready() -> JSONResponse:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unavailable",
+                "reason": "composition_unavailable",
+                "error": type(exc).__name__,
+                "message": str(exc),
+                "app_env": settings.app_env,
+                "is_production": settings.is_production,
+            },
+        )
+
+    @app.get("/health", include_in_schema=False)
+    async def _health() -> JSONResponse:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unavailable",
+                "reason": "composition_unavailable",
+                "app_env": settings.app_env,
+            },
+        )
+
     return app
 
 
@@ -387,6 +444,7 @@ def _wire_flagship_controller(
     settings: Settings,
     live_twin: LiveTwinRepository | None,
     store: StoreReader,
+    composition: Composition | None = None,
 ) -> None:
     """Attach the flagship controller and routes to ``app``.
 
@@ -396,6 +454,11 @@ def _wire_flagship_controller(
     the deterministic KPI evaluator from ``services/simulation``. On any
     wiring failure (missing Live Twin, LLM provider cannot be built) the
     routes still mount and respond with 503.
+
+    When ``composition`` is provided, the Vertex provider built by the
+    factory is reused; otherwise the legacy ``_build_flagship_provider``
+    fallback is used for backward compatibility with unit tests that
+    build an app without going through :func:`build_composition`.
     """
     from retailtwin_api.flagship import register_dependencies, register_routes
 
@@ -409,14 +472,17 @@ def _wire_flagship_controller(
         )
         return
 
-    try:
-        provider = _build_flagship_provider(settings)
-    except Exception as exc:  # noqa: BLE001 — surface any provider build failure
-        logger.warning(
-            "flagship.provider_unavailable",
-            extra={"reason": f"{type(exc).__name__}: {exc}"},
-        )
-        return
+    if composition is not None and composition.llm_provider is not None:
+        provider = composition.llm_provider
+    else:
+        try:
+            provider = _build_flagship_provider(settings)
+        except Exception as exc:  # noqa: BLE001 — surface any provider build failure
+            logger.warning(
+                "flagship.provider_unavailable",
+                extra={"reason": f"{type(exc).__name__}: {exc}"},
+            )
+            return
 
     registry = build_store_registry(store)
     controller = register_dependencies(
