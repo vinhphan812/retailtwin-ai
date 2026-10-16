@@ -12,7 +12,8 @@ describe("demoRequested", () => {
   it("asks for the demo on /demo and ?twin=demo, never on /live or another ?twin=", () => {
     expect(demoRequested(url("/demo"))).toBe(true);
     expect(demoRequested(url("/?twin=demo"))).toBe(true);
-    expect(demoRequested(url("/live?twin=demo"))).toBe(true);
+    // /live is authoritative — ?twin= never overrides it
+    expect(demoRequested(url("/live?twin=demo"))).toBe(false);
     expect(demoRequested(url("/live"))).toBe(false);
     expect(demoRequested(url("/demo?twin=fixture"))).toBe(false);
     expect(demoRequested(url("/"))).toBe(false);
