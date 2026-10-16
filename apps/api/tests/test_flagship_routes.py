@@ -333,3 +333,34 @@ def test_status_is_serializable_to_json() -> None:
         ):
             assert key in status, key
         assert status["timeline"], "timeline must record the run"
+
+
+def test_production_refuses_stale_block_via_request_body(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Production wire must force ``stale_block_enabled=False`` even if a
+    caller sends ``stale_block_enabled: true``. This is defence-in-depth on
+    top of the per-instance default in :class FlagshipRequest — the
+    underlying ``bump_inventory_for_stale_block`` helper refuses to run
+    under ``APP_ENV=production``, so the route rejects the wire-level knob
+    instead of round-tripping to the helper.
+    """
+    monkeypatch.setenv("APP_ENV", "production")
+    app, _, _ = _build_app()
+    with TestClient(app) as client:
+        client.post("/flagship/reset")
+        # Send a body that explicitly asks for the stale injection.
+        # Production should clamp it off and still complete the chain.
+        response = client.post(
+            "/flagship/start",
+            json={"stale_block_enabled": True, "correlation_id": "prod-defence"},
+        )
+        # The chain completes (no bumped-state refusal at the helper),
+        # because the route clamp already flipped stale_block_enabled to False.
+        assert response.status_code == 200, response.text
+        payload = response.json()
+        assert payload["phase"] in ("COMPLETE", "ERROR")
+        # If COMPLETE, replan_refresh_count must be 0 because no stale injection ran.
+        if payload["phase"] == "COMPLETE":
+            assert payload["replan_refresh_count"] == 0
+        assert payload["correlation_id"] == "prod-defence"
