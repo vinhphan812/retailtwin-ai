@@ -47,7 +47,7 @@ jobs:
           /tmp/retailtwin-app-venv/bin/python -m pip install ./apps/api
           /tmp/retailtwin-audit-venv/bin/python -m pip install pip-audit
           APP_PACKAGES=$(/tmp/retailtwin-app-venv/bin/python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')
-          /tmp/retailtwin-audit-venv/bin/python -m pip_audit --no-progress --skip-editable --path "$APP_PACKAGES"
+          /tmp/retailtwin-audit-venv/bin/python -m pip_audit --progress-spinner off --skip-editable --path "$APP_PACKAGES"
 
       - name: Web production dependencies
         working-directory: apps/web
@@ -116,28 +116,61 @@ jobs:
         id: trivy
         run: |
           set -euo pipefail
-          # --ignore-unfixed matches ADR 0026: no-fix HIGH/CRITICAL is an
-          # exception, not a blocker. Failures with --exit-code 1 only when
-          # a fix exists. The JSON report lands in $PWD/trivy-out via a
-          # host bind mount so it survives the --rm container.
           mkdir -p trivy-out
+          # Run trivy.  Exit code: 0=no vulns, 1=some vulns found, >1=error.
+          # --ignore-unfixed skips vulns with no available patch.
           docker run --rm \
               -v /var/run/docker.sock:/var/run/docker.sock \
               -v "$PWD/trivy-out:/work" \
               aquasec/trivy:0.65.0 image \
               --severity HIGH,CRITICAL \
               --ignore-unfixed \
-              --exit-code 1 \
               --format json \
               --output /work/trivy-image.json \
-              retailtwin-api:scan || TRIVY_EXIT=$?
-          TRIVY_EXIT="${TRIVY_EXIT:-0}"
-          cp trivy-out/trivy-image.json trivy-image.json
-          echo "Trivy exit: ${TRIVY_EXIT}"
-          if [ "${TRIVY_EXIT}" -ne 0 ]; then
-            echo "::error::Trivy reported fixable HIGH/CRITICAL findings (exit ${TRIVY_EXIT})."
-            exit "${TRIVY_EXIT}"
+              retailtwin-api:scan; _RC=$?
+          # Fail-closed: scan exit >1 means crash/timeout — block the gate.
+          if [ "$_RC" -gt 1 ]; then
+            echo "::error::Trivy scan failed with exit code $_RC." >&2
+            exit 1
           fi
+          if [ ! -s trivy-out/trivy-image.json ]; then
+            echo "::error::No trivy report produced — scan may have crashed." >&2
+            exit 1
+          fi
+          cp trivy-out/trivy-image.json trivy-image.json
+          # Parse JSON.  Trivy image format (--format json):
+          # { "Results": [ { "Target": "...", "Vulnerabilities": [...] }, ... ] }
+          # NOT data[].Vulnerabilities (wrong path used previously).
+          python3 -c "
+          import json, sys
+          try:
+              with open('trivy-image.json') as fh:
+                  data = json.load(fh)
+          except Exception as exc:
+              print('Could not parse trivy-image.json: ' + str(exc), file=sys.stderr)
+              sys.exit(1)
+          has_fixable = False
+          for result in data.get('Results', []):
+              for vuln in result.get('Vulnerabilities', []):
+                  sev = vuln.get('Severity', '')
+                  if sev not in ('HIGH', 'CRITICAL'):
+                      continue
+                  status = vuln.get('Status', '')
+                  fixable = vuln.get('FixedVersion', '')
+                  vid = vuln.get('VulnerabilityID', '?')
+                  pkg = vuln.get('PkgName', '?')
+                  ver = vuln.get('InstalledVersion', '?')
+                  if status == 'unfixed':
+                      continue  # no patch — ADR 0026 exception
+                  if status == 'wont-fix':
+                      continue  # explicitly accepted
+                  if fixable:
+                      has_fixable = True
+                      print('FIXABLE: ' + vid + ' in ' + pkg + ' ' + ver + ' (fix: ' + fixable + ')', file=sys.stderr)
+          if has_fixable:
+              sys.exit(1)
+          print('Container image: no fixable HIGH/CRITICAL vulnerabilities found.')
+          "
 
       - name: Record any no-fix HIGH/CRITICAL as an explicit exception
         if: always()
