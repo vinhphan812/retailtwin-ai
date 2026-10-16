@@ -116,12 +116,12 @@ jobs:
         id: trivy
         run: |
           set -euo pipefail
+          rm -f trivy-out/trivy-image.json
           mkdir -p trivy-out
-          # Run trivy with || true so exit code is always captured.
-          # Trivy exit code 1 = vulns found (not an error). We parse the JSON to
-          # decide PASS/FAIL — only fail if fixable HIGH/CRITICAL are present.
+          # Capture exit code properly. Trivy exit code 1 = vulns found (not an error).
+          # We parse the JSON to decide PASS/FAIL — only fail if fixable HIGH/CRITICAL are present.
           # --ignore-unfixed skips vulns with no available patch.
-          docker run --rm \
+          if docker run --rm \
               -v /var/run/docker.sock:/var/run/docker.sock \
               -v "$PWD/trivy-out:/work" \
               aquasec/trivy:0.65.0 image \
@@ -129,8 +129,15 @@ jobs:
               --ignore-unfixed \
               --format json \
               --output /work/trivy-image.json \
-              retailtwin-api:scan \
-            || true
+              retailtwin-api:scan; then
+            _RC=0
+          else
+            _RC=$?
+          fi
+          if [ "$_RC" -gt 1 ]; then
+            echo "::error::Trivy scan failed with exit code $_RC." >&2
+            exit 1
+          fi
           if [ ! -s trivy-out/trivy-image.json ]; then
             echo "::error::No trivy report produced — scan may have crashed." >&2
             exit 1
