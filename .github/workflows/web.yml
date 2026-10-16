@@ -35,6 +35,7 @@ env:
 
 jobs:
   security:
+    needs: build-test
     uses: ./.github/workflows/security.yml
 
   build-test:

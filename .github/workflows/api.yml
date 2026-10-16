@@ -29,6 +29,7 @@ concurrency:
 
 jobs:
   security:
+    needs: build-test
     uses: ./.github/workflows/security.yml
     permissions:
       contents: read
