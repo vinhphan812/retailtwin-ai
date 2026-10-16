@@ -175,15 +175,18 @@ jobs:
       - name: Deploy to Firebase Hosting
         id: deploy
         env:
-          GOOGLE_OAUTH_ACCESS_TOKEN: ${{ steps.gcp_auth.outputs.access_token }}
+          FIREBASE_TOKEN: ${{ steps.gcp_auth.outputs.access_token }}
         run: |
-          # Deploy using firebase-tools CLI with an access token derived from WIF.
-          # The site is read from firebase.json (hosting.site), not from a CLI flag.
+          # Deploy using firebase-tools CLI with WIF OAuth access token.
+          # firebase-tools auth chain does not read GOOGLE_APPLICATION_CREDENTIALS
+          # (external_account files); it only accepts --token / FIREBASE_TOKEN.
+          # token_format: access_token from google-github-actions/auth gives us a
+          # short-lived OAuth 2.0 access token for the impersonated SA.
           set +e
-          DEPLOY_OUTPUT=$(npx firebase-tools@14.9.0 deploy \
+          DEPLOY_OUTPUT=$(npx firebase-tools@20.0.0 deploy \
             --only hosting \
             --project retailtwin-ai-511002 \
-            --token "${GOOGLE_OAUTH_ACCESS_TOKEN}" \
+            --token "${FIREBASE_TOKEN}" \
             --json 2>&1)
           DEPLOY_EC=$?
           set -e
