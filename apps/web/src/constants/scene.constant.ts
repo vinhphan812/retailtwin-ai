@@ -86,3 +86,5 @@ export const MOVE_ARROW_OUTLINE_PX = 5.5;
 /** Opacity at full strength of a move arrow's line, and of the dark outline under it. */
 export const MOVE_ARROW_OPACITY = 0.95;
 export const MOVE_ARROW_OUTLINE_OPACITY = 0.45;
+/** The ease-out-back constant of a new item's growth: 1.7 takes it about 10% past full size before it settles. */
+export const ARRIVAL_OVERSHOOT = 1.7;

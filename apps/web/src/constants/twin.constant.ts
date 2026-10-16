@@ -24,3 +24,7 @@ export const MOVE_MARK_OUT_MS = 600;
  * `MOVE_MARK_OUT_MS` stays within `CHANGE_CUE_MS`.
  */
 export const MOVE_MARK_HOLD_SIMULATION_MS = 2000;
+/** How long one item that a facings change or shelf gain adds takes to grow in. */
+export const ARRIVAL_GROW_MS = 350;
+/** The window over which a product's new items start growing, one after another. Together with `ARRIVAL_GROW_MS`, shorter than `CHANGE_CUE_MS`. */
+export const ARRIVAL_SPREAD_MS = 500;

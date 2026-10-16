@@ -7,6 +7,7 @@ import { ACTION_TYPE, REVIEW_DECISION } from "@/enums/simulation.enum";
 import { useProposalAiChanges, useShownSimulation } from "@/hooks/activeTwin.hook";
 import { useSimulationReview } from "@/hooks/simulationReview.hook";
 import { useTwinStore } from "@/state/twin.store";
+import { useUiStore } from "@/state/ui.store";
 import type { SimulationAction } from "@/types/simulation.type";
 import { AiChangesList } from "./AiChangesList";
 import { CandidatePanel } from "./CandidatePanel";
@@ -26,7 +27,33 @@ function useActionLabel() {
   };
 }
 
-/** The AI CHANGES of the proposal on screen against Live. No KPI values here. */
+/**
+ * The actions of the proposal on screen, one tag each: what Accept would commit. Picking a
+ * tag selects its product, and the camera flies to it. No KPI values here.
+ */
+function ProposalActions({ actions }: { actions: SimulationAction[] }) {
+  const { t } = useTranslation();
+  const actionLabel = useActionLabel();
+  const select = useUiStore((state) => state.select);
+  if (!actions.length) return null;
+  return (
+    <ul className="simulation-banner-changes" aria-label={t("simulation.actions.label")}>
+      {actions.map((action, index) => (
+        <li key={`${action.type}-${action.sku}-${index}`}>
+          <button
+            type="button"
+            aria-label={t("simulation.changes.focusAction", { action: actionLabel(action), sku: action.sku })}
+            onClick={() => select(action.sku)}
+          >
+            {actionLabel(action)}
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** The AI CHANGES of the proposal on screen against Live, outlined in 3D. No KPI values here. */
 function ProposalChanges() {
   return <AiChangesList changes={useProposalAiChanges()} />;
 }
@@ -40,7 +67,6 @@ function ProposalChanges() {
  */
 export function SimulationBanner({ reviewer = null }: { reviewer?: SimulationReviewer | null }) {
   const { t } = useTranslation();
-  const actionLabel = useActionLabel();
   const simulation = useShownSimulation();
   const liveVersion = useTwinStore((state) => state.live?.context_version ?? null);
   const { review, pending, settled, canReview } = useSimulationReview(reviewer, simulation);
@@ -64,13 +90,7 @@ export function SimulationBanner({ reviewer = null }: { reviewer?: SimulationRev
             {" · "}
             {t("simulation.basedOn", { version: simulation.base_context_version })}
           </span>
-          {simulation.actions.length ? (
-            <ul className="simulation-banner-changes" aria-label={t("simulation.actions.label")}>
-              {simulation.actions.map((action, index) => (
-                <li key={`${action.type}-${action.sku}-${index}`}>{actionLabel(action)}</li>
-              ))}
-            </ul>
-          ) : null}
+          <ProposalActions actions={simulation.actions} />
           <ProposalChanges />
           {behind ? <span className="simulation-banner-stale">{t("simulation.liveMoved", { version: liveVersion })}</span> : null}
           {settled ? <span className="simulation-banner-meta">{t("simulation.review.waiting")}</span> : null}
