@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "coverage:report": "vitest run --coverage",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "seed:export": "vite-node scripts/export-demo-seed.ts"
   },
   "dependencies": {
     "@heroui/react": "^2.8.10",
