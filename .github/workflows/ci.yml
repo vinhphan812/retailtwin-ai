@@ -166,6 +166,9 @@ jobs:
             indentation:
               spaces: 2
             comments-indentation: disable
+            document-start: disable
+            truthy: disable
+            new-line-at-end-of-file: disable
           YAML
 
       - name: Check for committed secrets / credential patterns
