@@ -146,7 +146,7 @@ jobs:
           fi
           # Use custom config: check for syntax errors only
           # GitHub Actions workflows commonly exceed 80-char line limits
-          yamllint -c /dev/stdin .github/workflows/ << 'YAML'
+          python3 -m yamllint -c /dev/stdin .github/workflows/ << 'YAML'
           extends: default
           rules:
             line-length: disable
