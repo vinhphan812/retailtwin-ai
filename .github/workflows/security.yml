@@ -119,7 +119,7 @@ jobs:
           mkdir -p trivy-out
           # Run trivy.  Exit code: 0=no vulns, 1=some vulns found, >1=error.
           # --ignore-unfixed skips vulns with no available patch.
-          docker run --rm \
+          if docker run --rm \
               -v /var/run/docker.sock:/var/run/docker.sock \
               -v "$PWD/trivy-out:/work" \
               aquasec/trivy:0.65.0 image \
@@ -127,7 +127,11 @@ jobs:
               --ignore-unfixed \
               --format json \
               --output /work/trivy-image.json \
-              retailtwin-api:scan; _RC=$?
+              retailtwin-api:scan; then
+            _RC=0
+          else
+            _RC=$?
+          fi
           # Fail-closed: scan exit >1 means crash/timeout — block the gate.
           if [ "$_RC" -gt 1 ]; then
             echo "::error::Trivy scan failed with exit code $_RC." >&2
@@ -148,6 +152,16 @@ jobs:
                   data = json.load(fh)
           except Exception as exc:
               print('Could not parse trivy-image.json: ' + str(exc), file=sys.stderr)
+              sys.exit(1)
+          # Fail-closed structural validation: data must be a dict with a Results list.
+          if not isinstance(data, dict):
+              print('trivy-image.json: expected a JSON object at the root, got ' + type(data).__name__, file=sys.stderr)
+              sys.exit(1)
+          if 'Results' not in data:
+              print('trivy-image.json: missing Results key', file=sys.stderr)
+              sys.exit(1)
+          if not isinstance(data['Results'], list):
+              print('trivy-image.json: Results is not a list', file=sys.stderr)
               sys.exit(1)
           has_fixable = False
           for result in data.get('Results', []):
