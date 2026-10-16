@@ -23,6 +23,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import secrets
 import threading
 import uuid
@@ -175,7 +176,16 @@ class FlagshipRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     seed: int = Field(default=CANONICAL_SEED, ge=1, le=1)
-    stale_block_enabled: bool = True
+    # Stale-block injection is a demo/test affordance: production refuses
+    # the underlying bump helper (``flagship/_stale_bump.py`` raises on
+    # ``APP_ENV=production``), so the default must keep production on a
+    # real-event path. Non-production envs (test/dev/staging/e2e-smoke)
+    # opt into the stale → replan → commit path by default; production
+    # opts out. Evaluated per-instance so tests can override ``APP_ENV``
+    # per request via ``monkeypatch.setenv``.
+    stale_block_enabled: bool = Field(
+        default_factory=lambda: os.environ.get("APP_ENV") != "production",
+    )
     max_refreshes: int = Field(default=1, ge=0, le=3)
     correlation_id: str | None = None
 

@@ -423,6 +423,36 @@ def test_disabled_stale_block_fails_safely() -> None:
     assert result.replan_refresh_count == 0
 
 
+def test_default_stale_block_disabled_in_production_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``APP_ENV=production`` must default ``stale_block_enabled`` to ``False``.
+
+    The deterministic stale injection is a demo affordance; production
+    refuses the underlying helper. The default must keep production on a
+    real-event path. Evaluated per-instance so tests can override the env.
+    """
+    monkeypatch.setenv("APP_ENV", "production")
+    request = FlagshipRequest()
+    assert request.stale_block_enabled is False
+
+
+def test_default_stale_block_enabled_outside_production(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Outside production the default keeps the canonical stale → replan path."""
+    monkeypatch.setenv("APP_ENV", "test")
+    request = FlagshipRequest()
+    assert request.stale_block_enabled is True
+    monkeypatch.setenv("APP_ENV", "development")
+    request = FlagshipRequest()
+    assert request.stale_block_enabled is True
+    # No APP_ENV at all → non-production default.
+    monkeypatch.delenv("APP_ENV", raising=False)
+    request = FlagshipRequest()
+    assert request.stale_block_enabled is True
+
+
 def test_consecutive_runs_are_idempotent() -> None:
     """Two consecutive resets and starts must not leak state between runs."""
 
