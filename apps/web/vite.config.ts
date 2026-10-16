@@ -1,10 +1,23 @@
+import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 
+/** Short SHA of the commit being built: CI's `GITHUB_SHA`, else the checkout's HEAD, else none. */
+function gitSha(): string {
+  if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA.slice(0, 7);
+  try {
+    return execSync("git rev-parse --short=7 HEAD", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+  } catch {
+    return "";
+  }
+}
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // The footer's build label (`core/app/buildInfo.ts`). `VITE_APP_VERSION` comes from the environment.
+  define: { "import.meta.env.VITE_GIT_SHA": JSON.stringify(gitSha()) },
   resolve: {
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
   },
