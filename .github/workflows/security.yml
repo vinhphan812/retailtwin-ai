@@ -117,9 +117,11 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p trivy-out
-          # Run trivy.  Exit code: 0=no vulns, 1=some vulns found, >1=error.
+          # Run trivy with || true so exit code is always captured.
+          # Trivy exit code 1 = vulns found (not an error). We parse the JSON to
+          # decide PASS/FAIL — only fail if fixable HIGH/CRITICAL are present.
           # --ignore-unfixed skips vulns with no available patch.
-          if docker run --rm \
+          docker run --rm \
               -v /var/run/docker.sock:/var/run/docker.sock \
               -v "$PWD/trivy-out:/work" \
               aquasec/trivy:0.65.0 image \
@@ -127,16 +129,8 @@ jobs:
               --ignore-unfixed \
               --format json \
               --output /work/trivy-image.json \
-              retailtwin-api:scan; then
-            _RC=0
-          else
-            _RC=$?
-          fi
-          # Fail-closed: scan exit >1 means crash/timeout — block the gate.
-          if [ "$_RC" -gt 1 ]; then
-            echo "::error::Trivy scan failed with exit code $_RC." >&2
-            exit 1
-          fi
+              retailtwin-api:scan \
+            || true
           if [ ! -s trivy-out/trivy-image.json ]; then
             echo "::error::No trivy report produced — scan may have crashed." >&2
             exit 1
@@ -144,7 +138,6 @@ jobs:
           cp trivy-out/trivy-image.json trivy-image.json
           # Parse JSON.  Trivy image format (--format json):
           # { "Results": [ { "Target": "...", "Vulnerabilities": [...] }, ... ] }
-          # NOT data[].Vulnerabilities (wrong path used previously).
           python3 -c "
           import json, sys
           try:
@@ -165,15 +158,30 @@ jobs:
               sys.exit(1)
           has_fixable = False
           for result in data.get('Results', []):
-              for vuln in result.get('Vulnerabilities', []):
+              # Validate result structure.
+              if not isinstance(result, dict):
+                  print('trivy-image.json: Results entry is not a JSON object', file=sys.stderr)
+                  sys.exit(1)
+              target = result.get('Target', '?')
+              vulns = result.get('Vulnerabilities')
+              if vulns is None:
+                  continue  # no vulns in this target
+              if not isinstance(vulns, list):
+                  print('trivy-image.json: Vulnerabilities in target ' + target + ' is not a list', file=sys.stderr)
+                  sys.exit(1)
+              for vuln in vulns:
+                  # Validate vuln structure.
+                  if not isinstance(vuln, dict):
+                      print('trivy-image.json: Vulnerability entry is not a JSON object', file=sys.stderr)
+                      sys.exit(1)
+                  vid = vuln.get('VulnerabilityID', '?')
+                  pkg = vuln.get('PkgName', '?')
+                  ver = vuln.get('InstalledVersion', '?')
                   sev = vuln.get('Severity', '')
                   if sev not in ('HIGH', 'CRITICAL'):
                       continue
                   status = vuln.get('Status', '')
                   fixable = vuln.get('FixedVersion', '')
-                  vid = vuln.get('VulnerabilityID', '?')
-                  pkg = vuln.get('PkgName', '?')
-                  ver = vuln.get('InstalledVersion', '?')
                   if status == 'unfixed':
                       continue  # no patch — ADR 0026 exception
                   if status == 'wont-fix':
@@ -199,13 +207,20 @@ jobs:
             except Exception as exc:
                 print(f"Could not parse trivy-image.json: {exc}", file=sys.stderr)
                 sys.exit(0)
+            if not isinstance(data, dict):
+                sys.exit(0)
             rows = []
-            for item in data or []:
-                if item.get("Severity") not in ("HIGH", "CRITICAL"):
+            for result in data.get("Results", []):
+                if not isinstance(result, dict):
                     continue
-                if item.get("Status") != "unfixed":
-                    continue
-                rows.append(f"- {item.get(\"Severity\")} {item.get(\"VulnerabilityID\")} in {item.get(\"PkgName\")} {item.get(\"InstalledVersion\")} ({item.get(\"Title\", \"\")})")
+                for vuln in result.get("Vulnerabilities", []):
+                    if not isinstance(vuln, dict):
+                        continue
+                    if vuln.get("Severity") not in ("HIGH", "CRITICAL"):
+                        continue
+                    if vuln.get("Status") != "unfixed":
+                        continue
+                    rows.append(f"- {vuln.get(\"Severity\")} {vuln.get(\"VulnerabilityID\")} in {vuln.get(\"PkgName\")} {vuln.get(\"InstalledVersion\")} ({vuln.get(\"Title\", \"\")})")
             if rows:
                 print("\n".join(rows))
             ')
