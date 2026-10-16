@@ -3,7 +3,8 @@ import { act, cleanup, fireEvent, render, renderHook, screen } from "@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RunDemoButton } from "@/components/layout/RunDemoButton";
 import { createMemoryTwin, type MemoryTwin } from "@/core/api/sources/memorySource";
-import type { DemoRunner } from "@/core/demo/demoRunner";
+import { createApiDemoRunner, type DemoRunner } from "@/core/demo/demoRunner";
+import type { RetailTwinClient } from "@/types/api.type";
 import { createFixtureDemoRunner } from "@/core/demo/fixtureDemoRunner";
 import { ENTITY_TYPE } from "@/enums/scene.enum";
 import { LENS, VIEW_MODE } from "@/enums/ui.enum";
@@ -74,9 +75,13 @@ afterEach(() => {
 
 describe("Run AI Demo on the demo path", () => {
   it("plays the whole flagship run from one press, following the agent's stages", async () => {
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
     useUiStore.getState().setLens(LENS.Revenue);
     useUiStore.getState().setFollowAgent(false);
     mount(createFixtureDemoRunner(twin, STEP));
+    // A replay of fixtures, said so, apart from a real flagship run.
+    expect(screen.getByText("Replay of demo data, no Live writes").dataset.source).toBe("replay");
 
     await act(async () => {
       fireEvent.click(button());
@@ -118,11 +123,70 @@ describe("Run AI Demo on the demo path", () => {
     expect((button() as HTMLButtonElement).disabled).toBe(false);
     expect(button().textContent).toContain("Run AI Demo again");
     expect(useUiStore.getState()).toMatchObject({ lens: LENS.Operations, viewMode: VIEW_MODE.Live });
+    // The replay wrote to the memory twin only: apps/api was never called.
+    expect(fetch).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it("labels the real flagship run apart from a replay", () => {
+    mount(createApiDemoRunner({} as RetailTwinClient));
+    expect(screen.getByText("Flagship run on apps/api").dataset.source).toBe("flagship");
+    expect(screen.queryByText(/Replay/)).toBeNull();
+  });
+
+  it("starts one run for repeated presses", async () => {
+    const start = vi.fn<DemoRunner["start"]>(async () => ({ correlationId: "run-1", done: new Promise(() => {}), stop: () => {} }));
+    mount({ source: "flagship", start });
+    await act(async () => {
+      fireEvent.click(button());
+      fireEvent.click(button());
+    });
+    await act(async () => {
+      await useDemoRunStore.getState().run({ source: "flagship", start });
+    });
+    expect(start).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores a stage that arrives after a later one, and handles a run without SIMULATE or ACT", async () => {
+    useTwinStore.getState().setSimulation(demoSimulation(twin.current()));
+    const runner: DemoRunner = { source: "flagship", start: async () => ({ correlationId: "run-1", done: new Promise(() => {}), stop: () => {} }) };
+    mount(runner);
+    await act(async () => {
+      fireEvent.click(button());
+    });
+    const append = (id: string, stage: ControlStage) =>
+      act(() => useRunStore.getState().append({ id, ts: new Date().toISOString(), stage, summary: stage, correlation_id: "run-1" }));
+
+    useUiStore.getState().setLens(LENS.Revenue);
+    append("v", "VERIFY");
+    expect(useUiStore.getState()).toMatchObject({ lens: LENS.Operations, viewMode: VIEW_MODE.Live });
+    // A SIMULATE served late, after VERIFY, does not take the view back to the proposal.
+    append("s", "SIMULATE");
+    expect(useUiStore.getState().viewMode).toBe(VIEW_MODE.Live);
+  });
+
+  it("ends on Live and the Operations lens when the run ends without a VERIFY entry", async () => {
+    useTwinStore.getState().setSimulation(demoSimulation(twin.current()));
+    let finish: () => void = () => {};
+    const runner: DemoRunner = {
+      source: "flagship",
+      start: async () => ({ correlationId: "run-1", done: new Promise<void>((resolve) => (finish = resolve)), stop: () => {} }),
+    };
+    mount(runner);
+    await act(async () => {
+      fireEvent.click(button());
+    });
+    act(() => useRunStore.getState().append({ id: "s", ts: new Date().toISOString(), stage: "SIMULATE", summary: "SIMULATE", correlation_id: "run-1" }));
+    expect(useUiStore.getState().viewMode).toBe(VIEW_MODE.Simulation);
+    act(() => useUiStore.getState().setLens(LENS.Revenue));
+    await act(async () => finish());
+    expect(useDemoRunStore.getState().status).toBe(DEMO_RUN_STATUS.Done);
+    expect(useUiStore.getState()).toMatchObject({ lens: LENS.Operations, viewMode: VIEW_MODE.Live });
   });
 
   it("never runs ahead of the agent: only this run's entries move the view", async () => {
     useTwinStore.getState().setSimulation(demoSimulation(twin.current()));
-    const runner: DemoRunner = { start: async () => ({ correlationId: "run-1", done: new Promise(() => {}), stop: () => {} }) };
+    const runner: DemoRunner = { source: "flagship", start: async () => ({ correlationId: "run-1", done: new Promise(() => {}), stop: () => {} }) };
     mount(runner);
     await act(async () => {
       fireEvent.click(button());
@@ -143,7 +207,7 @@ describe("Run AI Demo on the demo path", () => {
   });
 
   it("waits at SIMULATE until the simulation the entry names is open", async () => {
-    const runner: DemoRunner = { start: async () => ({ correlationId: "run-1", done: new Promise(() => {}), stop: () => {} }) };
+    const runner: DemoRunner = { source: "flagship", start: async () => ({ correlationId: "run-1", done: new Promise(() => {}), stop: () => {} }) };
     mount(runner);
     await act(async () => {
       fireEvent.click(button());
@@ -183,7 +247,7 @@ describe("Run AI Demo on the demo path", () => {
       .fn<DemoRunner["start"]>()
       .mockRejectedValueOnce(new Error("Twin API unreachable."))
       .mockImplementation(() => createFixtureDemoRunner(twin, STEP).start());
-    mount({ start });
+    mount({ source: "flagship", start });
 
     await act(async () => {
       fireEvent.click(button());
@@ -205,6 +269,7 @@ describe("Run AI Demo on the demo path", () => {
   it("shows a failed run's reason, with the stages it reached left in the timeline", async () => {
     let fail: (error: Error) => void = () => {};
     const runner: DemoRunner = {
+      source: "flagship",
       start: async () => ({
         correlationId: "run-x",
         done: new Promise((_, reject) => (fail = reject)),

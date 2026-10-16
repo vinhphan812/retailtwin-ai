@@ -6,7 +6,8 @@ import { DEMO_RUN_STATUS, demoRunBusy, useDemoRunStore } from "@/state/demoRun.s
 /**
  * ▶ Run AI Demo, the one place to start: resets the store and plays the flagship run, which
  * the UI then follows stage by stage (`useDemoDirector`). Disabled while a run starts or
- * plays, with Stop following to keep the view; a failure shows its reason and Retry. Renders
+ * plays, with Stop following to keep the view; a failure shows its reason and Retry. Says
+ * whether it plays a replay of demo fixtures or the real flagship run of apps/api. Renders
  * nothing without a `runner` (the dev twins other than `?twin=demo`).
  */
 export function RunDemoButton({ runner }: { runner: DemoRunner | null }) {
@@ -41,6 +42,9 @@ export function RunDemoButton({ runner }: { runner: DemoRunner | null }) {
         <PlayIcon className="h-3.5 w-3.5 shrink-0" />
         {label}
       </button>
+      <span className="run-demo-source" data-source={runner.source}>
+        {t(`demo.source.${runner.source}`)}
+      </span>
       {status === DEMO_RUN_STATUS.Running && following ? (
         <button type="button" className="run-demo-stop" onClick={stopFollowing}>
           {t("demo.stopFollowing")}

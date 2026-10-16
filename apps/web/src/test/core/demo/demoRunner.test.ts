@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createApiDemoRunner, toActivityEntry } from "@/core/demo/demoRunner";
+import { createApiDemoRunner, timelineEntries, toActivityEntry } from "@/core/demo/demoRunner";
 import { useRunStore } from "@/state/run.store";
 import type { AgentEvent, FlagshipStatusResponse, RetailTwinClient } from "@/types/api.type";
 
@@ -9,15 +9,27 @@ function event(id: string, stage: AgentEvent["stage"], correlation_id = "run-1",
   return { id, ts: "2026-10-16T08:00:00Z", stage, status: "ok", correlation_id, summary: `${stage} ${id}`, ...extra };
 }
 
-function status(phase: FlagshipStatusResponse["phase"], error: string | null = null): FlagshipStatusResponse {
-  return { run_id: "r", phase, correlation_id: "run-1", error };
+function status(
+  phase: FlagshipStatusResponse["phase"],
+  error: string | null = null,
+  extra: Partial<FlagshipStatusResponse> = {},
+): FlagshipStatusResponse {
+  return { run_id: "r", phase, correlation_id: "run-1", error, ...extra };
 }
 
+/** What the status says before the press: the previous run, finished. */
+const PREVIOUS = status("COMPLETE", null, { run_id: "r0", correlation_id: "previous-run" });
+
+/** The runner under test, naming its run "run-1". */
+const runner = (client: RetailTwinClient) => createApiDemoRunner(client, POLL, () => "run-1");
+
 /**
- * A client whose feed and status answer from `pages` and `statuses`, one per poll. Like
+ * A client whose feed and status answer from `pages` and `statuses`, one per poll, after
+ * `first` (the status read before the press, PREVIOUS by default). Like
  * #41, `POST /flagship/start` answers only when the test calls `finishStart` (or `failStart`).
  */
-function fakeClient(pages: AgentEvent[][], statuses: FlagshipStatusResponse[]) {
+function fakeClient(pages: AgentEvent[][], polled: FlagshipStatusResponse[], first: FlagshipStatusResponse = PREVIOUS) {
+  const statuses = [first, ...polled];
   const calls: string[] = [];
   let page = 0;
   let poll = 0;
@@ -57,8 +69,9 @@ describe("createApiDemoRunner", () => {
       [[event("a", "DETECT"), event("x", "OBSERVE", "other-run")], [event("b", "SIMULATE", "run-1", { simulation_id: "sim-run-1" })], [event("c", "VERIFY")]],
       [status("RUNNING"), status("RUNNING"), status("COMPLETE")],
     );
-    const run = await createApiDemoRunner(client, POLL).start();
+    const run = await runner(client).start();
     expect(calls).toEqual(["reset", "start"]);
+    expect(client.flagshipStart).toHaveBeenCalledWith("run-1");
     expect(run.correlationId).toBe("run-1");
     const settled = vi.fn();
     run.done.then(settled);
@@ -75,10 +88,10 @@ describe("createApiDemoRunner", () => {
     const feed = [event("a", "DETECT"), event("b", "SIMULATE"), event("c", "VERIFY")];
     vi.mocked(client.agentEvents).mockImplementation(async (since) => {
       const from = Number(since ?? 0);
-      const to = Math.max(from, vi.mocked(client.flagshipStatus).mock.calls.length - 1);
+      const to = Math.max(from, vi.mocked(client.flagshipStatus).mock.calls.length - 2);
       return { events: feed.slice(from, to), cursor: String(to) };
     });
-    const starting = createApiDemoRunner(client, POLL).start();
+    const starting = runner(client).start();
     await vi.advanceTimersByTimeAsync(0);
     // The reset is still the status: nothing is read before the run is identified.
     expect(client.agentEvents).not.toHaveBeenCalled();
@@ -100,7 +113,7 @@ describe("createApiDemoRunner", () => {
 
   it("is identified by the answer to start when the status has not named the run", async () => {
     const { client, finishStart } = fakeClient([[event("a", "VERIFY")]], [status("IDLE"), status("COMPLETE")]);
-    const starting = createApiDemoRunner(client, POLL).start();
+    const starting = runner(client).start();
     await vi.advanceTimersByTimeAsync(0);
     finishStart("run-1");
     const run = await starting;
@@ -112,7 +125,7 @@ describe("createApiDemoRunner", () => {
 
   it("fails when POST /flagship/start fails before the run is identified", async () => {
     const { client, failStart } = fakeClient([], [status("IDLE")]);
-    const starting = createApiDemoRunner(client, POLL).start();
+    const starting = runner(client).start();
     const failed = starting.catch((error: Error) => error.message);
     await vi.advanceTimersByTimeAsync(0);
     failStart(new Error("Cannot start from phase RUNNING."));
@@ -122,7 +135,7 @@ describe("createApiDemoRunner", () => {
 
   it("ends the run in error when POST /flagship/start fails after it was identified", async () => {
     const { client, failStart } = fakeClient([], [status("RUNNING")]);
-    const run = await createApiDemoRunner(client, POLL).start();
+    const run = await runner(client).start();
     const failed = run.done.catch((error: Error) => error.message);
     failStart(new Error("Twin API unreachable."));
     await vi.advanceTimersByTimeAsync(0);
@@ -131,7 +144,7 @@ describe("createApiDemoRunner", () => {
 
   it("fails with the controller's reason when the run ends in ERROR", async () => {
     const { client } = fakeClient([], [status("RUNNING"), status("ERROR", "Planner timed out.")]);
-    const run = await createApiDemoRunner(client, POLL).start();
+    const run = await runner(client).start();
     const failed = run.done.catch((error: Error) => error.message);
     await vi.advanceTimersByTimeAsync(POLL * 2);
     await expect(failed).resolves.toBe("Planner timed out.");
@@ -140,18 +153,85 @@ describe("createApiDemoRunner", () => {
   it("fails when the controller cannot be reached, before anything is started", async () => {
     const { client } = fakeClient([], []);
     vi.mocked(client.flagshipReset).mockRejectedValue(new Error("Twin API unreachable."));
-    await expect(createApiDemoRunner(client, POLL).start()).rejects.toThrow("Twin API unreachable.");
+    await expect(runner(client).start()).rejects.toThrow("Twin API unreachable.");
     expect(client.flagshipStart).not.toHaveBeenCalled();
+  });
+
+  it("follows a run that is already RUNNING instead of resetting or starting another", async () => {
+    const { client, calls } = fakeClient([[event("a", "PLAN", "other-tab")]], [status("RUNNING", null, { correlation_id: "other-tab" }), status("COMPLETE", null, { correlation_id: "other-tab" })], status("RUNNING", null, { correlation_id: "other-tab" }));
+    const run = await runner(client).start();
+    expect(calls).toEqual([]);
+    expect(run.correlationId).toBe("other-tab");
+    await vi.advanceTimersByTimeAsync(POLL);
+    await expect(run.done).resolves.toBeUndefined();
+    expect(useRunStore.getState().activity.map((entry) => entry.id)).toEqual(["a"]);
+  });
+
+  it("never takes an earlier run's entries, even under the controller's default correlation_id", async () => {
+    const { client } = fakeClient(
+      [[event("old", "VERIFY", "run-weekend-demand-surge-1"), event("a", "PLAN")]],
+      [status("RUNNING"), status("COMPLETE")],
+      status("COMPLETE", null, { correlation_id: "run-weekend-demand-surge-1" }),
+    );
+    const run = await runner(client).start();
+    await vi.advanceTimersByTimeAsync(POLL * 2);
+    await run.done;
+    expect(useRunStore.getState().activity.map((entry) => entry.id)).toEqual(["a"]);
+  });
+
+  it("reads the stages from the status timeline while the feed serves none for the run, as #202 records them", async () => {
+    const step = (stage: string, detail: string) => ({ stage, detail, at: "2026-10-16T08:00:00Z" });
+    const timeline = [step("start", "flagship start"), step("event", "sale.completed"), step("investigate", "evidence"), step("plan", "first decision")];
+    const { client } = fakeClient([], [
+      status("RUNNING", null, { timeline: timeline.slice(0, 3) }),
+      status("RUNNING", null, { timeline }),
+      status("COMPLETE", null, { timeline: [...timeline, step("simulate", "scored 3"), step("guard", "verdict=ALLOW"), step("replan", "SKIPPED"), step("verify", "status=VERIFIED")] }),
+    ]);
+    const run = await runner(client).start();
+    const stages = () => useRunStore.getState().activity.map((entry) => entry.stage);
+    expect(stages()).toEqual(["INVESTIGATE"]);
+    await vi.advanceTimersByTimeAsync(POLL);
+    expect(stages()).toEqual(["INVESTIGATE", "PLAN"]);
+    await vi.advanceTimersByTimeAsync(POLL);
+    await run.done;
+    expect(stages()).toEqual(["INVESTIGATE", "PLAN", "SIMULATE", "GUARD", "VERIFY"]);
+    expect(useRunStore.getState().activity.every((entry) => entry.correlation_id === "run-1")).toBe(true);
+  });
+
+  it("ends in error when the status names another run", async () => {
+    const { client } = fakeClient([], [status("RUNNING"), status("RUNNING", null, { correlation_id: "someone-else" })]);
+    const run = await runner(client).start();
+    const failed = run.done.catch((error: Error) => error.message);
+    await vi.advanceTimersByTimeAsync(POLL);
+    await expect(failed).resolves.toBe("Another flagship run replaced this one.");
+  });
+
+  it("gives the failing step's detail when an ERROR run serves no error", async () => {
+    const { client } = fakeClient([], [status("RUNNING"), status("ERROR", null, { timeline: [{ stage: "plan", detail: "planner returned no decisions", at: "t" }] })]);
+    const run = await runner(client).start();
+    const failed = run.done.catch((error: Error) => error.message);
+    await vi.advanceTimersByTimeAsync(POLL);
+    await expect(failed).resolves.toBe("planner returned no decisions");
   });
 
   it("stops reading once stopped", async () => {
     const { client } = fakeClient([], [status("RUNNING")]);
-    const run = await createApiDemoRunner(client, POLL).start();
+    const run = await runner(client).start();
     await vi.advanceTimersByTimeAsync(POLL);
     run.stop();
     const reads = vi.mocked(client.flagshipStatus).mock.calls.length;
     await vi.advanceTimersByTimeAsync(POLL * 5);
     expect(vi.mocked(client.flagshipStatus).mock.calls.length).toBe(reads);
+  });
+});
+
+describe("timelineEntries", () => {
+  it("keeps the agent stages, with the step's own detail, and nothing for a status without a run", () => {
+    const timeline = [{ stage: "replan", detail: "status=SKIPPED", at: "t0" }, { stage: "verify", detail: "status=VERIFIED", at: "t1" }];
+    expect(timelineEntries(status("COMPLETE", null, { timeline }))).toEqual([
+      { id: "r:1", ts: "t1", stage: "VERIFY", summary: "status=VERIFIED", correlation_id: "run-1" },
+    ]);
+    expect(timelineEntries(status("IDLE", null, { correlation_id: null, timeline }))).toEqual([]);
   });
 });
 

@@ -63,11 +63,11 @@ export function createClient(baseUrl: string, fetchImpl?: typeof fetch): RetailT
         body: JSON.stringify(body),
       }),
     flagshipReset: () => request<unknown>("/flagship/reset", { method: "POST" }),
-    flagshipStart: () =>
+    flagshipStart: (correlationId) =>
       request<FlagshipStartResponse>("/flagship/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: "{}",
+        body: JSON.stringify(correlationId ? { correlation_id: correlationId } : {}),
       }),
     flagshipStatus: () => request<FlagshipStatusResponse>("/flagship/status"),
     agentEvents: (since) =>

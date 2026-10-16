@@ -9,11 +9,12 @@ import { demoStoreState } from "@/fixtures/demo/store";
 import { useAnomalyStore } from "@/state/anomaly.store";
 import { useRunStore } from "@/state/run.store";
 import { useTwinStore } from "@/state/twin.store";
-import type { DemoRunner } from "./demoRunner";
+import { DEMO_RUN_SOURCE, type DemoRunner } from "./demoRunner";
 
 /**
  * The Run AI Demo button under `?twin=demo` (development builds, or the hosted demo):
- * fixtures/demo stand in for the flagship controller (#41) and the agent, never a real run.
+ * fixtures/demo stand in for the flagship controller (#41) and the agent, never a real run,
+ * and it never calls apps/api: every write goes to the memory twin. Its source is `replay`.
  * Reset puts the demo store, its anomalies and its open simulation back; start replays the
  * demo agent run, one stage every `stepMs`. At ACT the memory twin commits the simulation,
  * as the guarded executor would, so Live changes; at VERIFY the anomaly on the product the
@@ -21,6 +22,7 @@ import type { DemoRunner } from "./demoRunner";
  */
 export function createFixtureDemoRunner(twin: MemoryTwin, stepMs = DEMO_AGENT_STEP_MS): DemoRunner {
   return {
+    source: DEMO_RUN_SOURCE.Replay,
     async start() {
       const state = twin.update(() => demoStoreState());
       useAnomalyStore.getState().setAll(demoAnomalies(state));

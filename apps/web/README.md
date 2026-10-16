@@ -271,6 +271,8 @@ For `CHANGE_CUE_MS` (4 s) the hook returns `{ diff, at, before }`, where `before
 | VERIFY | Opens the Operations lens. |
 
 - The director never advances a stage by itself: entries without the run's `correlation_id` move nothing, and neither does time passing.
+- A stage served after a later one (a late SIMULATE after ACT or VERIFY) moves nothing. A run that ends without a VERIFY entry still ends on Live and the Operations lens.
+- Next to the button, a label says what plays: *Replay of demo data, no Live writes* (`?twin=demo`) or *Flagship run on apps/api*.
 - The button is disabled while a run starts or plays.
 - **Stop following** leaves the view and the camera to the user while the run plays on.
 - A failed reset or start, or a run that ends in ERROR, shows the reason with **Retry**. A toast says so too, and the store stays usable.
@@ -278,10 +280,11 @@ For `CHANGE_CUE_MS` (4 s) the hook returns `{ diff, at, before }`, where `before
 
 **Runners.**
 - **`createApiDemoRunner`** (apps/api):
-  - calls `POST /flagship/reset`, then sends `POST /flagship/start` (#41) **without awaiting it**: #41 answers `start` only once the whole chain has run;
-  - from the moment `start` is sent, every `DEMO_RUN_POLL_MS` (1 s) reads `GET /flagship/status`. Once the status (or the answer to `start`, whichever is first) names the run's `correlation_id`, it also reads `GET /agent/events` and appends this run's entries to `run.store` (`toActivityEntry`), so stages show as the controller records them;
-  - the run ends when the status is COMPLETE, or fails with its `error` when it is ERROR or when `start` itself fails (409, 503).
-- **`createFixtureDemoRunner`** (`?twin=demo`): fixtures stand in for the controller.
+  - first reads `GET /flagship/status`. If a run is already RUNNING (another tab, a second press), it follows that run and sends neither reset nor start, because #202's `reset()` would clear a run in progress;
+  - otherwise calls `POST /flagship/reset`, then sends `POST /flagship/start` (#41) with a fresh `correlation_id` (`flagship-<uuid>`) and **does not await it**. #202 answers `start` only once the whole chain has run, and by default it reuses `run-weekend-demand-surge-1` for every run, which would mix the entries of earlier runs into this one;
+  - from the moment `start` is sent, every `DEMO_RUN_POLL_MS` (1 s) reads `GET /flagship/status`. Once the status names this run, it appends the run's stages to `run.store`. They come from `GET /agent/events` (`toActivityEntry`) when the feed serves entries for the run. Otherwise they come from the status's `timeline` (`timelineEntries`), where #202 records them today: investigate, plan, simulate, guard and verify, each with the controller's own detail. Steps that are not agent stages (start, event, replan) are left out, and no ACT is made up;
+  - the run ends when the status is COMPLETE. It fails with `error` (or the last timeline step's detail) when the status is ERROR, when `start` itself fails (409, 503), or when the status names another run.
+- **`createFixtureDemoRunner`** (`?twin=demo`): fixtures stand in for the controller. It never calls apps/api; every write goes to the memory twin.
   - Reset puts the demo store, its anomalies, and its open simulation back.
   - Start replays the demo agent run (`DEMO_AGENT_STEP_MS` per stage).
   - At ACT the memory twin commits the simulation, so Live changes through its feed.
@@ -289,7 +292,7 @@ For `CHANGE_CUE_MS` (4 s) the hook returns `{ diff, at, before }`, where `before
   - Other dev twins have no runner, so no button.
 
 **TODO(BE), on #41** ([comment](https://github.com/vinhphan812/retailtwin-ai/issues/41#issuecomment-6207603527)). Until these land, the button on apps/api shows the controller's error:
-- the controller must record each stage in `GET /agent/events` under one `correlation_id`, with `simulation_id` from SIMULATE on;
+- the controller must record each stage in `GET /agent/events` under the run's `correlation_id`, with `simulation_id` from SIMULATE on, and ACT. #202 records only the status `timeline`, which has no ACT step and no `simulation_id`, so on apps/api the view does not switch to Simulation at SIMULATE;
 - `POST /flagship/start` should answer at once (202) instead of after the whole run (the web app no longer waits on it, but a held request can hit the Cloud Run timeout);
 - `GET /flagship/status` must carry `correlation_id` and `error` while the run plays;
 - the `/flagship/*` routes must be mounted in the deployed API;

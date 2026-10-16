@@ -246,6 +246,10 @@ export const en = {
     error: "The AI demo could not run: {{error}}",
     retry: "Retry",
     failed: "The AI demo could not run",
+    source: {
+      replay: "Replay of demo data, no Live writes",
+      flagship: "Flagship run on apps/api",
+    },
   },
   alerts: {
     section: "Alerts & opportunities",

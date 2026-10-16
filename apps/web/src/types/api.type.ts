@@ -24,6 +24,9 @@ export type FlagshipPhase = "IDLE" | "RUNNING" | "COMPLETE" | "ERROR";
  */
 export type FlagshipStartResponse = { run_id: string; correlation_id: string | null; phase: FlagshipPhase };
 
+/** One step of `GET /flagship/status`'s `timeline`, as the controller recorded it (lower-case stage). */
+export type FlagshipTimelineEntry = { stage: string; detail: string; at: string };
+
 /** `GET /flagship/status`, the fields the web app reads. */
 export type FlagshipStatusResponse = {
   run_id: string;
@@ -31,6 +34,8 @@ export type FlagshipStatusResponse = {
   correlation_id: string | null;
   /** Why the run failed, while `phase` is ERROR. */
   error: string | null;
+  /** The steps of the current run so far, in order. */
+  timeline?: FlagshipTimelineEntry[];
 };
 
 /** One entry of `GET /agent/events`, as apps/api serves `AgentActivityEntry`. */
@@ -72,8 +77,11 @@ export type RetailTwinClient = {
   reviewSimulation: (simulationId: string, decision: ReviewDecision, request: ReviewRequest) => Promise<ReviewResult>;
   /** `POST /flagship/reset`: reseeds the Live Twin for the flagship demo (#41). TODO(BE): not mounted in the deployed API yet. */
   flagshipReset: () => Promise<unknown>;
-  /** `POST /flagship/start`: starts the flagship run (#41). TODO(BE): see `FlagshipStartResponse`. */
-  flagshipStart: () => Promise<FlagshipStartResponse>;
+  /**
+   * `POST /flagship/start`: starts the flagship run (#41) under `correlationId`, when given.
+   * TODO(BE): see `FlagshipStartResponse`.
+   */
+  flagshipStart: (correlationId?: string) => Promise<FlagshipStartResponse>;
   /** `GET /flagship/status` (#41). */
   flagshipStatus: () => Promise<FlagshipStatusResponse>;
   /** `GET /agent/events?since=`: the agent activity feed, from `since` (the start when omitted). */
