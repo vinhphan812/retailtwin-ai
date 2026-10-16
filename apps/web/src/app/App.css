@@ -132,7 +132,7 @@ body {
 }
 
 .twin-header-mode,
-.twin-header-demo {
+.twin-header-source {
   padding: 1px 8px;
   border: 1px solid currentColor;
   border-radius: 999px;
@@ -149,10 +149,19 @@ body {
   color: var(--color-simulation);
 }
 
-.twin-header-demo {
+.twin-header-source {
   font-weight: 600;
   letter-spacing: 0;
+}
+
+/* Demo vs Live data: amber dashed for the synthetic store, solid accent for apps/api. */
+.twin-header-source[data-source="demo"] {
   color: var(--color-warning);
+  border-style: dashed;
+}
+
+.twin-header-source[data-source="live"] {
+  color: var(--color-accent);
 }
 
 .twin-header-switch {

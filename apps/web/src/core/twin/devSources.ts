@@ -115,6 +115,11 @@ function devTwinMode(): string {
   return mode === "memory" || mode in DEV_SOURCES ? mode : "";
 }
 
+/** True when the twin on screen is the Live Twin of apps/api, not the demo or a dev twin. */
+export function isApiTwin(): boolean {
+  return devTwinMode() === "";
+}
+
 /**
  * The open simulation from apps/api, read alongside the apps/api Live Twin. A `?twin=`
  * dev twin has none: there `twin.simulate()` and the demo fixture fill it instead.

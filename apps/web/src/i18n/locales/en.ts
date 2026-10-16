@@ -6,6 +6,9 @@ export const en = {
     live: "LIVE",
     simulation: "SIMULATION",
     demo: "Demo data",
+    demoHint: "A synthetic store from fixtures/demo. Nothing on this page writes to the Live Twin.",
+    liveData: "Live data",
+    liveDataHint: "The Live Twin, as apps/api serves it. Accept and Reject change it.",
     openLive: "Open the live twin",
     openDemo: "Open the demo",
   },
@@ -206,6 +209,7 @@ export const en = {
     unknown: "Unknown error",
     unreachable: "The API is unreachable.",
     requestFailed: "Request failed ({{status}}).",
+    demoReadOnly: "The demo does not write to the Live Twin.",
   },
   scene: {
     stock: {
