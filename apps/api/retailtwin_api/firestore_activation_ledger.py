@@ -50,8 +50,52 @@ class ActivationLedgerUnavailable(RuntimeError):
     """Firestore activation storage is unreachable or rejected the write."""
 
 
-def _activation_doc(event_id: str, activation: Activation) -> dict[str, Any]:
-    return {
+class _CreateConflict(Exception):
+    """Internal-only signal that an atomic create lost the precondition.
+
+    The public ``reserve`` flow catches this, re-reads, and classifies
+    the outcome as ``duplicate`` or ``conflict`` based on the existing
+    record. The exception never escapes to callers.
+    """
+
+
+def _is_precondition_conflict(status: int, body: str) -> bool:
+    """Return True when the Firestore response indicates a precondition loss.
+
+    HTTP 409 is the canonical precondition-failure status; 400 with a
+    FAILED_PRECONDITION / ALREADY_EXISTS error payload is also a loss.
+    """
+    if status == 409:
+        return True
+    if status != 400:
+        return False
+    try:
+        payload = json.loads(body)
+    except json.JSONDecodeError:
+        return False
+    if not isinstance(payload, dict):
+        return False
+    error = payload.get("error")
+    if not isinstance(error, dict):
+        return False
+    status_typed = error.get("status")
+    message = error.get("message")
+    if status_typed in {"FAILED_PRECONDITION", "ALREADY_EXISTS"}:
+        return True
+    if isinstance(message, str) and (
+        "precondition" in message.lower() or "already exists" in message.lower()
+    ):
+        return True
+    return False
+
+
+def _activation_doc(
+    event_id: str,
+    activation: Activation,
+    *,
+    doc_name: str | None = None,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
         "fields": {
             "event_id": {"stringValue": event_id},
             "investigation_id": {"stringValue": activation.investigation_id},
@@ -59,6 +103,16 @@ def _activation_doc(event_id: str, activation: Activation) -> dict[str, Any]:
             "event_json": {"stringValue": activation.event.model_dump_json()},
         }
     }
+    if doc_name is not None:
+        payload["name"] = doc_name
+    return payload
+
+
+def _doc_name(project: str, event_id: str) -> str:
+    return (
+        f"projects/{project}/databases/(default)/documents"
+        f"/{COLLECTION_ACTIVATIONS}/{event_id}"
+    )
 
 
 def _parse_activation(doc: dict[str, Any]) -> Activation | None:
@@ -115,7 +169,15 @@ class FirestoreActivationLedger(MemoryActivationLedger):
         self._tokens = token_provider if token_provider is not None else _ApplicationDefaultTokenProvider()
 
     def reserve(self, event: StoreEvent) -> Any:
-        """Look up the canonical record. If absent, write a ``pending`` reservation."""
+        """Atomically claim the event for investigation.
+
+        Two Cloud Run instances racing the same ``event_id`` would both
+        observe a 404 on the read and both PATCH the document, leaving
+        them as joint owners. ``_create_atomic`` uses Firestore's
+        ``currentDocument.exists=false`` precondition so the second
+        instance fails the precondition, re-reads, and classifies the
+        outcome as ``duplicate`` or ``conflict``.
+        """
         existing = self._read(event.event_id)
         if existing is not None:
             if existing.event != event:
@@ -124,24 +186,50 @@ class FirestoreActivationLedger(MemoryActivationLedger):
                 return self._build_reservation("duplicate", existing)
             return self._build_reservation("owner", existing)
 
-        # First reservation. Write the pending record.
+        # First reservation. Atomic create with `currentDocument.exists=false`.
         investigation_id = f"inv-{event.event_id}"
         activation = Activation(investigation_id, event, "pending")
-        self._write(event.event_id, activation)
+        try:
+            self._create_atomic(event.event_id, activation)
+        except _CreateConflict:
+            # A concurrent instance won the race. Re-read and classify.
+            existing = self._read(event.event_id)
+            if existing is None:
+                # The winning instance raced the entire reservation, then
+                # aborted. Retry once; if it still fails, surface as
+                # unavailable so the Pub/Sub message is re-delivered.
+                self._create_atomic(event.event_id, activation)
+                return self._build_reservation("owner", activation)
+            if existing.event != event:
+                return self._build_reservation("conflict", existing)
+            if existing.status == "started":
+                return self._build_reservation("duplicate", existing)
+            return self._build_reservation("owner", existing)
         return self._build_reservation("owner", activation)
 
     def commit(self, event_id: str) -> None:
+        """Atomically transition ``pending`` to ``started``.
+
+        The ``pending → started`` transition uses a Firestore
+        ``currentDocument.updateTime`` precondition so a concurrent
+        commit or abort on another instance surfaces as
+        ``ActivationLedgerUnavailable`` rather than corrupting state.
+        """
         from retailtwin_api.agents.observer.consumer import ObservationError
 
-        existing = self._read(event_id)
+        existing, update_time = self._read_with_time(event_id)
         if existing is None or existing.status != "pending":
             raise ObservationError(event_id)
+        if update_time is None:
+            raise ActivationLedgerUnavailable(
+                f"activation_records/{event_id} has no updateTime; cannot CAS-write."
+            )
         committed = Activation(
             existing.investigation_id,
             existing.event,
             "started",
         )
-        self._write(event_id, committed)
+        self._write_atomic(event_id, committed, expected_update_time=update_time)
 
     def abort(self, event_id: str) -> None:
         # The in-memory adapter silently no-ops when the event is missing
@@ -166,10 +254,20 @@ class FirestoreActivationLedger(MemoryActivationLedger):
             f"/databases/(default)/documents/{COLLECTION_ACTIVATIONS}/{event_id}"
         )
 
-    def _read(self, event_id: str) -> Activation | None:
+    def _database_root(self) -> str:
+        return (
+            f"https://firestore.googleapis.com/v1/projects/{self._project}"
+            "/databases/(default)/documents"
+        )
+
+    def _read_with_time(self, event_id: str) -> tuple[Activation | None, str | None]:
+        """Return ``(activation, updateTime)`` so callers can issue a CAS write.
+
+        ``updateTime`` is None when the document is absent.
+        """
         response = self._call("GET", self._doc_url(event_id), None)
         if response.status == 404:
-            return None
+            return None, None
         if response.status != 200:
             raise ActivationLedgerUnavailable(
                 f"Firestore GET activation_records/{event_id} returned HTTP {response.status}"
@@ -181,8 +279,97 @@ class FirestoreActivationLedger(MemoryActivationLedger):
                 "Firestore activation response was not JSON."
             ) from exc
         if not isinstance(payload, dict):
-            return None
-        return _parse_activation(payload)
+            return None, None
+        update_time = payload.get("updateTime")
+        if not isinstance(update_time, str):
+            update_time = None
+        return _parse_activation(payload), update_time
+
+    def _read_update_time(self, event_id: str) -> str:
+        """Return the current ``updateTime`` for the document or raise."""
+        _, update_time = self._read_with_time(event_id)
+        if update_time is None:
+            raise ActivationLedgerUnavailable(
+                f"activation_records/{event_id} has no updateTime; cannot CAS-write."
+            )
+        return update_time
+
+    def _read(self, event_id: str) -> Activation | None:
+        activation, _ = self._read_with_time(event_id)
+        return activation
+
+    def _create_atomic(self, event_id: str, activation: Activation) -> None:
+        """Create-or-fail with ``currentDocument.exists=false``.
+
+        Uses a Firestore ``:commit`` request so the precondition runs on
+        the server. A second instance that races the read observes
+        ALREADY_EXISTS / FAILED_PRECONDITION, which the caller converts
+        to a re-read + classification.
+        """
+        body = {
+            "writes": [
+                {
+                    "update": _activation_doc(
+                        event_id, activation, doc_name=_doc_name(self._project, event_id)
+                    ),
+                    "currentDocument": {"exists": False},
+                }
+            ]
+        }
+        response = self._call("POST", f"{self._database_root()}:commit", body)
+        if response.status == 200:
+            with self._lock:
+                self._records[event_id] = Activation(
+                    activation.investigation_id,
+                    activation.event.model_copy(deep=True),
+                    activation.status,
+                )
+            return
+        if _is_precondition_conflict(response.status, response.body):
+            raise _CreateConflict(
+                f"activation_records/{event_id} already exists (race)"
+            )
+        raise ActivationLedgerUnavailable(
+            f"Firestore atomic create activation_records/{event_id} "
+            f"returned HTTP {response.status}: {response.body[:200]}"
+        )
+
+    def _write_atomic(
+        self,
+        event_id: str,
+        activation: Activation,
+        *,
+        expected_update_time: str,
+    ) -> None:
+        """CAS-write using ``currentDocument.updateTime``."""
+        body = {
+            "writes": [
+                {
+                    "update": _activation_doc(
+                        event_id, activation, doc_name=_doc_name(self._project, event_id)
+                    ),
+                    "currentDocument": {"updateTime": expected_update_time},
+                }
+            ]
+        }
+        response = self._call("POST", f"{self._database_root()}:commit", body)
+        if response.status == 200:
+            with self._lock:
+                self._records[event_id] = Activation(
+                    activation.investigation_id,
+                    activation.event.model_copy(deep=True),
+                    activation.status,
+                )
+            return
+        if _is_precondition_conflict(response.status, response.body):
+            raise ActivationLedgerUnavailable(
+                f"Firestore CAS write activation_records/{event_id} "
+                f"lost the precondition (updateTime changed concurrently)"
+            )
+        raise ActivationLedgerUnavailable(
+            f"Firestore CAS write activation_records/{event_id} "
+            f"returned HTTP {response.status}: {response.body[:200]}"
+        )
 
     def _write(self, event_id: str, activation: Activation) -> None:
         body = _activation_doc(event_id, activation)
