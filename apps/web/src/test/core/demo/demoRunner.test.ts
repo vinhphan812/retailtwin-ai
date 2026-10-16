@@ -133,12 +133,36 @@ describe("createApiDemoRunner", () => {
     await expect(failed).resolves.toBe("Cannot start from phase RUNNING.");
   });
 
-  it("ends the run in error when POST /flagship/start fails after it was identified", async () => {
-    const { client, failStart } = fakeClient([], [status("RUNNING")]);
+  it("keeps following its run when POST /flagship/start times out but the controller carries on", async () => {
+    const { client, calls, failStart } = fakeClient(
+      [],
+      [
+        status("RUNNING", null, { timeline: [{ stage: "investigate", detail: "investigating P017", at: "t1" }] }),
+        status("RUNNING", null, { timeline: [{ stage: "investigate", detail: "investigating P017", at: "t1" }, { stage: "plan", detail: "plan", at: "t2" }] }),
+        status("COMPLETE", null, {
+          timeline: [
+            { stage: "investigate", detail: "investigating P017", at: "t1" },
+            { stage: "plan", detail: "plan", at: "t2" },
+            { stage: "verify", detail: "verified", at: "t3" },
+          ],
+        }),
+      ],
+    );
+    const run = await runner(client).start();
+    failStart(new Error("The request timed out."));
+    await vi.advanceTimersByTimeAsync(POLL * 3);
+    await expect(run.done).resolves.toBeUndefined();
+    expect(useRunStore.getState().activity.map((entry) => entry.stage)).toEqual(["INVESTIGATE", "PLAN", "VERIFY"]);
+    // One reset and one start: a timed-out start is never sent again.
+    expect(calls).toEqual(["reset", "start"]);
+  });
+
+  it("ends in error with start's failure once the status no longer names the run", async () => {
+    const { client, failStart } = fakeClient([], [status("RUNNING"), status("IDLE", null, { correlation_id: null })]);
     const run = await runner(client).start();
     const failed = run.done.catch((error: Error) => error.message);
     failStart(new Error("Twin API unreachable."));
-    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(POLL * 2);
     await expect(failed).resolves.toBe("Twin API unreachable.");
   });
 

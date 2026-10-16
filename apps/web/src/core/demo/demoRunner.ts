@@ -74,8 +74,10 @@ const newCorrelationId = () => `flagship-${crypto.randomUUID()}`;
  * timeline, from `GET /agent/events` when it serves any for the run, else from the status's
  * `timeline` (#202 records its stages there, not in the feed). `start()` resolves as soon as
  * the status or `start`'s answer names the run; the run ends when the status says COMPLETE or
- * ERROR, when `start` fails, or when the status names another run. It never advances a stage
- * itself: the stages are the controller's.
+ * ERROR, or when the status names another run. A failed `start` (a timeout on Cloud Run, say)
+ * ends it only once the status does not name the run: while the controller carries on, the
+ * runner follows it and never sends `start` again. It never advances a stage itself: the
+ * stages are the controller's.
  * TODO(BE): #41 to answer `start` at once (202) and to record each stage, ACT included, in the feed.
  */
 export function createApiDemoRunner(
@@ -131,11 +133,12 @@ export function createApiDemoRunner(
         const poll = async () => {
           if (stopped) return;
           try {
-            if (answer && !answer.ok) return fail(answer.error);
             const status = await client.flagshipStatus();
             // IDLE is the reset, before `start` has reached the controller.
             const isOurs = status.phase !== "IDLE" && status.correlation_id === ours;
             if (isOurs) identify();
+            // `start` failed and the controller has no run of ours: it never started, or is gone.
+            else if (answer && !answer.ok) return fail(answer.error);
             else if (identifiedYet || answer?.ok) return fail(new Error("Another flagship run replaced this one."));
             if (isOurs) await readStages(status);
             if (stopped) return;
@@ -155,9 +158,9 @@ export function createApiDemoRunner(
               answer = { ok: true };
               identify();
             },
+            // The next poll decides: a run the status still names goes on.
             (error: unknown) => {
               answer = { ok: false, error };
-              if (!stopped) fail(error);
             },
           );
         }
