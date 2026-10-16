@@ -37,14 +37,18 @@ export function useAnomalyPolling(): void {
   const pollRef = useRef<() => void>(() => {});
 
   const doPoll = useCallback(async () => {
-    if (pollingState.active) return;
-    
+    // Skip if already polling - but this check happens AFTER we set active=false when done
+    // The key fix: we set active=false AFTER the poll completes, not before
     try {
+      pollingState.active = true;
       const response = await client.anomalies();
       setAll(response);
     } catch (error) {
       fail(i18n.t("anomalies.loadFailed"));
       notify.error(i18n.t("anomalies.loadFailed"), error);
+    } finally {
+      // Mark as not active AFTER the poll completes, allowing next poll
+      pollingState.active = false;
     }
   }, [client, setAll, fail]);
 
@@ -52,23 +56,21 @@ export function useAnomalyPolling(): void {
   pollRef.current = doPoll;
 
   useEffect(() => {
-    // Prevent duplicate pollers
-    if (pollingState.active) {
+    // Prevent duplicate pollers - but now we check if a timer is already running
+    // rather than blocking on the 'active' flag which was being set too early
+    if (pollingState.timerId) {
+      // Already polling
       return;
     }
 
-    pollingState.active = true;
-
-    // Initial poll
+    // Initial poll - runs immediately
     doPoll();
 
-    // If demo mode, don't start interval polling
-    if (isDemo) {
-      return;
+    // If demo mode, don't start interval polling, but still register cleanup below
+    if (!isDemo) {
+      // Start interval polling
+      pollingState.timerId = setInterval(doPoll, POLL_INTERVAL_MS);
     }
-
-    // Start interval polling
-    pollingState.timerId = setInterval(doPoll, POLL_INTERVAL_MS);
 
     // Handle visibility change: pause when hidden, resume when visible
     const handleVisibilityChange = () => {
@@ -79,15 +81,17 @@ export function useAnomalyPolling(): void {
           pollingState.timerId = null;
         }
       } else {
-        // Tab is visible - resume polling immediately, then set interval
-        pollRef.current();
-        pollingState.timerId = setInterval(pollRef.current, POLL_INTERVAL_MS);
+        // Tab is visible - resume polling immediately if not already polling
+        if (!pollingState.timerId && !pollingState.active) {
+          pollRef.current();
+          pollingState.timerId = setInterval(pollRef.current, POLL_INTERVAL_MS);
+        }
       }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
-    // Cleanup on unmount
+    // Cleanup on unmount - this ALWAYS runs now, including in demo mode
     return () => {
       pollingState.active = false;
       if (pollingState.timerId) {
