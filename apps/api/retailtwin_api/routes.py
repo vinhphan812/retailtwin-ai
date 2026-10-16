@@ -47,6 +47,17 @@ from retailtwin_api.schemas import (
     VersionResponse,
 )
 from retailtwin_api.simulation_repository import SimulationReadRepository
+from retailtwin_api.synthetic.traffic import (
+    CANONICAL_SEED as TRAFFIC_CANONICAL_SEED,
+)
+from retailtwin_api.synthetic.traffic import (
+    TrafficEvent as TrafficEventModel,
+)
+from retailtwin_api.synthetic.traffic import (
+    TrafficHeatmapResponse,
+    aggregate_heatmap,
+    simulate_traffic,
+)
 from retailtwin_api.simulation_schemas import (
     AgentEventListResponse,
     CandidateListResponse,
@@ -66,6 +77,7 @@ from retailtwin_api.simulation_schemas import (
 )
 from retailtwin_api.store import StoreReader
 from retailtwin_api.version import __version__, build_time, full_version, git_sha
+from retailtwin_api.settings import Settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -563,6 +575,80 @@ def receive_pubsub_agent_event(
         "correlation_id": outcome.correlation_id,
         "investigation_id": outcome.investigation_id,
     }
+
+# ─── Traffic heatmap (issue #36) ────────────────────────────────────────────────
+
+
+def get_settings_dep(request: Request) -> Settings:
+    return request.app.state.settings
+
+
+@router.get(
+    "/traffic/heatmap",
+    response_model=TrafficHeatmapResponse,
+    include_in_schema=True,
+)
+def traffic_heatmap(
+    request: Request,
+    store_id: str | None = Query(default=None, min_length=1),
+    window_minutes: int = Query(default=60, ge=1, le=1440),
+    seed: int = Query(default=TRAFFIC_CANONICAL_SEED, ge=0),
+    customer_count: int = Query(default=42, ge=0, le=10_000),
+    store: StoreReader = Depends(get_store),
+    settings: Settings = Depends(get_settings_dep),
+) -> TrafficHeatmapResponse:
+    """Return a deterministic zone heatmap from the synthetic traffic simulator.
+
+    Feature-flagged by ``TRAFFIC_ENABLED`` (default off). Returns 503
+    ``traffic_disabled`` when the flag is off, so the day-0 routes stay
+    unchanged. The simulator and aggregator are always importable; only the
+    public route is gated.
+    """
+    if not getattr(settings, "traffic_enabled", False):
+        raise ApiError(
+            503,
+            "traffic_disabled",
+            "Traffic heatmap is gated by TRAFFIC_ENABLED.",
+        )
+    require_loaded(store)
+    target_store = store_id or settings.store_id
+    if target_store != store.store_id:
+        raise ApiError(
+            404,
+            "store_not_found",
+            f"Store {target_store!r} is not served by this API.",
+        )
+    snapshot = store.view()
+    started_at = datetime.now(timezone.utc)
+    events = simulate_traffic(
+        snapshot=snapshot,
+        duration_minutes=window_minutes,
+        customer_count=customer_count,
+        seed=seed,
+        started_at=started_at,
+    )
+    zone_customer_seconds = aggregate_heatmap(events)
+    total = round(sum(zone_customer_seconds.values()), 2)
+    logger.info(
+        "traffic.heatmap",
+        extra={
+            "correlation_id": _correlation_id(request),
+            "store_id": target_store,
+            "window_minutes": window_minutes,
+            "seed": seed,
+            "customer_count": customer_count,
+            "event_count": len(events),
+            "zone_count": len(zone_customer_seconds),
+        },
+    )
+    return TrafficHeatmapResponse(
+        store_id=target_store,
+        window_minutes=window_minutes,
+        started_at=started_at,
+        zone_customer_seconds=zone_customer_seconds,
+        total_customer_seconds=total,
+        simulator_seed=seed,
+    )
 
 
 # ─── Analytics ─────────────────────────────────────────────────────────────────
