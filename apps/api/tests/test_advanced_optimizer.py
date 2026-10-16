@@ -9,6 +9,7 @@ import copy
 import json
 import logging
 import sys
+import threading
 from collections.abc import Mapping, Sequence
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
@@ -692,3 +693,204 @@ def test_optimizer_picks_feasible_first_under_tie() -> None:
             seen_infeasible = True
             continue
         assert not seen_infeasible, "feasible candidate appeared after an infeasible one"
+
+
+def test_optimizer_excludes_non_vacant_destinations() -> None:
+    """Optimizer-generated moves target only vacant slots.
+
+    Reproduces the CHANGES_REQUESTED review on PR #256: with
+    ``A02-S03`` holding ``P017`` and ``B02-S01`` holding ``P099``, the
+    optimizer's ``_free_destinations`` previously returned ``B02-S01``
+    as a candidate for moves of ``P017`` because ``B02-S01.sku !=
+    "P017"``. Only truly vacant slots (no SKU on the fixture) are
+    valid move destinations, so optimizer-generated ``MoveProduct``
+    drafts must never target a slot held by a different SKU.
+
+    The Planner's explicit moves are a separate input path -- they
+    are validated downstream by the feasibility check, and the
+    existing ``test_optimizer_marks_occupied_destination_infeasible``
+    test guarantees that path still rejects moves into occupied
+    slots.
+    """
+
+    live = _two_slot_live()
+    decisions = _plan(_bundle(), _provider(_canonical()))
+    ranker = CandidateRanker(algorithm="heuristic_v1", max_candidates=64)
+
+    ranked = rank_candidates(
+        decisions, live, kpi_evaluator=_kpi, ranker=ranker,
+        intent="weekend-demand-surge",
+    )
+
+    occupied_destinations = {"B02-S01"}
+    optimizer_move_targets: list[str] = []
+    for entry in ranked:
+        if entry.source != "optimizer":
+            continue
+        for action in entry.actions:
+            if isinstance(action, MoveProduct):
+                optimizer_move_targets.append(action.to_slot)
+                assert action.to_slot not in occupied_destinations, (
+                    f"optimizer emitted MoveProduct to {action.to_slot} which "
+                    "is held by a different SKU; destinations must be vacant"
+                )
+    # No entry sourced from the optimizer may carry the SLOT_OCCUPIED
+    # reason: the destination filter excludes those drafts before
+    # ranking, so the ranker never reaches the feasibility reject.
+    for entry in ranked:
+        if entry.source == "optimizer":
+            assert INFEASIBLE_SLOT_OCCUPIED not in entry.feasibility.get("reasons", []), (
+                "the optimizer's destination filter happens before ranking, "
+                "so optimizer-sourced entries must not surface "
+                "INFEASIBLE_SLOT_OCCUPIED reasons"
+            )
+    # Sanity check: the planner's explicit move still flows through and
+    # is correctly rejected by the feasibility check downstream.
+    planner_move_entries = [
+        entry for entry in ranked
+        if entry.source == "planner"
+        and any(
+            isinstance(a, MoveProduct) and a.to_slot == "B02-S01"
+            for a in entry.actions
+        )
+    ]
+    assert planner_move_entries, (
+        "planner's explicit move to B02-S01 must still flow through"
+    )
+    for entry in planner_move_entries:
+        assert INFEASIBLE_SLOT_OCCUPIED in entry.feasibility.get("reasons", []), (
+            "planner-sourced move to an occupied slot must be flagged by feasibility"
+        )
+
+
+def _kpi_permissive(
+    snapshot: Mapping[str, Any],
+    candidate_id: str,
+    actions: Sequence[Mapping[str, Any]],
+) -> Mapping[str, Any]:
+    """Test-only evaluator that bypasses the strict kpi/evaluator snapshot.
+
+    Lets the test fixture include a vacant slot (``slot.sku`` empty)
+    without tripping the production validator, which requires every
+    slot's SKU to be a non-empty string. The optimizer's destination
+    pool is the system under test; the score is a fixed positive
+    number so feasibility, not score, drives ranking.
+    """
+
+    return {
+        "formula_id": "simulation-kpi-v1",
+        "candidate_id": candidate_id,
+        "simulation_id": snapshot.get("simulation_id"),
+        "business_score": "0.5",
+    }
+
+
+def test_optimizer_feasible_top_k_with_vacant_destination() -> None:
+    """Constrained feasible-top-K surfaces moves to genuinely vacant slots.
+
+    With a snapshot that has ``A02-S03`` holding ``P017`` and a vacant
+    slot ``C02-S01`` (no SKU), the optimizer emits ``MoveProduct``
+    drafts from ``A02-S03`` to ``C02-S01`` only. The ranker marks the
+    move feasible and surfaces it inside the top-K bound.
+    """
+
+    live = _live(
+        slots=(
+            _slot(),  # A02-S03 with P017
+            _slot(
+                sku="",
+                slot_id="C02-S01",
+                shelf_quantity=0,
+                backroom_quantity=0,
+                facings=0,
+                sales_velocity_units_per_hour="0",
+                price="0",
+            ),
+        ),
+    )
+    # Large cap so the deterministic tie-break (alphabetical candidate
+    # id) places the move entry inside the top-K; the ranker is still
+    # bound by ``max_candidates``.
+    ranker = CandidateRanker(algorithm="heuristic_v1", max_candidates=8)
+
+    ranked = rank_candidates(
+        [_decision()],
+        live,
+        kpi_evaluator=_kpi_permissive,
+        ranker=ranker,
+        intent="weekend-demand-surge",
+    )
+
+    assert ranked, "ranker must produce at least one candidate"
+    assert len(ranked) <= 8
+    scores = [entry.score for entry in ranked]
+    assert scores == sorted(scores, reverse=True)
+    vacant_move_entries = [
+        entry for entry in ranked
+        if any(
+            isinstance(a, MoveProduct)
+            and a.to_slot == "C02-S01"
+            and a.from_slot == "A02-S03"
+            for a in entry.actions
+        )
+    ]
+    assert vacant_move_entries, (
+        "ranker must emit at least one MoveProduct A02-S03 -> C02-S01"
+    )
+    for entry in vacant_move_entries:
+        feasibility = entry.feasibility
+        assert feasibility.get("feasible") is True, (
+            "vacant-destination move must be feasible; got reasons: "
+            f"{feasibility.get('reasons')}"
+        )
+        assert not feasibility.get("reasons")
+
+
+def test_rank_candidates_concurrent_deterministic() -> None:
+    """Two threads calling ``rank_candidates`` on the same inputs agree.
+
+    Confirms that ``_free_destinations`` and the ranker carry no mutable
+    shared state: concurrent reads under the GIL produce byte-identical
+    candidate ids, scores, and ranks.
+    """
+
+    import threading
+
+    live = _live()
+    decisions = _plan(_bundle(), _provider(_canonical()))
+    ranker = CandidateRanker(algorithm="heuristic_v1", max_candidates=8)
+
+    barrier = threading.Barrier(2)
+    outputs: list[list[RankedCandidate]] = []
+    errors: list[BaseException] = []
+
+    def worker() -> None:
+        try:
+            barrier.wait(timeout=5)
+            outputs.append(
+                rank_candidates(
+                    decisions,
+                    live,
+                    kpi_evaluator=_kpi,
+                    ranker=ranker,
+                    intent="weekend-demand-surge",
+                )
+            )
+        except BaseException as exc:  # pragma: no cover - error path
+            errors.append(exc)
+
+    threads = [threading.Thread(target=worker) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=5)
+
+    assert not errors, f"concurrent ranker raised: {errors}"
+    assert len(outputs) == 2
+    first, second = outputs
+    assert [item.candidate_id for item in first] == [item.candidate_id for item in second]
+    assert [item.score for item in first] == [item.score for item in second]
+    assert [item.rank for item in first] == [item.rank for item in second]
+    assert [item.feasibility.get("feasible") for item in first] == [
+        item.feasibility.get("feasible") for item in second
+    ]

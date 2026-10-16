@@ -177,13 +177,18 @@ def _slot_for_sku(snapshot: LiveView, sku: str) -> SlotView | None:
 
 
 def _free_destinations(snapshot: LiveView, sku: str) -> tuple[SlotView, ...]:
-    """Slots in the snapshot that are not currently holding ``sku``.
+    """Slots in the snapshot that are not currently holding any SKU.
 
-    The candidate id uses ``to_slot``, so a deterministic tuple is returned.
+    Moves can only target vacant shelf positions. A move into a slot
+    that already holds a different SKU would overwrite that SKU, so
+    occupied slots are excluded from the candidate set before ranking
+    and the feasibility check never has to reject them. The candidate
+    id uses ``to_slot``, so the result is sorted by ``slot_id`` for
+    determinism.
     """
 
     return tuple(sorted(
-        (slot for slot in snapshot.slots if slot.sku != sku),
+        (slot for slot in snapshot.slots if not slot.sku.strip()),
         key=lambda item: item.slot_id,
     ))
 
@@ -221,7 +226,14 @@ def _check_feasibility(
     facings_after = slot_view.facings if slot_view is not None else None
     slot_after = slot_view.slot_id if slot_view is not None else None
     occupied_slots = {slot.slot_id for slot in snapshot.slots}
-    occupied_after: set[str] = {slot.slot_id for slot in snapshot.slots}
+    # Slots actually holding a different SKU. Vacant slots (slot.sku is
+    # empty) and the focal SKU's slot are NOT occupied and can receive
+    # a move.
+    occupied_after: set[str] = {
+        slot.slot_id
+        for slot in snapshot.slots
+        if slot.sku.strip() and slot.sku.strip() != focal_sku
+    }
     for action in actions:
         if isinstance(action, ReplenishShelf):
             quantity = action.quantity
