@@ -57,6 +57,7 @@ describe("TwinHeader", () => {
     at("/live");
     render(<TwinHeader />);
     expect(screen.queryByText("Demo data")).toBeNull();
+    expect(screen.getByText("Live data").dataset.source).toBe("live");
     expect(screen.getByRole("link", { name: "Open the demo" }).getAttribute("href")).toBe("/demo");
   });
 
@@ -64,6 +65,19 @@ describe("TwinHeader", () => {
     vi.stubEnv("DEV", false);
     render(<TwinHeader />);
     expect(screen.queryByRole("link")).toBeNull();
+  });
+
+  it("tells demo data from live data, and claims neither for a dev twin", () => {
+    at("/demo");
+    const { unmount } = render(<TwinHeader />);
+    expect(screen.getByText("Demo data").dataset.source).toBe("demo");
+    expect(screen.queryByText("Live data")).toBeNull();
+    unmount();
+
+    at("/?twin=fixture");
+    render(<TwinHeader />);
+    expect(screen.queryByText("Demo data")).toBeNull();
+    expect(screen.queryByText("Live data")).toBeNull();
   });
 });
 

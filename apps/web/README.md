@@ -24,8 +24,8 @@ Set `VITE_API_BASE_URL` to the API origin. The default is `http://127.0.0.1:8000
 
 `/`, `/demo` and `/live` are `TwinPage` (see *Hosted demo* for which twin each opens). Any other path shows `NotFoundPage`.
 
-- **Header** (`TwinHeader`): **RetailTwin AI · Autonomous Store Intelligence**, the store id the Live Twin reports ("—" before it loads), and **LIVE** or **SIMULATION** for the 3D view. Under the demo it adds a **Demo data** chip. Where the demo is allowed, a link opens the other twin (`/live` or `/demo`, a full page load).
-- **Footer** (`TwinFooter`): `Gemini on Vertex AI · Cloud Run · Firestore · BigQuery`, the Live Twin's `context_version` as served (it moves after each execution), and the build (`buildLabel`: `VITE_APP_VERSION` plus the short Git SHA `vite.config.ts` injects as `VITE_GIT_SHA`; the SHA alone without a version. TODO(#165): one canonical version).
+- **Header** (`TwinHeader`): **RetailTwin AI · Autonomous Store Intelligence**, the store id the Live Twin reports ("—" before it loads), and **LIVE** or **SIMULATION** for the 3D view. A chip says where the data comes from: **Demo data** (amber, dashed) for the synthetic demo store, **Live data** for the Live Twin of apps/api; a dev twin gets neither. Where the demo is allowed, a link opens the other twin (`/live` or `/demo`, a full page load).
+- **Footer** (`TwinFooter`): `Gemini on Vertex AI · Cloud Run · Firestore · BigQuery`, the Live Twin's `context_version` as served (it moves after each execution), and the build (`buildLabel`: `VITE_APP_VERSION` plus the short Git SHA `vite.config.ts` injects as `VITE_GIT_SHA`; the SHA alone without a version. TODO(#165): `VITE_APP_VERSION` from the canonical /VERSION, so the API and the web report one string).
 - The header and footer are rows of `.app`; the 3D view and the side panel sit between them in `.twin-body`, so neither bar covers an overlay.
 
 - **3D view** (`StoreScene`): the store room, its fixtures, and the stock that twin state puts on them.
@@ -300,14 +300,14 @@ A production build ignores `?twin=` unless it is built with `VITE_ALLOW_DEMO=tru
 | `/live` | apps/api | apps/api | apps/api |
 | `?twin=demo` (any path) | demo | demo | apps/api |
 
-So the bare Hosting URL of a demo build lands on the demo, and the live twin stays one click away on `/live` (the header links both). The demo data stays marked **Demo data**. Anyone can open `/demo`, so build the hosted site this way only while it serves as a demo:
+So the bare Hosting URL of a demo build lands on the demo, and the live twin stays one click away on `/live` (the header links both, and its chip reads **Demo data** or **Live data**). The demo cannot change Live: its Accept and Reject commit to the in-memory demo twin, and the API client refuses any request other than a read while the demo is open (`demo_read_only`), whatever control sends it. Anyone can open `/demo`, so build the hosted site this way only while it serves as a demo:
 
 ```bash
 VITE_API_BASE_URL=https://<api-origin> VITE_ALLOW_DEMO=true npm run build
 firebase deploy --only hosting
 ```
 
-In CD (`.github/workflows/web.yml`) the repo variable `WEB_ALLOW_DEMO=true` turns this on, and `APP_VERSION` sets the footer's version. Both are unset by default, so the deployed site keeps reading apps/api on `/`. Firebase Hosting rewrites every path to `index.html`, so `/demo` and `/live` need no Hosting change.
+In CD (`.github/workflows/web.yml`) the repo variable `WEB_ALLOW_DEMO=true` turns this on. It is unset by default, so the deployed site keeps reading apps/api on `/`. Firebase Hosting rewrites every path to `index.html`, so `/demo` and `/live` need no Hosting change.
 
 ## Source layout
 

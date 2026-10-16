@@ -79,8 +79,6 @@ jobs:
           VITE_API_BASE_URL: ${{ env.VITE_API_BASE_URL }}
           # "true" makes the hosted site a demo: / and /demo open the demo store, /live reads apps/api (#212).
           VITE_ALLOW_DEMO: ${{ vars.WEB_ALLOW_DEMO }}
-          # Shown in the footer next to the build SHA. TODO(#165): from the canonical version.
-          VITE_APP_VERSION: ${{ vars.APP_VERSION }}
 
       - name: "Security check: reject localhost/127.0.0.1 in bundle"
         run: |
