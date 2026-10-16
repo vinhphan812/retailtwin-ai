@@ -154,6 +154,20 @@ body {
   color: var(--color-ink-soft);
 }
 
+/* A section's title on the left, its controls (Follow agent) on the right, on one row. */
+.activity-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 4px 0 10px;
+}
+
+.activity-section-head .activity-section-title {
+  margin: 0;
+}
+
 .activity-count {
   min-width: 20px;
   padding: 1px 6px;
