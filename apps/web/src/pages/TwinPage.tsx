@@ -6,7 +6,10 @@ import { BuildBadge } from "@/components/layout/BuildBadge";
 import { CameraHelp } from "@/components/layout/CameraHelp";
 import { TwinFooter } from "@/components/layout/TwinFooter";
 import { TwinHeader } from "@/components/layout/TwinHeader";
+import { KpiStrip } from "@/components/layout/KpiStrip";
 import { AgentFocusCaption } from "@/components/twin/AgentFocusCaption";
+import { AiImpactDialog } from "@/components/twin/AiImpactDialog";
+import { AiImpactToast } from "@/components/twin/AiImpactToast";
 import { LensSwitcher } from "@/components/layout/LensSwitcher";
 import { ViewModeSwitch } from "@/components/layout/ViewModeSwitch";
 import { EntityInspector } from "@/components/twin/EntityInspector";
@@ -52,15 +55,18 @@ export function TwinPage() {
             <LensSwitcher />
             <ViewModeSwitch />
           </div>
+          <KpiStrip />
           <div className="absolute bottom-4 left-4 z-10">
             <CameraHelp />
           </div>
           <AgentFocusCaption />
+          <AiImpactToast />
           <AgentActivityOpenButton />
           <EntityInspector />
           <ProductDetailsDialog />
           <TwinIssuesNotice />
           <BuildBadge />
+          <AiImpactDialog />
         </main>
         <AgentActivityPanel />
       </div>
