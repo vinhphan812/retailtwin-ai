@@ -249,6 +249,55 @@ For `CHANGE_CUE_MS` (4 s) the hook returns `{ diff, at, before }`, where `before
 4. Click *Shelf A02 breaks its planogram*: the camera flies to gondola A02.
 5. `twin.failAnomalies()` shows the failure notice and `twin.reloadAnomalies()` clears it.
 
+### Run AI Demo (#211)
+
+**▶ Run AI Demo** (`RunDemoButton`, top left next to the view switch) is the one place to start. A press does three things:
+- turns **Follow agent** on;
+- opens the Operations lens in Live;
+- runs a `DemoRunner` (`core/demo/`), picked by `pickDemoRunner`.
+
+`useDemoDirector` (mounted in `TwinPage`) then moves the UI with the run's stages, one entry of the run at a time:
+
+| Stage | What the UI does |
+| --- | --- |
+| INVESTIGATE, ACT, VERIFY | The camera goes to the product or shelf (`useAgentFocus`). |
+| SIMULATE | Switches to Simulation once the simulation the entry names is open. If it is not open yet, the switch waits for it. |
+| ACT | Switches back to Live. |
+| VERIFY | Opens the Operations lens. |
+
+- The director never advances a stage by itself: entries without the run's `correlation_id` move nothing, and neither does time passing.
+- The button is disabled while a run starts or plays.
+- **Stop following** leaves the view and the camera to the user while the run plays on.
+- A failed reset or start, or a run that ends in ERROR, shows the reason with **Retry**. A toast says so too, and the store stays usable.
+- TODO(#206, #209): show the guard card at GUARD and the AI Impact card at VERIFY once those PRs are on main.
+
+**Runners.**
+- **`createApiDemoRunner`** (apps/api):
+  - calls `POST /flagship/reset`, then `POST /flagship/start` (#41);
+  - while the run plays, every `DEMO_RUN_POLL_MS` (1 s) reads `GET /flagship/status` and `GET /agent/events`, and appends this run's entries to `run.store` (`toActivityEntry`);
+  - the run ends when the status is COMPLETE, or fails with its `error` when it is ERROR.
+- **`createFixtureDemoRunner`** (`?twin=demo`): fixtures stand in for the controller.
+  - Reset puts the demo store, its anomalies, and its open simulation back.
+  - Start replays the demo agent run (`DEMO_AGENT_STEP_MS` per stage).
+  - At ACT the memory twin commits the simulation, so Live changes through its feed.
+  - At VERIFY the anomaly on the product the run acted on closes, and the run ends.
+  - Other dev twins have no runner, so no button.
+
+**TODO(BE), on #41** ([comment](https://github.com/vinhphan812/retailtwin-ai/issues/41#issuecomment-6207603527)). Until these land, the button on apps/api shows the controller's error:
+- the controller must record each stage in `GET /agent/events` under one `correlation_id`, with `simulation_id` from SIMULATE on;
+- `POST /flagship/start` must answer at once (202) instead of after the whole run;
+- `GET /flagship/status` must carry `correlation_id` and `error` while the run plays;
+- the `/flagship/*` routes must be mounted in the deployed API;
+- the run should be paced to about 60 s;
+- errors should use the shared `{"error": {"code", "message"}}` envelope.
+
+**To check by hand.** Run `npm run dev`, open `/?twin=demo`, and press **Run AI Demo**:
+1. The camera flies to P003.
+2. The view switches to Simulation at SIMULATE, then back to Live at ACT, with P003 restocked. At VERIFY the P003 stockout alert closes.
+3. The button reads *Run AI Demo again* after VERIFY.
+
+Press **Stop following** mid-run, and the view stays where it is.
+
 ### Twin sources
 
 `apiSource` (the Live Twin from `GET /store` on `VITE_API_BASE_URL`) is the default, and the only source of a production build unless it is built with `VITE_ALLOW_DEMO=true` (see *Hosted demo* below). In development, `?twin=` swaps in a local source:

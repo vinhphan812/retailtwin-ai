@@ -9,3 +9,6 @@ export const PROMOTION_FLASH_MS = 2400;
 
 /** Products the Store API card lists before "Show all"; out and low stock come first. */
 export const STORE_STATUS_ROWS = 5;
+
+/** How often the Run AI Demo button reads the flagship status and the agent feed while a run plays, in ms. */
+export const DEMO_RUN_POLL_MS = 1000;

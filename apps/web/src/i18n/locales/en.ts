@@ -210,6 +210,17 @@ export const en = {
     followAgent: "Follow agent",
     followAgentHint: "Fly the camera to what the agent works on, unless you are using it",
   },
+  demo: {
+    run: "Run AI Demo",
+    again: "Run AI Demo again",
+    starting: "Starting the AI demo…",
+    running: "AI demo running…",
+    hint: "Resets the store and lets the agent handle the seeded problem, step by step",
+    stopFollowing: "Stop following",
+    error: "The AI demo could not run: {{error}}",
+    retry: "Retry",
+    failed: "The AI demo could not run",
+  },
   alerts: {
     section: "Alerts & opportunities",
     list: "Open alerts and opportunities",

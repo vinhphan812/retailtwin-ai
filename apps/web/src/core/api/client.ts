@@ -1,5 +1,11 @@
 import i18n from "@/i18n";
-import type { HealthResponse, RetailTwinClient } from "@/types/api.type";
+import type {
+  AgentEventsResponse,
+  FlagshipStartResponse,
+  FlagshipStatusResponse,
+  HealthResponse,
+  RetailTwinClient,
+} from "@/types/api.type";
 import type { ProductInventory, StoreResponse } from "@/types/twin.type";
 import type { PromotionsSummary } from "@/types/promotion.type";
 import type { RevenueSummary } from "@/types/revenue.type";
@@ -56,6 +62,16 @@ export function createClient(baseUrl: string, fetchImpl?: typeof fetch): RetailT
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       }),
+    flagshipReset: () => request<unknown>("/flagship/reset", { method: "POST" }),
+    flagshipStart: () =>
+      request<FlagshipStartResponse>("/flagship/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      }),
+    flagshipStatus: () => request<FlagshipStatusResponse>("/flagship/status"),
+    agentEvents: (since) =>
+      request<AgentEventsResponse>(`/agent/events${since ? `?since=${encodeURIComponent(since)}` : ""}`),
   };
 }
 

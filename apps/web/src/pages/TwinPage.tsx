@@ -5,14 +5,16 @@ import {
 import { CameraHelp } from "@/components/layout/CameraHelp";
 import { AgentFocusCaption } from "@/components/twin/AgentFocusCaption";
 import { LensSwitcher } from "@/components/layout/LensSwitcher";
+import { RunDemoButton } from "@/components/layout/RunDemoButton";
 import { ViewModeSwitch } from "@/components/layout/ViewModeSwitch";
 import { EntityInspector } from "@/components/twin/EntityInspector";
 import { ProductDetailsDialog } from "@/components/twin/ProductDetailsDialog";
 import { SimulationBanner } from "@/components/twin/SimulationBanner";
 import { TwinIssuesNotice } from "@/components/twin/TwinIssuesNotice";
 import { TwinStatusOverlay } from "@/components/twin/TwinStatusOverlay";
-import { pickSimulationReviewer, pickSimulationSource, pickSource } from "@/core/twin/devSources";
+import { pickDemoRunner, pickSimulationReviewer, pickSimulationSource, pickSource } from "@/core/twin/devSources";
 import { useAgentFocus } from "@/hooks/agentFocus.hook";
+import { useDemoDirector } from "@/hooks/demoDirector.hook";
 import { useNetworkStatus } from "@/hooks/networkStatus.hook";
 import { useProductParam } from "@/hooks/productParam.hook";
 import { useSimulationSource } from "@/hooks/simulationSource.hook";
@@ -23,6 +25,8 @@ const source = pickSource();
 const simulationSource = pickSimulationSource();
 // After pickSource: under ?twin=memory|demo it reviews on the twin pickSource made.
 const reviewer = pickSimulationReviewer();
+// After pickSource too: under ?twin=demo the demo fixtures stand in for the flagship controller.
+const demoRunner = pickDemoRunner();
 
 export function TwinPage() {
   useTwinSource(source);
@@ -30,6 +34,7 @@ export function TwinPage() {
   useNetworkStatus();
   useProductParam();
   useAgentFocus();
+  useDemoDirector();
 
   return (
     <>
@@ -42,6 +47,7 @@ export function TwinPage() {
         <div className="lens-switcher">
           <LensSwitcher />
           <ViewModeSwitch />
+          <RunDemoButton runner={demoRunner} />
         </div>
         <div className="absolute bottom-4 left-4 z-10">
           <CameraHelp />
