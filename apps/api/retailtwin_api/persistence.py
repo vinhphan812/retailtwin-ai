@@ -29,6 +29,7 @@ from dataclasses import dataclass
 from typing import Any, Callable
 
 from retailtwin_api.decisions import DecisionSource, InMemoryDecisionSource
+from retailtwin_api.firestore_agent_activity import FirestoreAgentActivityLog
 from retailtwin_api.firestore_decisions import FirestoreDecisionSource
 from retailtwin_api.firestore_simulations import FirestoreSimulationRepository
 from retailtwin_api.settings import Settings
@@ -43,6 +44,7 @@ class DurableAdapters:
 
     decisions: DecisionSource
     simulations: SimulationReadRepository
+    activity: Any  # AgentActivityLog — typed as Any to avoid the import cycle
 
 
 class _UnavailableDecisionSourceAdapter:
@@ -129,18 +131,28 @@ def get_persistence(
             "persistence.firestore project=%s",
             settings.google_cloud_project or "retailtwin-ai-511002",
         )
+        from retailtwin_api.agent_activity import AgentActivityLog
+
+        # Use the activity instance the caller already built so the in-memory
+        # ``SimulationRepository`` mirror (if any) shares the same feed.
+        activity_log = activity if activity is not None else AgentActivityLog()
         return DurableAdapters(
             decisions=FirestoreDecisionSource(),
             simulations=FirestoreSimulationRepository(),
+            activity=FirestoreAgentActivityLog(),
         )
     if backend == "fixture":
         log.warning(
             "persistence.fixture_read_only store_id=%s",
             settings.store_id,
         )
+        from retailtwin_api.agent_activity import AgentActivityLog
+
+        activity_log = activity if activity is not None else AgentActivityLog()
         return DurableAdapters(
             decisions=_unavailable_decisions_source(),
             simulations=_unavailable_simulations_source(),
+            activity=activity_log,
         )
     if backend == "memory":
         log.info("persistence.memory store_id=%s", settings.store_id)
@@ -152,14 +164,16 @@ def get_persistence(
         from retailtwin_api.agent_activity import AgentActivityLog
         from retailtwin_api.simulation import SimulationRepository
 
+        activity_log = activity if activity is not None else AgentActivityLog()
         simulations = SimulationRepository(
             store_view_fn,
             settings.store_id,
-            activity=activity or AgentActivityLog(),
+            activity=activity_log,
         )
         return DurableAdapters(
             decisions=InMemoryDecisionSource(),
             simulations=simulations,
+            activity=activity_log,
         )
     raise ValueError(f"Unknown LIVE_TWIN_BACKEND {backend!r}")
 

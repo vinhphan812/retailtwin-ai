@@ -170,11 +170,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.events = EventLog()
     app.state.review_audit = ReviewAuditLog()
     app.state.live_context_version = store.view().context_version if store.loaded else ""
-    # ``app.state.simulations`` is selected by the factory above. The
-    # autonomy block below reuses the factory's bundle instead of
-    # constructing a fresh ``SimulationRepository`` so the durable adapter
-    # is used end-to-end.
+    # ``app.state.simulations`` and ``app.state.activity`` are selected by
+    # the factory above. The autonomy block below reuses the factory's
+    # bundle instead of constructing fresh adapters so the durable
+    # implementations are used end-to-end.
     app.state.simulations = adapters.simulations
+    app.state.activity = adapters.activity
     # Observer plumbing for POST /events (G03). The pipe and ledger are process memory.
     app.state.event_pipe = MemoryPipe()
     app.state.activation_ledger = MemoryActivationLedger()
