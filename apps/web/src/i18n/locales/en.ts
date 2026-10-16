@@ -210,6 +210,13 @@ export const en = {
     followAgent: "Follow agent",
     followAgentHint: "Fly the camera to what the agent works on, unless you are using it",
   },
+  aiChanges: {
+    title: "AI changes",
+    moved: "Moved",
+    facings: "Facings",
+    replenished: "Replenished",
+    row: "{{sku}}, {{kind}} {{detail}}. Show it in 3D",
+  },
   alerts: {
     section: "Alerts & opportunities",
     list: "Open alerts and opportunities",
@@ -277,7 +284,6 @@ export const en = {
     changes: {
       count_one: "{{count}} change",
       count_other: "{{count}} changes",
-      focus: "Show {{sku}} in 3D",
     },
     review: {
       label: "Review this proposal",

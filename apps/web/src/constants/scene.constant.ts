@@ -73,3 +73,16 @@ export const MOVE_ARC_HEIGHT = 0.18;
 export const MOVE_SLOT_HANDOFF = 0.7;
 /** Extra glow on the destination slot the moment the items land, fading with the marks. */
 export const MOVE_ARRIVAL_FLASH = 1.5;
+/** Opacity of the translucent box a moved product leaves at its source slot, under its outline. */
+export const MOVE_GHOST_FILL_OPACITY = 0.22;
+/** How far above a slot's surface a move's arrow starts and ends, in meters. */
+export const MOVE_ARROW_LIFT = 0.15;
+/** How far a move's arrow clears the higher of its two ends, in meters, plus `MOVE_ARROW_RISE` per meter travelled. */
+export const MOVE_ARROW_CLEARANCE = 0.35;
+export const MOVE_ARROW_RISE = 0.15;
+/** Radius of a move arrow's shaft, and the radius and length of its head, in meters. */
+export const MOVE_ARROW_RADIUS = 0.035;
+export const MOVE_ARROW_HEAD_RADIUS = 0.1;
+export const MOVE_ARROW_HEAD_LENGTH = 0.25;
+/** Opacity of a move's arrow at full strength. */
+export const MOVE_ARROW_OPACITY = 0.9;

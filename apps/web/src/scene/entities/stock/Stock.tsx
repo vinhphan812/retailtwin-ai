@@ -9,6 +9,7 @@ import {
   IcosahedronGeometry,
   LineBasicMaterial,
   Matrix4,
+  MeshBasicMaterial,
   MeshStandardMaterial,
   Quaternion,
   Vector3,
@@ -16,6 +17,7 @@ import {
   type Group,
   type InstancedMesh,
   type Material,
+  type QuadraticBezierCurve3,
 } from "three";
 import { selectedProductId, useUiStore } from "@/state/ui.store";
 import { worstSeverities } from "@/state/anomaly.store";
@@ -28,6 +30,7 @@ import {
   ANOMALY_HALO_OPACITY,
   ANOMALY_PULSE_DEPTH,
   ANOMALY_PULSE_HZ,
+  MOVE_GHOST_FILL_OPACITY,
   MOVE_GHOST_OPACITY,
   MOVE_SLOT_GLOW,
   MOVE_SLOT_OPACITY,
@@ -51,6 +54,7 @@ import {
   stockItemFor,
 } from "./catalog";
 import { slotCapacity } from "./capacity";
+import { MoveArrows, showArrows } from "./MoveArrows";
 import { fitItem, layItems, slotUnits, type Emit } from "./placement";
 import {
   ghostOutlines,
@@ -476,6 +480,16 @@ function moveGhostMaterial() {
   });
   return ghostMaterial;
 }
+let ghostFillMaterial: MeshBasicMaterial | null = null;
+function moveGhostFillMaterial() {
+  ghostFillMaterial ??= new MeshBasicMaterial({
+    color: changeColor(),
+    transparent: true,
+    opacity: MOVE_GHOST_FILL_OPACITY,
+    depthWrite: false,
+  });
+  return ghostFillMaterial;
+}
 const slotMaterials = new Map<SlotEnd, MeshStandardMaterial>();
 function moveSlotMaterial(end: SlotEnd) {
   let material = slotMaterials.get(end);
@@ -496,6 +510,8 @@ function moveSlotMaterial(end: SlotEnd) {
 /** Sets how strongly the outline and both slot lights show; the destination also takes the arrival flash. */
 function showMarks(levels: MarkLevels) {
   moveGhostMaterial().opacity = MOVE_GHOST_OPACITY * levels.ghost;
+  moveGhostFillMaterial().opacity = MOVE_GHOST_FILL_OPACITY * levels.ghost;
+  showArrows(levels.ghost);
   const from = moveSlotMaterial("from");
   from.opacity = MOVE_SLOT_OPACITY * levels.from;
   from.emissiveIntensity = MOVE_SLOT_GLOW * levels.from;
@@ -504,7 +520,10 @@ function showMarks(levels: MarkLevels) {
   to.emissiveIntensity = MOVE_SLOT_GLOW * (levels.to + levels.flash);
 }
 
-/** A thin outline where each moved product stood. Takes no pointer events and casts no shadow. */
+/**
+ * A translucent ghost where each moved product stood: a faint box around the items it had
+ * there, under a thin outline. Takes no pointer events and casts no shadow.
+ */
 function GhostOutlines({ matrices }: { matrices: Matrix4[] }) {
   const placements = useMemo(
     () =>
@@ -520,13 +539,16 @@ function GhostOutlines({ matrices }: { matrices: Matrix4[] }) {
   return (
     <>
       {placements.map((placement, index) => (
-        <lineSegments
-          key={index}
-          name="stock-ghost-outline"
-          args={[OUTLINE_GEOMETRY, moveGhostMaterial()]}
-          {...placement}
-          renderOrder={1}
-        />
+        <group key={index} {...placement}>
+          <lineSegments name="stock-ghost-outline" args={[OUTLINE_GEOMETRY, moveGhostMaterial()]} renderOrder={1} />
+          <mesh
+            name="stock-ghost-fill"
+            geometry={GEOMETRY[STOCK_SHAPE.Box]}
+            material={moveGhostFillMaterial()}
+            raycast={NO_POINTER}
+            renderOrder={1}
+          />
+        </group>
       ))}
     </>
   );
@@ -554,6 +576,9 @@ function SlotLights({ matrices, end }: { matrices: Matrix4[]; end: SlotEnd }) {
 }
 
 const NO_SLOTS: Matrix4[] = [];
+const NO_ARROWS: QuadraticBezierCurve3[] = [];
+/** Marks take no clicks: a click goes through to the item or fixture behind. */
+const NO_POINTER = () => null;
 const NO_ITEMS: Placed[] = [];
 
 const keysOf = (batches: Batches) => Object.keys(batches) as BatchKey[];
@@ -574,8 +599,9 @@ function pick(batches: Batches, keep: (productId: string) => boolean) {
  * A recent move (`useRecentChanges`) carries the product's items on an arc from its source
  * slot to its destination, outlines where it stood, and lights both slots: the light hands
  * over from source to destination as the items travel, flashes when they land, and fades
- * out (`markLevels`, `marksShown`). With reduced motion the items stand at the destination
- * from the start, and the outline and lights hold still for as long as the tween would take.
+ * out (`markLevels`, `marksShown`), with a translucent ghost where it stood and an arrow from
+ * there to its destination. With reduced motion the items stand at the destination from the
+ * start, and the ghost, arrow and lights hold still for as long as the change cue lasts.
  */
 export function Stock({ store, models = NO_MODELS }: { store: StoreFixture; models?: StockModels }) {
   const batches = useMemo(() => buildStock(store, models), [store, models]);
@@ -642,6 +668,7 @@ export function Stock({ store, models = NO_MODELS }: { store: StoreFixture; mode
         <GhostOutlines matrices={outlines} />
         <SlotLights matrices={move?.fromSlots ?? NO_SLOTS} end="from" />
         <SlotLights matrices={move?.toSlots ?? NO_SLOTS} end="to" />
+        <MoveArrows curves={move?.arrows ?? NO_ARROWS} />
       </group>
     </group>
   );

@@ -692,6 +692,80 @@ tr[data-open="true"] .receipt-caret {
   border-radius: 999px;
 }
 
+/* AI CHANGES: what the proposal (or an executed change) does, grouped by kind. */
+.ai-changes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.ai-changes-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-simulation);
+}
+
+.ai-changes-count {
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--color-ink-muted);
+}
+
+.ai-changes-group {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.ai-changes-kind {
+  flex: none;
+  width: 76px;
+  font-size: 11px;
+  color: var(--color-ink-muted);
+}
+
+.ai-changes-group ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ai-changes-group button {
+  display: inline-flex;
+  gap: 6px;
+  padding: 1px 8px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-simulation) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-simulation) 35%, transparent);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.ai-changes-group button:hover {
+  background: color-mix(in srgb, var(--color-simulation) 28%, transparent);
+}
+
+.ai-changes-sku {
+  font-weight: 650;
+}
+
+.ai-changes-detail {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink-soft);
+}
+
 .simulation-banner-title {
   display: inline-flex;
   align-items: center;
