@@ -1,23 +1,49 @@
 import { execSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
 import { defineConfig } from "vitest/config";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 
-/** Short SHA of the commit being built: CI's `GITHUB_SHA`, else the checkout's HEAD, else none. */
-function gitSha(): string {
-  if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA.slice(0, 7);
+// ADR 0025: the canonical SemVer lives in /VERSION at the repo root. The Web
+// build reads it once at config time so the bundle embeds the same SemVer
+// the API process reports. CI exports GIT_SHA before invoking Vite; the
+// short SHA falls back to `git rev-parse --short HEAD` for local builds.
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
+
+function readCanonicalVersion(): string {
+  const raw = readFileSync(resolve(REPO_ROOT, "VERSION"), "utf8").trim();
+  if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(raw)) {
+    throw new Error(
+      `VERSION file at repo root must contain strict SemVer (got ${JSON.stringify(raw)}).`,
+    );
+  }
+  return raw;
+}
+
+function resolveGitSha(): string {
+  const envSha = process.env.GIT_SHA?.trim();
+  if (envSha) return envSha;
   try {
-    return execSync("git rev-parse --short=7 HEAD", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+    return execSync("git rev-parse --short HEAD", {
+      cwd: REPO_ROOT,
+      stdio: ["ignore", "pipe", "ignore"],
+    })
+      .toString()
+      .trim() || "unknown";
   } catch {
-    return "";
+    return "unknown";
   }
 }
 
 export default defineConfig({
+  define: {
+    // Build-time constants exposed via import.meta.env (ADR 0025).
+    "import.meta.env.VITE_APP_VERSION": JSON.stringify(readCanonicalVersion()),
+    "import.meta.env.VITE_GIT_SHA": JSON.stringify(resolveGitSha()),
+  },
   plugins: [react(), tailwindcss()],
-  // The footer's build label (`core/app/buildInfo.ts`). `VITE_APP_VERSION` comes from the environment.
-  define: { "import.meta.env.VITE_GIT_SHA": JSON.stringify(gitSha()) },
   resolve: {
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
   },

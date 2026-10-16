@@ -25,7 +25,7 @@ Set `VITE_API_BASE_URL` to the API origin. The default is `http://127.0.0.1:8000
 `/`, `/demo` and `/live` are `TwinPage` (see *Hosted demo* for which twin each opens). Any other path shows `NotFoundPage`.
 
 - **Header** (`TwinHeader`): **RetailTwin AI · Autonomous Store Intelligence**, the store id the Live Twin reports ("—" before it loads), and **LIVE** or **SIMULATION** for the 3D view. A chip says where the data comes from: **Demo data** (amber, dashed) for the synthetic demo store, **Live data** for the Live Twin of apps/api; a dev twin gets neither. Where the demo is allowed, a link opens the other twin (`/live` or `/demo`, a full page load).
-- **Footer** (`TwinFooter`): `Gemini on Vertex AI · Cloud Run · Firestore · BigQuery`, the Live Twin's `context_version` as served (it moves after each execution), and the build (`buildLabel`: `VITE_APP_VERSION` plus the short Git SHA `vite.config.ts` injects as `VITE_GIT_SHA`; the SHA alone without a version. TODO(#165): `VITE_APP_VERSION` from the canonical /VERSION, so the API and the web report one string).
+- **Footer** (`TwinFooter`): `Gemini on Vertex AI · Cloud Run · Firestore · BigQuery`, and the Live Twin's `context_version` as served (it moves after each execution). The build shows once, in `BuildBadge` (#165, ADR 0025: /VERSION plus the short SHA), not in the footer.
 - The header and footer are rows of `.app`; the 3D view and the side panel sit between them in `.twin-body`, so neither bar covers an overlay.
 
 - **3D view** (`StoreScene`): the store room, its fixtures, and the stock that twin state puts on them.

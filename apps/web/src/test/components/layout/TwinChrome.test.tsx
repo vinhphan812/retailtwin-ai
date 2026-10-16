@@ -92,7 +92,8 @@ describe("TwinFooter", () => {
     // An execution moves Live on: the footer shows the new version.
     act(() => useTwinStore.setState({ live: { ...live, context_version: "store-001:v2" } }));
     expect(screen.getByTestId("footer-context").textContent).toBe("Context store-001:v2");
-    expect(screen.getByTestId("footer-build").textContent).toMatch(/^Build \S+/);
+    // The build is shown once, by BuildBadge (#165), not in the footer.
+    expect(screen.queryByTestId("footer-build")).toBeNull();
   });
 
   it("shows — before the Live Twin has loaded", () => {

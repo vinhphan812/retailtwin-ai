@@ -15,8 +15,6 @@ export const en = {
   footer: {
     context: "Context {{version}}",
     contextHint: "The Live Twin's context_version, as served. It moves after each execution.",
-    build: "Build {{build}}",
-    devBuild: "dev",
   },
   cameraHelp: {
     label: "Camera controls help",
