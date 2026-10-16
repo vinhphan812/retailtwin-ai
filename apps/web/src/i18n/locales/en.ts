@@ -112,6 +112,8 @@ export const en = {
     noData: "Checkout figures are not available yet.",
     demo: "Demo data",
     demoHint: "Made up for ?twin=demo; apps/api does not serve checkouts yet.",
+    loadFailed: "Could not load the checkout details.",
+    transactionsLoadFailed: "Could not load the transactions.",
     status: {
       open: "Open",
       paused: "Paused",
@@ -216,6 +218,7 @@ export const en = {
     empty: "No open alerts or opportunities.",
     readFailed: "Could not read the alerts. {{error}}",
     readFailedKept: "Could not read the alerts; showing the last list received, which may be out of date. {{error}}",
+    loadFailed: "Could not load the anomalies.",
     category: {
       alert: "Alert",
       opportunity: "Opportunity",
@@ -406,6 +409,9 @@ export const en = {
   },
   commerce: {
     loadFailed: "Could not load the sales figures.",
+  },
+  anomalies: {
+    loadFailed: "Could not load the anomalies.",
   },
   storeStatus: {
     title: "Store API",

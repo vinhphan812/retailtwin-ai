@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { renderHook } from "@testing-library/react";
 import { parseStoreState } from "@/core/api/validate";
 import { isDemoMode } from "@/core/twin/demoMode";
 import { ANOMALY_SEVERITIES, ANOMALY_TYPE } from "@/enums/anomaly.enum";
@@ -23,12 +24,29 @@ describe("demo mode", () => {
   });
 
   it("feeds the checkout hooks, which stay empty otherwise", () => {
-    expect(useCheckoutSummary("CK01")).toBeNull();
-    expect(useCheckoutTransactions("CK01", true)).toEqual([]);
+    // In production mode (no ?twin=demo), hooks return null/empty
+    const { result: summaryResult } = renderHook(() => useCheckoutSummary("CK01"));
+    expect(summaryResult.current).toBeNull();
+    
+    const { result: transactionsResult } = renderHook(({ enabled }) => useCheckoutTransactions("CK01", enabled), {
+      initialProps: { enabled: true }
+    });
+    expect(transactionsResult.current).toEqual([]);
+
+    // In demo mode
     window.history.replaceState(null, "", "/?twin=demo");
-    expect(useCheckoutSummary("CK01")).toEqual(demoCheckout("CK01"));
-    expect(useCheckoutTransactions("CK01", true)).toHaveLength(demoCheckout("CK01")!.transactions_today);
-    expect(useCheckoutTransactions("CK01", false)).toEqual([]);
+    const { result: demoSummaryResult } = renderHook(() => useCheckoutSummary("CK01"));
+    expect(demoSummaryResult.current).toEqual(demoCheckout("CK01"));
+
+    const { result: demoTransactionsResult } = renderHook(({ enabled }) => useCheckoutTransactions("CK01", enabled), {
+      initialProps: { enabled: true }
+    });
+    expect(demoTransactionsResult.current).toHaveLength(demoCheckout("CK01")!.transactions_today);
+
+    const { result: disabledTransactionsResult } = renderHook(({ enabled }) => useCheckoutTransactions("CK01", enabled), {
+      initialProps: { enabled: false }
+    });
+    expect(disabledTransactionsResult.current).toEqual([]);
   });
 });
 

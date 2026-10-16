@@ -4,6 +4,8 @@ import type { RevenueSummary } from "./revenue.type";
 import type { ReviewDecision } from "@/enums/simulation.enum";
 import type { CandidatesResponse, ReviewRequest, ReviewResult, Simulation, SimulationsResponse } from "./simulation.type";
 import type { ProductInventory, StoreResponse } from "./twin.type";
+import type { AnomaliesResponse } from "./anomaly.type";
+import type { CheckoutResponse } from "./checkout.type";
 
 export type HealthResponse = {
   status: "ok" | "degraded";
@@ -32,4 +34,8 @@ export type RetailTwinClient = {
    * it asks, and the guard and the Executor decide. TODO(BE): not served by apps/api yet.
    */
   reviewSimulation: (simulationId: string, decision: ReviewDecision, request: ReviewRequest) => Promise<ReviewResult>;
+  /** `GET /anomalies`. Returns open anomalies for the store. */
+  anomalies: () => Promise<AnomaliesResponse>;
+  /** `GET /checkouts/{checkout_id}`. Returns checkout summary and transactions. */
+  checkout: (checkoutId: string) => Promise<CheckoutResponse>;
 };
