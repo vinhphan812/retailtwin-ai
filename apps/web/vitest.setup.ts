@@ -1,6 +1,5 @@
 // Set up vitest-canvas-mock for Canvas API mocking
-import { setupVitestCanvasMock } from "vitest-canvas-mock";
-setupVitestCanvasMock();
+import "vitest-canvas-mock";
 
 import "./src/i18n";
 
