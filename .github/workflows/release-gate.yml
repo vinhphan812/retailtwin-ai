@@ -585,16 +585,30 @@ jobs:
       - name: Verify Firestore directly
         # Fail closed: this step is no longer warning-only. A successful
         # direct Firestore read is part of the production contract.
+        # Uses the Firestore REST API with the WIF access token obtained via
+        # 'gcloud auth print-access-token'; the gcloud Firestore command
+        # surface does not expose 'documents describe'.
         id: firestore_direct
         run: |
           set -e
           echo "::group::Direct Firestore verification"
           DOC_PATH="projects/${{ env.GCP_PROJECT }}/databases/(default)/documents/stores/${{ env.STORE_ID }}"
-          gcloud firestore documents describe "${DOC_PATH}" --format="value(store_id)" 2>/dev/null || {
-            echo "::error::Could not verify Firestore directly — service may be using memory backend"
+          ACCESS_TOKEN=$(gcloud auth print-access-token)
+          HTTP_CODE=$(curl -sS -o /tmp/firestore_doc.json \
+            -w "%{http_code}" \
+            -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+            -H "Content-Type: application/json" \
+            "https://firestore.googleapis.com/v1/${DOC_PATH}")
+          if [ "${HTTP_CODE}" != "200" ]; then
+            echo "::error::Firestore REST read of ${DOC_PATH} returned HTTP ${HTTP_CODE}; cannot verify live store"
             exit 1
-          }
-          echo "✓ Direct Firestore read succeeded for store/${{ env.STORE_ID }}"
+          fi
+          STORE_ID=$(jq -r '.fields.store_id.stringValue // empty' /tmp/firestore_doc.json)
+          if [ -z "${STORE_ID}" ]; then
+            echo "::error::Firestore document ${DOC_PATH} is missing required field store_id"
+            exit 1
+          fi
+          echo "✓ Direct Firestore read succeeded for store/${STORE_ID}"
           echo "::endgroup::"
       - name: Publish result to summary
         run: |
