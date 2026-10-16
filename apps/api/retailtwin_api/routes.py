@@ -1,13 +1,19 @@
 """Day-0 routes. Live Twin mutation stays behind the guard and the executor."""
 
+import base64
 import logging
+from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
-from typing import Literal, cast
+from typing import Any, Literal, cast
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, Response
 
 from retailtwin_api.agents.executor import CommitService
-from retailtwin_api.agents.observer.consumer import ObservationError, consume_available
+from retailtwin_api.agents.observer.consumer import (
+    ObservationError,
+    consume_available,
+    observe_message,
+)
 from retailtwin_api.backbone import SALE_COMPLETED
 from retailtwin_api.analytics_repository import (
     AnalyticsError,
@@ -17,10 +23,13 @@ from retailtwin_api.analytics_repository import (
     CheckoutRepository,
     CheckoutNotFound,
 )
+from retailtwin_api.backbone import PulledMessage
 from retailtwin_api.contracts import DCGVerdict
 from retailtwin_api.decisions import DecisionSource
 from retailtwin_api.errors import ApiError
 from retailtwin_api.events import EventConflict, EventLog, ReviewAuditLog
+from retailtwin_api.guard.decision_context_guard import GuardAuditEvent, GuardAuditSink
+from retailtwin_api.guard.decision_context_guard.authorization import SignedAuthorization
 from retailtwin_api.schemas import (
     AnomaliesResponse,
     AnomalySeverity,
@@ -35,15 +44,19 @@ from retailtwin_api.schemas import (
     CheckoutResponse,
     StoreEvent,
     StoreResponse,
+    VersionResponse,
 )
 from retailtwin_api.simulation_repository import SimulationReadRepository
 from retailtwin_api.simulation_schemas import (
     AgentEventListResponse,
     CandidateListResponse,
+    CommitAuthorizationReceipt,
     CursorParameters,
     DecisionReviewReasonCode,
     DecisionReviewVerdict,
+    GuardGateResult,
     PageParameters,
+    SimulationCandidateResponse,
     SimulationDetail,
     SimulationFilters,
     SimulationListResponse,
@@ -52,6 +65,7 @@ from retailtwin_api.simulation_schemas import (
     SimulationStatus,
 )
 from retailtwin_api.store import StoreReader
+from retailtwin_api.version import __version__, build_time, full_version, git_sha
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -85,6 +99,13 @@ def get_checkouts(request: Request) -> CheckoutRepository:
     return request.app.state.checkouts
 
 
+def get_guard_audit(request: Request) -> GuardAuditSink:
+    return request.app.state.guard_audit
+
+
+def get_decisions(request: Request) -> DecisionSource:
+    return request.app.state.decisions
+
 
 def require_simulations(repository: SimulationReadRepository) -> None:
     if not repository.available:
@@ -114,6 +135,10 @@ def health(
     - status="degraded" only when store is not loaded OR when an analytics call
                        actually raises (e.g. GCP unreachable).  Empty responses
                        (a store with no anomalies today) are NOT degraded.
+
+    The response also reports the canonical SemVer (``version``) and the build
+    commit (``git_sha``) so dashboards and uptime checks can pin the deployed
+    artifact (ADR 0025).
     """
     if not store.loaded:
         return HealthResponse(
@@ -123,6 +148,8 @@ def health(
             app_env=request.app.state.settings.app_env,
             store_id=store.store_id,
             fixture_loaded=False,
+            version=__version__,
+            git_sha=git_sha,
         )
     try:
         anomalies.list_anomalies(store_id=store.store_id, limit=1)
@@ -136,6 +163,8 @@ def health(
             app_env=request.app.state.settings.app_env,
             store_id=store.store_id,
             fixture_loaded=True,
+            version=__version__,
+            git_sha=git_sha,
         )
     return HealthResponse(
         status="ok",
@@ -144,6 +173,27 @@ def health(
         app_env=request.app.state.settings.app_env,
         store_id=store.store_id,
         fixture_loaded=True,
+        version=__version__,
+        git_sha=git_sha,
+    )
+
+
+@router.get("/version", response_model=VersionResponse, include_in_schema=True)
+def version() -> VersionResponse:
+    """Build identity for the running process (ADR 0025).
+
+    Reports the canonical SemVer (``version``), the commit the artifact was
+    built from (``git_sha``), the time the module was first imported
+    (``build_time``), and the SemVer plus build metadata combined
+    (``full_version``). Used by ops dashboards, the Web footer, and CI to
+    verify a release tag matches the deployed artifact.
+    """
+    return VersionResponse(
+        version=__version__,
+        git_sha=git_sha,
+        build_time=build_time,
+        service="retailtwin-api",
+        full_version=full_version(),
     )
 
 
@@ -228,20 +278,57 @@ def accept_event(
 
 
 def _observe(request: Request, event: StoreEvent, background: BackgroundTasks) -> str | None:
-    """Hand a new sale to the Observer. The investigation itself runs after the response."""
-    autonomy = request.app.state.autonomy
-    if autonomy is None or event.event_type != SALE_COMPLETED:
+    """Hand a new sale to the Observer.
+
+    Publishes onto the configured ``event_pipe`` (a memory pipe in dev /
+    test, a Pub/Sub pipe in production) and pulls once so the response
+    can carry the canonical ``investigation_id``. Publish failures
+    surface as 503; observation failures are logged and the call still
+    returns the receipt without an ``investigation_id`` so the G03
+    harness can assert on the failure path.
+
+    The G03 /events path runs only when ``app.state.autonomy`` (the
+    legacy drain queue) is wired. The Pub/Sub autonomous trigger
+    (ADR 0023) is a separate flag and never starts from the synchronous
+    /events handler.
+    """
+    pipe = getattr(request.app.state, "event_pipe", None)
+    if pipe is None:
         return None
-    pipe = request.app.state.event_pipe
-    pipe.publish(event)
+    autonomy = getattr(request.app.state, "autonomy", None)
+    ledger = getattr(request.app.state, "activation_ledger", None)
+    quarantine = getattr(request.app.state, "quarantine", None)
+    if event.event_type != SALE_COMPLETED:
+        return None
+    if autonomy is None:
+        return None
     try:
-        outcomes = consume_available(pipe, request.app.state.activation_ledger, autonomy, request.app.state.quarantine)
+        pipe.publish(event)
+    except Exception as exc:  # noqa: BLE001 — surface any publish failure
+        logger.exception(
+            "event.publish_failed event_id=%s correlation_id=%s",
+            event.event_id,
+            event.correlation_id,
+        )
+        raise ApiError(
+            503,
+            "event_publish_failed",
+            f"Event was accepted but the autonomous pipe could not publish it: {exc}",
+        ) from exc
+    if ledger is None or quarantine is None:
+        return None
+    try:
+        outcomes = consume_available(pipe, ledger, autonomy, quarantine)
     except ObservationError:
-        logger.error("observer.handoff_failed", extra={"event_id": event.event_id, "correlation_id": event.correlation_id})
+        logger.error(
+            "observer.handoff_failed",
+            extra={"event_id": event.event_id, "correlation_id": event.correlation_id},
+        )
         return None
     background.add_task(autonomy.drain)
     started = [o for o in outcomes if o.outcome == "started" and o.event_id == event.event_id]
     return started[0].investigation_id if started else None
+
 
 
 def _log_event(event: StoreEvent, duplicate: bool, correlation_id: str) -> None:
@@ -256,6 +343,226 @@ def _log_event(event: StoreEvent, duplicate: bool, correlation_id: str) -> None:
             "duplicate": duplicate,
         },
     )
+
+
+# ─── Pub/Sub push endpoint (ADR 0023) ─────────────────────────────────────────
+
+_PUBSUB_PUSH_ISSUER = "https://accounts.google.com"
+
+
+def _verify_pubsub_push_bearer(
+    *,
+    authorization: str | None,
+    settings: Any,
+) -> None:
+    """Verify the OIDC bearer token Google Pub/Sub attaches to push requests.
+
+    Pub/Sub push to a Cloud Run HTTPS endpoint carries an
+    ``Authorization: Bearer <jwt>`` header whose payload is signed by
+    Google's OAuth 2.0 service. We must (ADR 0023, Pub/Sub push security
+    contract):
+
+    1. require the header (production only);
+    2. verify the JWT signature against Google's public keys via
+       :func:`google.oauth2.id_token.verify_oauth2_token`;
+    3. check the ``iss`` claim equals ``https://accounts.google.com``;
+    4. check the ``aud`` claim matches the Cloud Run service URL the
+       operator configured via ``settings.app_base_url``;
+    5. **in production, bind the token to the expected Pub/Sub push
+       service-account identity**: the verified ``email`` claim must
+       equal ``settings.pubsub_push_service_account`` and
+       ``email_verified`` must be ``True``. Pub/Sub's push
+       authenticator is the canonical
+       ``service-<PROJECT_NUMBER>@gcp-sa-pubsub.iam.gserviceaccount.com``
+       account; any other Google-issued ID token for the same audience
+       must NOT be able to invoke the autonomous agent endpoint.
+
+    In any non-production environment the helper is a no-op so local
+    developers and the test suite can exercise the route without
+    provisioning a real Pub/Sub subscription.
+
+    Raises:
+        ApiError: 401 with a stable error code when the token is missing,
+            malformed, signed by an untrusted issuer, scoped to a
+            different audience, or not bound to the configured push
+            service-account identity. 503 when production is missing the
+            required configuration (APP_BASE_URL or
+            PUBSUB_PUSH_SERVICE_ACCOUNT).
+    """
+    if not getattr(settings, "is_production", False):
+        return
+    if not authorization:
+        logger.warning("pubsub.push.auth.missing_header")
+        raise ApiError(
+            401,
+            "pubsub_auth_missing",
+            "Pub/Sub push requests must carry an Authorization bearer token in production.",
+        )
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        logger.warning("pubsub.push.auth.bad_scheme scheme=%s", scheme)
+        raise ApiError(
+            401,
+            "pubsub_auth_malformed",
+            "Pub/Sub push Authorization header must be 'Bearer <token>'.",
+        )
+    expected_audience = getattr(settings, "app_base_url", "") or ""
+    if not expected_audience:
+        logger.error(
+            "pubsub.push.auth.no_audience_configured app_env=%s",
+            getattr(settings, "app_env", "unknown"),
+        )
+        raise ApiError(
+            503,
+            "pubsub_auth_misconfigured",
+            "APP_BASE_URL must be configured to verify Pub/Sub push tokens in production.",
+        )
+    expected_service_account = (
+        getattr(settings, "pubsub_push_service_account", "") or ""
+    )
+    if not expected_service_account:
+        logger.error(
+            "pubsub.push.auth.no_service_account_configured app_env=%s",
+            getattr(settings, "app_env", "unknown"),
+        )
+        raise ApiError(
+            503,
+            "pubsub_auth_misconfigured",
+            "PUBSUB_PUSH_SERVICE_ACCOUNT must be configured to verify Pub/Sub push tokens in production.",
+        )
+    # Imported lazily so unit tests that don't exercise OIDC don't pay the
+    # import cost and so the production code path can fail clearly when
+    # google-auth is missing.
+    from google.auth.transport import requests as grequests
+    from google.oauth2 import id_token as g_id_token
+
+    request = grequests.Request()
+    try:
+        claims = g_id_token.verify_oauth2_token(token, request, audience=expected_audience)
+    except Exception as exc:  # noqa: BLE001 — google.auth raises many subclasses
+        logger.warning("pubsub.push.auth.verify_failed error=%s", type(exc).__name__)
+        raise ApiError(
+            401,
+            "pubsub_auth_invalid",
+            f"Pub/Sub push bearer token failed verification: {exc}",
+        ) from exc
+    issuer = claims.get("iss")
+    if issuer != _PUBSUB_PUSH_ISSUER:
+        logger.warning("pubsub.push.auth.bad_issuer issuer=%s", issuer)
+        raise ApiError(
+            401,
+            "pubsub_auth_invalid_issuer",
+            f"Pub/Sub push token issuer must be {_PUBSUB_PUSH_ISSUER!r}; got {issuer!r}.",
+        )
+    # Identity binding (P0-2). Reject a Google-signed token for the right
+    # audience that was issued for a different service-account identity
+    # (or whose ``email_verified`` claim is not ``True``).
+    email_verified = claims.get("email_verified")
+    email = claims.get("email")
+    if email_verified is not True or email != expected_service_account:
+        logger.warning(
+            "pubsub.push.auth.invalid_identity email=%s email_verified=%s expected=%s",
+            email,
+            email_verified,
+            expected_service_account,
+        )
+        raise ApiError(
+            401,
+            "pubsub_auth_invalid_identity",
+            "Pub/Sub push token is not bound to the configured push service account.",
+        )
+
+
+def _decode_pubsub_push_envelope(envelope: Mapping[str, object]) -> tuple[str, Mapping[str, str], str]:
+    """Decode a Pub/Sub push envelope into (body, attributes, ack_id).
+
+    OIDC bearer token verification lives in
+    :func:`_verify_pubsub_push_bearer`; this helper only unwraps the
+    envelope payload and runs after the caller has passed auth.
+    """
+
+    if "message" not in envelope:
+        raise ApiError(400, "invalid_envelope", "Pub/Sub push envelope is missing 'message'.")
+    raw_message = envelope["message"]
+    if not isinstance(raw_message, Mapping):
+        raise ApiError(400, "invalid_envelope", "Pub/Sub push envelope 'message' must be an object.")
+    raw_data = raw_message.get("data")
+    if not isinstance(raw_data, str) or not raw_data:
+        raise ApiError(400, "invalid_envelope", "Pub/Sub push message is missing 'data'.")
+    try:
+        body = base64.b64decode(raw_data).decode("utf-8")
+    except (ValueError, UnicodeDecodeError) as exc:
+        raise ApiError(400, "invalid_envelope", "Pub/Sub message data is not valid base64 UTF-8.") from exc
+    raw_attributes = raw_message.get("attributes") or {}
+    if not isinstance(raw_attributes, Mapping):
+        raise ApiError(400, "invalid_envelope", "Pub/Sub message 'attributes' must be an object.")
+    attributes = {str(key): str(value) for key, value in raw_attributes.items()}
+    ack_id = str(raw_message.get("messageId") or envelope.get("subscription") or "")
+    return body, attributes, ack_id
+
+
+@router.post(
+    "/pubsub/agent-events",
+    include_in_schema=False,
+)
+def receive_pubsub_agent_event(
+    request: Request,
+    envelope: dict[str, object],
+) -> dict[str, object]:
+    """Receive a Pub/Sub push from the ``store-events-agent`` subscription.
+
+    The Cloud Run service is the push target. Pub/Sub retries on any
+    non-2xx response; a successful ``observe_message`` returns 200, a
+    rejected message returns 200 after the quarantine records it (the
+    quarantine is the right place for malformed payloads), and a handoff
+    failure returns 500 so Pub/Sub re-delivers.
+
+    OIDC bearer token verification runs first in production: any
+    missing / invalid / wrong-audience token short-circuits with a 401
+    so the Cloud Run service cannot be used as an open relay.
+    """
+
+    cid = _correlation_id(request)
+    settings = getattr(request.app.state, "settings", None)
+    authorization = request.headers.get("authorization")
+    _verify_pubsub_push_bearer(authorization=authorization, settings=settings)
+    body, attributes, ack_id = _decode_pubsub_push_envelope(envelope)
+    message = PulledMessage(
+        ack_id=ack_id,
+        body=body,
+        attributes=dict(attributes),
+        publish_time="",
+    )
+    pipe = getattr(request.app.state, "event_pipe", None)
+    ledger = getattr(request.app.state, "activation_ledger", None)
+    starter = getattr(request.app.state, "observer_starter", None)
+    quarantine = getattr(request.app.state, "observer_quarantine", None)
+    if pipe is None or ledger is None or starter is None or quarantine is None:
+        raise ApiError(
+            503,
+            "observer_unavailable",
+            "The autonomous observer is not wired on this app instance.",
+        )
+    try:
+        outcome = observe_message(pipe, ledger, starter, quarantine, message)
+    except ObservationError as exc:
+        logger.warning(
+            "pubsub.observation_failed event_id=%s correlation_id=%s ack_id=%s",
+            exc.event_id,
+            cid,
+            ack_id,
+        )
+        raise ApiError(
+            500,
+            "observation_failed",
+            f"Observation handoff failed for event {exc.event_id!r}; Pub/Sub will retry.",
+        ) from exc
+    return {
+        "outcome": outcome.outcome,
+        "event_id": outcome.event_id,
+        "correlation_id": outcome.correlation_id,
+        "investigation_id": outcome.investigation_id,
+    }
 
 
 # ─── Analytics ─────────────────────────────────────────────────────────────────
@@ -415,26 +722,48 @@ def list_simulations(
 
 
 @router.get("/simulations/{simulation_id}", response_model=SimulationDetail)
-def read_simulation(simulation_id: str, repository: SimulationReadRepository = Depends(get_simulations)) -> SimulationDetail:
+def read_simulation(
+    request: Request,
+    simulation_id: str,
+    repository: SimulationReadRepository = Depends(get_simulations),
+    decisions: DecisionSource = Depends(get_decisions),
+    audit: GuardAuditSink = Depends(get_guard_audit),
+) -> SimulationDetail:
     require_simulations(repository)
     item = repository.get_simulation(simulation_id)
     if item is None:
         raise ApiError(404, "simulation_not_found", f"Simulation {simulation_id!r} was not found.")
-    return item
+    return _with_guard_summary(item, decisions, audit)
 
 
 @router.get("/simulations/{simulation_id}/candidates", response_model=CandidateListResponse)
 def list_candidates(
+    request: Request,
     simulation_id: str,
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     repository: SimulationReadRepository = Depends(get_simulations),
+    decisions: DecisionSource = Depends(get_decisions),
+    audit: GuardAuditSink = Depends(get_guard_audit),
 ) -> CandidateListResponse:
     require_simulations(repository)
     result = repository.list_candidates(simulation_id, PageParameters(page=page, page_size=page_size))
     if result is None:
         raise ApiError(404, "simulation_not_found", f"Simulation {simulation_id!r} was not found.")
-    return result
+    summary = _guard_fields_for_simulation(simulation_id, decisions, audit)
+    if summary is None:
+        return result
+    evaluated_candidate_id, fields = summary
+    return result.model_copy(
+        update={
+            "candidates": [
+                candidate.model_copy(update=fields)
+                if candidate.candidate_id == evaluated_candidate_id
+                else _not_evaluated_candidate(candidate)
+                for candidate in result.candidates
+            ]
+        }
+    )
 
 
 @router.get("/agent/events", response_model=AgentEventListResponse)
@@ -453,16 +782,139 @@ def list_agent_events(
 
 # ─── Simulation review ──────────────────────────────────────────────────────────
 
+
+def _guard_gates_from_checks(checks: list[dict[str, object]]) -> list[GuardGateResult]:
+    """Translate the raw ``policy_result["checks"]`` rows into ``GuardGateResult``."""
+    rows: list[GuardGateResult] = []
+    for check in checks:
+        if not isinstance(check, dict):
+            continue
+        gate_id = str(check.get("gate") or "")
+        if not gate_id:
+            continue
+        passed = check.get("passed", False)
+        if passed is True:
+            status: Literal["passed", "failed", "not_run"] = "passed"
+        elif passed is False:
+            status = "failed"
+        else:
+            status = "not_run"
+        rows.append(
+            GuardGateResult(
+                gate_id=gate_id,
+                status=status,
+                message=str(check.get("detail") or ""),
+            )
+        )
+    return rows
+
+
+def _authorization_from_token(token: SignedAuthorization | None) -> CommitAuthorizationReceipt:
+    """Map a ``SignedAuthorization`` to the receipt the DCG card renders."""
+    if token is None:
+        return CommitAuthorizationReceipt(status="none")
+    now = datetime.now(timezone.utc)
+    status: Literal["none", "requested", "redeemed", "expired"] = "redeemed"
+    if token.expiry < now:
+        status = "expired"
+    return CommitAuthorizationReceipt(
+        status=status,
+        issued_at=token.issued_at,
+        expires_at=token.expiry,
+        action_count=len(token.action_hashes),
+        action_hashes=list(token.action_hashes),
+        binding_id=token.context_hash,
+    )
+
+
+# Reason reported by candidates the guard did not evaluate. The guard runs
+# exactly once per simulation, against the chosen decision; every other
+# candidate is an alternative the guard never saw.
+NOT_EVALUATED_REASON = "not_evaluated"
+
+
+def _guard_fields_for_simulation(
+    simulation_id: str,
+    decisions: DecisionSource,
+    audit: GuardAuditSink,
+) -> tuple[str, dict[str, object]] | None:
+    """Evaluated candidate id and latest guard summary fields, or None if no decision ran yet.
+
+    The returned ``candidate_id`` matches the guard's ``decision.decision_id``;
+    the candidates route uses it to bind the verdict to the one candidate the
+    guard actually evaluated, leaving every other candidate at
+    :data:`NOT_EVALUATED_REASON` defaults.
+    """
+    decision = decisions.get_for_simulation(simulation_id) if decisions.available else None
+    if decision is None:
+        return None
+    events: list[GuardAuditEvent] = audit.events(decision.decision_id) if hasattr(audit, "events") else []
+    if not events:
+        return None
+    latest = events[-1]
+    checks = list(getattr(latest, "gate_checks", []) or [])
+    now = datetime.now(timezone.utc)
+    freshness_seconds = max(0, int((now - decision.context_timestamp).total_seconds()))
+    # The binding id is the context hash the guard allowed. The token was
+    # consumed at commit time, so the rest of the receipt stays at defaults
+    # here; the approve response carries the full receipt.
+    binding_id = latest.context_hash if latest.context_hash else None
+    fields: dict[str, object] = {
+        "guard_verdict": latest.verdict,
+        "guard_reason": latest.reason_code,
+        "guard_gates": _guard_gates_from_checks(checks),
+        "decision_context_version": decision.context_version,
+        "decision_context_timestamp": decision.context_timestamp,
+        "freshness_seconds": freshness_seconds,
+    }
+    if binding_id is not None:
+        fields["authorization"] = CommitAuthorizationReceipt(
+            status="none",
+            binding_id=binding_id,
+        )
+    return decision.decision_id, fields
+
+
+def _not_evaluated_candidate(candidate: SimulationCandidateResponse) -> SimulationCandidateResponse:
+    """Reset the DCG fields on a candidate the guard never saw.
+
+    The verdict is bound only to the candidate the guard actually evaluated.
+    Alternatives must read as ``verdict=None``, ``reason="not_evaluated"``,
+    ``gates=[]`` and ``authorization=None`` so the FE card never paints an
+    authorization on a plan that was never authorized.
+    """
+    return candidate.model_copy(
+        update={
+            "guard_verdict": None,
+            "guard_reason": NOT_EVALUATED_REASON,
+            "guard_gates": [],
+            "decision_context_version": None,
+            "decision_context_timestamp": None,
+            "freshness_seconds": None,
+            "authorization": None,
+        }
+    )
+
+
+def _with_guard_summary(
+    detail: SimulationDetail,
+    decisions: DecisionSource,
+    audit: GuardAuditSink,
+) -> SimulationDetail:
+    """Return ``detail`` with DCG visualization fields populated when available."""
+    summary = _guard_fields_for_simulation(detail.simulation_id, decisions, audit)
+    if summary is None:
+        return detail
+    _, fields = summary
+    return detail.model_copy(update=fields)
+
+
 def get_review_audit(request: Request) -> ReviewAuditLog:
     return request.app.state.review_audit
 
 
 def get_live_version(request: Request) -> str:
     return request.app.state.live_context_version
-
-
-def get_decisions(request: Request) -> DecisionSource:
-    return request.app.state.decisions
 
 
 def get_commits(request: Request) -> CommitService | None:
@@ -599,6 +1051,7 @@ def approve_simulation(
         )
 
     outcome = commits.approve(decision)
+    receipt = _authorization_from_token(outcome.token)
     if outcome.committed:
         repository.set_status(simulation_id, "committed", datetime.now(timezone.utc))
         request.app.state.live_context_version = store.view().context_version
@@ -614,6 +1067,9 @@ def approve_simulation(
                 live_context_version=request.app.state.live_context_version,
                 detail_code=outcome.reason_code,
                 guard=outcome.guard,
+                binding_id=receipt.binding_id,
+                expires_at=receipt.expires_at,
+                action_hashes=receipt.action_hashes,
             ),
         )
     failed = outcome.commit is not None and outcome.commit.status == "failed"
@@ -629,6 +1085,9 @@ def approve_simulation(
             live_context_version=live_version,
             detail_code=outcome.reason_code,
             guard=outcome.guard,
+            binding_id=receipt.binding_id,
+            expires_at=receipt.expires_at,
+            action_hashes=receipt.action_hashes,
         ),
     )
 
