@@ -46,8 +46,31 @@ jobs:
           "${{ env.pythonLocation }}/python" -m venv --clear /tmp/retailtwin-audit-venv
           /tmp/retailtwin-app-venv/bin/python -m pip install ./apps/api
           /tmp/retailtwin-audit-venv/bin/python -m pip install pip-audit
-          APP_PACKAGES=$(/tmp/retailtwin-app-venv/bin/python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')
-          /tmp/retailtwin-audit-venv/bin/python -m pip_audit --progress-spinner off --skip-editable --path "$APP_PACKAGES"
+          #
+          # Scope pip-audit to external PyPI packages only.
+          # The apps/api workspace installs a local editable package (retailtwin-api)
+          # which is NOT on PyPI — pip-audit exits 1 when it cannot resolve a
+          # package name against PyPI.  We work around this by:
+          #   1. Iterating the app venv's site-packages
+          #   2. Collecting only top-level directories whose names do NOT start
+          #      with "retailtwin_" (the local namespace package)
+          #   3. Passing those paths explicitly to pip-audit so it never tries
+          #      to audit retailtwin-api from PyPI.
+          #
+          APP_PACKAGES=$(/tmp/retailtwin-app-venv/bin/python -c '
+          import os, sysconfig
+          site_packages = sysconfig.get_paths()["purelib"]
+          pkg_dirs = []
+          for name in sorted(os.listdir(site_packages)):
+              dir_path = os.path.join(site_packages, name)
+              # Skip the local retailtwin_ namespace package; audit everything else.
+              if name.startswith("retailtwin_"):
+                  continue
+              if os.path.isdir(dir_path):
+                  pkg_dirs.append(dir_path)
+          print(" ".join(pkg_dirs))
+          ')
+          /tmp/retailtwin-audit-venv/bin/python -m pip_audit --progress-spinner off --skip-editable $APP_PACKAGES
 
       - name: Web production dependencies
         working-directory: apps/web
