@@ -100,6 +100,7 @@ def test_version_route_does_not_require_loaded_store(client) -> None:
 def test_version_route_honours_git_sha_env_at_startup(monkeypatch) -> None:
     """CI exports GIT_SHA before starting the process; the module reads it
     once at import. A subprocess simulates that boot lifecycle."""
+    import os
     import subprocess
     import sys
 
@@ -110,10 +111,19 @@ def test_version_route_honours_git_sha_env_at_startup(monkeypatch) -> None:
         "print(git_sha); "
         "print(full_version())"
     )
+    # Build env: inherit current env but override GIT_SHA and restrict PATH.
+    # Use os.path.dirname to include the Python interpreter's directory,
+    # ensuring the subprocess can find Python on self-hosted runners where
+    # toolcache paths may be outside standard /usr/bin paths.
+    python_dir = os.path.dirname(sys.executable)
+    restricted_path = f"{python_dir}:/usr/bin:/bin:/usr/local/bin"
+    env = os.environ.copy()
+    env["GIT_SHA"] = "deadbeef"
+    env["PATH"] = restricted_path
     completed = subprocess.run(
         [sys.executable, "-c", script],
         cwd=REPO_ROOT,
-        env={"GIT_SHA": "deadbeef", "PATH": "/usr/bin:/bin:/usr/local/bin"},
+        env=env,
         capture_output=True,
         text=True,
         check=True,
