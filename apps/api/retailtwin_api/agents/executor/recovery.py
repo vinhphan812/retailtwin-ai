@@ -70,6 +70,7 @@ RECOVERY_REASON_BUDGET_EXHAUSTED = "budget_exhausted"
 RECOVERY_REASON_FEATURE_DISABLED = "feature_disabled"
 RECOVERY_REASON_STALE_RECOVERY = "stale_recovery"
 RECOVERY_REASON_GUARD_REJECTED = "guard_rejected"
+RECOVERY_REASON_CONSERVATION = "conservation_violation"
 RECOVERY_REASON_EXECUTED = "executed"
 
 
@@ -86,6 +87,38 @@ class RecoveryOutcome(str, Enum):
     HUMAN_REVIEW_REQUIRED = "HUMAN_REVIEW_REQUIRED"
     BLOCKED_NO_LINKAGE = "BLOCKED_NO_LINKAGE"
     BLOCKED_BUDGET_EXHAUSTED = "BLOCKED_BUDGET_EXHAUSTED"
+    BLOCKED_CONSERVATION = "BLOCKED_CONSERVATION"
+
+
+class RecoveryConservationError(Exception):
+    """The inverse action would break inventory conservation on the Live Twin.
+
+    The recovery commit port raises this when the inverse cannot be applied
+    atomically: the shelf does not hold enough units to remove, or the
+    backroom does not have enough free capacity to absorb the inverse. The
+    higher-level recovery flow converts it into a ``BLOCKED_CONSERVATION``
+    outcome with the same correlation id; the Live Twin is never partially
+    written.
+    """
+
+    def __init__(
+        self,
+        *,
+        sku: str,
+        kind: str,
+        reason: str,
+        required: int,
+        available: int,
+    ) -> None:
+        self.sku = sku
+        self.kind = kind
+        self.reason = reason
+        self.required = required
+        self.available = available
+        super().__init__(
+            f"recovery inverse refused: sku={sku!r} kind={kind!r} reason={reason!r} "
+            f"required={required} available={available}"
+        )
 
 
 @dataclass(frozen=True)
@@ -598,11 +631,49 @@ def execute_recovery(
         )
         return result
 
-    new_versions = executor.apply(
-        proposal.inverse_action,
-        required_versions=dict(binding.entity_versions),
-        correlation_id=proposal.correlation_id,
-    )
+    try:
+        new_versions = executor.apply(
+            proposal.inverse_action,
+            required_versions=dict(binding.entity_versions),
+            correlation_id=proposal.correlation_id,
+        )
+    except RecoveryConservationError as conservation:
+        result = RecoveryExecutionResult(
+            proposal=proposal,
+            outcome=RecoveryOutcome.BLOCKED_CONSERVATION,
+            reason_code=RECOVERY_REASON_CONSERVATION,
+            executed_at=None,
+            new_versions={},
+        )
+        _record_execute(audit_trail, proposal, result, timestamp)
+        log.info(
+            "recovery blocked correlation_id=%s decision_id=%s recovery_id=%s reason=conservation sku=%s detail=%s",
+            proposal.correlation_id,
+            proposal.original_decision_id,
+            proposal.recovery_id,
+            conservation.sku,
+            conservation.reason,
+        )
+        return result
+    if not new_versions:
+        # The executor refused to write (stale read, version conflict, or
+        # write failure). Surface the recovery as a blocked, no-write outcome
+        # so the audit trail and the caller never see a half-applied recovery.
+        result = RecoveryExecutionResult(
+            proposal=proposal,
+            outcome=RecoveryOutcome.BLOCKED_NO_LINKAGE,
+            reason_code=RECOVERY_REASON_STALE_RECOVERY,
+            executed_at=None,
+            new_versions={},
+        )
+        _record_execute(audit_trail, proposal, result, timestamp)
+        log.info(
+            "recovery blocked correlation_id=%s decision_id=%s recovery_id=%s reason=executor_no_write",
+            proposal.correlation_id,
+            proposal.original_decision_id,
+            proposal.recovery_id,
+        )
+        return result
     result = RecoveryExecutionResult(
         proposal=proposal,
         outcome=RecoveryOutcome.EXECUTED,

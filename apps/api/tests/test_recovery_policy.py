@@ -9,18 +9,20 @@ from typing import Any
 
 import pytest
 
-from retailtwin_api.agents.executor.executor import InverseExecutor
+from retailtwin_api.agents.executor.executor import InverseExecutor, _apply_inverse
 from retailtwin_api.agents.executor.recovery import (
     AuthPipeline,
     InMemoryRecoveryAudit,
     InverseAction,
     RecoveryAuditEvent,
     RecoveryAuditSink,
+    RecoveryConservationError,
     RecoveryExecutionResult,
     RecoveryExecutor,
     RecoveryOutcome,
     RecoveryPolicy,
     RecoveryProposal,
+    RECOVERY_REASON_CONSERVATION,
     execute_recovery,
     propose_recovery,
     recovery_auto_enabled,
@@ -655,3 +657,213 @@ def test_recovery_caps_max_attempts_via_env(
 
     monkeypatch.delenv("RETAILTWIN_RECOVERY_MAX_ATTEMPTS", raising=False)
     assert max_attempts_from_env() == 1
+
+
+# ─── Inventory conservation (CHANGES_REQUESTED on PR #251) ─────────────────
+
+
+def test_inverse_rejects_when_shelf_too_low(
+    twin: InMemoryTwinRepository, clock: Clock
+) -> None:
+    """``deplete_shelf`` is refused when intervening sales have drained the shelf.
+
+    The original action replenished 6 units; the inverse must remove 6. The
+    shelf currently holds 4 because intervening sales drew 6 units away. The
+    bug (CHANGES_REQUESTED on PR #251) clamped the shelf subtraction to zero
+    while still crediting the full 6 to the backroom, breaking conservation.
+    The fix raises :class:`RecoveryConservationError` before any write and
+    leaves the Live Twin untouched.
+    """
+    # Move P001 to a known live state: shelf 4, backroom 30, version 2.
+    doc = twin.get_inventory(STORE, "P001")
+    assert doc is not None
+    twin.upsert_inventory(
+        doc.model_copy(update={"shelf_quantity": 4, "backroom_quantity": 30, "version": 2}),
+        expected_version=doc.version,
+    )
+    original_doc = twin.get_inventory(STORE, "P001")
+    assert original_doc is not None
+
+    inverse = InverseAction(kind="deplete_shelf", sku="P001", quantity=6)
+    with pytest.raises(RecoveryConservationError) as exc_info:
+        _apply_inverse(inverse, {inverse.sku: original_doc}, clock())
+
+    err = exc_info.value
+    assert err.sku == "P001"
+    assert err.kind == "deplete_shelf"
+    assert err.reason == "shelf_underflow"
+    assert err.required == 6
+    assert err.available == 4
+
+    # The Live Twin is untouched: no partial subtraction, no backroom credit.
+    after = twin.get_inventory(STORE, "P001")
+    assert after is not None
+    assert after.shelf_quantity == original_doc.shelf_quantity
+    assert after.backroom_quantity == original_doc.backroom_quantity
+    assert after.version == original_doc.version
+
+
+def test_inverse_rejects_when_backroom_too_high(
+    twin: InMemoryTwinRepository, clock: Clock
+) -> None:
+    """``deplete_shelf`` is refused when the backroom is already at capacity.
+
+    The original ``replenish_shelf`` moved 6 units from backroom to shelf. The
+    inverse must move them back. If intervening deliveries (or any other
+    writes) have pushed the backroom to its declared capacity, the inverse
+    would overflow. The recovery commit port refuses the inverse under the
+    same No-Stale-Commit path that the rest of #55 uses.
+    """
+    # Seed P001 with a backroom capacity of 30, then bump the backroom to
+    # that capacity and the shelf to a value that would let the inverse
+    # otherwise apply. Version is bumped to 2 to mirror a post-commit state.
+    doc = twin.get_inventory(STORE, "P001")
+    assert doc is not None
+    twin.upsert_inventory(
+        doc.model_copy(
+            update={
+                "shelf_quantity": 10,
+                "backroom_quantity": 30,
+                "backroom_capacity": 30,
+                "version": 2,
+            }
+        ),
+        expected_version=doc.version,
+    )
+    original_doc = twin.get_inventory(STORE, "P001")
+    assert original_doc is not None
+    assert original_doc.backroom_capacity == 30
+
+    inverse = InverseAction(kind="deplete_shelf", sku="P001", quantity=6)
+    with pytest.raises(RecoveryConservationError) as exc_info:
+        _apply_inverse(inverse, {inverse.sku: original_doc}, clock())
+
+    err = exc_info.value
+    assert err.sku == "P001"
+    assert err.kind == "deplete_shelf"
+    assert err.reason == "backroom_overflow"
+    assert err.required == 36  # 30 current + 6 inverse
+    assert err.available == 30  # backroom capacity
+
+    after = twin.get_inventory(STORE, "P001")
+    assert after is not None
+    assert after.shelf_quantity == original_doc.shelf_quantity
+    assert after.backroom_quantity == original_doc.backroom_quantity
+    assert after.version == original_doc.version
+
+
+def test_inverse_atomic_under_concurrent_sale(
+    twin: InMemoryTwinRepository, clock: Clock, recovery_audit: InMemoryRecoveryAudit
+) -> None:
+    """A concurrent sale that drains the shelf makes the recovery fail closed.
+
+    Scenario:
+
+    * The Verifier accepted the original ``replenish_shelf`` of 6 units; P001
+      advanced to version 2 and the proposal binds to that version.
+    * Before the recovery executes, a sale lands on the Live Twin: P001's
+      shelf drops to 4 and the document advances to version 3.
+    * The recovery is dispatched with ``required_versions={P001: 2}`` (the
+      version the proposal recorded). The InverseExecutor re-reads the live
+      state, sees the version has moved, and refuses to write.
+    * ``execute_recovery`` reports the recovery as a no-op: the Live Twin
+      is unchanged and the audit trail carries a ``BLOCKED_NO_LINKAGE``
+      outcome with reason ``stale_recovery``.
+    """
+    # Advance P001 to version 2 (post-commit baseline).
+    _bump(twin, "P001")
+
+    # Concurrent sale: shelf drained, version bumped to 3.
+    doc = twin.get_inventory(STORE, "P001")
+    assert doc is not None
+    twin.upsert_inventory(
+        doc.model_copy(update={"shelf_quantity": 4, "version": doc.version + 1}),
+        expected_version=doc.version,
+    )
+    sold_doc = twin.get_inventory(STORE, "P001")
+    assert sold_doc is not None
+    assert sold_doc.shelf_quantity == 4
+    assert sold_doc.version == 3
+
+    decision = _decision(actions=[ReplenishShelf(sku="P001", quantity=6)])
+    _seed_linkage(recovery_audit, decision)
+    report = _report(decision, status=VerificationStatus.REGRESSION)
+
+    proposal = propose_recovery(
+        decision,
+        report,
+        recovery_audit,
+        baseline=_baseline(),
+        current_versions={"P001": 2},  # stale: the live version is 3
+        enabled=True,
+    )
+    assert proposal.outcome is RecoveryOutcome.PROPOSED
+
+    result = execute_recovery(
+        proposal,
+        auth_pipeline=_FixedAuthPipeline(allow=True, entity_versions={"P001": 2}),
+        executor=InverseExecutor(twin, STORE, clock=clock),
+        audit_trail=recovery_audit,
+    )
+
+    # The recovery is refused without touching the Live Twin: the version
+    # check fires before _apply_inverse is even reached.
+    assert result.outcome is RecoveryOutcome.BLOCKED_NO_LINKAGE
+    assert result.reason_code == "stale_recovery"
+    assert result.new_versions == {}
+
+    final = twin.get_inventory(STORE, "P001")
+    assert final is not None
+    assert final.shelf_quantity == 4
+    assert final.backroom_quantity == 30
+    assert final.version == 3
+
+
+def test_inverse_succeeds_on_fresh_context(
+    twin: InMemoryTwinRepository, clock: Clock, recovery_audit: InMemoryRecoveryAudit
+) -> None:
+    """The happy path applies the inverse through the same No-Stale-Commit read.
+
+    When the live shelf and backroom still support the inverse quantity, the
+    recovery commit port rewrites the SKU with the original ``correlation_id``
+    and the post-write version. The audit trail records a single
+    ``EXECUTED`` outcome paired with the original decision's correlation id.
+    """
+    # The recovery executor is called with the version the proposal bound.
+    _bump(twin, "P001")
+    doc = twin.get_inventory(STORE, "P001")
+    assert doc is not None
+    assert doc.version == 2
+    assert doc.shelf_quantity == 10
+    assert doc.backroom_quantity == 30
+
+    decision = _decision(actions=[ReplenishShelf(sku="P001", quantity=6)])
+    _seed_linkage(recovery_audit, decision)
+    report = _report(decision, status=VerificationStatus.REGRESSION)
+
+    proposal = propose_recovery(
+        decision,
+        report,
+        recovery_audit,
+        baseline=_baseline(),
+        current_versions={"P001": 2},
+        enabled=True,
+    )
+    assert proposal.outcome is RecoveryOutcome.PROPOSED
+
+    result = execute_recovery(
+        proposal,
+        auth_pipeline=_FixedAuthPipeline(allow=True, entity_versions={"P001": 2}),
+        executor=InverseExecutor(twin, STORE, clock=clock),
+        audit_trail=recovery_audit,
+    )
+
+    assert result.outcome is RecoveryOutcome.EXECUTED
+    assert result.reason_code == "executed"
+    assert result.new_versions == {"P001": 3}
+
+    final = twin.get_inventory(STORE, "P001")
+    assert final is not None
+    assert final.shelf_quantity == 4
+    assert final.backroom_quantity == 36
+    assert final.version == 3

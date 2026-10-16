@@ -37,6 +37,7 @@ from retailtwin_api.agents.executor.recovery import (
     AuthPipeline,
     InverseAction,
     RecoveryAuditSink,
+    RecoveryConservationError,
     RecoveryExecutor,
     RecoveryExecutionResult,
     RecoveryPolicy,
@@ -302,13 +303,40 @@ def _apply_inverse(
     originals: dict[str, InventoryDocument],
     now: datetime,
 ) -> dict[str, InventoryDocument]:
-    """Apply one inverse action and bump each touched SKU by one version."""
+    """Apply one inverse action and bump each touched SKU by one version.
+
+    Conservation is enforced before the write. A ``deplete_shelf`` inverse
+    whose quantity cannot be atomically removed from the live shelf (because
+    intervening sales have already drained it) or whose backroom credit
+    would exceed the live ``backroom_capacity`` is refused with
+    :class:`RecoveryConservationError`; the caller's No-Stale-Commit path
+    treats the refusal as a blocked recovery, never a half-applied write.
+    """
     state = {sku: doc.model_copy() for sku, doc in originals.items()}
     doc = state[inverse.sku]
     if inverse.kind == "deplete_shelf":
         assert inverse.quantity is not None
+        if doc.shelf_quantity < inverse.quantity:
+            raise RecoveryConservationError(
+                sku=inverse.sku,
+                kind=inverse.kind,
+                reason="shelf_underflow",
+                required=inverse.quantity,
+                available=doc.shelf_quantity,
+            )
+        if (
+            doc.backroom_capacity is not None
+            and doc.backroom_quantity + inverse.quantity > doc.backroom_capacity
+        ):
+            raise RecoveryConservationError(
+                sku=inverse.sku,
+                kind=inverse.kind,
+                reason="backroom_overflow",
+                required=doc.backroom_quantity + inverse.quantity,
+                available=doc.backroom_capacity,
+            )
         doc.backroom_quantity += inverse.quantity
-        doc.shelf_quantity = max(0, doc.shelf_quantity - inverse.quantity)
+        doc.shelf_quantity -= inverse.quantity
     elif inverse.kind == "change_facings":
         assert inverse.facings is not None
         doc.facings = inverse.facings
