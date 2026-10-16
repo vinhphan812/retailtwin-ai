@@ -28,7 +28,9 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Callable
 
+from retailtwin_api.agents.observer.consumer import MemoryActivationLedger
 from retailtwin_api.decisions import DecisionSource, InMemoryDecisionSource
+from retailtwin_api.firestore_activation_ledger import FirestoreActivationLedger
 from retailtwin_api.firestore_agent_activity import FirestoreAgentActivityLog
 from retailtwin_api.firestore_decisions import FirestoreDecisionSource
 from retailtwin_api.firestore_simulations import FirestoreSimulationRepository
@@ -45,6 +47,7 @@ class DurableAdapters:
     decisions: DecisionSource
     simulations: SimulationReadRepository
     activity: Any  # AgentActivityLog — typed as Any to avoid the import cycle
+    activation_ledger: MemoryActivationLedger
 
 
 class _UnavailableDecisionSourceAdapter:
@@ -140,6 +143,7 @@ def get_persistence(
             decisions=FirestoreDecisionSource(),
             simulations=FirestoreSimulationRepository(),
             activity=FirestoreAgentActivityLog(),
+            activation_ledger=FirestoreActivationLedger(),
         )
     if backend == "fixture":
         log.warning(
@@ -153,6 +157,7 @@ def get_persistence(
             decisions=_unavailable_decisions_source(),
             simulations=_unavailable_simulations_source(),
             activity=activity_log,
+            activation_ledger=MemoryActivationLedger(),
         )
     if backend == "memory":
         log.info("persistence.memory store_id=%s", settings.store_id)
@@ -174,6 +179,7 @@ def get_persistence(
             decisions=InMemoryDecisionSource(),
             simulations=simulations,
             activity=activity_log,
+            activation_ledger=MemoryActivationLedger(),
         )
     raise ValueError(f"Unknown LIVE_TWIN_BACKEND {backend!r}")
 

@@ -176,6 +176,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # implementations are used end-to-end.
     app.state.simulations = adapters.simulations
     app.state.activity = adapters.activity
+    app.state.activation_ledger = adapters.activation_ledger
     # Observer plumbing for POST /events (G03). The pipe and ledger are process memory.
     app.state.event_pipe = MemoryPipe()
     app.state.activation_ledger = MemoryActivationLedger()
