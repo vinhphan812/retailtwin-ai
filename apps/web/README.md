@@ -203,14 +203,14 @@ For `CHANGE_CUE_MS` (4 s) the hook returns `{ diff, at, before }`, where `before
 
 `KpiStrip` (`components/layout/KpiStrip.tsx`) sits under the lens and view switches, so it never covers them, the side panel (its `max-width` stops short of `PANEL_WIDTH`) or the panel toggle. The simulation banner moves down below it (`.viewport:has(.kpi-strip)`). The chevron collapses it to a **Business KPIs** pill. Each tile takes its value from one source (`core/twin/kpiStrip.ts`) and animates when it changes (`AnimatedNumber`):
 
-| Tile | Source | Value |
-| --- | --- | --- |
-| Revenue today | `GET /revenue?period=today` (`useRevenueToday`) | `revenue` as served |
-| On-shelf availability | Live Twin (`GET /store`) | share of served products with `shelf_quantity > 0`; moves when an ACT restocks |
-| Stockout risk | anomaly feed (`GET /anomalies`, `anomaly.store`) | products with an open `stockout` anomaly |
-| AI impact | KPI evaluator (the open simulation's candidates) | `business_score` of the selected candidate (else the top-scored one) minus the baseline's, labelled *projected*, never measured |
+| Tile | Basis | Source | Value |
+| --- | --- | --- | --- |
+| Revenue today | recorded | `GET /revenue?period=today` (`useRevenueToday`) | `revenue` as served, labelled *Recorded sales* |
+| On-shelf availability | live | Live Twin (`GET /store`, `twin.store.live`) | share of served products with `shelf_quantity > 0`; moves when an ACT restocks |
+| Stockout risk | live | anomaly feed (`GET /anomalies`, `anomaly.store`) | products with an open `stockout` anomaly |
+| Projected impact | projected | KPI evaluator (the open simulation's candidates) | `business_score` of the selected candidate (else the top-scored one) minus the baseline's, labelled *Simulation only*, never measured |
 
-A tile whose source has not answered shows "—", "Not served", and a tooltip saying why (`KPI_MISSING`): never a 0. `anomaly.store.served` tells "no stockouts" (0) from "feed never read" (—). `useRevenueToday` shares the Revenue lens's cached read but does not toast on failure, so a missing route does not toast on every page load. Under `?twin=demo` all four come from `fixtures/demo`. TODO(#209): once the AI Impact card is on main, the AI impact tile can show the accepted plan's projection after the simulation closes.
+Each tile has one basis (`KPI_BASIS`, `data-basis`), so a Simulation number never mixes into a Live one: the Live tiles read `twin.store.live`, never the open simulation's proposed store, and the projected tile's label is in the Simulation colour. A tile whose source has not answered shows "—", "Not served", and a tooltip saying why (`KPI_MISSING`): never a 0. `anomaly.store.served` tells "no stockouts" (0) from "feed never read" (—). `useRevenueToday` reads today's revenue on load and again every `REVENUE_TODAY_REFRESH_MS`. A failed read does not toast (a missing route would toast on every page load) and keeps the last good figure only while it is fresh: once that read is older than `REVENUE_TODAY_STALE_MS`, the tile shows "—" with a *stale* tooltip until the route answers again. A failed revenue read never touches the Live Twin tiles. Under `?twin=demo` all four come from `fixtures/demo`. TODO(#209): once the AI Impact card is on main, the AI impact tile can show the accepted plan's projection after the simulation closes.
 
 ### Alerts and opportunities
 

@@ -442,9 +442,10 @@ export const en = {
     missing: "Not served",
     revenue: {
       label: "Revenue today",
-      detail: "Revenue route",
-      hint: "{{value}} today, from GET /revenue.",
+      detail: "Recorded sales",
+      hint: "{{value}} recorded today, from GET /revenue.",
       notServed: "GET /revenue has not served today's revenue.",
+      stale: "GET /revenue has not answered for over {{minutes}} minutes, so its last value is no longer shown.",
     },
     availability: {
       label: "On-shelf availability",
@@ -462,8 +463,8 @@ export const en = {
       notServed: "The anomaly feed (GET /anomalies) has not been served.",
     },
     impact: {
-      label: "AI impact",
-      detail: "Plan {{id}}, projected",
+      label: "Projected impact",
+      detail: "Plan {{id}}, Simulation only",
       hint: "Plan {{id}}: business score {{delta}} against the current shelves, projected by {{version}}. Not measured in the store.",
       noSimulation: "No open simulation for the KPI evaluator to score.",
       notScored: "The KPI evaluator has not scored a plan against the baseline.",

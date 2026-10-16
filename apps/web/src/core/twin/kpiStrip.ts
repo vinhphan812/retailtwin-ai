@@ -1,3 +1,4 @@
+import { REVENUE_TODAY_STALE_MS } from "@/constants/app.constant";
 import { ANOMALY_TYPE } from "@/enums/anomaly.enum";
 import { KPI_NAME } from "@/enums/simulation.enum";
 import type { Anomaly } from "@/types/anomaly.type";
@@ -16,6 +17,8 @@ export type KpiTileValue<T> = { value: T; reason?: undefined } | { value: null; 
 export const KPI_MISSING = {
   /** The source has not answered, or did not answer the last read. */
   NotServed: "notServed",
+  /** The source has not answered for `REVENUE_TODAY_STALE_MS`, so its last value is no longer shown. */
+  Stale: "stale",
   /** The source answered with nothing to count. */
   Empty: "empty",
   /** No open simulation, so the KPI evaluator has nothing to score. */
@@ -27,9 +30,29 @@ export type KpiMissing = (typeof KPI_MISSING)[keyof typeof KPI_MISSING];
 
 const missing = (reason: KpiMissing) => ({ value: null, reason }) as const;
 
-/** Today's revenue as `GET /revenue?period=today` served it; null until it has. */
-export function revenueToday(summary: RevenueSummary | null): KpiTileValue<number> {
-  return summary ? { value: summary.revenue } : missing(KPI_MISSING.NotServed);
+/**
+ * What a tile counts: `recorded` (served by a store route), `live` (the Live Twin or its
+ * feeds), or `projected` (the KPI evaluator on a simulation, never measured in the store).
+ * A tile has one basis, so Simulation numbers never mix into a Live one.
+ */
+export const KPI_BASIS = {
+  Recorded: "recorded",
+  Live: "live",
+  Projected: "projected",
+} as const;
+export type KpiBasis = (typeof KPI_BASIS)[keyof typeof KPI_BASIS];
+
+/** A read with the time it landed, in ms since the epoch. */
+export type TimedRead<T> = { value: T; readAt: number };
+
+/**
+ * Today's revenue as `GET /revenue?period=today` served it: missing until it has, and again
+ * once the last good read is older than `REVENUE_TODAY_STALE_MS` at `now`.
+ */
+export function revenueToday(read: TimedRead<RevenueSummary> | null, now: number): KpiTileValue<number> {
+  if (!read) return missing(KPI_MISSING.NotServed);
+  if (now - read.readAt > REVENUE_TODAY_STALE_MS) return missing(KPI_MISSING.Stale);
+  return { value: read.value.revenue };
 }
 
 /** Products of the Live Twin (`GET /store`) with stock on the shelf, out of every served product. */

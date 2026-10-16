@@ -8,6 +8,8 @@ import type { PromotionsSummary } from "@/types/promotion.type";
 import type { RevenueSummary } from "@/types/revenue.type";
 import type { RetailTwinClient } from "@/types/api.type";
 import { REVENUE_PERIOD, type RevenuePeriod } from "@/enums/commerce.enum";
+import { REVENUE_TODAY_REFRESH_MS } from "@/constants/app.constant";
+import type { TimedRead } from "@/core/twin/kpiStrip";
 import { emptyPromotions, emptyRevenue } from "@/fixtures/commerceFixture";
 import { storeFixture } from "@/fixtures/storeFixture";
 import { useTwinStore } from "@/state/twin.store";
@@ -39,17 +41,16 @@ function cacheOf(client: RetailTwinClient): ReadCache {
 
 /**
  * One read per key, shared by every mount, so switching lenses does not call the API
- * again. A failed read is dropped, toasts once (unless `quiet`), and is retried on the next
- * mount. Without a client nothing is read and the placeholder stays.
+ * again. A failed read is dropped, toasts once, and is retried on the next mount.
+ * Without a client nothing is read and the placeholder stays.
  */
-function useCachedRead<T, P = T>(
+function useCachedRead<T>(
   client: RetailTwinClient | undefined,
   key: string,
   read: (client: RetailTwinClient) => Promise<T>,
-  placeholder: P,
-  quiet = false,
-): T | P {
-  const [value, setValue] = useState<T | P>(() => (client && (cacheOf(client).results.get(key) as T | undefined)) ?? placeholder);
+  placeholder: T,
+): T {
+  const [value, setValue] = useState(() => (client && (cacheOf(client).results.get(key) as T | undefined)) ?? placeholder);
 
   useEffect(() => {
     if (!client) {
@@ -67,7 +68,7 @@ function useCachedRead<T, P = T>(
         },
         (error: unknown) => {
           reads.delete(key);
-          if (!quiet) notify.error(i18n.t("commerce.loadFailed"), error);
+          notify.error(i18n.t("commerce.loadFailed"), error);
           throw error;
         },
       );
@@ -98,12 +99,34 @@ export function useRevenue(
 }
 
 /**
- * Today's `GET /revenue` for the KPI strip, sharing the Revenue lens's read; null until it
- * lands or when it fails, never a report of zeros. A failure does not toast: the strip says so.
+ * Today's `GET /revenue` for the KPI strip, with the time it landed; null until it has, never
+ * a report of zeros. Read again every `REVENUE_TODAY_REFRESH_MS`. A failed read keeps the last
+ * good one, which the strip stops showing once it is stale (`revenueToday`), and does not
+ * toast: the strip says so itself.
  */
-export function useRevenueToday(client: RetailTwinClient | undefined = commerceClient()): RevenueSummary | null {
+export function useRevenueToday(client: RetailTwinClient | undefined = commerceClient()): TimedRead<RevenueSummary> | null {
   const storeId = useStoreId();
-  return useCachedRead(client, `revenue:${storeId}:${REVENUE_PERIOD.Today}`, (api) => api.revenue(REVENUE_PERIOD.Today), null, true);
+  const [state, setState] = useState<{ read: TimedRead<RevenueSummary> | null; checkedAt: number }>({ read: null, checkedAt: 0 });
+
+  useEffect(() => {
+    setState({ read: null, checkedAt: 0 });
+    if (!client) return;
+    let cancelled = false;
+    const load = () =>
+      client.revenue(REVENUE_PERIOD.Today).then(
+        (value) => !cancelled && setState({ read: { value, readAt: Date.now() }, checkedAt: Date.now() }),
+        // Keeps the last good read, and renders again so the strip sees it age.
+        () => !cancelled && setState((prev) => ({ ...prev, checkedAt: Date.now() })),
+      );
+    void load();
+    const timer = window.setInterval(load, REVENUE_TODAY_REFRESH_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [client, storeId]);
+
+  return state.read;
 }
 
 /** `GET /promotions`, read when the Promotions lens opens. Read only; empty until it lands. */

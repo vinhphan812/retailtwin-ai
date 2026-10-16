@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { REVENUE_TODAY_STALE_MS } from "@/constants/app.constant";
 import { KPI_MISSING, onShelfAvailability, projectedImpact, revenueToday, stockoutRisk } from "@/core/twin/kpiStrip";
 import { ANOMALY_TYPE } from "@/enums/anomaly.enum";
 import { BASELINE_CANDIDATE_ID } from "@/enums/simulation.enum";
@@ -13,8 +14,14 @@ const live = demoStoreState();
 describe("revenueToday", () => {
   it("is the served revenue, and missing until the route answers", () => {
     const summary = demoRevenue(REVENUE_PERIOD.Today);
-    expect(revenueToday(summary)).toEqual({ value: summary.revenue });
-    expect(revenueToday(null)).toEqual({ value: null, reason: KPI_MISSING.NotServed });
+    expect(revenueToday({ value: summary, readAt: 1_000 }, 1_000)).toEqual({ value: summary.revenue });
+    expect(revenueToday(null, 1_000)).toEqual({ value: null, reason: KPI_MISSING.NotServed });
+  });
+
+  it("is missing, never the old figure, once the last good read is stale", () => {
+    const read = { value: demoRevenue(REVENUE_PERIOD.Today), readAt: 1_000 };
+    expect(revenueToday(read, 1_000 + REVENUE_TODAY_STALE_MS)).toEqual({ value: read.value.revenue });
+    expect(revenueToday(read, 1_001 + REVENUE_TODAY_STALE_MS)).toEqual({ value: null, reason: KPI_MISSING.Stale });
   });
 });
 

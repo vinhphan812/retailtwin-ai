@@ -216,6 +216,11 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* A projection, not a store figure: labelled in the Simulation colour. */
+.kpi-tile[data-basis="projected"] .kpi-tile-label {
+  color: var(--color-simulation);
+}
+
 .kpi-tile[data-missing] .kpi-tile-value {
   color: var(--color-ink-faint);
 }

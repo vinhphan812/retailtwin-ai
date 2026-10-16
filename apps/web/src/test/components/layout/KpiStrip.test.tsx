@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import { MotionGlobalConfig } from "framer-motion";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { KpiStrip } from "@/components/layout/KpiStrip";
+import { REVENUE_TODAY_REFRESH_MS, REVENUE_TODAY_STALE_MS } from "@/constants/app.constant";
 import { notify } from "@/core/notify";
 import { TWIN_STATUS } from "@/enums/twin.enum";
 import { demoAnomalies } from "@/fixtures/demo/anomalies";
@@ -47,11 +48,79 @@ describe("KPI strip", () => {
     expect(valueOf("revenue")).toMatch(/^\$/);
     const onShelf = live.products.filter((product) => product.shelf_quantity > 0).length;
     expect(within(tile("availability")).getByText(`${onShelf} of ${live.products.length} products`)).toBeTruthy();
-    expect(valueOf("stockout")).toBe("2");
+    await waitFor(() => expect(valueOf("stockout")).toBe("2"));
     expect(valueOf("impact")).toBe("+0.93");
     expect(tile("impact").title).toContain("projected by simulation-kpi-v1");
     expect(tile("impact").title).toContain("Not measured in the store");
     for (const id of ["revenue", "availability", "stockout", "impact"]) expect(tile(id).dataset.missing).toBeUndefined();
+    expect(within(tile("impact")).getByText("Projected impact")).toBeTruthy();
+    expect(within(tile("revenue")).getByText("Recorded sales")).toBeTruthy();
+  });
+
+  it("gives every tile one basis: recorded revenue, Live stock, projected impact", () => {
+    render(<KpiStrip client={unservedClient()} />);
+    expect(tile("revenue").dataset.basis).toBe("recorded");
+    expect(tile("availability").dataset.basis).toBe("live");
+    expect(tile("stockout").dataset.basis).toBe("live");
+    expect(tile("impact").dataset.basis).toBe("projected");
+  });
+
+  it("keeps the Live Twin tiles when GET /revenue is unavailable", async () => {
+    useTwinStore.setState({ live });
+    useAnomalyStore.getState().setAll(demoAnomalies(live));
+    const client = { ...demoClient, revenue: vi.fn(() => Promise.reject(new Error("503 Service Unavailable"))) };
+    render(<KpiStrip client={client} />);
+    await waitFor(() => expect(client.revenue).toHaveBeenCalled());
+    await act(async () => {});
+
+    expect(valueOf("revenue")).toBe("—");
+    expect(tile("revenue").dataset.missing).toBe("notServed");
+    expect(tile("revenue").textContent).not.toMatch(/\$0/);
+    const onShelf = live.products.filter((product) => product.shelf_quantity > 0).length;
+    expect(within(tile("availability")).getByText(`${onShelf} of ${live.products.length} products`)).toBeTruthy();
+    await waitFor(() => expect(valueOf("stockout")).toBe("2"));
+    expect(notify.error).not.toHaveBeenCalled();
+  });
+
+  it("counts the Live Twin, not the open simulation's proposed store, on the Live tiles", () => {
+    const proposed = { ...live, products: live.products.map((product) => ({ ...product, shelf_quantity: 10 })) };
+    useTwinStore.setState({ live, simulation: { ...demoSimulation(live), state: proposed }, candidates: demoCandidates(live) });
+    render(<KpiStrip client={unservedClient()} />);
+    const onShelf = live.products.filter((product) => product.shelf_quantity > 0).length;
+    expect(onShelf).toBeLessThan(live.products.length);
+    expect(within(tile("availability")).getByText(`${onShelf} of ${live.products.length} products`)).toBeTruthy();
+  });
+
+  describe("revenue refresh", () => {
+    beforeEach(() => vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "Date"] }));
+    afterEach(() => vi.useRealTimers());
+
+    it("reads today's revenue again, and stops showing it once it is stale", async () => {
+      let up = true;
+      const client = {
+        ...demoClient,
+        revenue: vi.fn((period: Parameters<RetailTwinClient["revenue"]>[0]) => (up ? demoClient.revenue(period) : Promise.reject(new Error("503")))),
+      };
+      render(<KpiStrip client={client} />);
+      await act(async () => {});
+      expect(valueOf("revenue")).toMatch(/^\$/);
+
+      up = false;
+      await act(() => vi.advanceTimersByTimeAsync(REVENUE_TODAY_REFRESH_MS));
+      // One failed read keeps the last good figure while it is fresh.
+      expect(valueOf("revenue")).toMatch(/^\$/);
+
+      await act(() => vi.advanceTimersByTimeAsync(REVENUE_TODAY_STALE_MS));
+      expect(client.revenue.mock.calls.length).toBeGreaterThan(2);
+      expect(valueOf("revenue")).toBe("—");
+      expect(tile("revenue").dataset.missing).toBe("stale");
+      expect(tile("revenue").title).toBe("GET /revenue has not answered for over 5 minutes, so its last value is no longer shown.");
+
+      up = true;
+      await act(() => vi.advanceTimersByTimeAsync(REVENUE_TODAY_REFRESH_MS));
+      expect(valueOf("revenue")).toMatch(/^\$/);
+      expect(tile("revenue").dataset.missing).toBeUndefined();
+    });
   });
 
   it("shows — with the reason, never 0, when no source is served", async () => {
