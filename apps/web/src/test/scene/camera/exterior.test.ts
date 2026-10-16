@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EXTERIOR_VIEW, MAX_DISTANCE_FACTOR, ORBIT_TARGET, SIMULATION_ZOOM } from "@/constants/camera.constant";
+import { EXTERIOR_VIEW, MAX_DISTANCE_FACTOR, ORBIT_TARGET } from "@/constants/camera.constant";
 import { exteriorLevel, simulationView } from "@/scene/camera/exterior";
 
 /** Zoom at `times` the distance that fits the store, with the cap `useFitCamera` sets. */
@@ -34,40 +34,19 @@ describe("exteriorLevel", () => {
 });
 
 describe("simulationView", () => {
-  /** A camera `times` the fitted distance from the orbit target, along `direction`. */
-  const at = (times: number, direction: [number, number, number] = [0.6, 0.48, 0.64], fitted = 20) => {
-    const length = Math.hypot(...direction);
-    const position = direction.map((value, axis) => ORBIT_TARGET[axis] + (value / length) * fitted * times) as [
-      number,
-      number,
-      number,
-    ];
-    return { position, zoom: zoom(times, fitted) };
-  };
+  /** The view the app opens on, as `cameraPositionForAspect` gives it. */
+  const home: [number, number, number] = [6, 5, 8.8];
 
-  it("brings the camera in from the closed building, a little closer than the fitted view", () => {
-    const { position, zoom: z } = at(2);
-    const view = simulationView(position, z)!;
-    const [x, y, zz] = view.position.map((value, axis) => value - ORBIT_TARGET[axis]);
-    expect(Math.hypot(x, y, zz)).toBeCloseTo(20 * SIMULATION_ZOOM);
-    expect(view.target).toEqual(ORBIT_TARGET);
-    // The store opens: no roof at the new distance.
-    expect(exteriorLevel({ distance: 20 * SIMULATION_ZOOM, maxDistance: z.maxDistance })).toBe(0);
-  });
-
-  it("keeps the direction the camera looks at the store from", () => {
-    const direction: [number, number, number] = [-0.3, 0.5, 0.8];
-    const { position, zoom: z } = at(1.8, direction);
-    const view = simulationView(position, z)!;
-    const offset = view.position.map((value, axis) => value - ORBIT_TARGET[axis]);
-    const before = position.map((value, axis) => value - ORBIT_TARGET[axis]);
-    const unit = (v: number[]) => v.map((value) => value / Math.hypot(...v));
-    unit(offset).forEach((value, axis) => expect(value).toBeCloseTo(unit(before)[axis]));
+  it("flies back to the opening view from the closed building", () => {
+    expect(simulationView(home, zoom(2))).toEqual({ position: home, target: ORBIT_TARGET });
+    expect(simulationView(home, zoom(MAX_DISTANCE_FACTOR))).toEqual({ position: home, target: ORBIT_TARGET });
+    // As soon as the roof starts to show.
+    expect(simulationView(home, zoom(EXTERIOR_VIEW.from + 0.05))).not.toBeNull();
   });
 
   it("leaves a camera that already sees inside the store where it is", () => {
-    expect(simulationView(at(1).position, at(1).zoom)).toBeNull();
-    expect(simulationView(at(EXTERIOR_VIEW.from).position, at(EXTERIOR_VIEW.from).zoom)).toBeNull();
-    expect(simulationView(at(0.5).position, at(0.5).zoom)).toBeNull();
+    expect(simulationView(home, zoom(1))).toBeNull();
+    expect(simulationView(home, zoom(EXTERIOR_VIEW.from))).toBeNull();
+    expect(simulationView(home, zoom(0.5))).toBeNull();
   });
 });
