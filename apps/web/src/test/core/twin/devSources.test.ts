@@ -96,6 +96,19 @@ describe("pickSource", () => {
     expect(useTwinStore.getState().candidates).toEqual([]);
   });
 
+  it("reads apps/api on /live whatever its ?twin=, in development and in a demo build", () => {
+    for (const env of [{ DEV: true, VITE_ALLOW_DEMO: "" }, { DEV: false, VITE_ALLOW_DEMO: "true" }]) {
+      vi.stubEnv("DEV", env.DEV);
+      vi.stubEnv("VITE_ALLOW_DEMO", env.VITE_ALLOW_DEMO);
+      for (const mode of ["demo", "memory", "fixture", "offline", "slow", "flaky"]) {
+        at(`/live?twin=${mode}`);
+        expect(isDemoMode()).toBe(false);
+        expect(pickSource()).toBe(apiSource);
+        expect(pickSimulationSource()).not.toBeNull();
+      }
+    }
+  });
+
   it("opens only the demo in a production build made with VITE_ALLOW_DEMO=true, at /, /demo or ?twin=demo", async () => {
     vi.stubEnv("DEV", false);
     vi.stubEnv("VITE_ALLOW_DEMO", "true");

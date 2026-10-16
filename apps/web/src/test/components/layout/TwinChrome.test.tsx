@@ -61,6 +61,20 @@ describe("TwinHeader", () => {
     expect(screen.getByRole("link", { name: "Open the demo" }).getAttribute("href")).toBe("/demo");
   });
 
+  it("never carries ?twin= across: /live is plain and stays Live, whatever the query", () => {
+    at("/?twin=demo&product=P001");
+    const { unmount } = render(<TwinHeader />);
+    expect(screen.getByText("Demo data")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Open the live twin" }).getAttribute("href")).toBe("/live");
+    unmount();
+
+    at("/live?twin=demo");
+    render(<TwinHeader />);
+    expect(screen.queryByText("Demo data")).toBeNull();
+    expect(screen.getByText("Live data").dataset.source).toBe("live");
+    expect(screen.getByRole("link", { name: "Open the demo" }).getAttribute("href")).toBe("/demo");
+  });
+
   it("has no demo link in a production build without the demo", () => {
     vi.stubEnv("DEV", false);
     render(<TwinHeader />);
