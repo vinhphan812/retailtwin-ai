@@ -13,12 +13,12 @@ describe("impactOf", () => {
     expect(impact.candidate_id).toBe("cand-b");
     expect(impact.evaluator_version).toBe("simulation-kpi-v1");
     expect(impact.rows.map((row) => [row.name, row.before.value, row.after.value, row.delta, row.trend])).toEqual([
+      ["business_score", -0.05, 0.88, 0.93, KPI_TREND.Better],
       ["stockout_risk", 0.4, 0.15, -0.25, KPI_TREND.Better],
       ["service_level", 0.35, 0.75, 0.4, KPI_TREND.Better],
       ["movement_cost", 0, 0.12, 0.12, KPI_TREND.Worse],
       ["revenue_benefit", 0, 0.4, 0.4, KPI_TREND.Better],
       ["margin_benefit", 0, 0, 0, KPI_TREND.Same],
-      ["business_score", -0.05, 0.88, 0.93, KPI_TREND.Better],
     ]);
     expect(impact.candidates.map((candidate) => candidate.candidate_id)).toEqual([BASELINE_CANDIDATE_ID, "cand-a", "cand-b", "cand-c"]);
   });
