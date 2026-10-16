@@ -13,7 +13,8 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 RUN uv venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
 
-# Upgrade base tools to address CVE-2026-XXX in setuptools/wheel bundled in python:3.11-slim
+# Upgrade base tools to address PYSEC-2026-340 (setuptools) and PYSEC-2026-3447 (wheel)
+# bundled in python:3.11-slim. Fix releases: setuptools>=83.0.0, wheel>=0.46.2.
 RUN uv pip install --no-cache --upgrade setuptools wheel
 
 # Install dependencies into the venv
