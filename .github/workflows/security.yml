@@ -28,17 +28,13 @@ jobs:
     name: Secrets and dependency security
     runs-on: self-hosted
     steps:
-<<<<<<< HEAD
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-=======
-      - name: Checkout
-        uses: actions/checkout@v4
-
->>>>>>> origin/main
       - name: Scan committed files for secrets (Trivy container)
         run: |
           docker run --rm -v "$PWD:/work:ro" aquasec/trivy:0.65.0 fs --scanners secret --severity HIGH,CRITICAL --exit-code 1 /work
