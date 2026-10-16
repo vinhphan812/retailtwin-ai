@@ -73,32 +73,79 @@ def test_lifespan_starts_scheduler_when_enabled() -> None:
         assert not scheduler._task.done()
 
 
-def test_lifespan_production_uses_memory_when_project_missing() -> None:
-    """A production build without a project id falls back to MemoryPipe."""
+def test_lifespan_production_uses_memory_pipe_regardless_of_project() -> None:
+    """Production is push-only (P0-1).
+
+    The lifespan wires ``MemoryPipe`` in production; the
+    ``store-events-agent`` subscription is push-only (it carries a push
+    endpoint at ``POST /pubsub/agent-events``). Running a second
+    consumer (a pull loop) against the same subscription would flip it
+    back to pull, which Cloud Run cannot do — push and pull are
+    mutually exclusive on one subscription. ``GcpPubSubEventPipe`` is
+    kept as a library for non-production tests; the production lifespan
+    does not instantiate it.
+    """
 
     settings = _settings(
         app_env="production",
-        autonomous_pubsub_project=None,
-        google_cloud_project=None,
+        autonomous_pubsub_project="retailtwin-ai-511002",
+        google_cloud_project="retailtwin-ai-511002",
     )
     app = create_app(settings)
     with TestClient(app) as _client:
         assert isinstance(app.state.event_pipe, MemoryPipe)
 
 
-def test_lifespan_production_uses_gcp_pipe_when_project_set() -> None:
-    """A production build with a project id wires the GCP pipe."""
+def test_lifespan_production_does_not_start_pull_loop() -> None:
+    """Production must not start ``_autonomous_trigger_loop`` (P0-1).
+
+    The lifespan skips the pull task when ``APP_ENV == production`` and
+    ``AUTONOMOUS_PUBSUB_PULL_DISABLED_IN_PRODUCTION`` is true (default).
+    Real events arrive over the push endpoint, not via a background
+    puller.
+    """
 
     settings = _settings(
         app_env="production",
-        autonomous_pubsub_project="retailtwin-ai-511002",
+        autonomous_trigger_enabled=True,
+        autonomous_trigger_interval_seconds=45,
     )
     app = create_app(settings)
     with TestClient(app) as _client:
-        from retailtwin_api.backbone_gcp import GcpPubSubEventPipe
+        trigger_task = getattr(app.state, "trigger_task", None)
+        assert trigger_task is None
 
-        assert isinstance(app.state.event_pipe, GcpPubSubEventPipe)
-        assert app.state.event_pipe.subscription_path.endswith("/store-events-agent")
+
+def test_lifespan_dev_runs_pull_loop_when_enabled() -> None:
+    """Non-production keeps starting ``_autonomous_trigger_loop`` so tests
+    exercise the same code path the lifespan did before P0-1."""
+
+    settings = _settings(
+        autonomous_trigger_enabled=True,
+        autonomous_trigger_interval_seconds=45,
+    )
+    app = create_app(settings)
+    with TestClient(app) as _client:
+        task = getattr(app.state, "trigger_task", None)
+        assert task is not None and not task.done()
+
+
+def test_lifespan_production_can_opt_into_pull_loop_explicitly() -> None:
+    """Setting ``AUTONOMOUS_PUBSUB_PULL_DISABLED_IN_PRODUCTION=false`` lets a
+    production build opt back into the pull loop. The default is True —
+    the production recommendation — but a future operator may want a
+    separate pull-mode subscription."""
+
+    settings = _settings(
+        app_env="production",
+        autonomous_trigger_enabled=True,
+        autonomous_trigger_interval_seconds=45,
+        autonomous_pubsub_pull_disabled_in_production=False,
+    )
+    app = create_app(settings)
+    with TestClient(app) as _client:
+        task = getattr(app.state, "trigger_task", None)
+        assert task is not None and not task.done()
 
 
 def test_autonomous_trigger_loop_runs_consume_available() -> None:

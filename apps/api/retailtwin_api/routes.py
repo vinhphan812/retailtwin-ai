@@ -324,7 +324,15 @@ def _verify_pubsub_push_bearer(
        :func:`google.oauth2.id_token.verify_oauth2_token`;
     3. check the ``iss`` claim equals ``https://accounts.google.com``;
     4. check the ``aud`` claim matches the Cloud Run service URL the
-       operator configured via ``settings.app_base_url``.
+       operator configured via ``settings.app_base_url``;
+    5. **in production, bind the token to the expected Pub/Sub push
+       service-account identity**: the verified ``email`` claim must
+       equal ``settings.pubsub_push_service_account`` and
+       ``email_verified`` must be ``True``. Pub/Sub's push
+       authenticator is the canonical
+       ``service-<PROJECT_NUMBER>@gcp-sa-pubsub.iam.gserviceaccount.com``
+       account; any other Google-issued ID token for the same audience
+       must NOT be able to invoke the autonomous agent endpoint.
 
     In any non-production environment the helper is a no-op so local
     developers and the test suite can exercise the route without
@@ -332,8 +340,11 @@ def _verify_pubsub_push_bearer(
 
     Raises:
         ApiError: 401 with a stable error code when the token is missing,
-            malformed, signed by an untrusted issuer, or scoped to a
-            different audience.
+            malformed, signed by an untrusted issuer, scoped to a
+            different audience, or not bound to the configured push
+            service-account identity. 503 when production is missing the
+            required configuration (APP_BASE_URL or
+            PUBSUB_PUSH_SERVICE_ACCOUNT).
     """
     if not getattr(settings, "is_production", False):
         return
@@ -363,6 +374,19 @@ def _verify_pubsub_push_bearer(
             "pubsub_auth_misconfigured",
             "APP_BASE_URL must be configured to verify Pub/Sub push tokens in production.",
         )
+    expected_service_account = (
+        getattr(settings, "pubsub_push_service_account", "") or ""
+    )
+    if not expected_service_account:
+        logger.error(
+            "pubsub.push.auth.no_service_account_configured app_env=%s",
+            getattr(settings, "app_env", "unknown"),
+        )
+        raise ApiError(
+            503,
+            "pubsub_auth_misconfigured",
+            "PUBSUB_PUSH_SERVICE_ACCOUNT must be configured to verify Pub/Sub push tokens in production.",
+        )
     # Imported lazily so unit tests that don't exercise OIDC don't pay the
     # import cost and so the production code path can fail clearly when
     # google-auth is missing.
@@ -386,6 +410,23 @@ def _verify_pubsub_push_bearer(
             401,
             "pubsub_auth_invalid_issuer",
             f"Pub/Sub push token issuer must be {_PUBSUB_PUSH_ISSUER!r}; got {issuer!r}.",
+        )
+    # Identity binding (P0-2). Reject a Google-signed token for the right
+    # audience that was issued for a different service-account identity
+    # (or whose ``email_verified`` claim is not ``True``).
+    email_verified = claims.get("email_verified")
+    email = claims.get("email")
+    if email_verified is not True or email != expected_service_account:
+        logger.warning(
+            "pubsub.push.auth.invalid_identity email=%s email_verified=%s expected=%s",
+            email,
+            email_verified,
+            expected_service_account,
+        )
+        raise ApiError(
+            401,
+            "pubsub_auth_invalid_identity",
+            "Pub/Sub push token is not bound to the configured push service account.",
         )
 
 

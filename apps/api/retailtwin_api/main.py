@@ -23,7 +23,6 @@ from retailtwin_api.agents.observer.consumer import (
 from retailtwin_api.agents.orchestrator.autonomy import AutonomousInvestigations
 from retailtwin_api.agents.orchestrator.tool_registry import build_store_registry
 from retailtwin_api.backbone import EventPipe, MemoryPipe, MemoryQuarantine
-from retailtwin_api.backbone_gcp import GcpPubSubEventPipe
 from retailtwin_api.analytics_repository import (
     get_checkout_repository,
     unavailable_analytics_repositories,
@@ -50,11 +49,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        # Build the EventPipe based on the runtime environment. Production
-        # Cloud Run uses GcpPubSubEventPipe against the canonical
-        # ``store-events`` topic and ``store-events-agent`` subscription;
-        # every other environment uses MemoryPipe so a developer or test
-        # never opens a real GCP project.
+        # Build the EventPipe. Production Cloud Run uses MemoryPipe because
+        # the ``store-events-agent`` subscription is **push-only** (the
+        # push endpoint is ``POST /pubsub/agent-events`` on this same
+        # instance — P0-1). Every environment uses MemoryPipe so a
+        # developer or test never opens a real GCP project. Real events
+        # arrive via the OIDC-verified HTTP push path.
         event_pipe = _build_event_pipe(resolved)
         activation_ledger = MemoryActivationLedger()
         quarantine = MemoryQuarantine()
@@ -70,7 +70,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         trigger_task: asyncio.Task[None] | None = None
         scheduler: DemandSurgeScheduler | None = None
 
-        if resolved.autonomous_trigger_enabled:
+        # Production is push-only (P0-1). The ``store-events-agent``
+        # subscription is wired with a push endpoint (``POST /pubsub/agent-events``);
+        # starting a background pull loop against the same subscription
+        # would flip it back to pull, which Cloud Run cannot do — push and
+        # pull are mutually exclusive on one subscription. The pull loop
+        # only runs in dev / test, where the pipe is a MemoryPipe anyway.
+        pull_disabled_in_production = (
+            resolved.autonomous_pubsub_pull_disabled_in_production
+        )
+        run_pull_loop = (
+            resolved.autonomous_trigger_enabled
+            and not (resolved.is_production and pull_disabled_in_production)
+        )
+        if run_pull_loop:
             trigger_task = asyncio.create_task(
                 _autonomous_trigger_loop(
                     event_pipe,
@@ -398,29 +411,22 @@ def _origins(value: str) -> list[str]:
 def _build_event_pipe(settings: Settings) -> EventPipe:
     """Build the EventPipe the autonomous trigger pulls from.
 
-    Production wires :class:`GcpPubSubEventPipe` against the canonical
-    ``store-events`` topic and ``store-events-agent`` subscription. Every
-    other environment uses :class:`MemoryPipe` so the trigger can be
-    exercised end-to-end without a real GCP project.
+    Production uses :class:`MemoryPipe` (P0-1). The ``store-events-agent``
+    subscription is **push-only** in production: it carries a push
+    endpoint that points at ``POST /pubsub/agent-events`` on the same
+    Cloud Run instance. Real events arrive via that OIDC-verified HTTP
+    push path, so a second consumer would either flip the subscription
+    to pull (forbidden — push and pull are mutually exclusive on one
+    subscription) or do nothing useful. ``GcpPubSubEventPipe`` is kept
+    as a library for non-production tests and any future pull-mode
+    consumer; the production lifespan does not instantiate it.
 
-    When ``APP_ENV=production`` but no project is configured, the lifespan
-    logs a warning and falls back to :class:`MemoryPipe`. The trigger
-    simply does not fire in that case, mirroring the way the flagship
-    controller degrades when its wiring fails.
+    Every other environment uses :class:`MemoryPipe` so the trigger can
+    be exercised end-to-end without a real GCP project. The
+    ``DemandSurgeScheduler`` (which publishes via the same pipe) also
+    targets memory in production: in production real events come from
+    real checkouts, not from the demo scheduler.
     """
-
-    if settings.is_production:
-        project = settings.autonomous_pubsub_project or settings.google_cloud_project
-        if not project:
-            logger.warning(
-                "autonomous_trigger.pipe_unavailable reason=missing_project app_env=production"
-            )
-            return MemoryPipe()
-        return GcpPubSubEventPipe(
-            project=project,
-            topic="store-events",
-            subscription=settings.autonomous_pubsub_subscription,
-        )
     return MemoryPipe()
 
 
