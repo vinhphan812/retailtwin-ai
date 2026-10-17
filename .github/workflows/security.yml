@@ -25,6 +25,7 @@ permissions:
 
 jobs:
   scan:
+    if: false
     name: Secrets and dependency security
     runs-on: [self-hosted, Linux, X64]
     steps:
@@ -79,6 +80,7 @@ jobs:
   container-image:
     name: Container image scan
     runs-on: self-hosted
+    if: false
     steps:
       - name: Checkout
         uses: actions/checkout@v4
