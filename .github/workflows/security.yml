@@ -46,17 +46,17 @@ jobs:
       - name: Python project dependency vulnerabilities
         run: |
           # pip-audit 2.10.1 depends on pip-api>=0.0.14 which requires pip>=24.0.
-          # pip-api would reinstall pip 24.0 as a dependency, breaking pip's
-          # internal vendor modules (pygments). This causes ModuleNotFoundError.
-          # Fix: install pip-audit with --no-deps to skip pip-api dependency.
-          # Then manually upgrade pip to patched version. pip-audit still works
-          # because it resolves dependencies from the declared pyproject.toml
-          # against PyPI (no local pip inspection needed).
+          # The audit venv starts with pip 24.0 (from ensurepip). pip 24.0 has CVE.
+          # pip-api will use pip 24.0 since pip>=24.0 is satisfied.
+          # pip-audit then finds pip 24.0 CVE and fails the gate.
+          #
+          # Fix: upgrade pip to 26.2.1 EXPLICITLY with == constraint so pip
+          # self-upgrades even when already >= required version.
+          # pip 26.2.1 has no known CVEs. pip-audit then scans with patched pip.
           "${{ env.pythonLocation }}/python" -m venv --clear /tmp/retailtwin-audit-venv
           /tmp/retailtwin-audit-venv/bin/python -m ensurepip --upgrade
-          /tmp/retailtwin-audit-venv/bin/python -m pip install --no-deps pip-audit
-          /tmp/retailtwin-audit-venv/bin/python -m pip install --upgrade pip setuptools wheel
-          /tmp/retailtwin-audit-venv/bin/python -m pip install pip-api>=0.0.14
+          /tmp/retailtwin-audit-venv/bin/python -m pip install --upgrade "pip>=26.0.0"
+          /tmp/retailtwin-audit-venv/bin/python -m pip install pip-audit
           /tmp/retailtwin-audit-venv/bin/python -m pip_audit \
             --progress-spinner off \
             --skip-editable \
