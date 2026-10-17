@@ -176,8 +176,14 @@ jobs:
             echo "::error::Trivy failed with unexpected exit code $TRIVY_EXIT" >&2
             exit 1
           fi
+          # Trivy can exit 1 (vulns found) but produce a 0-byte or incomplete JSON
+          # if it crashes mid-write. Check file existence and size before copying.
+          if [ ! -f "$TRIVY_JSON" ]; then
+            echo "::error::No Trivy report produced at ${TRIVY_JSON} — scan may have crashed." >&2
+            exit 1
+          fi
           if [ ! -s "$TRIVY_JSON" ]; then
-            echo "::error::No Trivy report produced at $TRIVY_JSON — scan may have crashed." >&2
+            echo "::error::Trivy report at ${TRIVY_JSON} is empty (0 bytes) — scan may have crashed." >&2
             exit 1
           fi
           cp "$TRIVY_JSON" "$GITHUB_WORKSPACE/trivy-image.json"
