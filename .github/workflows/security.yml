@@ -35,30 +35,24 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
       - name: Scan committed files for secrets (Trivy container)
         run: |
           docker run --rm -v "$PWD:/work:ro" aquasec/trivy:0.65.0 fs --scanners secret --severity HIGH,CRITICAL --exit-code 1 /work
 
       - name: Python project dependency vulnerabilities
         run: |
-          # Audit declared dependencies from apps/api/pyproject.toml against PyPI.
-          # Uses pip-audit 2.10.1 with positional paths (no --project-path in 2.10.1).
-          #
-          # Upgrade pip in a fresh venv so pip-audit itself has no known CVEs,
-          # then install and run pip-audit from there.
+          "${{ env.pythonLocation }}/python" --version
+          "${{ env.pythonLocation }}/python" -m venv --clear /tmp/retailtwin-app-venv
           "${{ env.pythonLocation }}/python" -m venv --clear /tmp/retailtwin-audit-venv
-          /tmp/retailtwin-audit-venv/bin/python -m pip install --upgrade pip
+          # Audit the app's installed dependencies, not the audit tool's own venv.
+          # Upgrade pip/setuptools/wheel in the app venv first so wheel builds use patched tooling.
+          /tmp/retailtwin-app-venv/bin/python -m pip install --upgrade pip setuptools wheel
+          /tmp/retailtwin-app-venv/bin/python -m pip install ./apps/api
+          # Audit only the installed app packages (not pip/setuptools/pip-audit).
           /tmp/retailtwin-audit-venv/bin/python -m pip install pip-audit
-          # Audit apps/api declared dependencies. --skip-editable skips retailtwin-api itself.
-          # Pass the apps/api directory as positional arg so pip-audit reads pyproject.toml.
-          /tmp/retailtwin-audit-venv/bin/python -m pip_audit \
-            --progress-spinner off \
-            --skip-editable \
-            --path ./apps/api
+          /tmp/retailtwin-audit-venv/bin/python -m pip install --upgrade pip
+          /tmp/retailtwin-audit-venv/bin/python -m pip_audit --progress-spinner off --skip-editable \
+            --project-path /tmp/retailtwin-app-venv
 
       - name: Web production dependencies
         working-directory: apps/web
@@ -88,13 +82,10 @@ jobs:
       - name: Build container image
         id: build
         run: |
-          # --no-cache: bypasses Docker layer cache so the latest Dockerfile
-          # (including USER directive) is always applied in CI.
           docker build \
               --tag retailtwin-api:scan \
               --file Dockerfile \
               --load \
-              --no-cache \
               .
 
       - name: Verify image runs as non-root (UID != 0)
@@ -112,8 +103,7 @@ jobs:
         run: |
           set -euo pipefail
           # Check the same paths that .gitignore refuses to commit.
-          # BAD is always captured (|| true) because set -e would otherwise
-          # abort the step when the container's grep match causes exit 1.
+          # The grep matches files anywhere in the image; a present file fails.
           BAD=$(docker run --rm --entrypoint sh retailtwin-api:scan -c '
             set -e
             for pattern in "credentials*.json" "service-account*.json" "*.key" ".env"; do
@@ -124,7 +114,7 @@ jobs:
               fi
             done
             echo "PASS: no credential-like files in image"
-          ' || true)
+          ')
           echo "${BAD}"
 
       - name: Scan image for fixable HIGH/CRITICAL vulnerabilities
@@ -133,30 +123,21 @@ jobs:
           set -euo pipefail
           rm -f trivy-out/trivy-image.json trivy-image.json
           mkdir -p trivy-out
-          # Capture Trivy exit code explicitly.  Use 'set +e' around the command so
-          # 'set -euo pipefail' does not abort when Trivy exits non-zero.
-          # Trivy exit codes: 0=no vulns, 1=vulns found, 5=scan error.
-          # Image-not-found (code 5) → warning + skip gate (CI infra issue).
-          # Unexpected exit code → fail (defensive: prefer failing closed).
-          set +e
-          docker run --rm \
+          # Trivy with --exit-code 0: waits for full DB download + scan, exits 0 on success.
+          # Python parser is the authoritative PASS/FAIL gate.
+          # Fail: fixable HIGH/CRITICAL (FixedVersion exists) → exit 1.
+          # Exception: unfixed/wont-fix HIGH/CRITICAL → logged, does not fail gate.
+          # Fail: malformed JSON, missing report, scanner error → exit 1.
+          if ! docker run --rm \
               -v /var/run/docker.sock:/var/run/docker.sock \
               -v "$PWD/trivy-out:/work" \
               aquasec/trivy:0.65.0 image \
               --severity HIGH,CRITICAL \
               --format json \
               --output /work/trivy-image.json \
-              retailtwin-api:scan
-          TRIVY_EXIT=$?
-          set -euo pipefail
-
-          if [ "$TRIVY_EXIT" -eq 5 ]; then
-            # Scan error (e.g. image not found in Docker daemon).
-            echo "::warning::Trivy scan error (exit 5) — image may not be available in CI. Skipping vulnerability gate."
-            exit 0
-          fi
-          if [ "$TRIVY_EXIT" -ne 0 ] && [ "$TRIVY_EXIT" -ne 1 ]; then
-            echo "::error::Trivy failed with unexpected exit code $TRIVY_EXIT" >&2
+              --exit-code 0 \
+              retailtwin-api:scan; then
+            echo "::error::Trivy scan execution failed." >&2
             exit 1
           fi
           if [ ! -s trivy-out/trivy-image.json ]; then
@@ -178,10 +159,7 @@ jobs:
           if not isinstance(data, dict):
               print("[TRIVY-PARSER] FAIL: root must be a JSON object", file=sys.stderr)
               sys.exit(1)
-          results = data.get("Results")
-          if results is None:
-              print("[TRIVY-PARSER] FAIL: Results key is missing from trivy-image.json", file=sys.stderr)
-              sys.exit(1)
+          results = data.get("Results") or []
           if not isinstance(results, list):
               print("[TRIVY-PARSER] FAIL: Results must be a list", file=sys.stderr)
               sys.exit(1)
