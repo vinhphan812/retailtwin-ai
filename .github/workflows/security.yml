@@ -213,13 +213,15 @@ jobs:
                   if fixed:
                       has_fixable = True
                       print(f"[TRIVY-PARSER] FAIL: FIXABLE {sev} {vuln_id} in {pkg} {ver} (fix: {fixed})", file=sys.stderr)
-                  elif status in ("unfixed", "wont-fix", "unknown"):
+                  elif status in ("unfixed", "wont-fix"):
                       exceptions.append(f"  EXCEPTION: {sev} {vuln_id} in {pkg} {ver} — no fix available ({status})")
                       print(f"[TRIVY-PARSER] EXCEPTION: {sev} {vuln_id} in {pkg} {ver} (status={status})", file=sys.stderr)
                   else:
-                      # No FixedVersion AND not explicitly unfixed/wont-fix — treat as exception too
-                      exceptions.append(f"  EXCEPTION: {sev} {vuln_id} in {pkg} {ver} — status={status or 'unknown'}")
-                      print(f"[TRIVY-PARSER] EXCEPTION: {sev} {vuln_id} in {pkg} {ver} (status={status or 'unknown'})", file=sys.stderr)
+                      # Fail-closed: HIGH/CRITICAL without a fix is not automatically
+                      # accepted. Unknown/affected/unknown status requires explicit
+                      # approval in ADR-0026 or equivalent before it can be an exception.
+                      print(f"[TRIVY-PARSER] FAIL: {sev} {vuln_id} in {pkg} {ver} — status={status or 'unknown'}, no FixAvailable (requires ADR-0026 approval to make exception)", file=sys.stderr)
+                      has_fixable = True
 
           if has_fixable:
               print("[TRIVY-PARSER] RESULT: FAIL — fixable HIGH/CRITICAL found", file=sys.stderr)
