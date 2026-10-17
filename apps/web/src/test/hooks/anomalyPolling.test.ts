@@ -27,7 +27,7 @@ export const spyNotifyError = vi.fn();
 let isDemo = false;
 
 export function resetSpies() {
-  spyAnomalies.mockImplementation(() => Promise.resolve({ anomalies: [] } as AnomaliesResponse));
+  spyAnomalies.mockImplementation(() => Promise.resolve({ anomalies: [] } as unknown as AnomaliesResponse));
   // mockReset() replaces the function but keeps the same reference — the wrapper
   // that calls spySetAll(spyFail) still points to the same spy object
   spySetAll.mockReset();
