@@ -20,9 +20,9 @@ const _store: Record<string, any> = {
 _store.setAll = (...args: unknown[]) => { spySetAll(...args); };
 _store.fail = (...args: unknown[]) => { spyFail(...args); };
 
-export const spyAnomalies = vi.fn<[], Promise<AnomaliesResponse>>();
-export const spySetAll = vi.fn();
-export const spyFail = vi.fn();
+export const spyAnomalies = vi.fn<() => Promise<AnomaliesResponse>>();
+export const spySetAll = vi.fn<(args: unknown[]) => void>();
+export const spyFail = vi.fn<(args: unknown[]) => void>();
 export const spyNotifyError = vi.fn();
 let isDemo = false;
 
