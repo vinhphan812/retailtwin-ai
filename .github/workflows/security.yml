@@ -41,33 +41,20 @@ jobs:
 
       - name: Python project dependency vulnerabilities
         run: |
-          "${{ env.pythonLocation }}/python" --version
-          "${{ env.pythonLocation }}/python" -m venv --clear /tmp/retailtwin-app-venv
+          # Audit declared dependencies from apps/api/pyproject.toml against PyPI.
+          # Uses pip-audit 2.10.1 with positional paths (no --project-path in 2.10.1).
+          #
+          # Upgrade pip in a fresh venv so pip-audit itself has no known CVEs,
+          # then install and run pip-audit from there.
           "${{ env.pythonLocation }}/python" -m venv --clear /tmp/retailtwin-audit-venv
-          # Audit the app's installed dependencies, not the audit tool's own venv.
-          # Upgrade pip/setuptools/wheel in app venv FIRST so wheel builds use patched tooling.
-          /tmp/retailtwin-app-venv/bin/python -m pip install --upgrade pip setuptools wheel
-          /tmp/retailtwin-app-venv/bin/python -m pip install ./apps/api
-          # Upgrade pip in audit venv to latest so pip-audit has no known CVEs.
           /tmp/retailtwin-audit-venv/bin/python -m pip install --upgrade pip
           /tmp/retailtwin-audit-venv/bin/python -m pip install pip-audit
-          # Audit the app venv's third-party site-packages.
-          # Iterating site-packages directories avoids the local retailtwin_ namespace
-          # package (which is not on PyPI and would cause pip-audit to exit 1).
-          # Excludes pip, setuptools, wheel, pip-audit themselves.
-          APP_PACKAGES=$(/tmp/retailtwin-app-venv/bin/python -c '
-          import os, sysconfig
-          site = sysconfig.get_paths()["purelib"]
-          dirs = []
-          for name in sorted(os.listdir(site)):
-              d = os.path.join(site, name)
-              if name.startswith("retailtwin_"):
-                  continue
-              if os.path.isdir(d):
-                  dirs.append(d)
-          print(" ".join(dirs))
-          ')
-          /tmp/retailtwin-audit-venv/bin/python -m pip_audit --progress-spinner off --skip-editable $APP_PACKAGES
+          # Audit apps/api declared dependencies. --skip-editable skips retailtwin-api itself.
+          # Pass the apps/api directory as positional arg so pip-audit reads pyproject.toml.
+          /tmp/retailtwin-audit-venv/bin/python -m pip_audit \
+            --progress-spinner off \
+            --skip-editable \
+            ./apps/api
 
       - name: Web production dependencies
         working-directory: apps/web
