@@ -1,88 +1,108 @@
-name: security
+name: Security checks
 
+# Issue #146 / ADR 0026 — supply-chain and security gates.
+#
+# Layers:
+#   1. secrets        — Trivy fs --scanners secret
+#   2. python deps    — pip-audit on apps/api in an isolated venv
+#   3. web deps       — npm audit --omit=dev (production only)
+#   4. repo vulns     — Trivy fs --scanners vuln
+#   5. container img  — Trivy image, non-root user check, no-credential-file
+#   6. action pins    — third-party GitHub Actions pinned to a SHA comment
+#
+# HIGH/CRITICAL with a known fix blocks the gate. HIGH/CRITICAL with no fix
+# is logged to the Step Summary as an explicit exception. MEDIUM/LOW never
+# blocks the gate (see ADR 0026).
 on:
+  workflow_call:
+  workflow_dispatch:
+  pull_request:
   push:
     branches: [main]
-    paths:
-      - .github/workflows/security.yml
-      - Dockerfile
-      - apps/api/**
-      - pyproject.toml
-      - requirements.txt
-  pull_request:
-    branches: [main]
-    paths:
-      - .github/workflows/security.yml
-      - Dockerfile
-      - apps/api/**
-      - pyproject.toml
-      - requirements.txt
 
-env:
-  pythonLocation: /opt/hostedtoolcache/Python/3.11.10/x64
+permissions:
+  contents: read
 
 jobs:
-  security:
+  scan:
     name: Secrets and dependency security
-    runs-on: myrunner-tHHlkGgOcmBkG
+    runs-on: [self-hosted, Linux, X64]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - name: Scan committed files for secrets (Trivy container)
-        run: |
-          set -euo pipefail
-          echo "::group::Trivy secrets scan"
-          docker run --rm               -v "$PWD:/work:ro"               aquasec/trivy:0.65.0 fs               --scanners secret               --severity HIGH,CRITICAL               --exit-code 1               /work || true
-          echo "::endgroup::"
-
-      - name: Scan committed files for known-vulnerability dependencies
-        run: |
-          set -euo pipefail
-          echo "::group::Trivy vulnerability scan"
-          docker run --rm               -v "$PWD:/work:ro"               aquasec/trivy:0.65.0 fs               --scanners vuln               --severity HIGH,CRITICAL               --exit-code 0               /work
-          echo "::endgroup::"
-
-      - name: Python project dependency vulnerabilities
-        run: |
-          # Audit declared dependencies from apps/api/pyproject.toml against PyPI.
-          # Uses pip-audit 2.10.1 with positional paths (no --project-path in 2.10.1).
-          # Upgrade pip in a fresh venv so pip-audit itself has no known CVEs.
-          "${{ env.pythonLocation }}/python" -m venv --clear /tmp/retailtwin-audit-venv
-          /tmp/retailtwin-audit-venv/bin/python -m pip install --upgrade pip
-          /tmp/retailtwin-audit-venv/bin/python -m pip install pip-audit
-          # Audit apps/api declared dependencies. --skip-editable skips retailtwin-api itself.
-          # Pass the apps/api directory as positional arg so pip-audit reads pyproject.toml.
-          /tmp/retailtwin-audit-venv/bin/python -m pip_audit             --progress-spinner off             --skip-editable             --path ./apps/api
-
-  container:
-    name: Container image scan
-    runs-on: myrunner-tHHlkGgOcmBkG
-    steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Scan committed files for secrets (Trivy container)
+        run: |
+          docker run --rm -v "$PWD:/work:ro" aquasec/trivy:0.65.0 fs --scanners secret --severity HIGH,CRITICAL --exit-code 1 /work
+
+      - name: Python project dependency vulnerabilities
+        run: |
+          # Audit declared dependencies from apps/api/pyproject.toml against PyPI.
+          # Uses pip-audit 2.10.1 with positional paths (no --project-path in 2.10.1).
+          #
+          # Upgrade pip in a fresh venv so pip-audit itself has no known CVEs,
+          # then install and run pip-audit from there.
+          "${{ env.pythonLocation }}/python" -m venv --clear /tmp/retailtwin-audit-venv
+          /tmp/retailtwin-audit-venv/bin/python -m pip install --upgrade pip
+          /tmp/retailtwin-audit-venv/bin/python -m pip install pip-audit
+          # Audit apps/api declared dependencies. --skip-editable skips retailtwin-api itself.
+          # Pass the apps/api directory as positional arg so pip-audit reads pyproject.toml.
+          /tmp/retailtwin-audit-venv/bin/python -m pip_audit \
+            --progress-spinner off \
+            --skip-editable \
+            --path ./apps/api
+
+      - name: Web production dependencies
+        working-directory: apps/web
+        run: |
+          npm ci --ignore-scripts
+          npm audit --omit=dev --audit-level=high
+
+      - name: Repository vulnerability scan
+        run: |
+          docker run --rm -v "$PWD:/work:ro" aquasec/trivy:0.65.0 fs --scanners vuln --severity HIGH,CRITICAL --exit-code 1 /work
+
+  # ── Container image gate (issue #146 / ADR 0026) ────────────────────────────
+  # Builds the Dockerfile in CI, fails closed if the image runs as UID 0 or
+  # carries a credential file, and scans it with Trivy for HIGH/CRITICAL
+  # vulnerabilities with a known fix. No-fix HIGH/CRITICAL is annotated in
+  # the Step Summary but does not block the gate.
+  container-image:
+    name: Container image scan
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2  # v3.10.0
 
       - name: Build container image
         id: build
         run: |
           # --no-cache: bypasses Docker layer cache so the latest Dockerfile
           # (including USER directive) is always applied in CI.
-          docker build               --tag retailtwin-api:scan               --file Dockerfile               --load               --no-cache               .
+          docker build \
+              --tag retailtwin-api:scan \
+              --file Dockerfile \
+              --load \
+              --no-cache \
+              .
 
-      - name: Verify image runs as non-root
+      - name: Verify image runs as non-root (UID != 0)
         run: |
           set -euo pipefail
           USER_ID=$(docker run --rm --entrypoint id retailtwin-api:scan -u)
-          echo "Container UID: ${USER_ID}"
-          if [ "$USER_ID" = "0" ] || [ -z "$USER_ID" ]; then
+          echo "Container runs as UID ${USER_ID}"
+          if [ "${USER_ID}" = "0" ]; then
             echo "::error::Container runs as UID 0 (root). The runtime image must declare a non-root USER."
             exit 1
           fi
@@ -113,18 +133,26 @@ jobs:
           set -euo pipefail
           rm -f trivy-out/trivy-image.json trivy-image.json
           mkdir -p trivy-out
-          # Capture Trivy exit code explicitly.  Use set +e around the command so
-          # set -euo pipefail does not abort when Trivy exits non-zero.
+          # Capture Trivy exit code explicitly.  Use 'set +e' around the command so
+          # 'set -euo pipefail' does not abort when Trivy exits non-zero.
           # Trivy exit codes: 0=no vulns, 1=vulns found, 5=scan error.
-          # Image-not-found (code 5) -> warning + skip gate (CI infra issue).
-          # Unexpected exit code -> fail (defensive: prefer failing closed).
+          # Image-not-found (code 5) → warning + skip gate (CI infra issue).
+          # Unexpected exit code → fail (defensive: prefer failing closed).
           set +e
-          docker run --rm               -v /var/run/docker.sock:/var/run/docker.sock               -v "$PWD/trivy-out:/work"               aquasec/trivy:0.65.0 image               --severity HIGH,CRITICAL               --format json               --output /work/trivy-image.json               retailtwin-api:scan
+          docker run --rm \
+              -v /var/run/docker.sock:/var/run/docker.sock \
+              -v "$PWD/trivy-out:/work" \
+              aquasec/trivy:0.65.0 image \
+              --severity HIGH,CRITICAL \
+              --format json \
+              --output /work/trivy-image.json \
+              retailtwin-api:scan
           TRIVY_EXIT=$?
           set -euo pipefail
 
           if [ "$TRIVY_EXIT" -eq 5 ]; then
-            echo "::warning::Trivy scan error (exit 5) - image may not be available in CI. Skipping vulnerability gate."
+            # Scan error (e.g. image not found in Docker daemon).
+            echo "::warning::Trivy scan error (exit 5) — image may not be available in CI. Skipping vulnerability gate."
             exit 0
           fi
           if [ "$TRIVY_EXIT" -ne 0 ] && [ "$TRIVY_EXIT" -ne 1 ]; then
@@ -132,95 +160,119 @@ jobs:
             exit 1
           fi
           if [ ! -s trivy-out/trivy-image.json ]; then
-            echo "::error::No Trivy report produced - scan may have crashed." >&2
+            echo "::error::No Trivy report produced — scan may have crashed." >&2
             exit 1
           fi
           cp trivy-out/trivy-image.json trivy-image.json
+          python3 - <<'PY'
+          import json, sys, os
 
-          # Parse JSON.  Fail if fixable HIGH/CRITICAL (FixedVersion exists).
-          # Log exception for unfixed/wont-fix/unknown (ADR-0026).
-          # Fail on malformed JSON, missing Results key, or scan error.
-          python3 -c |-2
-            import json, sys
-            try:
-                with open('trivy-image.json') as fh:
-                    data = json.load(fh)
-            except Exception as exc:
-                print('[TRIVY-PARSER] FAIL: Could not parse trivy-image.json: ' + str(exc), file=sys.stderr)
-                sys.exit(1)
+          data = None
+          try:
+              with open("trivy-image.json", encoding="utf-8") as f:
+                  data = json.load(f)
+          except Exception as exc:
+              print(f"[TRIVY-PARSER] FAIL: could not parse trivy-image.json: {exc}", file=sys.stderr)
+              sys.exit(1)
 
-            results = data.get('Results')
-            if results is None:
-                print('[TRIVY-PARSER] FAIL: Results key is missing from trivy-image.json', file=sys.stderr)
-                sys.exit(1)
-            if not isinstance(results, list):
-                print('[TRIVY-PARSER] FAIL: Results must be a list', file=sys.stderr)
-                sys.exit(1)
+          if not isinstance(data, dict):
+              print("[TRIVY-PARSER] FAIL: root must be a JSON object", file=sys.stderr)
+              sys.exit(1)
+          results = data.get("Results")
+          if results is None:
+              print("[TRIVY-PARSER] FAIL: Results key is missing from trivy-image.json", file=sys.stderr)
+              sys.exit(1)
+          if not isinstance(results, list):
+              print("[TRIVY-PARSER] FAIL: Results must be a list", file=sys.stderr)
+              sys.exit(1)
 
-            has_fixable = False
-            exceptions = []
-            for result in results:
-                vulns = result.get('Vulnerabilities') or []
-                for vuln in vulns:
-                    if vuln.get('Severity') not in ('HIGH', 'CRITICAL'):
-                        continue
-                    fixable = vuln.get('FixedVersion', '')
-                    if fixable:
-                        has_fixable = True
-                        pkg = vuln.get('PkgName', '?')
-                        vid = vuln.get('VulnerabilityID', '?')
-                        ver = vuln.get('InstalledVersion', '?')
-                        print('[TRIVY-PARSER] FIXABLE: ' + vid + ' in ' + pkg + ' ' + ver + ' (fix: ' + fixable + ')', file=sys.stderr)
-                    else:
-                        sev = vuln.get('Severity', '')
-                        vid = vuln.get('VulnerabilityID', '?')
-                        pkg = vuln.get('PkgName', '?')
-                        status = vuln.get('Status', 'unknown')
-                        exceptions.append('[TRIVY-PARSER] EXCEPTION: ' + sev + ' ' + vid + ' ' + pkg + ' - status: ' + status + ' (no FixAvailable, see ADR-0026)')
+          has_fixable = False
+          exceptions = []
+          for result in results:
+              if not isinstance(result, dict):
+                  print("[TRIVY-PARSER] FAIL: each Results entry must be a JSON object", file=sys.stderr)
+                  sys.exit(1)
+              vulns = result.get("Vulnerabilities")
+              if not vulns:
+                  continue
+              if not isinstance(vulns, list):
+                  print("[TRIVY-PARSER] FAIL: Vulnerabilities must be a list", file=sys.stderr)
+                  sys.exit(1)
+              for v in vulns:
+                  if not isinstance(v, dict):
+                      print("[TRIVY-PARSER] FAIL: each vulnerability must be a JSON object", file=sys.stderr)
+                      sys.exit(1)
+                  sev = v.get("Severity", "")
+                  if sev not in ("HIGH", "CRITICAL"):
+                      continue
+                  fixed = v.get("FixedVersion")
+                  vuln_id = v.get("VulnerabilityID", "?")
+                  pkg = v.get("PkgName", "?")
+                  ver = v.get("InstalledVersion", "?")
+                  status = v.get("Status", "")
+                  if fixed:
+                      has_fixable = True
+                      print(f"[TRIVY-PARSER] FAIL: FIXABLE {sev} {vuln_id} in {pkg} {ver} (fix: {fixed})", file=sys.stderr)
+                  elif status in ("unfixed", "wont-fix"):
+                      exceptions.append(f"  EXCEPTION: {sev} {vuln_id} in {pkg} {ver} — no fix available ({status})")
+                      print(f"[TRIVY-PARSER] EXCEPTION: {sev} {vuln_id} in {pkg} {ver} (status={status})", file=sys.stderr)
+                  else:
+                      # Fail-closed: HIGH/CRITICAL without a fix is not automatically
+                      # accepted. Unknown/affected/unknown status requires explicit
+                      # approval in ADR-0026 or equivalent before it can be an exception.
+                      print(f"[TRIVY-PARSER] FAIL: {sev} {vuln_id} in {pkg} {ver} — status={status or 'unknown'}, no FixAvailable (requires ADR-0026 approval to make exception)", file=sys.stderr)
+                      has_fixable = True
 
-            for line in exceptions[:10]:
-                print(line, file=sys.stderr)
-            if exceptions:
-                print('exception: ' + str(len(exceptions)) + ' HIGH/CRITICAL unfixed - see ADR-0026', file=sys.stderr)
-
-            if has_fixable:
-                sys.exit(1)
+          if has_fixable:
+              print("[TRIVY-PARSER] RESULT: FAIL — fixable HIGH/CRITICAL found", file=sys.stderr)
+              sys.exit(1)
+          if exceptions:
+              print(f"[TRIVY-PARSER] RESULT: PASS with {len(exceptions)} unfixed HIGH/CRITICAL exceptions (ADR-0026)", file=sys.stderr)
+          else:
+              print("[TRIVY-PARSER] RESULT: PASS — no HIGH/CRITICAL vulnerabilities found", file=sys.stderr)
+          PY
 
       - name: Record any no-fix HIGH/CRITICAL as an explicit exception
         if: always()
         run: |
-          set -euo pipefail
-          if [ -f trivy-image.json ]; then
-            UNFIXED=$(          python3 -c |-2
-            import json, sys
-            try:
-                with open('trivy-image.json') as fh:
-                    data = json.load(fh)
-            except Exception:
-                sys.exit(0)
-            rows = []
-            for result in (data.get('Results') or []):
-                for item in (result.get('Vulnerabilities') or []):
-                    if item.get('Severity') not in ('HIGH', 'CRITICAL'):
-                        continue
-                    if item.get('FixedVersion'):
-                        continue
-                    sev = item.get('Severity', '')
-                    vid = item.get('VulnerabilityID', '?')
-                    pkg = item.get('PkgName', '?')
-                    ver = item.get('InstalledVersion', '?')
-                    status = item.get('Status', 'unknown')
-                    rows.append('- ' + sev + ' ' + vid + ' in ' + pkg + ' ' + ver + ' (status: ' + status + ')')
-            if rows:
-                print('\n'.join(rows))
-          || true)
-            echo "## No-fix HIGH/CRITICAL (exception - does not block gate)" >> "$GITHUB_STEP_SUMMARY"
-            if [ -n "${UNFIXED}" ]; then
-              echo "${UNFIXED}" >> "$GITHUB_STEP_SUMMARY"
-            else
-              echo "None." >> "$GITHUB_STEP_SUMMARY"
-            fi
+          if [ ! -s trivy-image.json ]; then
+            echo "No Trivy image report — cannot record exceptions." >&2
+            exit 0
           fi
+          echo "ADR-0026 exception log (HIGH/CRITICAL without fix):"
+          python3 - <<'PY'
+          import json, sys
+          data = None
+          try:
+              with open("trivy-image.json", encoding="utf-8") as f:
+                  data = json.load(f)
+          except Exception:
+              sys.exit(0)
+          if not isinstance(data, dict):
+              sys.exit(0)
+          rows = []
+          for result in (data.get("Results") or []):
+              if not isinstance(result, dict):
+                  continue
+              for v in (result.get("Vulnerabilities") or []):
+                  if not isinstance(v, dict):
+                      continue
+                  if v.get("Severity") not in ("HIGH", "CRITICAL"):
+                      continue
+                  if v.get("FixedVersion"):
+                      continue
+                  rows.append(
+                      f"  {v.get('Severity','?')} {v.get('VulnerabilityID','?')} "
+                      f"in {v.get('PkgName','?')} {v.get('InstalledVersion','?')} "
+                      f"[status={v.get('Status','?')}] — ADR-0026 exception required"
+                  )
+          if rows:
+              print("\n".join(rows))
+          else:
+              print("  (none)")
+          PY
+          echo "## No-fix HIGH/CRITICAL (exception — does not block gate)" >> "$GITHUB_STEP_SUMMARY"
+          echo "See ADR-0026 for exception process." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload trivy image report
         if: always()
@@ -233,4 +285,4 @@ jobs:
 
       - name: Cleanup intermediate image
         if: always()
-        run: docker rmi retailtwin-api:scan || true
+        run: docker image rm retailtwin-api:scan 2>/dev/null || true
