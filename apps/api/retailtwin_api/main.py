@@ -28,6 +28,7 @@ from retailtwin_api.analytics_repository import (
     unavailable_analytics_repositories,
 )
 from retailtwin_api.decisions import InMemoryDecisionSource, unavailable_decision_source
+from retailtwin_api.persistence import get_persistence
 from retailtwin_api.demand_surge import DemandSurgeScheduler
 from retailtwin_api.errors import ApiError, api_error_handler, http_error_handler, validation_error_handler
 from retailtwin_api.events import EventLog, ReviewAuditLog
@@ -146,17 +147,27 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if live_twin is not None
         else None
     )
-    # The planner does not persist Decisions yet. A test or a later orchestrator injects a source.
-    app.state.decisions = unavailable_decision_source()
-    app.state.events = EventLog()
-    app.state.review_audit = ReviewAuditLog()
-    app.state.live_context_version = store.view().context_version if store.loaded else ""
-    app.state.activity = AgentActivityLog()
-    app.state.simulations = SimulationRepository(store.view, resolved.store_id, activity=app.state.activity)
-    # Observer plumbing for POST /events (G03). The pipe and ledger are process memory.
+
+    # Wire durable adapters (ADR 0024). The persistence factory selects
+    # Firestore or memory adapters based on LIVE_TWIN_BACKEND. When set to
+    # "firestore", decisions, simulations, activity log, and activation ledger
+    # survive Cloud Run restarts. Memory backend is used for tests and dev.
+    persistence = get_persistence(resolved, store_view_fn=store.view, activity=None)
+    app.state.decisions = persistence.decisions
+    app.state.simulations = persistence.simulations
+    app.state.activity = persistence.activity
+    app.state.activation_ledger = persistence.activation_ledger
+
+    # Event pipe and quarantine are needed for the /events route observer flow
+    # These are also set in the lifespan but need to be accessible from routes
+    from retailtwin_api.backbone import MemoryPipe, MemoryQuarantine
     app.state.event_pipe = MemoryPipe()
-    app.state.activation_ledger = MemoryActivationLedger()
     app.state.quarantine = MemoryQuarantine()
+
+    # Live context version is needed for routes that check stale context
+    app.state.live_context_version = store.view().context_version if store.loaded else ""
+
+    # Autonomy is initialized later if provider is configured
     app.state.autonomy = None
     if resolved.autonomy_enabled and store.loaded:
         try:
@@ -168,14 +179,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     else:
         provider = None
     if provider is not None:
-        decisions = InMemoryDecisionSource()
-        app.state.decisions = decisions
+        # Use the persistence-wired decisions source (memory or Firestore)
         app.state.autonomy = AutonomousInvestigations(
             provider=provider,
             registry=build_store_registry(store),
             store_view=store.view,
             proposals=app.state.simulations,
-            decisions=decisions,
+            decisions=app.state.decisions,  # Use persistence-wired decisions
             activity=app.state.activity,
             build_state=_build_state,
         )
@@ -184,6 +194,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "fixture.unavailable",
             extra={"store_error": store.error, "fixture_path": str(resolved.store_fixture_path)},
         )
+
+    # Event log and review audit are always in-memory (not persisted)
+    app.state.events = EventLog()
+    app.state.review_audit = ReviewAuditLog()
+
     # Analytics repositories: GCP-backed (BigQuery + Firestore); empty adapters in dev.
     # Checkout reads use the explicit in-memory scaffold pending a verified BQ schema.
     # Swap app.state repositories in integration tests.
