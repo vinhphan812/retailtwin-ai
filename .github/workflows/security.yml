@@ -49,8 +49,9 @@ jobs:
           /tmp/retailtwin-app-venv/bin/python -m pip install --upgrade pip setuptools wheel
           /tmp/retailtwin-app-venv/bin/python -m pip install ./apps/api
           # Audit only the installed app packages (not pip/setuptools/pip-audit).
-          /tmp/retailtwin-audit-venv/bin/python -m pip install pip-audit
+          # Upgrade pip in audit venv to latest so pip-audit supports --project-path.
           /tmp/retailtwin-audit-venv/bin/python -m pip install --upgrade pip
+          /tmp/retailtwin-audit-venv/bin/python -m pip install "pip-audit>=2.11.0"
           /tmp/retailtwin-audit-venv/bin/python -m pip_audit --progress-spinner off --skip-editable \
             --project-path /tmp/retailtwin-app-venv
 
