@@ -49,11 +49,26 @@ jobs:
           /tmp/retailtwin-app-venv/bin/python -m pip install --upgrade pip setuptools wheel
           /tmp/retailtwin-app-venv/bin/python -m pip install ./apps/api
           # Audit only the installed app packages (not pip/setuptools/pip-audit).
-          # Upgrade pip in audit venv to latest so pip-audit supports --project-path.
+          # Upgrade pip in audit venv to latest so pip-audit has no known CVEs.
           /tmp/retailtwin-audit-venv/bin/python -m pip install --upgrade pip
-          /tmp/retailtwin-audit-venv/bin/python -m pip install "pip-audit>=2.11.0"
-          /tmp/retailtwin-audit-venv/bin/python -m pip_audit --progress-spinner off --skip-editable \
-            --project-path /tmp/retailtwin-app-venv
+          /tmp/retailtwin-audit-venv/bin/python -m pip install pip-audit
+          # Audit the app venv's third-party site-packages.
+          # Iterating site-packages directories avoids the local retailtwin_ namespace
+          # package (which is not on PyPI and would cause pip-audit to exit 1).
+          # Excludes pip, setuptools, wheel, pip-audit themselves.
+          APP_PACKAGES=$(/tmp/retailtwin-app-venv/bin/python -c '
+          import os, sysconfig
+          site = sysconfig.get_paths()["purelib"]
+          dirs = []
+          for name in sorted(os.listdir(site)):
+              d = os.path.join(site, name)
+              if name.startswith("retailtwin_"):
+                  continue
+              if os.path.isdir(d):
+                  dirs.append(d)
+          print(" ".join(dirs))
+          ')
+          /tmp/retailtwin-audit-venv/bin/python -m pip_audit --progress-spinner off --skip-editable $APP_PACKAGES
 
       - name: Web production dependencies
         working-directory: apps/web
