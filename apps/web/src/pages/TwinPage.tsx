@@ -13,8 +13,6 @@ import { AiImpactDialog } from "@/components/twin/AiImpactDialog";
 import { AiImpactToast } from "@/components/twin/AiImpactToast";
 import { LensSwitcher } from "@/components/layout/LensSwitcher";
 import { ViewModeSwitch } from "@/components/layout/ViewModeSwitch";
-import { OverlayLegend } from "@/components/layout/OverlayLegend";
-import { OverlayToggles } from "@/components/layout/OverlayToggles";
 import { EntityInspector } from "@/components/twin/EntityInspector";
 import { ProductDetailsDialog } from "@/components/twin/ProductDetailsDialog";
 import { SimulationBanner } from "@/components/twin/SimulationBanner";
