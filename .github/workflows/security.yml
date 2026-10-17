@@ -54,7 +54,7 @@ jobs:
           /tmp/retailtwin-audit-venv/bin/python -m pip_audit \
             --progress-spinner off \
             --skip-editable \
-            ./apps/api
+            --path ./apps/api
 
       - name: Web production dependencies
         working-directory: apps/web
@@ -84,10 +84,13 @@ jobs:
       - name: Build container image
         id: build
         run: |
+          # --no-cache: bypasses Docker layer cache so the latest Dockerfile
+          # (including USER directive) is always applied in CI.
           docker build \
               --tag retailtwin-api:scan \
               --file Dockerfile \
               --load \
+              --no-cache \
               .
 
       - name: Verify image runs as non-root (UID != 0)
@@ -161,7 +164,10 @@ jobs:
           if not isinstance(data, dict):
               print("[TRIVY-PARSER] FAIL: root must be a JSON object", file=sys.stderr)
               sys.exit(1)
-          results = data.get("Results") or []
+          results = data.get("Results")
+          if results is None:
+              print("[TRIVY-PARSER] FAIL: Results key is missing from trivy-image.json", file=sys.stderr)
+              sys.exit(1)
           if not isinstance(results, list):
               print("[TRIVY-PARSER] FAIL: Results must be a list", file=sys.stderr)
               sys.exit(1)
