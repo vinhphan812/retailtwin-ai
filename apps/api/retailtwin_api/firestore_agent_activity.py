@@ -134,10 +134,13 @@ class FirestoreAgentActivityLog(AgentActivityLog):
         slot_id: str | None = None,
         summary: str | None = None,
         at: datetime | None = None,
+        acquired_at: datetime | None = None,
+        verdict: str | None = None,
     ) -> AgentActivityEntry:
+        ts = at or datetime.now(timezone.utc)
         entry = AgentActivityEntry(
             id=f"act-{self._new_id()}",
-            ts=at or datetime.now(timezone.utc),
+            ts=ts,
             stage=stage,
             status=status,
             correlation_id=correlation_id,
@@ -149,6 +152,8 @@ class FirestoreAgentActivityLog(AgentActivityLog):
             slot_id=slot_id,
             focus=sku,
             summary=summary,
+            acquired_at=acquired_at or ts,
+            verdict=verdict,
         )
         body = _entry_doc(entry)
         response = self._call(
