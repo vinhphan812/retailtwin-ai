@@ -17,6 +17,7 @@ import { TwinIssuesNotice } from "@/components/twin/TwinIssuesNotice";
 import { TwinStatusOverlay } from "@/components/twin/TwinStatusOverlay";
 import { pickSimulationReviewer, pickSimulationSource, pickSource } from "@/core/twin/devSources";
 import { useAgentFocus } from "@/hooks/agentFocus.hook";
+import { useAnomalyPolling } from "@/hooks/anomalyPolling.hook";
 import { useNetworkStatus } from "@/hooks/networkStatus.hook";
 import { useProductParam } from "@/hooks/productParam.hook";
 import { useSimulationSource } from "@/hooks/simulationSource.hook";
@@ -34,6 +35,7 @@ export function TwinPage() {
   useNetworkStatus();
   useProductParam();
   useAgentFocus();
+  useAnomalyPolling();
 
   return (
     <>
