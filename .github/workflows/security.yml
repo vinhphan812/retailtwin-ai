@@ -159,15 +159,6 @@ jobs:
           TRIVY_EXIT=$?
           set -euo pipefail
 
-          # NOTE: these debug echoes must NOT contain $() or ${} — they are inside
-          # this step's inline script, NOT inside the Python heredoc below.
-          echo "[DEBUG] Trivy exit code: ${TRIVY_EXIT}"
-          if [ -f "$TRIVY_JSON" ]; then
-            echo "[DEBUG] Trivy JSON exists at ${TRIVY_JSON}"
-          else
-            echo "[DEBUG] Trivy JSON NOT found at ${TRIVY_JSON}"
-          fi
-
           if [ "$TRIVY_EXIT" -eq 2 ] || [ "$TRIVY_EXIT" -eq 5 ]; then
             echo "::warning::Trivy scan error (exit $TRIVY_EXIT) — scan incomplete. Skipping vulnerability gate."
             exit 0
@@ -176,8 +167,12 @@ jobs:
             echo "::error::Trivy failed with unexpected exit code $TRIVY_EXIT" >&2
             exit 1
           fi
+          if [ ! -f "$TRIVY_JSON" ]; then
+            echo "::error::No Trivy report produced at $TRIVY_JSON — scan crashed before writing output." >&2
+            exit 1
+          fi
           if [ ! -s "$TRIVY_JSON" ]; then
-            echo "::error::No Trivy report produced at $TRIVY_JSON — scan may have crashed." >&2
+            echo "::error::Trivy report at $TRIVY_JSON is empty (0 bytes) — scan crashed mid-write." >&2
             exit 1
           fi
           cp "$TRIVY_JSON" "$GITHUB_WORKSPACE/trivy-image.json"
