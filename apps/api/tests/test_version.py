@@ -100,6 +100,7 @@ def test_version_route_does_not_require_loaded_store(client) -> None:
 def test_version_route_honours_git_sha_env_at_startup(monkeypatch) -> None:
     """CI exports GIT_SHA before starting the process; the module reads it
     once at import. A subprocess simulates that boot lifecycle."""
+    import os
     import subprocess
     import sys
 
@@ -113,7 +114,10 @@ def test_version_route_honours_git_sha_env_at_startup(monkeypatch) -> None:
     completed = subprocess.run(
         [sys.executable, "-c", script],
         cwd=REPO_ROOT,
-        env={"GIT_SHA": "deadbeef", "PATH": "/usr/bin:/bin:/usr/local/bin"},
+        env={
+            "GIT_SHA": "deadbeef",
+            "PATH": os.path.dirname(sys.executable) + ":/usr/bin:/bin:/usr/local/bin",
+        },
         capture_output=True,
         text=True,
         check=True,
