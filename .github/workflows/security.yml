@@ -139,13 +139,16 @@ jobs:
         id: trivy
         run: |
           set -euo pipefail
-          rm -f trivy-out/trivy-image.json trivy-image.json
-          mkdir -p trivy-out
+          mkdir -p "$PWD/trivy-out"
+          # Use absolute paths for the output file so the shell variable
+          # expands correctly regardless of working directory state.
+          TRIVY_JSON="$PWD/trivy-out/trivy-image.json"
+          rm -f "$TRIVY_JSON" "$PWD/trivy-image.json"
+
           # Capture Trivy exit code explicitly.  Use 'set +e' around the command so
           # 'set -euo pipefail' does not abort when Trivy exits non-zero.
           # Trivy exit codes: 0=no vulns, 1=vulns found, 5=scan error.
-          # Image-not-found (code 5) → warning + skip gate (CI infra issue).
-          # Unexpected exit code → fail (defensive: prefer failing closed).
+          # Image-not-found (code 5) or buildx timeout (code 2) → warning + skip.
           set +e
           docker run --rm \
               -v /var/run/docker.sock:/var/run/docker.sock \
@@ -153,15 +156,13 @@ jobs:
               aquasec/trivy:0.65.0 image \
               --severity HIGH,CRITICAL \
               --format json \
-              --output /work/trivy-image.json \
+              --output "$TRIVY_JSON" \
               --timeout 10m0s \
               retailtwin-api:scan
           TRIVY_EXIT=$?
           set -euo pipefail
 
           if [ "$TRIVY_EXIT" -eq 2 ] || [ "$TRIVY_EXIT" -eq 5 ]; then
-            # Scan error (image not found, buildx timeout, context deadline exceeded, etc.).
-            # The scan could not complete — do not block the gate based on partial data.
             echo "::warning::Trivy scan error (exit $TRIVY_EXIT) — scan incomplete. Skipping vulnerability gate."
             exit 0
           fi
@@ -169,11 +170,11 @@ jobs:
             echo "::error::Trivy failed with unexpected exit code $TRIVY_EXIT" >&2
             exit 1
           fi
-          if [ ! -s trivy-out/trivy-image.json ]; then
-            echo "::error::No Trivy report produced — scan may have crashed." >&2
+          if [ ! -s "$TRIVY_JSON" ]; then
+            echo "::error::No Trivy report produced at $TRIVY_JSON — scan may have crashed." >&2
             exit 1
           fi
-          cp trivy-out/trivy-image.json trivy-image.json
+          cp "$TRIVY_JSON" "$PWD/trivy-image.json"
           python3 - <<'PY'
           import json, sys, os
 
