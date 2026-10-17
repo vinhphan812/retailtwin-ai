@@ -22,7 +22,7 @@ _store.fail = (arg: unknown) => { spyFail(arg); };
 
 export const spyAnomalies = vi.fn<() => Promise<AnomaliesResponse>>();
 export const spySetAll = vi.fn<(args: unknown) => void>();
-export const spyFail = vi.fn<(args: unknown[]) => void>();
+export const spyFail = vi.fn<(args: unknown) => void>();
 export const spyNotifyError = vi.fn();
 let isDemo = false;
 
