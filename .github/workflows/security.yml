@@ -248,6 +248,20 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+      # ── Trivy parser regression tests ───────────────────────────────────────
+      # Validates the parser logic for all 7 fixture cases:
+      #   1. Valid clean report         → exit 0
+      #   2. Fixable HIGH w/ FixedVer   → exit 1
+      #   3. Unfixed HIGH/CRITICAL     → exit 0, exception logged
+      #   4. Malformed JSON            → exit 1
+      #   5. Missing Results key       → exit 1
+      #   6. Missing report file       → exit 1
+      #   7. Scanner failure (RC > 1)  → exit 1
+      # Local reproduction: bash .github/scripts/trivy-parser-regression.sh
+      - name: Trivy parser regression tests
+        run: bash .github/scripts/trivy-parser-regression.sh
+        if: always()
+
       - name: Cleanup intermediate image
         if: always()
         run: docker image rm retailtwin-api:scan 2>/dev/null || true
