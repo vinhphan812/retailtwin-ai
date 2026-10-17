@@ -672,3 +672,46 @@ def test_investigator_source_does_not_import_a_model_sdk_or_forecast_package() -
     assert "services.forecasting" not in lowered
     assert TRIGGER.sku == "P017"
     assert all(event.correlation_id == CORRELATION_ID for event in SERIES)
+
+
+def test_sales_evidence_changes_on_mutated_row_content() -> None:
+    """Regression: evidence version must change when source row content changes.
+
+    Per SEP-2663: stable-row/different-job-id produces stable digest;
+    changed-row produces different digest. This test verifies that when
+    sales_history content changes, the evidence version/digest changes.
+    """
+    global SERIES
+
+    store = MemoryStore([_p017()])
+    registry = _registry(store)
+
+    # First investigation with original sales
+    first_bundle, _, _, _ = _run(registry, _calls(), store=store)
+    first_sales = _source(first_bundle, "sales_history")
+    first_version = first_sales.payload.get("version")
+
+    # Mutate the sales content by adding a new sale to SERIES
+    # This changes the sales history content
+    mutated_sale = StoreEvent(
+        event_id="sale-mutated-001",
+        store_id="store-001",
+        sku="P017",
+        event_type="sale.completed",
+        quantity=15,  # Different from original
+        occurred_at=COLLECTED_AT - timedelta(hours=1),
+        correlation_id="run-mutated-001",
+        source="store",
+    )
+    SERIES = list(SERIES) + [mutated_sale]
+
+    # Second investigation with mutated sales
+    second_bundle, _, _, _ = _run(registry, _calls(), store=store)
+    second_sales = _source(second_bundle, "sales_history")
+    second_version = second_sales.payload.get("version")
+
+    # The version must change when row content changes
+    assert first_version != second_version, (
+        "Evidence version must change when sales_history content changes. "
+        f"Got first={first_version}, second={second_version}"
+    )

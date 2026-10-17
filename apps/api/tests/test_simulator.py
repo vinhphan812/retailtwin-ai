@@ -45,6 +45,7 @@ from retailtwin_api.agents.simulator import (
     FORMULA_ID,
     INVALID_REQUEST,
     INVALID_SNAPSHOT,
+    VERSION_MISMATCH,
     LiveView,
     SimulationError,
     SlotView,
@@ -600,6 +601,61 @@ def test_context_mismatch_does_not_score(decisions: list[Decision]) -> None:
     assert calls == []
     assert live == before
     assert all(item.simulation_id is None for item in decisions)
+
+
+# ─── Version mismatch regression tests (SEP-2663) ─────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("evidence_versions", "evaluator_version", "expected_reason"),
+    [
+        # demand_version == canonical_version: accepted
+        pytest.param({"P017": "1"}, "1", None, id="equal-versions-accepted"),
+        # demand_version None, canonical present: accepted (fallback)
+        pytest.param(None, "1", None, id="missing-evidence-version-accepted"),
+        # demand_version present, canonical None: accepted (fallback)
+        pytest.param({"P017": "1"}, None, None, id="missing-evaluator-version-accepted"),
+        # demand_version != canonical, both non-None: REJECTED
+        pytest.param({"P017": "1"}, "2", VERSION_MISMATCH, id="mismatch-rejected"),
+    ],
+)
+def test_version_mismatch_regression(
+    evidence_versions: dict[str, str] | None,
+    evaluator_version: str | None,
+    expected_reason: str | None,
+) -> None:
+    """Version consistency guard per SEP-2663."""
+    live = _live()
+    before = copy.deepcopy(live)
+
+    # Create decision with specified evidence versions
+    if evidence_versions is not None:
+        evidence = [_bundle(entity_versions=evidence_versions)]
+    else:
+        evidence = [_bundle(entity_versions={})]
+
+    decision = _decision(evidence=evidence)
+
+    def evaluate(
+        snapshot: Mapping[str, Any],
+        candidate_id: str,
+        actions: Sequence[Mapping[str, Any]],
+    ) -> Mapping[str, Any]:
+        raw = dict(_kpi(snapshot, candidate_id, actions))
+        if evaluator_version is not None:
+            raw["evaluator_version"] = evaluator_version
+        return raw
+
+    if expected_reason is not None:
+        with pytest.raises(SimulationError) as caught:
+            simulate([decision], live, evaluate=evaluate)
+        assert caught.value.reason == expected_reason
+        assert live == before
+    else:
+        # Should succeed
+        result = simulate([decision], live, evaluate=evaluate)
+        assert len(result.candidates) == 1
+        assert live == before
 
 
 def test_an_unknown_action_is_rejected_before_evaluation() -> None:

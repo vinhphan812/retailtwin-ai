@@ -33,6 +33,7 @@ INVALID_SNAPSHOT = "invalid_snapshot"
 INVALID_REQUEST = "invalid_request"
 CONTEXT_MISMATCH = "context_mismatch"
 EVALUATION_FAILED = "evaluation_failed"
+VERSION_MISMATCH = "version_mismatch"
 
 
 class SimulationError(Exception):
@@ -213,6 +214,49 @@ def _matches(decision: Decision, live: LiveView, correlation_id: str) -> None:
         raise _reject(correlation_id, CONTEXT_MISMATCH)
 
 
+def _get_evidence_version(decision: Decision) -> str | None:
+    """Extract version from decision evidence entity_versions.
+
+    Returns the canonical version string from evidence, or None if not present.
+    """
+    if not decision.evidence:
+        return None
+    # Use the first evidence bundle's entity_versions as the canonical source
+    bundle = decision.evidence[0]
+    if not bundle.entity_versions:
+        return None
+    # Return the first entity version as the canonical
+    return next(iter(bundle.entity_versions.values()), None)
+
+
+def _check_version_consistency(
+    decision: Decision,
+    evaluator_version: str | None,
+    correlation_id: str,
+) -> None:
+    """Verify that decision evidence version matches evaluator version.
+
+    Equality guard per SEP-2663:
+    - demand_version == canonical_version: accepted
+    - demand_version None, canonical present: accepted, fallback
+    - demand_version present, canonical == none: accepted
+    - demand_version != canonical, both non-None: REJECTED
+    """
+    demand_version = _get_evidence_version(decision)
+
+    # Both None or empty: accepted
+    if not demand_version and not evaluator_version:
+        return
+
+    # One None, one present: accepted (fallback behavior)
+    if demand_version is None or evaluator_version is None:
+        return
+
+    # Both present but different: REJECTED
+    if demand_version != evaluator_version:
+        raise _reject(correlation_id, VERSION_MISMATCH)
+
+
 def _score(value: object) -> float:
     if isinstance(value, bool) or not isinstance(value, str):
         raise ValueError
@@ -377,6 +421,9 @@ def simulate(
             candidate_id=decision.decision_id,
             correlation_id=correlation_id,
         )
+        # Version consistency guard: fail if decision evidence version differs from evaluator version
+        evaluator_version = evaluation.get("evaluator_version")
+        _check_version_consistency(decision, evaluator_version, correlation_id)
         updated = decision.model_copy(
             update={
                 "simulation_id": simulation_id,
