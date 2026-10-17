@@ -116,7 +116,7 @@ def test_version_route_honours_git_sha_env_at_startup(monkeypatch) -> None:
         cwd=REPO_ROOT,
         env={
             "GIT_SHA": "deadbeef",
-            "PATH": os.path.dirname(sys.executable) + ":/usr/bin:/bin:/usr/local/bin",
+            "PATH": os.path.dirname(sys.executable) + ":" + os.environ.get("PATH", ""),
         },
         capture_output=True,
         text=True,
