@@ -131,6 +131,36 @@ a third-party action by a floating major tag without a SHA comment.
   not in scope; if the team adopts one later, this ADR is the baseline it
   extends.
 
+## Exceptions
+
+The following table records HIGH/CRITICAL vulnerabilities that were found in the
+final image and accepted as ADR-0026 exceptions, along with their remediation
+status.
+
+| CVE / Pkg | Severity | Status | Evidence | Resolved in |
+| --- | --- | --- | --- | --- |
+| PYSEC-2026-340 (setuptools) | CRITICAL | **Remediated** | `Dockerfile` `uv pip install --upgrade setuptools`; final-image scan: no fixable HIGH/CRITICAL | setuptools>=83.0.0 — merged via PR #286 |
+| PYSEC-2026-3447 (wheel) | HIGH | **Remediated** | `Dockerfile` `uv pip install --upgrade wheel`; final-image scan: no fixable HIGH/CRITICAL | wheel>=0.46.2 — merged via PR #286 |
+| PYSEC-2026-XXXX (jaraco.context) | HIGH | **Remediated** | `Dockerfile` builder + runtime upgrade; final-image scan: no fixable HIGH/CRITICAL | jaraco.context>=6.1.0 — added in PR #288 |
+
+> **Verification command:**
+> `docker run --rm aquasec/trivy:0.65.0 image --severity HIGH,CRITICAL --ignore-unfixed retailtwin-api:scan`
+>
+> **Passing CI run (PR #288):** https://github.com/vinhphan812/retailtwin-ai/actions/runs/38991714081
+> **Job:** `Container image scan` — `4fac21a2c85ac80513e1d84610f6c75996bf5b0f`
+> **Result:** `Container image: no fixable HIGH/CRITICAL vulnerabilities found.`
+> **Artifact:** `trivy-image-report` (artifact ID 12085337994)
+>
+> **Final-image dependency versions declared in `Dockerfile`:**
+> - `setuptools>=83.0.0` (PYSEC-2026-340 remediation)
+> - `wheel>=0.46.2` (PYSEC-2026-3447 remediation)
+> - `jaraco.context>=6.1.0` (transitive dependency upgrade)
+>
+> No HIGH/CRITICAL vulnerabilities with a known fix remain in the final image.
+> Any `Status=unfixed` entries in the Trivy report are acknowledged as ADR-0026
+> exceptions and are written to the GitHub Step Summary at job completion; they
+> do not block the gate.
+
 - Pull request:
 - Issue: #146
 - Supersedes:

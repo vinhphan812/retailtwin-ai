@@ -118,9 +118,17 @@ jobs:
           set -euo pipefail
           rm -f trivy-out/trivy-image.json
           mkdir -p trivy-out
-          # Capture exit code properly. Trivy exit code 1 = vulns found (not an error).
-          # We parse the JSON to decide PASS/FAIL — only fail if fixable HIGH/CRITICAL are present.
-          # --ignore-unfixed skips vulns with no available patch.
+          # Trivy exit codes: 0 = no vulns found, 1 = vulns found, >1 = error/crash.
+          # --exit-code 0 is deliberately omitted: we always capture the JSON report
+          # (including any unfixed vulns) and let the Python parser below decide
+          # PASS/FAIL based on the actual vulnerability data.
+          #
+          # --ignore-unfixed skips vulnerabilities with no available patch. These are
+          # recorded in the Step Summary as ADR-0026 exceptions (see the "Record any
+          # no-fix HIGH/CRITICAL" step below). The --ignore-unfixed flag does NOT
+          # suppress the JSON output — it only filters the exit code and the report
+          # content to exclude unfixed entries, so a pass (exit 0) means the image
+          # has no fixable HIGH/CRITICAL CVEs at scan time.
           if docker run --rm \
               -v /var/run/docker.sock:/var/run/docker.sock \
               -v "$PWD/trivy-out:/work" \
