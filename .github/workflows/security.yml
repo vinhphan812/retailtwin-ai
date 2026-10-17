@@ -45,16 +45,18 @@ jobs:
 
       - name: Python project dependency vulnerabilities
         run: |
-          # Audit declared dependencies from apps/api/pyproject.toml against PyPI.
-          # pip-audit 2.10.1 depends on pip-api which requires pip>=24.0.
-          # Strategy: upgrade pip/setuptools/wheel first, then install pip-audit.
-          # This way the venv has patched tooling, pip-audit gets installed
-          # without re-downgrading pip, and no CVE in the audit venv.
-          # --skip-editable skips retailtwin-api itself.
+          # pip-audit 2.10.1 depends on pip-api>=0.0.14 which requires pip>=24.0.
+          # pip-api would reinstall pip 24.0 as a dependency, breaking pip's
+          # internal vendor modules (pygments). This causes ModuleNotFoundError.
+          # Fix: install pip-audit with --no-deps to skip pip-api dependency.
+          # Then manually upgrade pip to patched version. pip-audit still works
+          # because it resolves dependencies from the declared pyproject.toml
+          # against PyPI (no local pip inspection needed).
           "${{ env.pythonLocation }}/python" -m venv --clear /tmp/retailtwin-audit-venv
           /tmp/retailtwin-audit-venv/bin/python -m ensurepip --upgrade
+          /tmp/retailtwin-audit-venv/bin/python -m pip install --no-deps pip-audit
           /tmp/retailtwin-audit-venv/bin/python -m pip install --upgrade pip setuptools wheel
-          /tmp/retailtwin-audit-venv/bin/python -m pip install pip-audit
+          /tmp/retailtwin-audit-venv/bin/python -m pip install pip-api>=0.0.14
           /tmp/retailtwin-audit-venv/bin/python -m pip_audit \
             --progress-spinner off \
             --skip-editable \
