@@ -9,3 +9,12 @@ export const PROMOTION_FLASH_MS = 2400;
 
 /** Products the Store API card lists before "Show all"; out and low stock come first. */
 export const STORE_STATUS_ROWS = 5;
+
+/** How often the KPI strip reads today's revenue again, in ms. */
+export const REVENUE_TODAY_REFRESH_MS = 60_000;
+
+/** How old the last good read of today's revenue may get before the KPI strip stops showing it, in ms. */
+export const REVENUE_TODAY_STALE_MS = 5 * 60_000;
+
+/** How often the flagship demo runner polls for status and events, in ms. */
+export const DEMO_RUN_POLL_MS = 250;
