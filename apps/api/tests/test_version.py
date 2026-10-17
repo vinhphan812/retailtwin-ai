@@ -113,7 +113,7 @@ def test_version_route_honours_git_sha_env_at_startup(monkeypatch) -> None:
     completed = subprocess.run(
         [sys.executable, "-c", script],
         cwd=REPO_ROOT,
-        env={"GIT_SHA": "deadbeef", "PATH": "/usr/bin:/bin:/usr/local/bin"},
+        env={"GIT_SHA": "deadbeef", "PATH": "/usr/bin:/bin:/usr/local/bin", "PYTHONPATH": str(REPO_ROOT / "apps" / "api")},
         capture_output=True,
         text=True,
         check=True,
