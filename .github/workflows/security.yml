@@ -159,6 +159,13 @@ jobs:
           TRIVY_EXIT=$?
           set -euo pipefail
 
+          echo "[DEBUG] Trivy exit code: $TRIVY_EXIT"
+          if [ -f "$TRIVY_JSON" ]; then
+            echo "[DEBUG] Trivy JSON size: $(wc -c < "$TRIVY_JSON") bytes"
+          else
+            echo "[DEBUG] Trivy JSON NOT found at $TRIVY_JSON"
+          fi
+
           if [ "$TRIVY_EXIT" -eq 2 ] || [ "$TRIVY_EXIT" -eq 5 ]; then
             echo "::warning::Trivy scan error (exit $TRIVY_EXIT) — scan incomplete. Skipping vulnerability gate."
             exit 0
@@ -183,12 +190,16 @@ jobs:
               print(f"[TRIVY-PARSER] FAIL: could not parse trivy-image.json: {exc}", file=sys.stderr)
               sys.exit(1)
 
+          # Trivy can exit 0 but produce output that is not a dict (e.g. an error
+          # message from the registry). Fail closed: if the JSON is not a dict,
+          # the scan is inconclusive.
           if not isinstance(data, dict):
-              print("[TRIVY-PARSER] FAIL: root must be a JSON object", file=sys.stderr)
+              print("[TRIVY-PARSER] FAIL: Trivy output is not a valid JSON object — scan inconclusive. Requires investigation.", file=sys.stderr)
               sys.exit(1)
           results = data.get("Results")
+          # Fail closed: if Results is missing, the scan produced incomplete output.
           if results is None:
-              print("[TRIVY-PARSER] FAIL: Results key is missing from trivy-image.json", file=sys.stderr)
+              print("[TRIVY-PARSER] FAIL: Results key missing from Trivy JSON — scan may have been truncated or produced an error. Requires investigation.", file=sys.stderr)
               sys.exit(1)
           if not isinstance(results, list):
               print("[TRIVY-PARSER] FAIL: Results must be a list", file=sys.stderr)
