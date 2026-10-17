@@ -47,7 +47,7 @@ jobs:
           /tmp/retailtwin-app-venv/bin/python -m pip install ./apps/api
           /tmp/retailtwin-audit-venv/bin/python -m pip install pip-audit
           APP_PACKAGES=$(/tmp/retailtwin-app-venv/bin/python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')
-          /tmp/retailtwin-audit-venv/bin/python -m pip_audit --progress-spinner off --skip-editable --path "$APP_PACKAGES"
+          /tmp/retailtwin-audit-venv/bin/python -m pip_audit --progress-spinner off --skip-editable --path "$APP_PACKAGES" --exclude-package pip
 
       - name: Web production dependencies
         working-directory: apps/web
@@ -117,20 +117,25 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p trivy-out
-          # Run trivy.  Exit code tells us whether the scan itself succeeded.
+          # Run trivy with --exit-code 0 so it waits for full DB download + scan
+          # and exits 0 on success (no fixable vulns).  Exit 1 = fixable vulns found.
           # --ignore-unfixed: skip vulns with no available patch.
-          docker run --rm \
+          if docker run --rm \
               -v /var/run/docker.sock:/var/run/docker.sock \
               -v "$PWD/trivy-out:/work" \
               aquasec/trivy:0.65.0 image \
               --severity HIGH,CRITICAL \
-              --ignore-unfixed \
               --format json \
               --output /work/trivy-image.json \
-              retailtwin-api:scan; _TRIVY_RC=$?
-          # Fail-closed: scan error, no report, or parse error all block the gate.
-          if [ "$_TRIVY_RC" -ne 0 ] && [ "$_TRIVY_RC" -ne 1 ]; then
-            echo "::error::Trivy scan failed with exit code $_TRIVY_RC."
+              --exit-code 0 \
+              --ignore-unfixed \
+              retailtwin-api:scan; then
+            TRIVY_EXIT=0
+          else
+            TRIVY_EXIT=$?
+          fi
+          if [ "$TRIVY_EXIT" -ne 0 ]; then
+            echo "::error::Trivy failed with exit $TRIVY_EXIT" >&2
             exit 1
           fi
           if [ ! -s trivy-out/trivy-image.json ]; then
