@@ -166,6 +166,39 @@ body {
   text-underline-offset: 2px;
 }
 
+/* The demo notice under the header: amber, full width, so the synthetic store is never taken
+   for live store telemetry. */
+.twin-demo-banner {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 3px 16px;
+  font-size: 12px;
+  color: var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning) 12%, var(--color-panel));
+  border-bottom: 1px solid color-mix(in srgb, var(--color-warning) 45%, transparent);
+  white-space: nowrap;
+}
+
+.twin-demo-banner-tag {
+  flex: none;
+  padding: 0 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--color-canvas);
+  background: var(--color-warning);
+}
+
+.twin-demo-banner-text {
+  overflow: hidden;
+  color: var(--color-ink);
+  text-overflow: ellipsis;
+}
+
 .twin-footer {
   height: 24px;
   border-top: 1px solid var(--color-line);

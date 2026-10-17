@@ -4,6 +4,7 @@ import {
 } from "@/components/layout/AgentActivityPanel";
 import { BuildBadge } from "@/components/layout/BuildBadge";
 import { CameraHelp } from "@/components/layout/CameraHelp";
+import { TwinDemoBanner } from "@/components/layout/TwinDemoBanner";
 import { TwinFooter } from "@/components/layout/TwinFooter";
 import { TwinHeader } from "@/components/layout/TwinHeader";
 import { KpiStrip } from "@/components/layout/KpiStrip";
@@ -44,6 +45,7 @@ export function TwinPage() {
   return (
     <>
       <TwinHeader />
+      <TwinDemoBanner />
       <div className="twin-body">
         <main className="viewport relative">
           <StoreScene />
