@@ -90,16 +90,19 @@ jobs:
       - name: Build container image
         id: build
         run: |
-          # Clear buildx builder cache to ensure --no-cache actually works.
-          # Without this, buildx may reuse cached layers even with --no-cache.
+          # Remove any stale cached image so the new build always produces a fresh image.
+          # 'docker builder prune' clears the buildx layer cache, but the local
+          # Docker daemon may still hold the old image under the same tag.
+          docker rmi retailtwin-api:scan || true
           docker builder prune --force
-          # --no-cache: bypasses Docker layer cache so the latest Dockerfile
-          # (including USER directive) is always applied in CI.
+          # --no-cache: ensures Dockerfile layers are rebuilt fresh.
+          # --pull: always pulls the base image (FROM) from the registry.
           docker build \
               --tag retailtwin-api:scan \
               --file Dockerfile \
               --load \
               --no-cache \
+              --pull \
               .
 
       - name: Verify image runs as non-root (UID != 0)
