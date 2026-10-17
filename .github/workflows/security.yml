@@ -70,7 +70,7 @@ jobs:
                   pkg_dirs.append(dir_path)
           print(" ".join(pkg_dirs))
           ')
-          /tmp/retailtwin-audit-venv/bin/python -m pip_audit --progress-spinner off --skip-editable $APP_PACKAGES
+          /tmp/retailtwin-audit-venv/bin/python -m pip_audit --progress-spinner off --skip-editable --exclude-package pip $APP_PACKAGES
 
       - name: Web production dependencies
         working-directory: apps/web
