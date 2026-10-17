@@ -135,11 +135,11 @@ jobs:
         id: trivy
         run: |
           set -euo pipefail
-          mkdir -p "$PWD/trivy-out"
-          # Use absolute paths for the output file so the shell variable
-          # expands correctly regardless of working directory state.
-          TRIVY_JSON="$PWD/trivy-out/trivy-image.json"
-          rm -f "$TRIVY_JSON" "$PWD/trivy-image.json"
+          mkdir -p "$GITHUB_WORKSPACE/trivy-out"
+          # Use $GITHUB_WORKSPACE for absolute paths.  $PWD may be empty or
+          # wrong when used inside a 'docker run -v' volume mount argument.
+          TRIVY_JSON="$GITHUB_WORKSPACE/trivy-out/trivy-image.json"
+          rm -f "$TRIVY_JSON" "$GITHUB_WORKSPACE/trivy-image.json"
 
           # Capture Trivy exit code explicitly.  Use 'set +e' around the command so
           # 'set -euo pipefail' does not abort when Trivy exits non-zero.
@@ -148,7 +148,7 @@ jobs:
           set +e
           docker run --rm \
               -v /var/run/docker.sock:/var/run/docker.sock \
-              -v "$PWD/trivy-out:/work" \
+              -v "$GITHUB_WORKSPACE/trivy-out:/work" \
               aquasec/trivy:0.65.0 image \
               --severity HIGH,CRITICAL \
               --format json \
@@ -170,7 +170,7 @@ jobs:
             echo "::error::No Trivy report produced at $TRIVY_JSON — scan may have crashed." >&2
             exit 1
           fi
-          cp "$TRIVY_JSON" "$PWD/trivy-image.json"
+          cp "$TRIVY_JSON" "$GITHUB_WORKSPACE/trivy-image.json"
           python3 - <<'PY'
           import json, sys, os
 
