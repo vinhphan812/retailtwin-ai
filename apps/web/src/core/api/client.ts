@@ -56,6 +56,16 @@ export function createClient(baseUrl: string, fetchImpl?: typeof fetch): RetailT
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       }),
+    flagshipStatus: () => request<import("@/types/api.type").FlagshipStatusResponse>("/flagship/status"),
+    flagshipReset: () => request<{ run_id: string }>("/flagship/reset", { method: "POST" }),
+    flagshipStart: (correlationId: string) =>
+      request<{ run_id: string; correlation_id: string; phase: string }>("/flagship/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ correlation_id: correlationId }),
+      }),
+    agentEvents: (since?: string | null) =>
+      request<import("@/types/api.type").AgentEventsResponse>(`/agent/events${since ? `?since=${encodeURIComponent(since)}` : ""}`),
   };
 }
 
