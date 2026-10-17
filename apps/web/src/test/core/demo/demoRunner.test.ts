@@ -238,6 +238,75 @@ describe("createApiDemoRunner", () => {
     await expect(failed).resolves.toBe("planner returned no decisions");
   });
 
+  it("ends in error when neither the status nor start's answer names the run in time, and stops reading", async () => {
+    const { client } = fakeClient([], [status("IDLE", null, { correlation_id: null })]);
+    const starting = createApiDemoRunner(client, POLL, () => "run-1", { identifyTimeoutMs: POLL * 5 }).start();
+    const failed = starting.catch((error: Error) => error.message);
+    await vi.advanceTimersByTimeAsync(POLL * 5);
+    await expect(failed).resolves.toBe("The flagship run did not start within 1 s.");
+    const reads = vi.mocked(client.flagshipStatus).mock.calls.length;
+    await vi.advanceTimersByTimeAsync(POLL * 10);
+    expect(vi.mocked(client.flagshipStatus).mock.calls.length).toBe(reads);
+    // The deadline sends nothing of its own: no second start, no reset.
+    expect(client.flagshipStart).toHaveBeenCalledTimes(1);
+    expect(client.flagshipReset).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads the status again after a failed read, waiting longer each time, and finishes the run", async () => {
+    const step = (stage: string) => ({ stage, detail: stage, at: "t" });
+    const { client, calls } = fakeClient([], [
+      status("RUNNING", null, { timeline: [step("investigate")] }),
+      status("COMPLETE", null, { timeline: [step("investigate"), step("plan"), step("verify")] }),
+    ]);
+    const run = await runner(client).start();
+    vi.mocked(client.flagshipStatus).mockRejectedValueOnce(new Error("503")).mockRejectedValueOnce(new Error("503"));
+    const settled = vi.fn();
+    run.done.then(settled);
+    // Poll at +100 fails, retry at +200 fails, retry at +400 reads COMPLETE.
+    await vi.advanceTimersByTimeAsync(POLL + POLL * 2);
+    expect(settled).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(POLL * 4);
+    await expect(run.done).resolves.toBeUndefined();
+    expect(useRunStore.getState().activity.map((entry) => entry.stage)).toEqual(["INVESTIGATE", "PLAN", "VERIFY"]);
+    expect(calls).toEqual(["reset", "start"]);
+  });
+
+  it("reads the feed again after a failed read, without losing the run's entries", async () => {
+    const { client } = fakeClient([[event("a", "PLAN")], [event("b", "VERIFY")]], [status("RUNNING"), status("RUNNING"), status("COMPLETE")]);
+    const run = await runner(client).start();
+    vi.mocked(client.agentEvents).mockRejectedValueOnce(new Error("Failed to fetch"));
+    await vi.advanceTimersByTimeAsync(POLL * 10);
+    await expect(run.done).resolves.toBeUndefined();
+    expect(useRunStore.getState().activity.map((entry) => entry.id)).toEqual(["a", "b"]);
+  });
+
+  it("counts only failed reads in a row: a good read in between starts the count again", async () => {
+    const { client } = fakeClient([], [status("RUNNING"), status("RUNNING"), status("RUNNING"), status("COMPLETE")]);
+    const run = await createApiDemoRunner(client, POLL, () => "run-1", { readRetries: 1 }).start();
+    const flaky = vi.mocked(client.flagshipStatus);
+    flaky.mockRejectedValueOnce(new Error("503"));
+    await vi.advanceTimersByTimeAsync(POLL + POLL * 2);
+    flaky.mockRejectedValueOnce(new Error("503"));
+    await vi.advanceTimersByTimeAsync(POLL * 20);
+    await expect(run.done).resolves.toBeUndefined();
+  });
+
+  it("ends in error with the last failure once the reads fail more times in a row than it retries, and stops reading", async () => {
+    const { client } = fakeClient([], [status("RUNNING")]);
+    const run = await createApiDemoRunner(client, POLL, () => "run-1", { readRetries: 2 }).start();
+    const failed = run.done.catch((error: Error) => error.message);
+    vi.mocked(client.flagshipStatus)
+      .mockRejectedValueOnce(new Error("503"))
+      .mockRejectedValueOnce(new Error("503"))
+      .mockRejectedValueOnce(new Error("Twin API unreachable."));
+    // +100, then retries at +200 and +400.
+    await vi.advanceTimersByTimeAsync(POLL + POLL * 2 + POLL * 4);
+    await expect(failed).resolves.toBe("Twin API unreachable.");
+    const reads = vi.mocked(client.flagshipStatus).mock.calls.length;
+    await vi.advanceTimersByTimeAsync(POLL * 20);
+    expect(vi.mocked(client.flagshipStatus).mock.calls.length).toBe(reads);
+  });
+
   it("stops reading once stopped", async () => {
     const { client } = fakeClient([], [status("RUNNING")]);
     const run = await runner(client).start();

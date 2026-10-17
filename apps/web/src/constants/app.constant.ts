@@ -16,6 +16,12 @@ export const STORE_STATUS_ROWS = 5;
 /** How often the Run AI Demo button reads the flagship status and the agent feed while a run plays, in ms. */
 export const DEMO_RUN_POLL_MS = 1000;
 
+/** How long the Run AI Demo button waits for the flagship status or `start`'s answer to name its run, in ms. */
+export const DEMO_RUN_IDENTIFY_TIMEOUT_MS = 30_000;
+
+/** How many reads of the flagship status or the agent feed in a row may fail before the Run AI Demo button gives up. */
+export const DEMO_RUN_READ_RETRIES = 3;
+
 /** How often the KPI strip reads today's revenue again, in ms. */
 export const REVENUE_TODAY_REFRESH_MS = 60_000;
 

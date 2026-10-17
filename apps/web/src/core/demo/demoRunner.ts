@@ -1,4 +1,4 @@
-import { DEMO_RUN_POLL_MS } from "@/constants/app.constant";
+import { DEMO_RUN_IDENTIFY_TIMEOUT_MS, DEMO_RUN_POLL_MS, DEMO_RUN_READ_RETRIES } from "@/constants/app.constant";
 import { useRunStore } from "@/state/run.store";
 import type { ActivityEntry, ControlStage } from "@/types/agent.type";
 import type { AgentEvent, FlagshipStatusResponse, RetailTwinClient } from "@/types/api.type";
@@ -76,14 +76,18 @@ const newCorrelationId = () => `flagship-${crypto.randomUUID()}`;
  * the status or `start`'s answer names the run; the run ends when the status says COMPLETE or
  * ERROR, or when the status names another run. A failed `start` (a timeout on Cloud Run, say)
  * ends it only once the status does not name the run: while the controller carries on, the
- * runner follows it and never sends `start` again. It never advances a stage itself: the
- * stages are the controller's.
+ * runner follows it and never sends `start` again. A failed read of the status or the feed
+ * (a dropped connection, a 5xx) is read again, waiting longer each time; the run ends in error
+ * only after `readRetries` failed reads in a row. If neither the status nor `start`'s answer
+ * names the run within `identifyTimeoutMs`, it ends in error and the runner stops reading.
+ * It never advances a stage itself: the stages are the controller's.
  * TODO(BE): #41 to answer `start` at once (202) and to record each stage, ACT included, in the feed.
  */
 export function createApiDemoRunner(
   client: RetailTwinClient,
   pollMs = DEMO_RUN_POLL_MS,
   correlationIdOf: () => string = newCorrelationId,
+  { identifyTimeoutMs = DEMO_RUN_IDENTIFY_TIMEOUT_MS, readRetries = DEMO_RUN_READ_RETRIES } = {},
 ): DemoRunner {
   return {
     source: DEMO_RUN_SOURCE.Flagship,
@@ -97,6 +101,8 @@ export function createApiDemoRunner(
       let cursor: string | null = null;
       let stopped = false;
       let timer: ReturnType<typeof setTimeout> | undefined;
+      let deadline: ReturnType<typeof setTimeout> | undefined;
+      let failedReads = 0;
       /** How `POST /flagship/start` answered, once it has; a joined run sends none. */
       let answer: { ok: true } | { ok: false; error: unknown } | null = joined ? { ok: true } : null;
 
@@ -105,6 +111,7 @@ export function createApiDemoRunner(
       const identified = new Promise<void>((resolve, reject) => {
         identify = () => {
           identifiedYet = true;
+          clearTimeout(deadline);
           resolve();
         };
         failStart = reject;
@@ -127,6 +134,9 @@ export function createApiDemoRunner(
 
       const done = new Promise<void>((resolve, reject) => {
         const fail = (error: unknown) => {
+          stopped = true;
+          clearTimeout(timer);
+          clearTimeout(deadline);
           failStart(error);
           reject(error);
         };
@@ -141,6 +151,7 @@ export function createApiDemoRunner(
             else if (answer && !answer.ok) return fail(answer.error);
             else if (identifiedYet || answer?.ok) return fail(new Error("Another flagship run replaced this one."));
             if (isOurs) await readStages(status);
+            failedReads = 0;
             if (stopped) return;
             if (isOurs && status.phase === "COMPLETE") return resolve();
             if (isOurs && status.phase === "ERROR") {
@@ -148,9 +159,15 @@ export function createApiDemoRunner(
             }
             timer = setTimeout(poll, pollMs);
           } catch (error) {
-            fail(error);
+            if (stopped) return;
+            if (++failedReads > readRetries) return fail(error);
+            timer = setTimeout(poll, pollMs * 2 ** failedReads);
           }
         };
+
+        deadline = setTimeout(() => {
+          if (!identifiedYet) fail(new Error(`The flagship run did not start within ${Math.round(identifyTimeoutMs / 1000)} s.`));
+        }, identifyTimeoutMs);
 
         if (!joined) {
           client.flagshipStart(ours).then(
