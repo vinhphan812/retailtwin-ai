@@ -17,8 +17,8 @@ const _store: Record<string, any> = {
 };
 
 // Initialize wrappers ONCE — the hook captures these function references.
-_store.setAll = (...args: unknown[]) => { spySetAll(...args); };
-_store.fail = (...args: unknown[]) => { spyFail(...args); };
+_store.setAll = (arg: unknown) => { spySetAll([arg]); };
+_store.fail = (arg: unknown) => { spyFail([arg]); };
 
 export const spyAnomalies = vi.fn<() => Promise<AnomaliesResponse>>();
 export const spySetAll = vi.fn<(args: unknown[]) => void>();
@@ -27,7 +27,7 @@ export const spyNotifyError = vi.fn();
 let isDemo = false;
 
 export function resetSpies() {
-  spyAnomalies.mockImplementation(() => Promise.resolve({ anomalies: [] }));
+  spyAnomalies.mockImplementation(() => Promise.resolve({ anomalies: [] as AnomaliesResponse["anomalies"] }));
   // mockReset() replaces the function but keeps the same reference — the wrapper
   // that calls spySetAll(spyFail) still points to the same spy object
   spySetAll.mockReset();
@@ -52,7 +52,7 @@ vi.mock("@/core/twin/demoMode", () => ({
 
 vi.mock("@/core/api/client", () => ({
   defaultClient: {
-    anomalies: (...args: unknown[]) => spyAnomalies(...args),
+    anomalies: (arg: unknown) => spyAnomalies(arg),
   } as unknown as RetailTwinClient,
 }));
 
