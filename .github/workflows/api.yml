@@ -29,16 +29,9 @@ concurrency:
 
 jobs:
   security:
-    # TEMPORARILY DISABLED — self-hosted runner environment issues prevent
-    # reliable execution. pip 25.0 crashes with 'no module named packaging'
-    # in the CI venv; Trivy container scans fail intermittently on the runner.
-    # To re-enable: change to 'uses: ./.github/workflows/security.yml'.
-    # Tracked in GitHub Issue #146.
-    runs-on: ubuntu-latest
-    steps:
-      - name: Security checks bypassed
-        run: echo "Security checks temporarily disabled — see #146"
-        shell: bash
+    uses: ./.github/workflows/security.yml
+    permissions:
+      contents: read
 
   build-test:
     name: Build & Test
