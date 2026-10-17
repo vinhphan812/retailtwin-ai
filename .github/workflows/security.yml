@@ -118,8 +118,10 @@ jobs:
         run: |
           set -euo pipefail
           # Check the same paths that .gitignore refuses to commit.
-          # BAD is always captured (|| true) because set -e would otherwise
-          # abort the step when the container's grep match causes exit 1.
+          # Wrap the entire check in || true so set -e does not abort when:
+          # - docker exits 125 (image not found in local daemon)
+          # - the inner script exits 1 (credential found)
+          # The BAD variable captures the output string; check it afterwards.
           BAD=$(docker run --rm --entrypoint sh retailtwin-api:scan -c '
             set -e
             for pattern in "credentials*.json" "service-account*.json" "*.key" ".env"; do
