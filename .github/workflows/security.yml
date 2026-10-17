@@ -88,15 +88,11 @@ jobs:
       - name: Build container image
         id: build
         run: |
-          # Remove any stale cached image so the new build always produces a fresh image.
-          # 'docker builder prune' clears the buildx layer cache, but the local
-          # Docker daemon may still hold the old image under the same tag.
-          docker rmi retailtwin-api:scan || true
-          docker builder prune --force
-          # --no-cache: ensures Dockerfile layers are rebuilt fresh.
-          # --pull: always pulls the base image (FROM) from the registry.
+          # Tag the image with the run ID so it never conflicts with an existing tag.
+          # Using a unique tag avoids the need to docker rmi or docker builder prune.
+          # The tag is deterministic per CI run: the runner cleans up after itself.
           docker build \
-              --tag retailtwin-api:scan \
+              --tag retailtwin-api:scan-"$GITHUB_RUN_ID" \
               --file Dockerfile \
               --load \
               --no-cache \
@@ -106,7 +102,7 @@ jobs:
       - name: Verify image runs as non-root (UID != 0)
         run: |
           set -euo pipefail
-          USER_ID=$(docker run --rm --entrypoint id retailtwin-api:scan -u)
+          USER_ID=$(docker run --rm --entrypoint id retailtwin-api:scan-$GITHUB_RUN_ID -u)
           echo "Container runs as UID ${USER_ID}"
           if [ "${USER_ID}" = "0" ]; then
             echo "::error::Container runs as UID 0 (root). The runtime image must declare a non-root USER."
@@ -122,7 +118,7 @@ jobs:
           # - docker exits 125 (image not found in local daemon)
           # - the inner script exits 1 (credential found)
           # The BAD variable captures the output string; check it afterwards.
-          BAD=$(docker run --rm --entrypoint sh retailtwin-api:scan -c '
+          BAD=$(docker run --rm --entrypoint sh retailtwin-api:scan-$GITHUB_RUN_ID -c '
             set -e
             for pattern in "credentials*.json" "service-account*.json" "*.key" ".env"; do
               # shellcheck disable=SC2086
@@ -158,7 +154,7 @@ jobs:
               --format json \
               --output "$TRIVY_JSON" \
               --timeout 10m0s \
-              retailtwin-api:scan
+              retailtwin-api:scan-$GITHUB_RUN_ID
           TRIVY_EXIT=$?
           set -euo pipefail
 
@@ -296,4 +292,4 @@ jobs:
 
       - name: Cleanup intermediate image
         if: always()
-        run: docker image rm retailtwin-api:scan 2>/dev/null || true
+        run: docker image rm retailtwin-api:scan-$GITHUB_RUN_ID 2>/dev/null || true
