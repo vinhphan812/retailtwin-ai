@@ -36,7 +36,9 @@ jobs:
     # Tracked in GitHub Issue #146.
     runs-on: ubuntu-latest
     steps:
-      - run: echo "Security checks temporarily disabled — see #146"
+      - name: Security checks bypassed
+        run: echo "Security checks temporarily disabled — see #146"
+        shell: bash
 
   build-test:
     name: Build & Test
