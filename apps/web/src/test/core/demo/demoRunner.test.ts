@@ -265,18 +265,23 @@ describe("createApiDemoRunner transient fetch failures", () => {
 
 describe("createApiDemoRunner start identification timeout", () => {
   it("fails with timeout error when start never identifies a run", async () => {
+    // Suppress unhandled promise rejection warning from the hanging mock
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
     // Use very short timeout config
     const shortTimeoutRunner = (client: RetailTwinClient) =>
       createApiDemoRunner(client, POLL, () => "run-1", RETRY_CONFIG, { identificationTimeoutMs: 200 });
 
     const { client } = fakeClient([], [status("IDLE")]);
-    // Never resolve start
-    vi.mocked(client.flagshipStart).mockReturnValue(new Promise(() => {})); // Never resolves
+    // Never resolve start - this would cause unhandled rejection after test ends
+    vi.mocked(client.flagshipStart).mockReturnValue(new Promise(() => {}));
 
     const runPromise = shortTimeoutRunner(client).start();
     // Wait for the timeout to fire
     await vi.advanceTimersByTimeAsync(300);
     await expect(runPromise).rejects.toThrow("Start identification timed out after 200ms");
+
+    consoleSpy.mockRestore();
   });
 
   it("succeeds when run is identified before timeout", async () => {
