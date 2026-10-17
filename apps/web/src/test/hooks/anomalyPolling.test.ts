@@ -27,7 +27,7 @@ export const spyNotifyError = vi.fn();
 let isDemo = false;
 
 export function resetSpies() {
-  spyAnomalies.mockImplementation(() => Promise.resolve({ anomalies: [] as AnomaliesResponse["anomalies"] }));
+  spyAnomalies.mockImplementation(() => Promise.resolve({ anomalies: [] } as AnomaliesResponse));
   // mockReset() replaces the function but keeps the same reference — the wrapper
   // that calls spySetAll(spyFail) still points to the same spy object
   spySetAll.mockReset();
@@ -52,7 +52,7 @@ vi.mock("@/core/twin/demoMode", () => ({
 
 vi.mock("@/core/api/client", () => ({
   defaultClient: {
-    anomalies: (arg: unknown) => spyAnomalies(arg),
+    anomalies: () => spyAnomalies(),
   } as unknown as RetailTwinClient,
 }));
 
