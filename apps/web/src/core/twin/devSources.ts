@@ -17,7 +17,7 @@ import { useTwinStore } from "@/state/twin.store";
 import type { SimulationAction } from "@/types/simulation.type";
 import { commitSimulation, createMemoryReviewer, discardSimulation, openSimulation } from "./memorySimulation";
 import { createApiReviewer, type SimulationReviewer } from "./simulationReview";
-import { demoAllowed } from "./demoMode";
+import { LIVE_PATH, isDemoMode } from "./demoMode";
 
 /** The editable twin behind `?twin=memory|demo`, once `pickSource` has made it. */
 let memoryTwin: MemoryTwin | null = null;
@@ -104,13 +104,21 @@ function memoryTwinSource(initial: StoreResponse = fixtureStoreState()): TwinSou
 }
 
 /**
- * The `?twin=` dev twin picked in the URL, or "" for apps/api. In a production build, only
- * `demo`, and only when the build allows it (`demoAllowed`).
+ * The dev twin the URL picks, or "" for apps/api: `demo` wherever `isDemoMode` says so
+ * (`?twin=demo`, `/demo`, or `/` of the hosted demo), else a `?twin=` dev twin, in a
+ * development build only. `/live` is always apps/api, whatever its `?twin=`.
  */
 function devTwinMode(): string {
+  if (window.location.pathname === LIVE_PATH) return "";
+  if (isDemoMode()) return "demo";
   const mode = new URLSearchParams(window.location.search).get("twin") ?? "";
-  if (!import.meta.env.DEV) return mode === "demo" && demoAllowed() ? mode : "";
-  return mode === "memory" || mode === "demo" || mode in DEV_SOURCES ? mode : "";
+  if (!import.meta.env.DEV) return "";
+  return mode === "memory" || mode in DEV_SOURCES ? mode : "";
+}
+
+/** True when the twin on screen is the Live Twin of apps/api, not the demo or a dev twin. */
+export function isApiTwin(): boolean {
+  return devTwinMode() === "";
 }
 
 /**
