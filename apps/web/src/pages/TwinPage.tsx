@@ -46,6 +46,7 @@ export function TwinPage() {
   return (
     <>
       <TwinHeader />
+      <TwinDemoBanner />
       <div className="twin-body">
         <main className="viewport relative">
           <StoreScene />

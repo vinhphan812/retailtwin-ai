@@ -11,6 +11,9 @@ export const en = {
     liveDataHint: "The Live Twin, as apps/api serves it. Accept and Reject change it.",
     openLive: "Open the live twin",
     openDemo: "Open the demo",
+    demoBannerLabel: "Demo data notice",
+    demoBannerTag: "DEMO",
+    demoBanner: "Synthetic demo store, not live store telemetry. Nothing here writes to the Live Twin.",
   },
   footer: {
     context: "Context {{version}}",

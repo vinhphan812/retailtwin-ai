@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { TwinDemoBanner } from "@/components/layout/TwinDemoBanner";
 import { TECH_STACK, TwinFooter } from "@/components/layout/TwinFooter";
 import { TwinHeader } from "@/components/layout/TwinHeader";
 import { VIEW_MODE } from "@/enums/ui.enum";
@@ -92,6 +93,43 @@ describe("TwinHeader", () => {
     render(<TwinHeader />);
     expect(screen.queryByText("Demo data")).toBeNull();
     expect(screen.queryByText("Live data")).toBeNull();
+  });
+});
+
+describe("TwinDemoBanner", () => {
+  it("marks every demo route as synthetic, not live store telemetry, with a link to /live", () => {
+    for (const path of ["/demo", "/?twin=demo", "/?product=P001&twin=demo"]) {
+      at(path);
+      const { unmount } = render(<TwinDemoBanner />);
+      const note = screen.getByRole("note", { name: "Demo data notice" });
+      expect(note.textContent).toContain("DEMO");
+      expect(note.textContent).toContain("not live store telemetry");
+      expect(screen.getByRole("link", { name: "Open the live twin" }).getAttribute("href")).toBe("/live");
+      unmount();
+    }
+  });
+
+  it("marks the bare URL of a hosted demo build, which opens the demo", () => {
+    vi.stubEnv("DEV", false);
+    vi.stubEnv("VITE_ALLOW_DEMO", "true");
+    at("/");
+    render(<TwinDemoBanner />);
+    expect(screen.getByRole("note", { name: "Demo data notice" }).textContent).toContain("not live store telemetry");
+  });
+
+  it("is not on the live twin, on a dev twin, or in a production build without the demo", () => {
+    vi.stubEnv("VITE_ALLOW_DEMO", "true");
+    for (const path of ["/live", "/live?twin=demo", "/?twin=fixture"]) {
+      at(path);
+      const { unmount } = render(<TwinDemoBanner />);
+      expect(screen.queryByRole("note")).toBeNull();
+      unmount();
+    }
+    vi.unstubAllEnvs();
+    vi.stubEnv("DEV", false);
+    at("/demo");
+    render(<TwinDemoBanner />);
+    expect(screen.queryByRole("note")).toBeNull();
   });
 });
 
