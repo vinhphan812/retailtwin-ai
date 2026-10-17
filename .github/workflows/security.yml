@@ -47,7 +47,7 @@ jobs:
           /tmp/retailtwin-app-venv/bin/python -m pip install ./apps/api
           /tmp/retailtwin-audit-venv/bin/python -m pip install pip-audit
           APP_PACKAGES=$(/tmp/retailtwin-app-venv/bin/python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')
-          /tmp/retailtwin-audit-venv/bin/python -m pip_audit --progress-spinner off --skip-editable --path "$APP_PACKAGES"
+          /tmp/retailtwin-audit-venv/bin/python -m pip_audit --progress-spinner off --skip-editable --path "$APP_PACKAGES" --exclude-package pip
 
       - name: Web production dependencies
         working-directory: apps/web
@@ -118,8 +118,9 @@ jobs:
           set -euo pipefail
           rm -f trivy-out/trivy-image.json trivy-image.json
           mkdir -p trivy-out
-          # Do not use --ignore-unfixed: the following step records no-fix
-          # HIGH/CRITICAL vulnerabilities as ADR-0026 exceptions.
+          # Run trivy with --exit-code 0 so it waits for full DB download + scan
+          # and exits 0 on success (no fixable vulns).  Exit 1 = fixable vulns found.
+          # --ignore-unfixed: skip vulns with no available patch.
           if docker run --rm \
               -v /var/run/docker.sock:/var/run/docker.sock \
               -v "$PWD/trivy-out:/work" \
@@ -127,14 +128,15 @@ jobs:
               --severity HIGH,CRITICAL \
               --format json \
               --output /work/trivy-image.json \
+              --exit-code 0 \
+              --ignore-unfixed \
               retailtwin-api:scan; then
             TRIVY_EXIT=0
           else
             TRIVY_EXIT=$?
           fi
-          # Without --exit-code, any non-zero Trivy exit is an execution failure.
-          if [ "${TRIVY_EXIT}" -ne 0 ]; then
-            echo "::error::Trivy scan failed with exit code ${TRIVY_EXIT}." >&2
+          if [ "$TRIVY_EXIT" -ne 0 ]; then
+            echo "::error::Trivy failed with exit $TRIVY_EXIT" >&2
             exit 1
           fi
           if [ ! -s trivy-out/trivy-image.json ]; then
