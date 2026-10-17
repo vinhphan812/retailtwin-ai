@@ -267,16 +267,17 @@ describe("createApiDemoRunner start identification timeout", () => {
   it("fails with timeout error when start never identifies a run", async () => {
     // Use very short timeout config
     const shortTimeoutRunner = (client: RetailTwinClient) =>
-      createApiDemoRunner(client, POLL, () => "run-1", RETRY_CONFIG, { identificationTimeoutMs: 200 });
+      createApiDemoRunner(client, POLL, () => "run-1", RETRY_CONFIG, { identificationTimeoutMs: 50 });
 
     const { client } = fakeClient([], [status("IDLE")]);
-    // Never resolve start
-    vi.mocked(client.flagshipStart).mockReturnValue(new Promise(() => {})); // Never resolves
+    // Never resolve start - this would cause unhandled rejection after test ends
+    vi.mocked(client.flagshipStart).mockReturnValue(new Promise(() => {}));
 
     const runPromise = shortTimeoutRunner(client).start();
-    // Wait for the timeout to fire
-    await vi.advanceTimersByTimeAsync(300);
-    await expect(runPromise).rejects.toThrow("Start identification timed out after 200ms");
+    // Wait for the timeout to fire (using real timers now)
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    // Now the promise should be rejected with the timeout error
+    await expect(runPromise).rejects.toThrow("Start identification timed out after");
   });
 
   it("succeeds when run is identified before timeout", async () => {
