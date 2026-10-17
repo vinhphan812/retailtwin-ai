@@ -133,3 +133,45 @@ describe("pickSimulationSource", () => {
     }
   });
 });
+
+describe("route isolation in production build", () => {
+  beforeEach(() => {
+    vi.stubEnv("DEV", false);
+    vi.stubEnv("VITE_ALLOW_DEMO", "true");
+  });
+
+  it("root / route cannot substitute demo fixtures in production", () => {
+    at("/");
+    const source = pickSource();
+    expect(source).toBe(apiSource);
+    expect(isDemoMode()).toBe(false);
+    expect(useAnomalyStore.getState().anomalies).toEqual([]);
+    expect(useTwinStore.getState().simulation).toBeNull();
+  });
+
+  it("/?twin=demo route loads demo fixtures and is labeled read-only", () => {
+    at("/?twin=demo");
+    const source = pickSource();
+    expect(source).not.toBe(apiSource);
+    expect(isDemoMode()).toBe(true);
+    expect(useAnomalyStore.getState().anomalies.length).toBeGreaterThan(0);
+    expect(useTwinStore.getState().simulation).not.toBeNull();
+    // DemoBadge renders in demo mode
+    expect(render(createElement(DemoBadge)).container.innerHTML).not.toBe("");
+  });
+
+  it("/?twin=memory cannot load demo fixtures even in production", () => {
+    at("/?twin=memory");
+    const source = pickSource();
+    expect(source).toBe(apiSource);
+    expect(isDemoMode()).toBe(false);
+  });
+
+  it("demo data never leaks into apps/api path regardless of API failure", async () => {
+    at("/");
+    await expect(pickSource().snapshot()).rejects.toThrow();
+    expect(useAnomalyStore.getState().anomalies).toEqual([]);
+    expect(useTwinStore.getState().simulation).toBeNull();
+    expect(useTwinStore.getState().candidates).toEqual([]);
+  });
+});
