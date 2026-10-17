@@ -45,20 +45,38 @@ jobs:
 
       - name: Python project dependency vulnerabilities
         run: |
-          # Audit declared dependencies from apps/api/pyproject.toml against PyPI.
-          # Uses pip-audit 2.10.1 with positional paths (no --project-path in 2.10.1).
+          # Audits all third-party Python dependencies (declared + transitive) for
+          # known vulnerabilities. Two-venv pattern per ADR 0026:
           #
-          # Upgrade pip in a fresh venv so pip-audit itself has no known CVEs,
-          # then install and run pip-audit from there.
+          #   1. retailtwin-app-venv  — installs apps/api with all its dependencies,
+          #      including transitive deps. This is the same set the container ships.
+          #   2. retailtwin-audit-venv — pip-audit itself. Running it from a fresh venv
+          #      means pip-audit itself has no known CVEs when this job runs.
+          #
+          # pip-audit is pointed at the app venv's site-packages so it audits exactly
+          # what the API ships (not just the pyproject.toml declarations). All
+          # transitive dependencies are in site-packages and therefore included.
+
+          "${{ env.pythonLocation }}/python" -m venv --clear /tmp/retailtwin-app-venv
           "${{ env.pythonLocation }}/python" -m venv --clear /tmp/retailtwin-audit-venv
+
+          # Install pip-audit in its own venv so the tool itself is CVE-free.
           /tmp/retailtwin-audit-venv/bin/python -m pip install --upgrade pip
           /tmp/retailtwin-audit-venv/bin/python -m pip install pip-audit
-          # Audit apps/api declared dependencies. --skip-editable skips retailtwin-api itself.
-          # Pass the apps/api directory as positional arg so pip-audit reads pyproject.toml.
+
+          # Install apps/api into the app venv. This resolves all declared deps
+          # PLUS their transitive deps and writes them to site-packages.
+          /tmp/retailtwin-app-venv/bin/python -m pip install --upgrade pip
+          /tmp/retailtwin-app-venv/bin/python -m pip install -e ./apps/api
+
+          # Audit the installed site-packages. --skip-editable excludes the
+          # retailtwin-api package itself (it is a dev dependency of itself).
+          # --path points at the app venv so every package present (declared
+          # and transitive) is audited against PyPI vulnerability data.
           /tmp/retailtwin-audit-venv/bin/python -m pip_audit \
             --progress-spinner off \
             --skip-editable \
-            --path ./apps/api
+            --path /tmp/retailtwin-app-venv/lib/python3.11/site-packages
 
       - name: Web production dependencies
         working-directory: apps/web

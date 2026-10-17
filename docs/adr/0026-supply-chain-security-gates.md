@@ -60,8 +60,14 @@ continue to live under `apps/api/tests/` so the existing exception holds.
 
 **Dependency scanning.** The Python job installs `apps/api` into an isolated
 virtualenv (`/tmp/retailtwin-app-venv`) and runs `pip-audit` from a second
-virtualenv (`/tmp/retailtwin-audit-venv`). The audit reads the app venv's
-`site-packages` directory so it inspects exactly what the API ships.
+virtualenv (`/tmp/retailtwin-audit-venv`). The app venv is populated with
+`pip install -e ./apps/api` so pip resolves all declared dependencies *and*
+their full transitive dependency tree into `site-packages`. pip-audit is then
+run with `--path /tmp/retailtwin-app-venv/lib/python3.11/site-packages` so it
+audits exactly what the API ships — not just the `pyproject.toml`
+declarations, but every third-party package that ends up in the image. The
+`--skip-editable` flag prevents pip-audit from flagging the retailtwin-api
+package itself (installed as an editable package).
 `npm audit --omit=dev --audit-level=high` keeps the gate scoped to production
 dependencies only. Both jobs fail on HIGH/CRITICAL; LOW/MEDIUM is an explicit
 exception and surfaces in the GitHub Step Summary, not in the gate.

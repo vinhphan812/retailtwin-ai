@@ -119,11 +119,37 @@ def test_security_workflow_runs_npm_audit_prod_only() -> None:
 
 
 def test_security_workflow_runs_pip_audit() -> None:
-    """Python dependency audit via pip-audit."""
+    """Python dependency audit via pip-audit.
+
+    ADR 0026 requires a two-venv pattern that audits the full installed
+    environment (declared + transitive deps), not just pyproject.toml
+    declarations:
+
+      1. /tmp/retailtwin-app-venv  — apps/api is pip-installed here,
+         which writes all declared deps AND their transitive deps to site-packages.
+      2. /tmp/retailtwin-audit-venv — pip-audit runs here, pointed at the
+         app venv's site-packages directory.
+
+    The --path argument must point at the installed site-packages directory,
+    not at the ./apps/api source directory (the latter would only audit
+    pyproject.toml declarations, not transitive dependencies).
+    """
     with SECURITY_WORKFLOW.open("r", encoding="utf-8") as fh:
         text = fh.read()
     assert "pip_audit" in text or "pip-audit" in text, (
         "security.yml must invoke pip-audit on apps/api."
+    )
+    # The workflow must build the app venv and install apps/api into it,
+    # so that site-packages contains the full transitive dependency tree.
+    assert "retailtwin-app-venv" in text, (
+        "security.yml must create /tmp/retailtwin-app-venv and install "
+        "apps/api into it to capture transitive dependencies."
+    )
+    # pip-audit must be pointed at the installed site-packages, not ./apps/api.
+    # --path <site-packages> audits all installed packages (declared + transitive).
+    assert "/tmp/retailtwin-app-venv/lib/python3.11/site-packages" in text, (
+        "pip-audit --path must target the app venv site-packages directory "
+        "to audit full transitive dependency tree, not just pyproject.toml."
     )
 
 
