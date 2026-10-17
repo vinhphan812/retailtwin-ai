@@ -1,10 +1,12 @@
 import type { RevenuePeriod } from "@/enums/commerce.enum";
-import type { PromotionsSummary } from "./promotion.type";
-import type { RevenueSummary } from "./revenue.type";
+import type { PromotionsSummary } from "@/types/promotion.type";
+import type { RevenueSummary } from "@/types/revenue.type";
 import type { ReviewDecision } from "@/enums/simulation.enum";
-import type { CandidatesResponse, ReviewRequest, ReviewResult, Simulation, SimulationsResponse } from "./simulation.type";
-import type { ControlStage } from "./agent.type";
-import type { ProductInventory, StoreResponse } from "./twin.type";
+import type { CandidatesResponse, ReviewRequest, ReviewResult, Simulation, SimulationsResponse } from "@/types/simulation.type";
+import type { ControlStage } from "@/types/agent.type";
+import type { ProductInventory, StoreResponse } from "@/types/twin.type";
+import type { AnomaliesResponse } from "@/types/anomaly.type";
+import type { CheckoutResponse } from "@/types/checkout.type";
 
 export type HealthResponse = {
   status: "ok" | "degraded";
@@ -86,4 +88,8 @@ export type RetailTwinClient = {
   flagshipStatus: () => Promise<FlagshipStatusResponse>;
   /** `GET /agent/events?since=`: the agent activity feed, from `since` (the start when omitted). */
   agentEvents: (since?: string | null) => Promise<AgentEventsResponse>;
+  /** `GET /anomalies`. Returns open anomalies for the store. */
+  anomalies: () => Promise<AnomaliesResponse>;
+  /** `GET /checkouts/{checkout_id}`. Returns checkout summary and transactions. */
+  checkout: (checkoutId: string) => Promise<CheckoutResponse>;
 };

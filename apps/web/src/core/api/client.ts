@@ -10,6 +10,8 @@ import type { ProductInventory, StoreResponse } from "@/types/twin.type";
 import type { PromotionsSummary } from "@/types/promotion.type";
 import type { RevenueSummary } from "@/types/revenue.type";
 import type { CandidatesResponse, ReviewResult, Simulation, SimulationsResponse } from "@/types/simulation.type";
+import type { AnomaliesResponse } from "@/types/anomaly.type";
+import type { CheckoutResponse } from "@/types/checkout.type";
 
 export class ApiError extends Error {
   readonly status: number;
@@ -72,6 +74,8 @@ export function createClient(baseUrl: string, fetchImpl?: typeof fetch): RetailT
     flagshipStatus: () => request<FlagshipStatusResponse>("/flagship/status"),
     agentEvents: (since) =>
       request<AgentEventsResponse>(`/agent/events${since ? `?since=${encodeURIComponent(since)}` : ""}`),
+    anomalies: () => request<AnomaliesResponse>("/anomalies"),
+    checkout: (checkoutId: string) => request<CheckoutResponse>(`/checkouts/${encodeURIComponent(checkoutId)}`),
   };
 }
 

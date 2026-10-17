@@ -6,8 +6,6 @@ import { BuildBadge } from "@/components/layout/BuildBadge";
 import { CameraHelp } from "@/components/layout/CameraHelp";
 import { KpiStrip } from "@/components/layout/KpiStrip";
 import { AgentFocusCaption } from "@/components/twin/AgentFocusCaption";
-import { AiImpactDialog } from "@/components/twin/AiImpactDialog";
-import { AiImpactToast } from "@/components/twin/AiImpactToast";
 import { LensSwitcher } from "@/components/layout/LensSwitcher";
 import { RunDemoButton } from "@/components/layout/RunDemoButton";
 import { ViewModeSwitch } from "@/components/layout/ViewModeSwitch";
@@ -19,6 +17,7 @@ import { TwinStatusOverlay } from "@/components/twin/TwinStatusOverlay";
 import { pickDemoRunner, pickSimulationReviewer, pickSimulationSource, pickSource } from "@/core/twin/devSources";
 import { useAgentFocus } from "@/hooks/agentFocus.hook";
 import { useDemoDirector } from "@/hooks/demoDirector.hook";
+import { useAnomalyPolling } from "@/hooks/anomalyPolling.hook";
 import { useNetworkStatus } from "@/hooks/networkStatus.hook";
 import { useProductParam } from "@/hooks/productParam.hook";
 import { useSimulationSource } from "@/hooks/simulationSource.hook";
@@ -39,6 +38,7 @@ export function TwinPage() {
   useProductParam();
   useAgentFocus();
   useDemoDirector();
+  useAnomalyPolling();
 
   return (
     <>
@@ -58,13 +58,11 @@ export function TwinPage() {
           <CameraHelp />
         </div>
         <AgentFocusCaption />
-        <AiImpactToast />
         <AgentActivityOpenButton />
         <EntityInspector />
         <ProductDetailsDialog />
         <TwinIssuesNotice />
         <BuildBadge />
-        <AiImpactDialog />
       </main>
       <AgentActivityPanel />
     </>
