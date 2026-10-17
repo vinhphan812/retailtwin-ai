@@ -6,10 +6,10 @@ import { BuildBadge } from "@/components/layout/BuildBadge";
 import { CameraHelp } from "@/components/layout/CameraHelp";
 import { KpiStrip } from "@/components/layout/KpiStrip";
 import { AgentFocusCaption } from "@/components/twin/AgentFocusCaption";
-import { AiImpactDialog } from "@/components/twin/AiImpactDialog";
-import { AiImpactToast } from "@/components/twin/AiImpactToast";
 import { LensSwitcher } from "@/components/layout/LensSwitcher";
 import { ViewModeSwitch } from "@/components/layout/ViewModeSwitch";
+import { OverlayLegend } from "@/components/layout/OverlayLegend";
+import { OverlayToggles } from "@/components/layout/OverlayToggles";
 import { EntityInspector } from "@/components/twin/EntityInspector";
 import { ProductDetailsDialog } from "@/components/twin/ProductDetailsDialog";
 import { SimulationBanner } from "@/components/twin/SimulationBanner";
@@ -17,6 +17,7 @@ import { TwinIssuesNotice } from "@/components/twin/TwinIssuesNotice";
 import { TwinStatusOverlay } from "@/components/twin/TwinStatusOverlay";
 import { pickSimulationReviewer, pickSimulationSource, pickSource } from "@/core/twin/devSources";
 import { useAgentFocus } from "@/hooks/agentFocus.hook";
+import { useAnomalyPolling } from "@/hooks/anomalyPolling.hook";
 import { useNetworkStatus } from "@/hooks/networkStatus.hook";
 import { useProductParam } from "@/hooks/productParam.hook";
 import { useSimulationSource } from "@/hooks/simulationSource.hook";
@@ -34,6 +35,7 @@ export function TwinPage() {
   useNetworkStatus();
   useProductParam();
   useAgentFocus();
+  useAnomalyPolling();
 
   return (
     <>
@@ -48,17 +50,20 @@ export function TwinPage() {
           <ViewModeSwitch />
         </div>
         <KpiStrip />
-        <div className="absolute bottom-4 left-4 z-10">
-          <CameraHelp />
+        {/* Bottom left: the overlay legend over the camera help and the Overlays toggles. */}
+        <div className="absolute bottom-4 left-4 z-10 flex flex-col items-start gap-2">
+          <OverlayLegend />
+          <div className="flex items-center gap-2">
+            <CameraHelp />
+            <OverlayToggles />
+          </div>
         </div>
         <AgentFocusCaption />
-        <AiImpactToast />
         <AgentActivityOpenButton />
         <EntityInspector />
         <ProductDetailsDialog />
         <TwinIssuesNotice />
         <BuildBadge />
-        <AiImpactDialog />
       </main>
       <AgentActivityPanel />
     </>

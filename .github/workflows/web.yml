@@ -159,7 +159,7 @@ jobs:
 
       - name: Authenticate to Google Cloud (WIF/OIDC)
         id: gcp_auth
-        uses: google-github-actions/auth@v2.1.7  # 6fc4af4b145ae7821d527454aa9bd537d1f2dc5f
+        uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_DEPLOY_SA }}
