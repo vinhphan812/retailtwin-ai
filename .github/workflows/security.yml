@@ -90,6 +90,9 @@ jobs:
       - name: Build container image
         id: build
         run: |
+          # Clear buildx builder cache to ensure --no-cache actually works.
+          # Without this, buildx may reuse cached layers even with --no-cache.
+          docker builder prune --force
           # --no-cache: bypasses Docker layer cache so the latest Dockerfile
           # (including USER directive) is always applied in CI.
           docker build \
