@@ -38,7 +38,7 @@ jobs:
   #   true by itself — both conditions must hold independently.
   detect-changes:
     name: Detect Changed Files
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: self-hosted
     outputs:
       api_changed: ${{ steps.changes.outputs.api_changed }}
       web_changed: ${{ steps.changes.outputs.web_changed }}
@@ -139,7 +139,7 @@ jobs:
   # Always runs. No path filter — catches any file, including docs-only changes.
   repository-hygiene:
     name: Repository Hygiene
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: self-hosted
     # Always run this job regardless of changes
     if: always()
 
@@ -157,16 +157,13 @@ jobs:
 
       - name: Validate workflow YAML files
         run: |
-          # Install yamllint in an isolated venv — avoids mutating system Python
-          # on shared self-hosted runners. pipx is preferred if available.
-          if command -v pipx &> /dev/null; then
-            pipx install yamllint
-          elif [ ! -d "${RUNNER_TEMP}/yamllint-venv" ]; then
-            python3 -m venv "${RUNNER_TEMP}/yamllint-venv"
-            "${RUNNER_TEMP}/yamllint-venv/bin/pip" install --quiet yamllint
+          # Install yamllint if not present; validate YAML syntax.
+          if ! command -v yamllint &> /dev/null; then
+            python3 -m pip install --quiet --break-system-packages yamllint
           fi
-          VIRTUAL_ENV="${RUNNER_TEMP}/yamllint-venv" PATH="${RUNNER_TEMP}/yamllint-venv/bin:$PATH" \
-            python3 -m yamllint -c /dev/stdin .github/workflows/ << 'YAML'
+          # Use custom config: check for syntax errors only
+          # GitHub Actions workflows commonly exceed 80-char line limits
+          python3 -m yamllint -c /dev/stdin .github/workflows/ << 'YAML'
           extends: default
           rules:
             line-length: disable
@@ -174,10 +171,6 @@ jobs:
             indentation:
               spaces: 2
             comments-indentation: disable
-            document-start: disable
-            truthy: disable
-            new-line-at-end-of-file: disable
-            new-lines: disable
           YAML
 
       - name: Check for committed secrets / credential patterns
@@ -224,7 +217,7 @@ jobs:
   # ── API Build & Test ─────────────────────────────────────────────────────────
   api-build-test:
     name: API Build & Test
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: self-hosted
     needs: [detect-changes]
     # Run when API paths changed or on push to main
     if: |
@@ -240,7 +233,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.11'
           cache: 'pip'
@@ -309,7 +302,7 @@ jobs:
   # ── API E2E Smoke ──────────────────────────────────────────────────────────
   api-e2e-smoke:
     name: API E2E Smoke
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: self-hosted
     needs: [detect-changes, repository-hygiene, api-build-test]
     # Run when API paths changed or on push to main
     if: |
@@ -321,7 +314,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.11'
           cache: 'pip'
@@ -339,7 +332,7 @@ jobs:
   # ── Web Build & Test ─────────────────────────────────────────────────────────
   web-build-test:
     name: Web Build & Test
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: self-hosted
     needs: [detect-changes]
     # Run when Web paths changed or on push to main
     if: |
@@ -359,7 +352,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '20.17'
           cache: 'npm'
