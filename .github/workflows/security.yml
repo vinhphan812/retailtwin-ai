@@ -159,11 +159,13 @@ jobs:
           TRIVY_EXIT=$?
           set -euo pipefail
 
-          echo "[DEBUG] Trivy exit code: $TRIVY_EXIT"
+          # NOTE: these debug echoes must NOT contain $() or ${} — they are inside
+          # this step's inline script, NOT inside the Python heredoc below.
+          echo "[DEBUG] Trivy exit code: ${TRIVY_EXIT}"
           if [ -f "$TRIVY_JSON" ]; then
-            echo "[DEBUG] Trivy JSON size: $(wc -c < "$TRIVY_JSON") bytes"
+            echo "[DEBUG] Trivy JSON exists at ${TRIVY_JSON}"
           else
-            echo "[DEBUG] Trivy JSON NOT found at $TRIVY_JSON"
+            echo "[DEBUG] Trivy JSON NOT found at ${TRIVY_JSON}"
           fi
 
           if [ "$TRIVY_EXIT" -eq 2 ] || [ "$TRIVY_EXIT" -eq 5 ]; then
