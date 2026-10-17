@@ -264,6 +264,9 @@ describe("createApiDemoRunner transient fetch failures", () => {
 });
 
 describe("createApiDemoRunner start identification timeout", () => {
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
+
   it("fails with timeout error when start never identifies a run", async () => {
     // Use very short timeout config
     const shortTimeoutRunner = (client: RetailTwinClient) =>
@@ -272,9 +275,8 @@ describe("createApiDemoRunner start identification timeout", () => {
     const { client } = fakeClient([], [status("IDLE")]);
     // Never resolve start - this would cause unhandled rejection after test ends
     // The timeout error is caught and tested, but the promise never resolves
-    vi.mocked(client.flagshipStart).mockReturnValue(
-      new Promise((_, reject) => setTimeout(() => reject(new Error("Never resolves")), 1000)
-    );
+    // Return a never-resolving Promise so the timeout fires
+    vi.mocked(client.flagshipStart).mockReturnValue(new Promise(() => {}));
 
     const runPromise = shortTimeoutRunner(client).start();
     // Wait for the timeout to fire - use runAllTimers to let all pending callbacks complete
