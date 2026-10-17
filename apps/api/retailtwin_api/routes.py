@@ -219,14 +219,36 @@ def ready(request: Request, store: StoreReader = Depends(get_store)) -> ReadyRes
     Returns 503 when the store fixture is unavailable, causing Cloud Run
     load-balancer to drain traffic away from this instance until the
     fixture is reloaded.
+
+    ADR 0029 — production composition root readiness:
+    - ``backend_identities``: Exposes which adapters are bound (live_twin, analytics, LLM)
+    - ``ai_state``: Tri-state AI workflow status (ai_ready/ai_disabled/ai_unconfigured)
+    - ``ai_reason``: Stable reason code for logs/metrics
+    - ``analytics_readiness``: BigQuery probe result (not_applicable on main)
     """
     if not store.loaded:
         raise ApiError(503, "store_unavailable", "Store fixture is not available.")
+
+    # ADR 0029: extract composition state from app.state
+    backend_identities = getattr(request.app.state, "backend_identities", {})
+    ai_state = getattr(request.app.state, "ai_state", "ai_disabled")
+    ai_reason = getattr(request.app.state, "ai_reason", "autonomy_disabled_by_config")
+
+    # Analytics readiness is not_applicable on main (unavailable adapters)
+    analytics_readiness = {
+        "ready": "false",
+        "reason": "not_applicable",
+    }
+
     return ReadyResponse(
         ready=True,
         service="retailtwin-api",
         store_id=store.store_id,
         correlation_id=_correlation_id(request),
+        backend_identities=backend_identities,
+        ai_state=ai_state,
+        ai_reason=ai_reason,
+        analytics_readiness=analytics_readiness,
     )
 
 

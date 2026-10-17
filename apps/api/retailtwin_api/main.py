@@ -214,8 +214,38 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # be built) leaves the rest of the API intact.
     _wire_flagship_controller(app, resolved, live_twin, store)
 
+    # ADR 0029: determine AI workflow state for readiness probe
+    # - ai_ready: autonomy enabled AND provider built successfully
+    # - ai_disabled: autonomy disabled by config
+    # - ai_unconfigured: autonomy enabled but provider build failed
+    if resolved.autonomy_enabled and provider is not None:
+        ai_state = "ai_ready"
+        ai_reason = "vertex_provider_built"
+    elif not resolved.autonomy_enabled:
+        ai_state = "ai_disabled"
+        ai_reason = "autonomy_disabled_by_config"
+    else:  # autonomy enabled but provider is None (failed to build)
+        ai_state = "ai_unconfigured"
+        ai_reason = "vertex_provider_build_failed"
+
+    # ADR 0029: collect backend identities for release-gate verification
+    backend_identities = {
+        "app_env": resolved.app_env,
+        "store_id": resolved.store_id,
+        "live_twin": resolved.live_twin_backend,
+        "fixture_loaded": str(store.loaded),
+        "is_production_env": str(resolved.is_production),
+        "ai_state": ai_state,
+        "ai_reason": ai_reason,
+        # Analytics is always unavailable scaffold on main - probe not implemented
+        "analytics_readiness": "not_applicable",
+    }
+    app.state.backend_identities = backend_identities
+    app.state.ai_state = ai_state
+    app.state.ai_reason = ai_reason
+
     logger.info(
-        "app.startup",
+        "composition.ready",
         extra={
             "app_env": resolved.app_env,
             "is_production": resolved.is_production,
@@ -228,6 +258,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             else False,
             "version": __version__,
             "git_sha": git_sha,
+            "backend_identities": backend_identities,
         },
     )
     return app
