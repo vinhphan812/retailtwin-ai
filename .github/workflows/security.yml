@@ -45,12 +45,13 @@ jobs:
           "${{ env.pythonLocation }}/python" -m venv --clear /tmp/retailtwin-app-venv
           "${{ env.pythonLocation }}/python" -m venv --clear /tmp/retailtwin-audit-venv
           # Audit the app's installed dependencies, not the audit tool's own venv.
-          # Upgrade pip/setuptools/wheel in the app venv first so wheel builds use patched tooling.
+          # Upgrade pip/setuptools/wheel in app venv FIRST so wheel builds use patched tooling.
           /tmp/retailtwin-app-venv/bin/python -m pip install --upgrade pip setuptools wheel
           /tmp/retailtwin-app-venv/bin/python -m pip install ./apps/api
           # Audit only the installed app packages (not pip/setuptools/pip-audit).
-          /tmp/retailtwin-audit-venv/bin/python -m pip install pip-audit
+          # Upgrade pip in audit venv to latest so pip-audit supports --project-path.
           /tmp/retailtwin-audit-venv/bin/python -m pip install --upgrade pip
+          /tmp/retailtwin-audit-venv/bin/python -m pip install "pip-audit>=2.11.0"
           /tmp/retailtwin-audit-venv/bin/python -m pip_audit --progress-spinner off --skip-editable \
             --project-path /tmp/retailtwin-app-venv
 
