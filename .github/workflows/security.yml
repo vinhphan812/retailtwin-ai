@@ -140,82 +140,80 @@ jobs:
           # Parse JSON.  Fail if fixable HIGH/CRITICAL (FixedVersion exists).
           # Log exception for unfixed/wont-fix/unknown (ADR-0026).
           # Fail on malformed JSON, missing Results key, or scan error.
-          python3 -c "
-import json, sys
-try:
-    with open('trivy-image.json') as fh:
-        data = json.load(fh)
-except Exception as exc:
-    print('[TRIVY-PARSER] FAIL: Could not parse trivy-image.json: ' + str(exc), file=sys.stderr)
-    sys.exit(1)
+          python3 -c |-2
+            import json, sys
+            try:
+                with open('trivy-image.json') as fh:
+                    data = json.load(fh)
+            except Exception as exc:
+                print('[TRIVY-PARSER] FAIL: Could not parse trivy-image.json: ' + str(exc), file=sys.stderr)
+                sys.exit(1)
 
-results = data.get('Results')
-if results is None:
-    print('[TRIVY-PARSER] FAIL: Results key is missing from trivy-image.json', file=sys.stderr)
-    sys.exit(1)
-if not isinstance(results, list):
-    print('[TRIVY-PARSER] FAIL: Results must be a list', file=sys.stderr)
-    sys.exit(1)
+            results = data.get('Results')
+            if results is None:
+                print('[TRIVY-PARSER] FAIL: Results key is missing from trivy-image.json', file=sys.stderr)
+                sys.exit(1)
+            if not isinstance(results, list):
+                print('[TRIVY-PARSER] FAIL: Results must be a list', file=sys.stderr)
+                sys.exit(1)
 
-has_fixable = False
-exceptions = []
-for result in results:
-    vulns = result.get('Vulnerabilities') or []
-    for vuln in vulns:
-        if vuln.get('Severity') not in ('HIGH', 'CRITICAL'):
-            continue
-        fixable = vuln.get('FixedVersion', '')
-        if fixable:
-            has_fixable = True
-            pkg = vuln.get('PkgName', '?')
-            vid = vuln.get('VulnerabilityID', '?')
-            ver = vuln.get('InstalledVersion', '?')
-            print('[TRIVY-PARSER] FIXABLE: ' + vid + ' in ' + pkg + ' ' + ver + ' (fix: ' + fixable + ')', file=sys.stderr)
-        else:
-            sev = vuln.get('Severity', '')
-            vid = vuln.get('VulnerabilityID', '?')
-            pkg = vuln.get('PkgName', '?')
-            status = vuln.get('Status', 'unknown')
-            exceptions.append('[TRIVY-PARSER] EXCEPTION: ' + sev + ' ' + vid + ' ' + pkg + ' - status: ' + status + ' (no FixAvailable, see ADR-0026)')
+            has_fixable = False
+            exceptions = []
+            for result in results:
+                vulns = result.get('Vulnerabilities') or []
+                for vuln in vulns:
+                    if vuln.get('Severity') not in ('HIGH', 'CRITICAL'):
+                        continue
+                    fixable = vuln.get('FixedVersion', '')
+                    if fixable:
+                        has_fixable = True
+                        pkg = vuln.get('PkgName', '?')
+                        vid = vuln.get('VulnerabilityID', '?')
+                        ver = vuln.get('InstalledVersion', '?')
+                        print('[TRIVY-PARSER] FIXABLE: ' + vid + ' in ' + pkg + ' ' + ver + ' (fix: ' + fixable + ')', file=sys.stderr)
+                    else:
+                        sev = vuln.get('Severity', '')
+                        vid = vuln.get('VulnerabilityID', '?')
+                        pkg = vuln.get('PkgName', '?')
+                        status = vuln.get('Status', 'unknown')
+                        exceptions.append('[TRIVY-PARSER] EXCEPTION: ' + sev + ' ' + vid + ' ' + pkg + ' - status: ' + status + ' (no FixAvailable, see ADR-0026)')
 
-for line in exceptions[:10]:
-    print(line, file=sys.stderr)
-if exceptions:
-    print('exception: ' + str(len(exceptions)) + ' HIGH/CRITICAL unfixed - see ADR-0026', file=sys.stderr)
+            for line in exceptions[:10]:
+                print(line, file=sys.stderr)
+            if exceptions:
+                print('exception: ' + str(len(exceptions)) + ' HIGH/CRITICAL unfixed - see ADR-0026', file=sys.stderr)
 
-if has_fixable:
-    sys.exit(1)
-"
+            if has_fixable:
+                sys.exit(1)
 
       - name: Record any no-fix HIGH/CRITICAL as an explicit exception
         if: always()
         run: |
           set -euo pipefail
           if [ -f trivy-image.json ]; then
-            UNFIXED=$(python3 -c "
-import json, sys
-try:
-    with open('trivy-image.json') as fh:
-        data = json.load(fh)
-except Exception:
-    sys.exit(0)
-rows = []
-for result in (data.get('Results') or []):
-    for item in (result.get('Vulnerabilities') or []):
-        if item.get('Severity') not in ('HIGH', 'CRITICAL'):
-            continue
-        if item.get('FixedVersion'):
-            continue
-        sev = item.get('Severity', '')
-        vid = item.get('VulnerabilityID', '?')
-        pkg = item.get('PkgName', '?')
-        ver = item.get('InstalledVersion', '?')
-        status = item.get('Status', 'unknown')
-        rows.append('- ' + sev + ' ' + vid + ' in ' + pkg + ' ' + ver + ' (status: ' + status + ')')
-if rows:
-    print('
-'.join(rows))
-" || true)
+            UNFIXED=$(          python3 -c |-2
+            import json, sys
+            try:
+                with open('trivy-image.json') as fh:
+                    data = json.load(fh)
+            except Exception:
+                sys.exit(0)
+            rows = []
+            for result in (data.get('Results') or []):
+                for item in (result.get('Vulnerabilities') or []):
+                    if item.get('Severity') not in ('HIGH', 'CRITICAL'):
+                        continue
+                    if item.get('FixedVersion'):
+                        continue
+                    sev = item.get('Severity', '')
+                    vid = item.get('VulnerabilityID', '?')
+                    pkg = item.get('PkgName', '?')
+                    ver = item.get('InstalledVersion', '?')
+                    status = item.get('Status', 'unknown')
+                    rows.append('- ' + sev + ' ' + vid + ' in ' + pkg + ' ' + ver + ' (status: ' + status + ')')
+            if rows:
+                print('\n'.join(rows))
+          || true)
             echo "## No-fix HIGH/CRITICAL (exception - does not block gate)" >> "$GITHUB_STEP_SUMMARY"
             if [ -n "${UNFIXED}" ]; then
               echo "${UNFIXED}" >> "$GITHUB_STEP_SUMMARY"
