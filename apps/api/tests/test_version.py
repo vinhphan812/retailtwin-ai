@@ -111,13 +111,12 @@ def test_version_route_honours_git_sha_env_at_startup(monkeypatch) -> None:
         "print(git_sha); "
         "print(full_version())"
     )
+    env = os.environ.copy()
+    env["GIT_SHA"] = "deadbeef"
     completed = subprocess.run(
         [sys.executable, "-c", script],
         cwd=REPO_ROOT,
-        env={
-            "GIT_SHA": "deadbeef",
-            "PATH": os.path.dirname(sys.executable) + ":" + os.environ.get("PATH", ""),
-        },
+        env=env,
         capture_output=True,
         text=True,
         check=True,
