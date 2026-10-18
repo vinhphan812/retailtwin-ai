@@ -27,3 +27,9 @@ export const IMPACT_TOAST_MS = 8000;
 
 /** KPI rows the AI Impact toast shows, in served order; the card in the panel shows them all. */
 export const IMPACT_TOAST_ROWS = 3;
+
+/** How often the Live timeline reads `GET /agent/events` again, in ms. */
+export const AGENT_FEED_POLL_MS = 5000;
+
+/** Most pages of `GET /agent/events` one read of the feed follows. */
+export const AGENT_FEED_PAGES = 10;

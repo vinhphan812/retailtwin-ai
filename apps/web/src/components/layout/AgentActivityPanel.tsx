@@ -2,7 +2,7 @@ import { Button, Switch } from "@heroui/react";
 import { AnimatePresence, motion, type Transition } from "framer-motion";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIcon, PanelToggleIcon } from "@/components/icons";
+import { PanelToggleIcon } from "@/components/icons";
 import { PromotionsPanel } from "@/components/promotions/PromotionsPanel";
 import { RevenuePanel } from "@/components/revenue/RevenuePanel";
 import { StoreStatus } from "@/components/status/StoreStatus";
@@ -20,6 +20,7 @@ import { AlertsSection } from "./AlertsSection";
 import { FlagshipStatusSection } from "./FlagshipStatusSection";
 import { GuardSection } from "./GuardSection";
 import { LENS_VIEW } from "./lens";
+import { TimelineAlert, TimelineEmpty, useTimelineState } from "./TimelineStatus";
 
 /** Panel slide: quick, settles without a visible bounce. Transform only, so the 3D view never resizes. */
 const PANEL_SLIDE: Transition = { type: "spring", stiffness: 420, damping: 40 };
@@ -69,6 +70,7 @@ export function AgentActivityOpenButton() {
  * listed below; or the raw log, with the projected impact above it as the log has no run card
  * to hold it. A SKU in it selects that product; picking an alert narrows it
  * to its run. Follow agent lets the agent's own steps move the camera (`useAgentFocus`).
+ * Empty, it says why: no events, a failed feed, no connection, or the demo's idle replay.
  */
 function OperationsView() {
   const { t } = useTranslation();
@@ -84,6 +86,7 @@ function OperationsView() {
     [activity, focusedCorrelationId],
   );
   const { runs, loose } = useMemo(() => groupRuns(shown), [shown]);
+  const feed = useTimelineState();
 
   return (
     <>
@@ -128,17 +131,11 @@ function OperationsView() {
             </button>
           </div>
         ) : null}
+        {shown.length ? <TimelineAlert state={feed} /> : null}
         <AnimatePresence initial={false} mode="popLayout">
           {!shown.length ? (
-            <motion.div
-              key="empty"
-              className="empty"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <ActivityIcon className="empty-icon" />
-              <p>{t(focusedCorrelationId ? "alerts.noRunYet" : "activity.empty")}</p>
+            <motion.div key={`empty-${feed}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <TimelineEmpty state={feed} filtered={focusedCorrelationId !== null} />
             </motion.div>
           ) : activityView === ACTIVITY_VIEW.Log ? (
             <motion.div key="log" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>

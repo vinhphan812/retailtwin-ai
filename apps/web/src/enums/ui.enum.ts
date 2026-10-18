@@ -38,3 +38,11 @@ export const RISK_BAND = {
 } as const;
 export type RiskBand = (typeof RISK_BAND)[keyof typeof RISK_BAND];
 export const RISK_BANDS: readonly RiskBand[] = Object.values(RISK_BAND);
+
+/** How a lens's read of apps/api stands. */
+export const READ_STATE = {
+  Loading: "loading",
+  Ready: "ready",
+  Failed: "failed",
+} as const;
+export type ReadState = (typeof READ_STATE)[keyof typeof READ_STATE];

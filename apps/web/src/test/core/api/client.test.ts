@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { ApiError, createClient } from "@/core/api/client";
 import type { HealthResponse } from "@/types/api.type";
 import type { ProductInventory, StoreResponse } from "@/types/twin.type";
@@ -95,15 +95,91 @@ describe("createClient", () => {
   });
 });
 
-test("asks the revenue and promotions routes for their payloads", async () => {
-  const fetchImpl = vi.fn(async (_url: RequestInfo | URL) => jsonResponse({}));
-  const client = createClient("http://127.0.0.1:8000/", fetchImpl);
-  await client.revenue("7d");
-  await client.promotions();
-  expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
-    "http://127.0.0.1:8000/revenue?period=7d",
-    "http://127.0.0.1:8000/promotions",
-  ]);
+describe("GET /revenue", () => {
+  const NOW = new Date("2026-10-18T12:43:37Z");
+  const served = (period: string, start: string, end = NOW.toISOString(), extra: Record<string, unknown> = {}) => ({
+    store_id: "store-001",
+    period,
+    start,
+    end,
+    total_revenue: 0,
+    total_transactions: 0,
+    total_items_sold: 0,
+    avg_transaction_value: 0,
+    currency: "USD",
+    buckets: [],
+    ...extra,
+  });
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+  });
+  afterEach(() => vi.useRealTimers());
+
+  test("asks for each window as a grain and a window apps/api accepts, never as today, 7d or 30d", async () => {
+    const fetchImpl = vi.fn(async (url: RequestInfo | URL, _init?: RequestInit) => {
+      const query = new URL(String(url)).searchParams;
+      return jsonResponse(served(query.get("period")!, query.get("start")!, query.get("end")!));
+    });
+    const client = createClient("http://127.0.0.1:8000/", fetchImpl);
+    await client.revenue("today");
+    await client.revenue("7d");
+    await client.revenue("30d");
+    await client.promotions();
+    expect(fetchImpl.mock.calls.map(([url]) => decodeURIComponent(String(url)))).toEqual([
+      "http://127.0.0.1:8000/revenue?period=hourly&start=2026-10-18T00:00:00.000Z&end=2026-10-18T12:43:37.000Z",
+      "http://127.0.0.1:8000/revenue?period=daily&start=2026-10-12T00:00:00.000Z&end=2026-10-18T12:43:37.000Z",
+      "http://127.0.0.1:8000/revenue?period=daily&start=2026-09-19T00:00:00.000Z&end=2026-10-18T12:43:37.000Z",
+      "http://127.0.0.1:8000/promotions",
+    ]);
+  });
+
+  test("sends an X-Correlation-ID, and keeps apps/api's echo of it when it can read it", async () => {
+    const fetchImpl = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) =>
+      new Response(JSON.stringify({ error: { code: "analytics_unavailable", message: "Revenue analytics are currently unavailable." } }), {
+        status: 503,
+        headers: { "x-correlation-id": "served-id" },
+      }),
+    );
+    const client = createClient("http://127.0.0.1:8000", fetchImpl);
+    const error = await client.revenue("today").catch((caught: unknown) => caught);
+    expect(new Headers(fetchImpl.mock.calls[0][1]?.headers).get("x-correlation-id")).toMatch(/^web-/);
+    expect(error).toMatchObject({ status: 503, code: "analytics_unavailable", correlationId: "served-id" });
+  });
+
+  test("a 422 keeps apps/api's validation details and the id it was sent with", async () => {
+    const fetchImpl = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) =>
+      jsonResponse(
+        {
+          error: {
+            code: "validation_error",
+            message: "The request body is invalid.",
+            details: [{ field: "query.period", message: "Input should be 'hourly', 'daily', 'weekly' or 'monthly'" }],
+          },
+        },
+        422,
+      ),
+    );
+    const client = createClient("http://127.0.0.1:8000", fetchImpl);
+    const error = (await client.revenue("today").catch((caught: unknown) => caught)) as ApiError;
+    const sent = new Headers(fetchImpl.mock.calls[0][1]?.headers).get("x-correlation-id");
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ status: 422, code: "validation_error", correlationId: sent });
+    expect(error.details).toEqual([{ field: "query.period", message: "Input should be 'hourly', 'daily', 'weekly' or 'monthly'" }]);
+  });
+
+  test("a payload that breaks RevenueResponse fails as invalid_response, never cast to a report", async () => {
+    const client = createClient("http://127.0.0.1:8000", async () =>
+      jsonResponse({ revenue: 10, transactions: 1, average_basket: 10, buckets: [] }),
+    );
+    await expect(client.revenue("today")).rejects.toMatchObject({ status: 200, code: "invalid_response" });
+  });
+
+  test("an answer for another grain than the one asked fails as invalid_response", async () => {
+    const client = createClient("http://127.0.0.1:8000", async () => jsonResponse(served("daily", "2026-10-18T00:00:00Z")));
+    await expect(client.revenue("today")).rejects.toMatchObject({ code: "invalid_response", message: expect.stringContaining("period") });
+  });
 });
 
 test("asks the simulation routes for the open runs and one run, encoding its id", async () => {

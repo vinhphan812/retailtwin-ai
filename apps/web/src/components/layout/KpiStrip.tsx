@@ -49,7 +49,9 @@ function KpiTile({ id, label, basis, value, missing, format: fmt, detail, hint, 
       <strong className="kpi-tile-value" data-trend={value === null ? undefined : trend}>
         {value === null ? "—" : <AnimatedNumber value={value} format={fmt} />}
       </strong>
-      <span className="kpi-tile-detail">{value === null ? t("kpiStrip.missing") : detail}</span>
+      <span className="kpi-tile-detail">
+        {value !== null ? detail : missing === KPI_MISSING.Empty ? t("kpiStrip.empty") : t("kpiStrip.missing")}
+      </span>
       <span className="sr-only">{hint}</span>
     </div>
   );
@@ -102,7 +104,9 @@ export function KpiStrip({ client }: { client?: RetailTwinClient }) {
             ? t("kpiStrip.revenue.hint", { value: format.moneyExact(revenue.value) })
             : revenue.reason === KPI_MISSING.Stale
               ? t("kpiStrip.revenue.stale", { minutes: REVENUE_TODAY_STALE_MS / 60_000 })
-              : t("kpiStrip.revenue.notServed")
+              : revenue.reason === KPI_MISSING.Empty
+                ? t("kpiStrip.revenue.empty")
+                : t("kpiStrip.revenue.notServed")
         }
       />
       <KpiTile

@@ -7,6 +7,19 @@ export const REVENUE_PERIOD = {
 export type RevenuePeriod = (typeof REVENUE_PERIOD)[keyof typeof REVENUE_PERIOD];
 export const REVENUE_PERIODS: readonly RevenuePeriod[] = Object.values(REVENUE_PERIOD);
 
+/**
+ * apps/api's `period` of `GET /revenue`: the grain of its buckets. The lens never sends its own
+ * window names (`today`, `7d`, `30d`); `revenueQuery` maps them to a grain and a window.
+ */
+export const REVENUE_GRAIN = {
+  Hourly: "hourly",
+  Daily: "daily",
+  Weekly: "weekly",
+  Monthly: "monthly",
+} as const;
+export type RevenueGrain = (typeof REVENUE_GRAIN)[keyof typeof REVENUE_GRAIN];
+export const REVENUE_GRAINS: readonly RevenueGrain[] = Object.values(REVENUE_GRAIN);
+
 /** Width of one bar in the revenue chart. */
 export const BUCKET_SIZE = {
   Hour: "hour",

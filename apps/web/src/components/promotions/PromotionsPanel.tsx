@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MetricTile } from "@/components/commerce/MetricTile";
+import { ReadFailureCard, ReadingNotice } from "@/components/common/ReadStatus";
 import { Segmented } from "@/components/commerce/Segmented";
 import { PromotionIcon } from "@/components/icons";
 import { PROMOTION_FLASH_MS } from "@/constants/app.constant";
@@ -9,21 +10,24 @@ import { PROMOTION_STATUS, PROMOTION_STATUSES, type PromotionStatus } from "@/en
 import { usePromotions } from "@/hooks/commerce.hook";
 import { format as f } from "@/core/utils/format";
 import { useUiStore } from "@/state/ui.store";
+import type { Promotion } from "@/types/promotion.type";
 import { PromotionCard, promotionCardId } from "./PromotionCard";
 
 const ALL = "all";
+const NO_PROMOTIONS: Promotion[] = [];
 type StatusFilter = PromotionStatus | typeof ALL;
 
 /**
  * Promotions tab of the side panel, read-only: what runs, what earned, and every program by
  * status. A promotion opened from a product's details (`focusPromotion`) is scrolled to and
- * flashes for a moment; a status filter that hides it goes back to all.
+ * flashes for a moment; a status filter that hides it goes back to all. Until `GET /promotions`
+ * answers it says it is reading; when the read fails, a card says why, with a retry.
  */
 export function PromotionsPanel() {
   const { t } = useTranslation();
-  const summary = usePromotions();
+  const { value: summary, failure, retry } = usePromotions();
   const [filter, setFilter] = useState<StatusFilter>(ALL);
-  const { promotions } = summary;
+  const promotions = summary?.promotions ?? NO_PROMOTIONS;
   const focusedId = useUiStore((state) => state.focusedPromotionId);
   const focusPromotion = useUiStore((state) => state.focusPromotion);
   const [flashId, setFlashId] = useState<string | null>(null);
@@ -51,6 +55,21 @@ export function PromotionsPanel() {
   }, [flashId]);
   const countOf = (status: PromotionStatus) => promotions.filter((promotion) => promotion.status === status).length;
   const shown = filter === ALL ? promotions : promotions.filter((promotion) => promotion.status === filter);
+
+  if (failure) {
+    return (
+      <div className="commerce">
+        <ReadFailureCard title={t("promotions.failed")} failure={failure} onRetry={retry} />
+      </div>
+    );
+  }
+  if (!summary) {
+    return (
+      <div className="commerce">
+        <ReadingNotice route="GET /promotions" />
+      </div>
+    );
+  }
 
   return (
     <div className="commerce">

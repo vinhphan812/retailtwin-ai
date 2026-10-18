@@ -1,22 +1,21 @@
-import { useEffect, useMemo, useState } from "react";
-import i18n from "@/i18n";
+import { useCallback, useEffect, useState } from "react";
 import { defaultClient } from "@/core/api/client";
+import { readFailureOf, type ReadFailure } from "@/core/api/readFailure";
 import { isDemoMode } from "@/core/twin/demoMode";
 import { demoClient } from "@/fixtures/demo/commerce";
-import { notify } from "@/core/notify";
 import type { PromotionsSummary } from "@/types/promotion.type";
 import type { RevenueSummary } from "@/types/revenue.type";
 import type { RetailTwinClient } from "@/types/api.type";
 import { REVENUE_PERIOD, type RevenuePeriod } from "@/enums/commerce.enum";
+import { READ_STATE, type ReadState } from "@/enums/ui.enum";
 import { REVENUE_TODAY_REFRESH_MS } from "@/constants/app.constant";
 import type { TimedRead } from "@/core/twin/kpiStrip";
-import { emptyPromotions, emptyRevenue } from "@/fixtures/commerceFixture";
 import { storeFixture } from "@/fixtures/storeFixture";
 import { useTwinStore } from "@/state/twin.store";
 
 /**
  * The client the lenses read: the demo data under `?twin=demo`, otherwise apps/api.
- * A failed read never falls back to demo data; the lens keeps its empty report.
+ * A failed read never falls back to demo data; the lens says it failed.
  */
 function commerceClient(): RetailTwinClient {
   return isDemoMode() ? demoClient : defaultClient;
@@ -27,8 +26,24 @@ function useStoreId() {
   return useTwinStore((state) => state.live?.store_id) ?? storeFixture.storeId;
 }
 
+/**
+ * One read of a lens: the value once served (null until then, never a report of zeros), how
+ * the read stands, why it failed, and `retry` to read again.
+ */
+export type LensRead<T> = {
+  value: T | null;
+  state: ReadState;
+  failure: ReadFailure | null;
+  retry: () => void;
+};
+
 type ReadCache = { reads: Map<string, Promise<unknown>>; results: Map<string, unknown> };
-const caches = new WeakMap<RetailTwinClient, ReadCache>();
+let caches = new WeakMap<RetailTwinClient, ReadCache>();
+
+/** Forgets every lens read, so the next mount reads again: a fresh page, as tests need one. */
+export function forgetLensReads() {
+  caches = new WeakMap();
+}
 
 function cacheOf(client: RetailTwinClient): ReadCache {
   let cache = caches.get(client);
@@ -40,21 +55,25 @@ function cacheOf(client: RetailTwinClient): ReadCache {
 }
 
 /**
- * One read per key, shared by every mount, so switching lenses does not call the API
- * again. A failed read is dropped, toasts once, and is retried on the next mount.
- * Without a client nothing is read and the placeholder stays.
+ * One read per key, shared by every mount, so switching lenses does not call the API again.
+ * A failed read is dropped and stays on screen as a failure until Retry, or the next mount,
+ * reads again. Without a client nothing is read.
  */
 function useCachedRead<T>(
   client: RetailTwinClient | undefined,
   key: string,
+  route: string,
   read: (client: RetailTwinClient) => Promise<T>,
-  placeholder: T,
-): T {
-  const [value, setValue] = useState(() => (client && (cacheOf(client).results.get(key) as T | undefined)) ?? placeholder);
+): LensRead<T> {
+  const cached = () => (client ? ((cacheOf(client).results.get(key) as T | undefined) ?? null) : null);
+  const [value, setValue] = useState<T | null>(cached);
+  const [failure, setFailure] = useState<ReadFailure | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    setFailure(null);
     if (!client) {
-      setValue(placeholder);
+      setValue(null);
       return;
     }
     const { reads, results } = cacheOf(client);
@@ -68,34 +87,42 @@ function useCachedRead<T>(
         },
         (error: unknown) => {
           reads.delete(key);
-          notify.error(i18n.t("commerce.loadFailed"), error);
           throw error;
         },
       );
       reads.set(key, pending);
     }
-    setValue((results.get(key) as T | undefined) ?? placeholder);
+    setValue((results.get(key) as T | undefined) ?? null);
     pending.then(
       (result) => !cancelled && setValue(result),
-      () => {},
+      (error: unknown) => !cancelled && setFailure(readFailureOf(error, route)),
     );
     return () => {
       cancelled = true;
     };
-    // `read` and `placeholder` follow from `client` and `key`.
+    // `read` and `route` follow from `client` and `key`.
+  }, [client, key, attempt]);
+
+  const retry = useCallback(() => {
+    if (client) {
+      cacheOf(client).reads.delete(key);
+      cacheOf(client).results.delete(key);
+    }
+    setValue(null);
+    setAttempt((count) => count + 1);
   }, [client, key]);
 
-  return value;
+  const state = failure ? READ_STATE.Failed : value === null ? READ_STATE.Loading : READ_STATE.Ready;
+  return { value: failure ? null : value, state, failure, retry };
 }
 
-/** `GET /revenue` for one window, read when the Revenue lens opens. All zeros until it lands. */
+/** `GET /revenue` for one window, read when the Revenue lens opens. */
 export function useRevenue(
   period: RevenuePeriod,
   client: RetailTwinClient | undefined = commerceClient(),
-): RevenueSummary {
+): LensRead<RevenueSummary> {
   const storeId = useStoreId();
-  const placeholder = useMemo(() => emptyRevenue(storeId, period), [storeId, period]);
-  return useCachedRead(client, `revenue:${storeId}:${period}`, (api) => api.revenue(period), placeholder);
+  return useCachedRead(client, `revenue:${storeId}:${period}`, "GET /revenue", (api) => api.revenue(period));
 }
 
 /**
@@ -129,9 +156,8 @@ export function useRevenueToday(client: RetailTwinClient | undefined = commerceC
   return state.read;
 }
 
-/** `GET /promotions`, read when the Promotions lens opens. Read only; empty until it lands. */
-export function usePromotions(client: RetailTwinClient | undefined = commerceClient()): PromotionsSummary {
+/** `GET /promotions`, read when the Promotions lens opens. Read only. */
+export function usePromotions(client: RetailTwinClient | undefined = commerceClient()): LensRead<PromotionsSummary> {
   const storeId = useStoreId();
-  const placeholder = useMemo(() => emptyPromotions(storeId), [storeId]);
-  return useCachedRead(client, `promotions:${storeId}`, (api) => api.promotions(), placeholder);
+  return useCachedRead(client, `promotions:${storeId}`, "GET /promotions", (api) => api.promotions());
 }

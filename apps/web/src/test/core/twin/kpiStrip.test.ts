@@ -23,6 +23,11 @@ describe("revenueToday", () => {
     expect(revenueToday(read, 1_000 + REVENUE_TODAY_STALE_MS)).toEqual({ value: read.value.revenue });
     expect(revenueToday(read, 1_001 + REVENUE_TODAY_STALE_MS)).toEqual({ value: null, reason: KPI_MISSING.Stale });
   });
+
+  it("is empty, not a revenue of 0, when the route served no sales today", () => {
+    const empty = { ...demoRevenue(REVENUE_PERIOD.Today), revenue: 0, transactions: 0 };
+    expect(revenueToday({ value: empty, readAt: 1_000 }, 1_000)).toEqual({ value: null, reason: KPI_MISSING.Empty });
+  });
 });
 
 describe("onShelfAvailability", () => {

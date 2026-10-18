@@ -5,7 +5,8 @@ import { AnimatedNumber } from "./AnimatedNumber";
 
 type MetricTileProps = {
   label: string;
-  value: number;
+  /** Null when apps/api does not serve the figure: shown as not served, never as 0. */
+  value: number | null;
   format: (value: number) => string;
   /** Relative change from the previous window; null when there is none to compare with. */
   change?: number | null;
@@ -17,16 +18,22 @@ type MetricTileProps = {
 
 /** One headline figure: label, counting value, and how it moved. */
 export function MetricTile({ label, value, format, change, tone = "default", hint, wide }: MetricTileProps) {
+  const { t } = useTranslation();
+  const served = value !== null && value !== undefined;
   return (
-    <div className="metric" data-tone={tone} data-wide={wide || undefined} title={hint}>
+    <div className="metric" data-tone={tone} data-wide={wide || undefined} data-served={served} title={served ? hint : t("revenue.notServedHint")}>
       <span className="metric-label">
         {tone === "alert" ? <AlertIcon className="metric-alert-icon" /> : null}
         {label}
       </span>
-      <strong className="metric-value">
-        <AnimatedNumber value={value} format={format} />
-      </strong>
-      {change === undefined ? null : <ChangeBadge change={change} />}
+      <strong className="metric-value">{served ? <AnimatedNumber value={value} format={format} /> : "—"}</strong>
+      {!served ? (
+        <span className="metric-change" data-trend="flat">
+          {t("revenue.notServed")}
+        </span>
+      ) : change === undefined ? null : (
+        <ChangeBadge change={change} />
+      )}
     </div>
   );
 }
