@@ -182,7 +182,7 @@ function LaneLight({ status }: { status: CheckoutStatus | null }) {
   );
 }
 
-/** Checkout counter with its lane light. TODO(BE): the lane status is sample data (`useCheckoutSummary`). */
+/** Checkout counter with its lane light. */
 export function Checkout({ checkoutId }: { checkoutId: string }) {
   const status = useCheckoutSummary(checkoutId)?.status ?? null;
   return (

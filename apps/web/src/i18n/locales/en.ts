@@ -577,6 +577,9 @@ export const en = {
   commerce: {
     loadFailed: "Could not load the sales figures.",
   },
+  checkout: {
+    loadFailed: "Could not load the checkout data.",
+  },
   anomalies: {
     loadFailed: "Could not load the anomalies.",
   },
