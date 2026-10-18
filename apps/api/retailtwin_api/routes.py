@@ -710,7 +710,7 @@ def list_anomalies(
 @router.get("/revenue", response_model=RevenueResponse, include_in_schema=True)
 def get_revenue(
     request: Request,
-    period: Literal["hourly", "daily", "weekly", "monthly"] = Query(default="daily"),
+    period: Literal["hourly", "daily", "weekly", "monthly", "7d", "30d"] = Query(default="daily"),
     start: datetime | None = Query(default=None),
     end: datetime | None = Query(default=None),
     store_id: str | None = Query(default=None, min_length=1),
@@ -723,8 +723,21 @@ def get_revenue(
     """
     target_store = store_id or request.app.state.settings.store_id
     now = datetime.now(timezone.utc)
-    period_start = start or (now - timedelta(days=1))
-    period_end = end or now
+    # Map UI-facing periods to actual windows; explicit start/end override the period window.
+    period_windows = {
+        "hourly": timedelta(0),
+        "daily": timedelta(days=1),
+        "weekly": timedelta(weeks=1),
+        "monthly": timedelta(days=30),
+        "7d": timedelta(days=7),
+        "30d": timedelta(days=30),
+    }
+    if start is None and end is None:
+        period_start = now - period_windows.get(period, timedelta(days=1))
+        period_end = now
+    else:
+        period_start = start or (now - period_windows.get(period, timedelta(days=1)))
+        period_end = end or now
     if period_start > period_end:
         raise ApiError(422, "invalid_range", "start must be before end.")
     try:
