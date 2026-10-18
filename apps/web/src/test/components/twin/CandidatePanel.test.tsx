@@ -118,6 +118,28 @@ describe("CandidatePanel", () => {
     expect(screen.queryByRole("table")).toBeNull();
   });
 
+  it("folds and unfolds from a keyboard-reachable button that names the table it controls", () => {
+    open();
+    render(<CandidatePanel defaultExpanded={false} />);
+    const toggle = screen.getByRole("button", { name: "Compare plans" });
+    // A native button: Tab reaches it, and Enter or Space press it.
+    expect(toggle.tagName).toBe("BUTTON");
+    expect(toggle.getAttribute("type")).toBe("button");
+    expect(toggle.tabIndex).toBe(0);
+    toggle.focus();
+    expect(document.activeElement).toBe(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    const controls = toggle.getAttribute("aria-controls")!;
+    expect(controls).toBeTruthy();
+
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(document.getElementById(controls)!.querySelector("table")).toBe(screen.getByRole("table"));
+    // The same button, now "Hide comparison", keeps the focus.
+    expect(document.activeElement).toBe(toggle);
+    expect(toggle.textContent).toContain("Hide comparison");
+  });
+
   it("folded with no recommendation served, leads with the top served business score", () => {
     const { candidates } = open();
     act(() => useTwinStore.getState().setCandidates(candidates.map((item) => ({ ...item, recommended: false }))));
