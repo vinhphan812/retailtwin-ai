@@ -710,7 +710,7 @@ def list_anomalies(
 @router.get("/revenue", response_model=RevenueResponse, include_in_schema=True)
 def get_revenue(
     request: Request,
-    period: Literal["hourly", "daily", "weekly", "monthly"] = Query(default="daily"),
+    period: Literal["hourly", "daily", "weekly", "monthly", "7d", "30d"] = Query(default="daily"),
     start: datetime | None = Query(default=None),
     end: datetime | None = Query(default=None),
     store_id: str | None = Query(default=None, min_length=1),
@@ -723,17 +723,31 @@ def get_revenue(
     """
     target_store = store_id or request.app.state.settings.store_id
     now = datetime.now(timezone.utc)
-    period_start = start or (now - timedelta(days=1))
-    period_end = end or now
+
+    # Handle explicit period windows: 7d and 30d use daily aggregation with explicit boundaries
+    agg_period = "daily"
+    if period == "7d":
+        period_start = start or (now - timedelta(days=7))
+        period_end = end or now
+    elif period == "30d":
+        period_start = start or (now - timedelta(days=30))
+        period_end = end or now
+    else:
+        period_start = start or (now - timedelta(days=1))
+        period_end = end or now
+        agg_period = period  # hourly/weekly/monthly use their own aggregation
     if period_start > period_end:
         raise ApiError(422, "invalid_range", "start must be before end.")
     try:
-        return repo.get_revenue(
+        response = repo.get_revenue(
             store_id=target_store,
-            period=period,
+            period=agg_period,
             start=period_start,
             end=period_end,
         )
+        # Preserve original period in response (e.g., "7d", "30d") not aggregated "daily"
+        response.period = period  # type: ignore[attr-defined]
+        return response
     except AnalyticsError as exc:
         logger.warning(
             "analytics.revenue_unavailable",

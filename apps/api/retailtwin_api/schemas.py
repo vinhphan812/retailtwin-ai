@@ -208,7 +208,7 @@ class RevenueBucket(BaseModel):
 
 class RevenueResponse(BaseModel):
     store_id: str = Field(min_length=1)
-    period: Literal["hourly", "daily", "weekly", "monthly"]
+    period: Literal["hourly", "daily", "weekly", "monthly", "7d", "30d"]
     start: datetime
     end: datetime
     total_revenue: float
