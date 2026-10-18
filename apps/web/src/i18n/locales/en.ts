@@ -1,4 +1,24 @@
 export const en = {
+  brand: {
+    name: "RetailTwin AI",
+    tagline: "Autonomous Store Intelligence",
+    storeHint: "The store the Live Twin reports",
+    live: "LIVE",
+    simulation: "SIMULATION",
+    demo: "Demo data",
+    demoHint: "A synthetic store from fixtures/demo. Nothing on this page writes to the Live Twin.",
+    liveData: "Live data",
+    liveDataHint: "The Live Twin, as apps/api serves it. Accept and Reject change it.",
+    openLive: "Open the live twin",
+    openDemo: "Open the demo",
+    demoBannerLabel: "Demo data notice",
+    demoBannerTag: "DEMO",
+    demoBanner: "Synthetic demo store, not live store telemetry. Nothing here writes to the Live Twin.",
+  },
+  footer: {
+    context: "Context {{version}}",
+    contextHint: "The Live Twin's context_version, as served. It moves after each execution.",
+  },
   cameraHelp: {
     label: "Camera controls help",
     title: "Camera controls",
@@ -190,6 +210,7 @@ export const en = {
     unknown: "Unknown error",
     unreachable: "The API is unreachable.",
     requestFailed: "Request failed ({{status}}).",
+    demoReadOnly: "The demo does not write to the Live Twin.",
   },
   scene: {
     stock: {
@@ -491,24 +512,6 @@ export const en = {
       notScored: "The KPI evaluator has not scored a plan against the baseline.",
     },
   },
-  overlay: {
-    label: "Overlays",
-    stockout_risk: "Stockout risk",
-    ai_changes: "AI changes",
-    stockout_riskHint: "Colour each slot by the chance its shelf runs out",
-    ai_changesHint: "Show the slots and moves the AI changed or proposes",
-    legend: {
-      title: "Stockout risk",
-      horizon: "next {{hours}} h",
-      low: "under 5%",
-      elevated: "5–15%",
-      high: "15–30%",
-      severe: "over 30%",
-      noData: "Slots without a forecast keep their colour.",
-      notServed: "Not served on Live yet: apps/api has no stockout risk, so no slot is coloured.",
-      demo: "Demo forecast, not live store data.",
-    },
-  },
   lens: {
     label: "View",
     operations: "Operations",
@@ -576,9 +579,6 @@ export const en = {
   },
   commerce: {
     loadFailed: "Could not load the sales figures.",
-  },
-  anomalies: {
-    loadFailed: "Could not load the anomalies.",
   },
   storeStatus: {
     title: "Inventory",

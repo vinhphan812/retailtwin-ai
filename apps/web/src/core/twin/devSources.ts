@@ -133,6 +133,14 @@ export function pickSimulationReviewer(): SimulationReviewer | null {
 }
 
 /**
+ * True when the app reads the Live Twin from apps/api, not a dev twin.
+ * Use in the header to show "Live data" vs "Demo data" chip.
+ */
+export function isApiTwin(): boolean {
+  return devTwinMode() === "";
+}
+
+/**
  * The Live Twin from apps/api. While developing, `?twin=fixture|memory|demo|offline|slow|flaky`
  * swaps in a local twin instead. `demo` is the stocked demo store (fixtures/demo) with an
  * open demo simulation and its candidates, and turns on the other demo data too (`isDemoMode`). A production build always reads apps/api.
