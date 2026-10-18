@@ -65,6 +65,7 @@ export function createClient(baseUrl: string, fetchImpl?: typeof fetch): RetailT
       }),
     anomalies: () => request<AnomaliesResponse>("/anomalies"),
     checkouts: (checkoutId: string) => request<CheckoutResponse>(`/checkouts/${encodeURIComponent(checkoutId)}`),
+    stockoutRisk: () => request<unknown>("/stockout-risk"),
     flagshipStatus: () => request<FlagshipStatusResponse>("/flagship/status"),
     flagshipReset: () => request<{ run_id: string }>("/flagship/reset", { method: "POST" }),
     flagshipStart: (correlationId: string) =>
