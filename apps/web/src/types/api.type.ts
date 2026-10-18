@@ -49,9 +49,9 @@ export type RetailTwinClient = {
   health: () => Promise<HealthResponse>;
   store: () => Promise<StoreResponse>;
   inventory: (sku: string) => Promise<ProductInventory>;
-  /** `GET /revenue?period=`. TODO(BE): not served by apps/api yet. */
+  /** `GET /revenue?period=` - Returns revenue aggregates. */
   revenue: (period: RevenuePeriod) => Promise<RevenueSummary>;
-  /** `GET /promotions`. TODO(BE): not served by apps/api yet. */
+  /** `GET /promotions` - Returns active promotions. */
   promotions: () => Promise<PromotionsSummary>;
   /** `GET /simulations?status=open`. TODO(BE): not served by apps/api yet (#26). */
   simulations: () => Promise<SimulationsResponse>;

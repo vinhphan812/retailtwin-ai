@@ -14,7 +14,7 @@ const STATUS_COLOR: Record<CheckoutStatus, "success" | "warning" | "default"> = 
   [CHECKOUT_STATUS.Closed]: "default",
 };
 
-/** Today's figures of the selected checkout: status, cashier, sales, and a way into its payments. TODO(BE): none served yet. */
+/** Today's figures of the selected checkout: status, cashier, sales, and a way into its payments. */
 export function CheckoutInspector({ checkoutId, title }: { checkoutId: string; title: string }) {
   const { t } = useTranslation();
   const summary = useCheckoutSummary(checkoutId);

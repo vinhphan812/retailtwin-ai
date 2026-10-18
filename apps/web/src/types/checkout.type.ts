@@ -6,9 +6,8 @@ export type Cashier = {
 };
 
 /**
- * One checkout lane today, as the checkout API will serve it.
- * TODO(BE): apps/api serves no checkout data yet; this shape is the FE's proposal
- * for the schema meeting. Money is in the store currency.
+ * One checkout lane today, as served by `GET /checkouts/{checkout_id}`.
+ * Money is in the store currency.
  */
 export type CheckoutSummary = {
   checkout_id: string;
@@ -29,8 +28,8 @@ export type CheckoutSummary = {
 };
 
 /**
- * One completed sale at a checkout, as the checkout API will serve it.
- * TODO(BE): the FE's proposal for the schema meeting. Money is in the store currency.
+ * One completed sale at a checkout, as served by `GET /checkouts/{checkout_id}`.
+ * Money is in the store currency.
  */
 export type CheckoutTransaction = {
   transaction_id: string;

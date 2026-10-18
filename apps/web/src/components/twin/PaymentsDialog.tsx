@@ -37,7 +37,7 @@ type PaymentsDialogProps = {
  * Today's payments at one checkout, newest first: totals for what is shown, then each
  * sale with its time, cashier, items, method, and total. Clicking a sale opens its
  * receipt under it; a SKU on the receipt selects that product in the 3D view and closes
- * the dialog. TODO(BE): no transactions are served yet (`useCheckoutTransactions`).
+ * the dialog.
  */
 export function PaymentsDialog({ isOpen, onClose, checkoutId, businessDate }: PaymentsDialogProps) {
   const { t } = useTranslation();
