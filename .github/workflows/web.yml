@@ -206,8 +206,9 @@ jobs:
         run: |
           # Deploy using firebase-tools CLI with an access token derived from WIF.
           # The site is read from firebase.json (hosting.site), not from a CLI flag.
+          # firebase-tools is installed locally to avoid npx download latency/failures.
           set +e
-          DEPLOY_OUTPUT=$(npx firebase-tools@14.9.0 deploy \
+          DEPLOY_OUTPUT=$(./apps/web/node_modules/.bin/firebase-tools deploy \
             --only hosting \
             --project retailtwin-ai-511002 \
             --token "${GOOGLE_OAUTH_ACCESS_TOKEN}" \
