@@ -1,6 +1,6 @@
 import { Tooltip } from "@heroui/react";
 import { useTranslation } from "react-i18next";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { CandidateIcon, ChevronDownIcon } from "@/components/icons";
 import { compareCandidates, planLetter, type KpiCell } from "@/core/twin/candidateComparison";
 import { selectedCandidate, useTwinStore } from "@/state/twin.store";
@@ -104,6 +104,7 @@ function LeadPlan({ plan, badge, cell, scored }: { plan: string; badge: string; 
 export function CandidatePanel({ defaultExpanded = true }: { defaultExpanded?: boolean }) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const tableId = useId();
   const viewMode = useUiStore((state) => state.viewMode);
   const twin = useTwinStore();
   const selected = selectedCandidate(twin);
@@ -132,7 +133,13 @@ export function CandidatePanel({ defaultExpanded = true }: { defaultExpanded?: b
           <DemoBadge />
         </span>
         {expanded ? <span className="candidate-panel-meta">{t("proposal.compare.evaluator", { version: evaluators })}</span> : null}
-        <button type="button" className="candidate-panel-toggle" aria-expanded={expanded} onClick={() => setExpanded((open) => !open)}>
+        <button
+          type="button"
+          className="candidate-panel-toggle"
+          aria-expanded={expanded}
+          aria-controls={tableId}
+          onClick={() => setExpanded((open) => !open)}
+        >
           {t(expanded ? "proposal.compare.collapse" : "proposal.compare.expand")}
           <ChevronDownIcon className={`candidate-justification-chevron${expanded ? " expanded" : ""}`} />
         </button>
@@ -153,7 +160,7 @@ export function CandidatePanel({ defaultExpanded = true }: { defaultExpanded?: b
         <>
           {baseline ? null : <p className="candidate-panel-note">{t("proposal.compare.noBaseline")}</p>}
 
-          <div className="candidate-table-wrap">
+          <div className="candidate-table-wrap" id={tableId}>
             <table className="candidate-table">
               <thead>
                 <tr>
