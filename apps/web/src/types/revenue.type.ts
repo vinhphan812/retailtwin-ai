@@ -31,8 +31,8 @@ export type RevenueTotals = {
 };
 
 /**
- * Response of `GET /revenue?period=today|7d|30d`. Money is in the store's currency.
- * TODO(BE): apps/api does not serve this route yet.
+ * Internal summary shape used by all FE consumers (hooks, store, fixtures).
+ * period is always the UI-facing RevenuePeriod value ("today" | "7d" | "30d").
  */
 export type RevenueSummary = RevenueTotals & {
   store_id: string;
@@ -46,4 +46,25 @@ export type RevenueSummary = RevenueTotals & {
   top_skus: SkuRevenue[];
   /** Low sellers that still hold shelf space. */
   slow_skus: SkuRevenue[];
+};
+
+/** Shape returned directly by `GET /revenue` in apps/api (schemas.py). */
+export type RevenueResponse = {
+  store_id: string;
+  period: "hourly" | "daily" | "weekly" | "monthly";
+  start: string;
+  end: string;
+  total_revenue: number;
+  total_transactions: number;
+  total_items_sold: number;
+  avg_transaction_value: number;
+  currency: "USD";
+  buckets: RevenueBucketResponse[];
+};
+
+export type RevenueBucketResponse = {
+  timestamp: string;
+  revenue: number;
+  transactions: number;
+  items_sold: number;
 };

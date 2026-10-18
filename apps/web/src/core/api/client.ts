@@ -1,12 +1,64 @@
 import i18n from "@/i18n";
 import { isDemoMode } from "@/core/twin/demoMode";
+import { BUCKET_SIZE, REVENUE_PERIOD } from "@/enums/commerce.enum";
 import type { AgentEventsResponse, FlagshipStatusResponse, HealthResponse, RetailTwinClient } from "@/types/api.type";
 import type { ProductInventory, StoreResponse } from "@/types/twin.type";
 import type { PromotionsSummary } from "@/types/promotion.type";
-import type { RevenueSummary } from "@/types/revenue.type";
+import type { RevenueBucket, RevenueResponse, RevenueSummary } from "@/types/revenue.type";
 import type { CandidatesResponse, ReviewResult, Simulation, SimulationsResponse } from "@/types/simulation.type";
 import type { AnomaliesResponse } from "@/types/anomaly.type";
 import type { CheckoutResponse } from "@/types/checkout.type";
+
+/**
+ * Maps UI-facing RevenuePeriod to the backend period query value.
+ * Today → hourly (intra-day granularity), 7d/30d → daily.
+ */
+const UI_TO_BACKEND_PERIOD: Record<string, string> = {
+  [REVENUE_PERIOD.Today]: "hourly",
+  [REVENUE_PERIOD.Week]: "daily",
+  [REVENUE_PERIOD.Month]: "daily",
+};
+
+/**
+ * Maps backend period to UI-facing RevenuePeriod.
+ * Derives "7d" vs "30d" from the start/end window span when backend returns "daily".
+ */
+function backendPeriodToUi(backendPeriod: string, start: Date, end: Date): string {
+  if (backendPeriod === "hourly") return REVENUE_PERIOD.Today;
+  // For "daily", compute the span in days to distinguish 7d from 30d.
+  const spanDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  return spanDays > 14 ? REVENUE_PERIOD.Month : REVENUE_PERIOD.Week;
+}
+
+/** Converts a raw backend RevenueResponse to the internal RevenueSummary shape. */
+function revenueResponseToSummary(res: RevenueResponse, uiPeriod: string): RevenueSummary {
+  // Map backend buckets (timestamp-based) to FE buckets (start-based).
+  const buckets: RevenueBucket[] = res.buckets.map((b) => ({
+    start: b.timestamp,
+    revenue: b.revenue,
+  }));
+
+  // Compute totals shape; average_basket derives from the backend aggregates.
+  const revenue = res.total_revenue;
+  const transactions = res.total_transactions;
+  const average_basket = transactions > 0 ? revenue / transactions : 0;
+
+  return {
+    revenue,
+    transactions,
+    average_basket,
+    margin_rate: 0, // backend does not expose margin_rate; default to 0.
+    store_id: res.store_id,
+    period: uiPeriod as RevenueSummary["period"],
+    lost_to_stockout: 0, // backend does not compute lost-to-stockout.
+    previous: { revenue: 0, transactions: 0, average_basket: 0, margin_rate: 0 }, // backend has no previous window.
+    bucket_size: uiPeriod === REVENUE_PERIOD.Today ? BUCKET_SIZE.Hour : BUCKET_SIZE.Day,
+    buckets,
+    categories: [], // backend does not return category breakdown.
+    top_skus: [], // backend does not return SKU breakdown.
+    slow_skus: [], // backend does not return SKU breakdown.
+  };
+}
 
 export class ApiError extends Error {
   readonly status: number;
@@ -52,7 +104,10 @@ export function createClient(baseUrl: string, fetchImpl?: typeof fetch): RetailT
     health: () => request<HealthResponse>("/health"),
     store: () => request<StoreResponse>("/store"),
     inventory: (sku: string) => request<ProductInventory>(`/inventory/${encodeURIComponent(sku)}`),
-    revenue: (period) => request<RevenueSummary>(`/revenue?period=${encodeURIComponent(period)}`),
+    revenue: (period) =>
+      request<RevenueResponse>(`/revenue?period=${encodeURIComponent(UI_TO_BACKEND_PERIOD[period] ?? period)}`).then((res) =>
+        revenueResponseToSummary(res, period),
+      ),
     promotions: () => request<PromotionsSummary>("/promotions"),
     simulations: () => request<SimulationsResponse>("/simulations?status=open"),
     simulation: (simulationId: string) => request<Simulation>(`/simulations/${encodeURIComponent(simulationId)}`),

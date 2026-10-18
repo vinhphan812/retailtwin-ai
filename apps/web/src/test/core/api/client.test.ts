@@ -95,15 +95,57 @@ describe("createClient", () => {
   });
 });
 
-test("asks the revenue and promotions routes for their payloads", async () => {
-  const fetchImpl = vi.fn(async (_url: RequestInfo | URL) => jsonResponse({}));
+test("asks the revenue route with the correct period mapping", async () => {
+  const fetchImpl = vi.fn(async (_url: RequestInfo | URL) =>
+    jsonResponse({ store_id: "store-001", period: "daily", start: "2026-10-02T00:00:00Z", end: "2026-10-09T00:00:00Z", total_revenue: 0, total_transactions: 0, total_items_sold: 0, avg_transaction_value: 0, currency: "USD", buckets: [] }),
+  );
   const client = createClient("http://127.0.0.1:8000/", fetchImpl);
+
+  await client.revenue("today");
   await client.revenue("7d");
+  await client.revenue("30d");
   await client.promotions();
+
   expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
-    "http://127.0.0.1:8000/revenue?period=7d",
-    "http://127.0.0.1:8000/promotions",
+    "http://127.0.0.1:8000/revenue?period=hourly",   // today → hourly
+    "http://127.0.0.1:8000/revenue?period=daily",    // 7d → daily
+    "http://127.0.0.1:8000/revenue?period=daily",    // 30d → daily
+    "http://127.0.0.1:8000/promotions",           // promotions unchanged
   ]);
+});
+
+test("maps backend period values to UI period and shapes RevenueSummary correctly", async () => {
+  const hourlyResponse = {
+    store_id: "store-001", period: "hourly", start: "2026-10-09T00:00:00Z", end: "2026-10-09T12:00:00Z",
+    total_revenue: 1500, total_transactions: 30, total_items_sold: 90, avg_transaction_value: 50,
+    currency: "USD",
+    buckets: [
+      { timestamp: "2026-10-09T00:00:00Z", revenue: 100, transactions: 2, items_sold: 6 },
+      { timestamp: "2026-10-09T01:00:00Z", revenue: 200, transactions: 4, items_sold: 12 },
+    ],
+  };
+  const fetchImpl = vi.fn(async (_url: RequestInfo | URL) => jsonResponse(hourlyResponse));
+  const client = createClient("http://127.0.0.1:8000/", fetchImpl);
+
+  const summary = await client.revenue("today");
+
+  // Period mapped back to UI value.
+  expect(summary.period).toBe("today");
+  // Totals derived from backend aggregates.
+  expect(summary.revenue).toBe(1500);
+  expect(summary.transactions).toBe(30);
+  expect(summary.average_basket).toBe(50);
+  // Buckets mapped from timestamp → start.
+  expect(summary.buckets).toEqual([
+    { start: "2026-10-09T00:00:00Z", revenue: 100 },
+    { start: "2026-10-09T01:00:00Z", revenue: 200 },
+  ]);
+  // Fields not returned by backend default to safe zeros.
+  expect(summary.margin_rate).toBe(0);
+  expect(summary.lost_to_stockout).toBe(0);
+  expect(summary.categories).toEqual([]);
+  expect(summary.top_skus).toEqual([]);
+  expect(summary.slow_skus).toEqual([]);
 });
 
 test("asks the simulation routes for the open runs and one run, encoding its id", async () => {
