@@ -745,12 +745,15 @@ def get_revenue(
     if period_start > period_end:
         raise ApiError(422, "invalid_range", "start must be before end.")
     try:
-        return repo.get_revenue(
+        result = repo.get_revenue(
             store_id=target_store,
             period=cast(REVENUE_PERIOD_LITERAL, backend_period),
             start=period_start,
             end=period_end,
         )
+        # Preserve original period in response (e.g. "7d" not "daily")
+        result.period = period  # type: ignore[attr-defined]
+        return result
     except AnalyticsError as exc:
         logger.warning(
             "analytics.revenue_unavailable",
