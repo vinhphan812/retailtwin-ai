@@ -181,8 +181,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     else:
         provider = None
     if provider is not None:
-        decisions = InMemoryDecisionSource()
-        app.state.decisions = decisions
+        # Reuse the existing decisions adapter (could be Firestore in production)
+        # instead of creating a new InMemoryDecisionSource which would override
+        # the durable FirestoreDecisionSource.
+        decisions = app.state.decisions
         autonomy_registry = build_store_registry(store)
         # Issue #215 / ADR 0024: wire the BigQuery-backed
         # ``get_sales_history`` reader so the autonomy path sees real
