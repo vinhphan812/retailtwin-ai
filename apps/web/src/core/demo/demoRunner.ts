@@ -296,7 +296,7 @@ export function createApiDemoRunner(
         };
 
         if (!joined) {
-          client.flagshipStart().then(
+          client.flagshipStart(ours).then(
             () => {
               answer = { ok: true };
               identify();
