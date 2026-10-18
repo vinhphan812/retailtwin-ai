@@ -42,6 +42,7 @@ from retailtwin_api.schemas import (
     ReadyResponse,
     RevenueResponse,
     CheckoutResponse,
+    CheckoutListResponse,
     StoreEvent,
     StoreResponse,
     VersionResponse,
@@ -772,6 +773,30 @@ def list_promotions(
             extra={"correlation_id": _correlation_id(request), "store_id": target_store},
         )
         raise ApiError(503, "analytics_unavailable", "Promotion analytics are currently unavailable.") from exc
+
+
+@router.get("/checkouts", response_model=CheckoutListResponse, include_in_schema=True)
+def list_checkouts(
+    request: Request,
+    status: Literal["open", "paused", "closed"] | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    store_id: str | None = Query(default=None, min_length=1),
+    repo: CheckoutRepository = Depends(get_checkouts),
+) -> CheckoutListResponse:
+    """Return all checkout lanes for a store.
+
+    Degrades gracefully: if analytics are unavailable, raises 503 analytics_unavailable.
+    Cashier data is always redacted from all summaries for privacy.
+    """
+    target_store = store_id or request.app.state.settings.store_id
+    try:
+        return repo.list_checkouts(store_id=target_store, status=status, limit=limit)
+    except AnalyticsError as exc:
+        logger.warning(
+            "analytics.checkouts_unavailable",
+            extra={"correlation_id": _correlation_id(request), "store_id": target_store},
+        )
+        raise ApiError(503, "analytics_unavailable", "Checkout analytics are currently unavailable.") from exc
 
 
 @router.get("/checkouts/{checkout_id}", response_model=CheckoutResponse, include_in_schema=True)

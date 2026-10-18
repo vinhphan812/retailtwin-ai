@@ -197,6 +197,11 @@ class CheckoutResponse(BaseModel):
     transactions: list[CheckoutTransaction] = Field(default_factory=list)
 
 
+class CheckoutListResponse(BaseModel):
+    checkouts: list[CheckoutSummary]
+    total: int
+
+
 # ─── Revenue schemas ──────────────────────────────────────────────────────────
 
 class RevenueBucket(BaseModel):

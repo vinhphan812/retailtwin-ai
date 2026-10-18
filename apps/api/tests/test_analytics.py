@@ -553,3 +553,152 @@ class TestCheckouts:
         assert resp2.status_code == 200
         assert resp2.json()["summary"]["store_id"] == "store-002"
         assert resp2.json()["summary"]["revenue_today"] == 50.0
+
+    def test_list_checkouts_returns_all(self, client: TestClient, checkout_repo: InMemoryCheckoutRepository):
+        """GET /checkouts returns all checkouts for a store."""
+        now = datetime.now(timezone.utc)
+        checkout_repo.seed([
+            CheckoutResponse(
+                summary=CheckoutSummary(
+                    checkout_id="CK01",
+                    store_id="store-001",
+                    status="open",
+                    cashier=Cashier(staff_id="EMP-001", name="Test Cashier"),
+                    shift_started_at=now - timedelta(hours=2),
+                    business_date="2026-10-18",
+                    revenue_today=100.0,
+                    transactions_today=5,
+                    items_scanned_today=15,
+                    queue_length=2,
+                    last_transaction_at=now,
+                ),
+                transactions=[],
+            ),
+            CheckoutResponse(
+                summary=CheckoutSummary(
+                    checkout_id="CK02",
+                    store_id="store-001",
+                    status="open",
+                    cashier=Cashier(staff_id="EMP-002", name="Another Cashier"),
+                    shift_started_at=now - timedelta(hours=3),
+                    business_date="2026-10-18",
+                    revenue_today=200.0,
+                    transactions_today=10,
+                    items_scanned_today=30,
+                    queue_length=0,
+                    last_transaction_at=now,
+                ),
+                transactions=[],
+            ),
+            CheckoutResponse(
+                summary=CheckoutSummary(
+                    checkout_id="CK03",
+                    store_id="store-001",
+                    status="closed",
+                    cashier=None,
+                    shift_started_at=now - timedelta(hours=8),
+                    business_date="2026-10-18",
+                    revenue_today=50.0,
+                    transactions_today=2,
+                    items_scanned_today=6,
+                    queue_length=0,
+                    last_transaction_at=None,
+                ),
+                transactions=[],
+            ),
+        ])
+        response = client.get("/checkouts")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 3
+        assert len(data["checkouts"]) == 3
+        # Cashier should be redacted from list response
+        for checkout in data["checkouts"]:
+            assert checkout["cashier"] is None
+
+    def test_list_checkouts_filters_by_status(self, client: TestClient, checkout_repo: InMemoryCheckoutRepository):
+        """GET /checkouts?status=open returns only open checkouts."""
+        now = datetime.now(timezone.utc)
+        checkout_repo.seed([
+            CheckoutResponse(
+                summary=CheckoutSummary(
+                    checkout_id="CK01",
+                    store_id="store-001",
+                    status="open",
+                    cashier=None,
+                    shift_started_at=now - timedelta(hours=2),
+                    business_date="2026-10-18",
+                    revenue_today=100.0,
+                    transactions_today=5,
+                    items_scanned_today=15,
+                    queue_length=2,
+                    last_transaction_at=now,
+                ),
+                transactions=[],
+            ),
+            CheckoutResponse(
+                summary=CheckoutSummary(
+                    checkout_id="CK02",
+                    store_id="store-001",
+                    status="closed",
+                    cashier=None,
+                    shift_started_at=now - timedelta(hours=8),
+                    business_date="2026-10-18",
+                    revenue_today=50.0,
+                    transactions_today=2,
+                    items_scanned_today=6,
+                    queue_length=0,
+                    last_transaction_at=None,
+                ),
+                transactions=[],
+            ),
+        ])
+        # Filter by open
+        response = client.get("/checkouts", params={"status": "open"})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 1
+        assert data["checkouts"][0]["checkout_id"] == "CK01"
+
+        # Filter by closed
+        response = client.get("/checkouts", params={"status": "closed"})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 1
+        assert data["checkouts"][0]["checkout_id"] == "CK02"
+
+    def test_list_checkouts_respects_limit(self, client: TestClient, checkout_repo: InMemoryCheckoutRepository):
+        """GET /checkouts?limit=1 returns only one checkout."""
+        now = datetime.now(timezone.utc)
+        checkout_repo.seed([
+            CheckoutResponse(
+                summary=CheckoutSummary(
+                    checkout_id=f"CK{i:02d}",
+                    store_id="store-001",
+                    status="open",
+                    cashier=None,
+                    shift_started_at=now - timedelta(hours=2),
+                    business_date="2026-10-18",
+                    revenue_today=100.0 * i,
+                    transactions_today=5,
+                    items_scanned_today=15,
+                    queue_length=2,
+                    last_transaction_at=now,
+                ),
+                transactions=[],
+            )
+            for i in range(1, 6)
+        ])
+        response = client.get("/checkouts", params={"limit": 2})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 5  # total is total matching, not limited
+        assert len(data["checkouts"]) == 2
+
+    def test_list_checkouts_analytics_unavailable(self, client: TestClient):
+        """GET /checkouts returns 503 when analytics unavailable."""
+        from retailtwin_api.analytics_repository import _UnavailableCheckoutRepository
+        client.app.state.checkouts = _UnavailableCheckoutRepository()
+        response = client.get("/checkouts")
+        assert response.status_code == 503
+        assert response.json()["error"]["code"] == "analytics_unavailable"

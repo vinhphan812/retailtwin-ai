@@ -27,6 +27,7 @@ from retailtwin_api.schemas import (
     RevenueBucket,
     RevenueResponse,
     CheckoutResponse,
+    CheckoutListResponse,
     CheckoutSummary,
     CheckoutTransaction,
     CheckoutLine,
@@ -116,6 +117,13 @@ class PromotionRepository(Protocol):
 class CheckoutRepository(Protocol):
     def get_checkout(self, checkout_id: str, store_id: str) -> CheckoutResponse: ...
 
+    def list_checkouts(
+        self,
+        store_id: str,
+        status: Literal["open", "paused", "closed"] | None = None,
+        limit: int = 100,
+    ) -> CheckoutListResponse: ...
+
 
 class InMemoryCheckoutRepository:
     """Seedable checkout read model for tests and local development.
@@ -143,6 +151,27 @@ class InMemoryCheckoutRepository:
                 raise CheckoutNotFound(checkout_id)
             return response.model_copy(deep=True)
 
+    def list_checkouts(
+        self,
+        store_id: str,
+        status: Literal["open", "paused", "closed"] | None = None,
+        limit: int = 100,
+    ) -> CheckoutListResponse:
+        with self._lock:
+            checkouts = [
+                c.summary.model_copy(deep=True)
+                for (s, _), c in self._checkouts.items()
+                if s == store_id and (status is None or c.summary.status == status)
+            ]
+            # Redact cashier from all summaries
+            for checkout in checkouts:
+                if checkout.cashier is not None:
+                    checkout.cashier = None
+            return CheckoutListResponse(
+                checkouts=checkouts[:limit],
+                total=len(checkouts),
+            )
+
 
 class CheckoutNotFound(Exception):
     def __init__(self, checkout_id: str) -> None:
@@ -154,6 +183,14 @@ class _UnavailableCheckoutRepository:
     available = False
 
     def get_checkout(self, checkout_id: str, store_id: str) -> CheckoutResponse:
+        raise AnalyticsError("Checkout analytics are unavailable.")
+
+    def list_checkouts(
+        self,
+        store_id: str,
+        status: Literal["open", "paused", "closed"] | None = None,
+        limit: int = 100,
+    ) -> CheckoutListResponse:
         raise AnalyticsError("Checkout analytics are unavailable.")
 
 
@@ -652,6 +689,18 @@ class BigQueryCheckoutRepository:
         self._dataset = dataset
 
     def get_checkout(self, checkout_id: str, store_id: str) -> CheckoutResponse:
+        raise AnalyticsError(
+            "BigQueryCheckoutRepository is scaffold-only (issue #95). "
+            "Use InMemoryCheckoutRepository for production until a verified BQ "
+            "checkout table exists."
+        )
+
+    def list_checkouts(
+        self,
+        store_id: str,
+        status: Literal["open", "paused", "closed"] | None = None,
+        limit: int = 100,
+    ) -> CheckoutListResponse:
         raise AnalyticsError(
             "BigQueryCheckoutRepository is scaffold-only (issue #95). "
             "Use InMemoryCheckoutRepository for production until a verified BQ "
