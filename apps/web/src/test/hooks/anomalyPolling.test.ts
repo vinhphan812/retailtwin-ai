@@ -130,7 +130,7 @@ describe("useAnomalyPolling", () => {
     await act(async () => { renderHook(() => useAnomalyPolling()); });
     await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
     // i18n mock returns the key as-is, so fail receives the translated string
-    expect(spyFail).toHaveBeenCalledWith("anomalies.loadFailed");
+    expect(spyFail).toHaveBeenCalledWith("anomaly.loadFailed");
     expect(spyNotifyError).toHaveBeenCalled();
   });
 });
