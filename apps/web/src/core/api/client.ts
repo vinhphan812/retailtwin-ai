@@ -76,7 +76,6 @@ export function createClient(baseUrl: string, fetchImpl?: typeof fetch): RetailT
       }),
     agentEvents: (since?: string | null) =>
       request<AgentEventsResponse>(`/agent/events${since ? `?since=${encodeURIComponent(since)}` : ""}`),
-    stockoutRisk: () => request<unknown>("/stockout-risk"),
   };
 }
 
