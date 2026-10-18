@@ -53,7 +53,7 @@ test("opening revenue reads GET /revenue for the period, and shows zeros until i
 
   fireEvent.click(screen.getByRole("radio", { name: "7 days" }));
   expect(screen.getByRole("heading", { name: "Revenue by day" })).toBeTruthy();
-  await waitFor(() => expect(requested()).toContain("/revenue?period=daily"));
+  await waitFor(() => expect(requested()).toContain("/revenue?period=7d"));
 });
 
 test("opening promotions reads GET /promotions, and says when there are none", async () => {
