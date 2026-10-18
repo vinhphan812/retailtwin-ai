@@ -58,6 +58,7 @@ function client(overrides: Partial<RetailTwinClient> = {}): RetailTwinClient {
     flagshipReset: vi.fn(),
     flagshipStart: vi.fn(),
     agentEvents: vi.fn(),
+    stockoutRisk: vi.fn(),
     ...overrides,
   };
 }

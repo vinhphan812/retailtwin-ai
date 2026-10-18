@@ -112,4 +112,6 @@ export type RetailTwinClient = {
   flagshipStart: (correlationId: string) => Promise<{ run_id: string; correlation_id: string; phase: string }>;
   /** `GET /agent/events` - Get agent events, optionally filtered by cursor. */
   agentEvents: (since?: string | null) => Promise<AgentEventsResponse>;
+  /** `GET /stockout-risk` - Returns risk scores for all slots. */
+  stockoutRisk: () => Promise<unknown>;
 };
