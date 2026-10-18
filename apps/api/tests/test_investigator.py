@@ -703,7 +703,7 @@ class TestInvestigatorBigQuerySalesHistory:
     def test_fake_bigquery_with_p017_rows_round_trips_into_evidence_bundle(self) -> None:
         from retailtwin_api.bigquery_sales_history import read_sales_history
         from retailtwin_api.contracts import EvidenceBundle
-        from tests.test_bigquery_sales_history import FakeBigQueryClient
+        from test_bigquery_sales_history import FakeBigQueryClient
 
         store = MemoryStore([_p017()])
         registry = _registry(store, sales_history=None)
@@ -784,7 +784,7 @@ class TestInvestigatorBigQuerySalesHistory:
 
     def test_empty_bigquery_surfaces_sales_history_unavailable(self) -> None:
         from retailtwin_api.bigquery_sales_history import read_sales_history
-        from tests.test_bigquery_sales_history import FakeBigQueryClient
+        from test_bigquery_sales_history import FakeBigQueryClient
 
         store = MemoryStore([_p017()])
         registry = _registry(store, sales_history=None)
@@ -823,7 +823,7 @@ class TestInvestigatorBigQuerySalesHistory:
 
     def test_bigquery_error_surfaces_sales_history_unavailable(self) -> None:
         from retailtwin_api.bigquery_sales_history import read_sales_history
-        from tests.test_bigquery_sales_history import FakeBigQueryClient
+        from test_bigquery_sales_history import FakeBigQueryClient
 
         store = MemoryStore([_p017()])
         registry = _registry(store, sales_history=None)
@@ -847,7 +847,7 @@ class TestInvestigatorBigQuerySalesHistory:
 
     def test_run_id_is_deterministic_across_investigations(self) -> None:
         from retailtwin_api.bigquery_sales_history import read_sales_history
-        from tests.test_bigquery_sales_history import FakeBigQueryClient
+        from test_bigquery_sales_history import FakeBigQueryClient
 
         store = MemoryStore([_p017()])
         registry = _registry(store, sales_history=None)
