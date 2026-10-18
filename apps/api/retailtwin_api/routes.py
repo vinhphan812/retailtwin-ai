@@ -726,7 +726,7 @@ def get_revenue(
     now = datetime.now(timezone.utc)
     # Map UI-facing periods to backend periods and windows.
     # 7d/30d use daily aggregation with explicit start/end.
-    period_map: dict[str, tuple[str, timedelta]] = {
+    _period_map: dict[str, tuple[Literal["hourly", "daily", "weekly", "monthly"], timedelta]] = {
         "hourly": ("hourly", timedelta(0)),
         "daily": ("daily", timedelta(days=1)),
         "weekly": ("daily", timedelta(weeks=1)),
@@ -734,7 +734,8 @@ def get_revenue(
         "7d": ("daily", timedelta(days=7)),
         "30d": ("daily", timedelta(days=30)),
     }
-    backend_period, window = period_map.get(period, ("daily", timedelta(days=1)))
+    backend_period: Literal["hourly", "daily", "weekly", "monthly"]
+    backend_period, window = _period_map.get(period, ("daily", timedelta(days=1)))
     # Explicit start/end override the period window.
     if start is None and end is None:
         period_start = now - window
