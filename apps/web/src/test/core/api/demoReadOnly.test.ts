@@ -39,5 +39,8 @@ test("the live twin of a demo build still posts its reviews", async () => {
   at("/live");
   const fetchImpl = vi.fn(async () => new Response("{}", { status: 200 }));
   await createClient("https://api.example", fetchImpl).reviewSimulation("sim-1", "approve", review);
-  expect(fetchImpl).toHaveBeenCalledWith("https://api.example/simulations/sim-1/approve", expect.objectContaining({ method: "POST" }));
+  expect(fetchImpl).toHaveBeenCalledWith(
+    "https://api.example/simulations/sim-1/approve",
+    expect.objectContaining({ method: "POST" }),
+  );
 });
