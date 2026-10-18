@@ -6,7 +6,9 @@ import type { SimulationReviewer } from "@/core/twin/simulationReview";
 import { REVIEW_DECISION } from "@/enums/simulation.enum";
 import { useProposalAiChanges, useShownSimulation } from "@/hooks/activeTwin.hook";
 import { useSimulationReview } from "@/hooks/simulationReview.hook";
+import { PANEL_WIDTH } from "@/constants/app.constant";
 import { useGuardStore } from "@/state/guard.store";
+import { usePanelStore } from "@/state/panel.store";
 import { useTwinStore } from "@/state/twin.store";
 import { AiChangesList } from "./AiChangesList";
 import { CandidatePanel } from "./CandidatePanel";
@@ -23,6 +25,8 @@ function ProposalChanges() {
  * executed. Says so when Live has moved on since. With a `reviewer`, an evaluated run gets
  * Accept and Reject, which only send the review; see `useSimulationReview`. Once the run
  * has been approved, the guard's answer shows under it. Renders nothing in the Live view.
+ * It stays clear of the Agent Activity panel, beside it or, on a narrow screen, above its
+ * bottom sheet, so the panel never covers its controls.
  */
 export function SimulationBanner({ reviewer = null }: { reviewer?: SimulationReviewer | null }) {
   const { t } = useTranslation();
@@ -30,13 +34,20 @@ export function SimulationBanner({ reviewer = null }: { reviewer?: SimulationRev
   const liveVersion = useTwinStore((state) => state.live?.context_version ?? null);
   const { review, pending, settled, canReview } = useSimulationReview(reviewer, simulation);
   const guardReview = useGuardStore((state) => state.last);
+  const panelOpen = usePanelStore((state) => state.open);
   if (!simulation) return null;
 
   const behind = liveVersion !== null && isNewerVersion(liveVersion, simulation.base_context_version);
   return (
     <>
       <div className="simulation-frame" aria-hidden />
-      <div className="simulation-banner" role="status" aria-label={t("simulation.label")}>
+      <div
+        className="simulation-banner"
+        role="status"
+        aria-label={t("simulation.label")}
+        data-panel={panelOpen ? "open" : undefined}
+        style={{ maxWidth: `min(600px, calc(100% - ${panelOpen ? PANEL_WIDTH + 56 : 32}px))` }}
+      >
         <div className="simulation-banner-body">
           <div className="simulation-banner-head">
             <span className="simulation-banner-title">

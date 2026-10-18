@@ -31,7 +31,8 @@ export function useFlagshipStatus(enabled = true): void {
         setStatus(status as FlagshipStatus, null);
       } catch (error) {
         if (cancelled) return;
-        setStatus(null, error instanceof Error ? error.message : String(error));
+        // Keeps the last status it read: the section says the poll failed, and shows no other run.
+        setStatus(useFlagshipStore.getState().status, error instanceof Error ? error.message : String(error));
       }
       if (!cancelled) timer = setTimeout(tick, POLL_MS);
     };

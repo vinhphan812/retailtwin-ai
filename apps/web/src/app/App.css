@@ -801,6 +801,15 @@ body {
     height: 45dvh;
     width: auto !important;
   }
+
+  /* The simulation banner takes the full width, and stops above the open bottom sheet. */
+  .simulation-banner {
+    max-width: calc(100% - 32px) !important;
+  }
+
+  .simulation-banner[data-panel="open"] {
+    max-height: calc(100% - var(--sim-banner-top, 60px) - 45dvh - 24px);
+  }
 }
 
 /* Text input shared by the panel and its dialogs: the SKU lookup and the product search. */
