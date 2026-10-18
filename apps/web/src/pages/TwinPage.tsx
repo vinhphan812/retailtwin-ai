@@ -17,6 +17,8 @@ import { ProductDetailsDialog } from "@/components/twin/ProductDetailsDialog";
 import { SimulationBanner } from "@/components/twin/SimulationBanner";
 import { TwinIssuesNotice } from "@/components/twin/TwinIssuesNotice";
 import { TwinStatusOverlay } from "@/components/twin/TwinStatusOverlay";
+import { TwinDemoBanner } from "@/components/layout/TwinDemoBanner";
+import { TwinHeader } from "@/components/layout/TwinHeader";
 import {
   pickSimulationReviewer,
   pickSimulationSource,
