@@ -15,6 +15,17 @@ export type HealthResponse = {
   fixture_loaded: boolean;
 };
 
+/** Server state of the flagship controller's idempotent start, apart from the run's phase. */
+export type ServerState = "NOT_STARTED" | "STARTING" | "RUNNING" | "ERROR";
+
+/** Retry info while the backend retries a start. */
+export type RetryInfo = {
+  attempt: number;
+  max_attempts: number;
+  next_retry_at: number | null;
+  backoff_delays: number[];
+};
+
 /**
  * Response from `GET /flagship/status`. Mirrors `FlagshipStatus` on apps/api
  * (`retailtwin_api/flagship/controller.py`). `timeline` rows are loose dictionaries
@@ -36,7 +47,12 @@ export type FlagshipStatusResponse = {
   verification_status?: "VERIFIED" | "FAILED" | string | null;
   verification_reason_code?: string | null;
   error?: string | null;
-  timeline?: { stage: string; detail?: string; at: string; status?: string; duration_ms?: number }[];
+  /** The controller's steps; a row may carry no `at` (`timelineEntries` stamps it then). */
+  timeline?: { stage: string; detail?: string; at?: string; status?: string; duration_ms?: number }[];
+  /** Server state from the idempotent start contract. */
+  status?: ServerState;
+  /** Retry info while the backend retries the start. */
+  retry_info?: RetryInfo;
 };
 
 /** The `GET /flagship/status` snapshot the Agent Activity panel shows. */
