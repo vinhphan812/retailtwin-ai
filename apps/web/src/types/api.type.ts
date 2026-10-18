@@ -86,6 +86,8 @@ export type RetailTwinClient = {
   anomalies: () => Promise<AnomaliesResponse>;
   /** `GET /checkouts/{checkout_id}`. Returns checkout summary and transactions. */
   checkouts: (checkoutId: string) => Promise<CheckoutResponse>;
+  /** `GET /stockout-risk`. Returns risk scores for all slots. */
+  stockoutRisk: () => Promise<unknown>;
   /** `GET /flagship/status` - Get the current flagship run status. */
   flagshipStatus: () => Promise<FlagshipStatusResponse>;
   /** `POST /flagship/reset` - Reset the flagship run. */
