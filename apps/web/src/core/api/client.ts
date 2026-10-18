@@ -1,4 +1,5 @@
 import i18n from "@/i18n";
+import { isDemoMode } from "@/core/twin/demoMode";
 import type { AgentEventsResponse, FlagshipStatusResponse, HealthResponse, RetailTwinClient } from "@/types/api.type";
 import type { ProductInventory, StoreResponse } from "@/types/twin.type";
 import type { PromotionsSummary } from "@/types/promotion.type";
