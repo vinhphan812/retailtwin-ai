@@ -19,20 +19,6 @@ const UI_TO_BACKEND_PERIOD: Record<string, string> = {
   [REVENUE_PERIOD.Month]: "daily",
 };
 
-/**
- * Maps backend period to UI-facing RevenuePeriod.
- * Derives "7d" vs "30d" from the start/end window span when backend returns "daily".
- */
-// Maps backend period to UI-facing RevenuePeriod.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function _backendPeriodToUi(backendPeriod: string, _start: Date, _end: Date): string {
-  if (backendPeriod === "hourly") return REVENUE_PERIOD.Today;
-  // For "daily", compute the span in days to distinguish 7d from 30d.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const spanDays = 7; // stub until response-shape integration lands
-  return spanDays > 14 ? REVENUE_PERIOD.Month : REVENUE_PERIOD.Week;
-}
-
 /** Converts a raw backend RevenueResponse to the internal RevenueSummary shape. */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function __revenueResponseToSummary(res: RevenueResponse, uiPeriod: string): RevenueSummary {
