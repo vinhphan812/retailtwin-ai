@@ -39,7 +39,7 @@ test("reads apps/api by default, and shows an API failure without crashing", asy
   // load, for the KPI strip; the longer windows wait for the Revenue lens.
   expect(paths).not.toContain("/promotions");
   const revenueReads = fetchMock.mock.calls.map(([url]) => new URL(String(url))).filter((url) => url.pathname === "/revenue");
-  expect(revenueReads.map((url) => url.searchParams.get("period"))).toEqual(["today"]);
+  expect(revenueReads.map((url) => url.searchParams.get("period"))).toEqual(["hourly"]);
   expect(screen.getByRole("heading", { name: "Agent Activity" })).toBeTruthy();
   expect(screen.getByRole("main")).toBeTruthy();
   expect(screen.getByRole("textbox", { name: "SKU" })).toBeTruthy();
