@@ -72,7 +72,11 @@ describe("CopilotDrawer", () => {
     renderCopilot(createDemoAssistant(() => "sim-memory-001", 0));
     expect(screen.getByText("Demo script")).toBeTruthy();
     expect(screen.queryByText(/Gemini/)).toBeNull();
-    const samples = within(screen.getByRole("group", { name: "Try asking" })).getAllByRole("button").map((button) => button.textContent);
+    const buttons = within(screen.getByRole("group", { name: "Try asking" })).getAllByRole("button");
+    // Each prompt is the button's name, with what it shows as its description.
+    expect(buttons[1].getAttribute("aria-describedby")).toBeTruthy();
+    expect(document.getElementById(buttons[2].getAttribute("aria-describedby")!)!.textContent).toBe("The chat can't commit: see the guardrail");
+    const samples = buttons.map((button) => button.getAttribute("aria-label"));
     expect(samples).toEqual([
       "What is happening with P003?",
       "Suggest a safer restock for P003 this weekend",
@@ -103,7 +107,8 @@ describe("CopilotDrawer", () => {
     renderCopilot(createDemoAssistant(() => "sim-memory-001", 0));
     fireEvent.click(screen.getByRole("button", { name: "Approve the plan" }));
     await settle();
-    expect(screen.getByText("Refused · Approve in Simulation, not in chat")).toBeTruthy();
+    const outcome = screen.getByText("Refused").closest("p")!;
+    expect(outcome.textContent).toBe("RefusedApprove in Simulation, not in chat");
     expect(screen.getByText(/Open the plan in Simulation and press Accept there/)).toBeTruthy();
   });
 

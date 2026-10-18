@@ -1,6 +1,6 @@
-import { Button } from "@heroui/react";
 import { useTranslation } from "react-i18next";
-import { RetryIcon } from "@/components/icons";
+import i18n from "@/i18n";
+import { AlertIcon, ChatIcon, RetryIcon } from "@/components/icons";
 import { SkuChip, clock } from "@/components/layout/ActivityLog";
 import { ASSISTANT_ERROR, ASSISTANT_SOURCE, ASSISTANT_STATUS } from "@/enums/assistant.enum";
 import { format } from "@/core/utils/format";
@@ -9,9 +9,9 @@ import type { AssistantFailure, AssistantTurn } from "@/types/assistant.type";
 import { CopilotProposal } from "./CopilotProposal";
 
 /** Who wrote a reply, as its source and model say. */
-export function sourceLabel(turn: Pick<AssistantTurn, "source" | "model">, t: ReturnType<typeof useTranslation>["t"]): string {
-  if (turn.source === ASSISTANT_SOURCE.DemoScript) return t("copilot.source.demo");
-  return turn.model ? t("copilot.source.geminiModel", { model: turn.model }) : t("copilot.source.gemini");
+export function sourceLabel(turn: Pick<AssistantTurn, "source" | "model">): string {
+  if (turn.source === ASSISTANT_SOURCE.DemoScript) return i18n.t("copilot.source.demo");
+  return turn.model ? i18n.t("copilot.source.geminiModel", { model: turn.model }) : i18n.t("copilot.source.gemini");
 }
 
 /** Every product a reply is about, in the order it names them. */
@@ -25,15 +25,24 @@ function productsOf(turn: AssistantTurn): string[] {
 }
 
 /** A label for a served code: the Copilot's own words when it knows the code, the code otherwise. */
-function codeLabel(t: ReturnType<typeof useTranslation>["t"], prefix: "copilot.outcome" | "copilot.error", code: string): string {
-  return t(`${prefix}.${code}` as never, { defaultValue: code }) as string;
+function codeLabel(prefix: "copilot.outcome" | "copilot.error", code: string, fallback: string = code): string {
+  return String(i18n.t(`${prefix}.${code}` as never, { defaultValue: fallback } as never));
 }
 
-/** What the evidence and tool lists show of one reply, folded until opened. */
+/** The Copilot's side of the conversation: a small mark beside each of its bubbles. */
+function Avatar({ alert = false }: { alert?: boolean }) {
+  return (
+    <span className="copilot-avatar" data-alert={alert || undefined} aria-hidden>
+      {alert ? <AlertIcon className="h-3.5 w-3.5" /> : <ChatIcon className="h-3.5 w-3.5" />}
+    </span>
+  );
+}
+
+/** What a reply rests on, folded until opened: its evidence, the tools it called, and how to trace it. */
 function ReplyDetails({ turn }: { turn: AssistantTurn }) {
   const { t } = useTranslation();
   return (
-    <>
+    <div className="copilot-details-row">
       {turn.evidence.length ? (
         <details className="copilot-details">
           <summary>{t("copilot.evidence.title", { count: turn.evidence.length })}</summary>
@@ -73,43 +82,60 @@ function ReplyDetails({ turn }: { turn: AssistantTurn }) {
           </ul>
         </details>
       ) : null}
-    </>
+      <details className="copilot-details">
+        <summary>{t("copilot.meta.trace")}</summary>
+        <ul>
+          <li>
+            <span className="copilot-details-label">{t("copilot.meta.correlationLabel")}</span>
+            <code className="copilot-trace-id">{turn.correlation_id}</code>
+          </li>
+          {turn.context_version ? (
+            <li>
+              <span className="copilot-details-label">{t("copilot.meta.contextLabel")}</span>
+              <code>{turn.context_version}</code>
+            </li>
+          ) : null}
+        </ul>
+      </details>
+    </div>
   );
 }
 
-/** One reply: its text, the products it names, its plan, its evidence and tools, and who wrote it on which Live state. */
+/** One reply: its text, the products it names, its plan, and what it rests on; who wrote it and when, under it. */
 function Reply({ turn }: { turn: AssistantTurn }) {
   const { t } = useTranslation();
   const products = productsOf(turn);
   const declined = turn.status === ASSISTANT_STATUS.Refused || turn.status === ASSISTANT_STATUS.Unsupported;
   return (
-    <li className="copilot-message" data-kind="reply" data-status={turn.status}>
-      {declined ? (
-        <span className="copilot-outcome">
-          {t(`copilot.status.${turn.status}`)}
-          {turn.outcome_code ? ` · ${codeLabel(t, "copilot.outcome", turn.outcome_code)}` : ""}
-        </span>
-      ) : null}
-      <p className="copilot-text">{turn.text}</p>
-      {products.length ? (
-        <div className="copilot-products" role="group" aria-label={t("copilot.products")}>
-          {products.map((sku) => (
-            <SkuChip key={sku} sku={sku} />
-          ))}
+    <li className="copilot-row" data-kind="reply" data-status={turn.status}>
+      <Avatar />
+      <div className="copilot-stack">
+        <div className="copilot-bubble">
+          {declined ? (
+            <p className="copilot-outcome">
+              <span className="copilot-outcome-pill">{t(`copilot.status.${turn.status}`)}</span>
+              {turn.outcome_code ? <span>{codeLabel("copilot.outcome", turn.outcome_code)}</span> : null}
+            </p>
+          ) : null}
+          <p className="copilot-text">{turn.text}</p>
+          {products.length ? (
+            <div className="copilot-products" role="group" aria-label={t("copilot.products")}>
+              {products.map((sku) => (
+                <SkuChip key={sku} sku={sku} />
+              ))}
+            </div>
+          ) : null}
+          {turn.proposal ? <CopilotProposal proposal={turn.proposal} /> : null}
+          <ReplyDetails turn={turn} />
         </div>
-      ) : null}
-      {turn.proposal ? <CopilotProposal proposal={turn.proposal} /> : null}
-      <ReplyDetails turn={turn} />
-      <p className="copilot-meta">
-        <span className="copilot-source" data-source={turn.source}>
-          {sourceLabel(turn, t)}
-        </span>
-        <time dateTime={turn.created_at}>{clock(turn.created_at)}</time>
-        {turn.context_version ? <span>{t("copilot.meta.context", { version: turn.context_version })}</span> : null}
-        <span className="copilot-meta-id" title={turn.correlation_id}>
-          {t("copilot.meta.correlation", { id: turn.correlation_id })}
-        </span>
-      </p>
+        <p className="copilot-meta" title={t("copilot.meta.correlation", { id: turn.correlation_id })}>
+          <span className="copilot-meta-source" data-source={turn.source}>
+            {sourceLabel(turn)}
+          </span>
+          <time dateTime={turn.created_at}>{clock(turn.created_at)}</time>
+          {turn.context_version ? <span>{t("copilot.meta.context", { version: turn.context_version })}</span> : null}
+        </p>
+      </div>
     </li>
   );
 }
@@ -118,37 +144,40 @@ function Reply({ turn }: { turn: AssistantTurn }) {
 function Failure({ failure, at, onRetry, busy }: { failure: AssistantFailure; at: string; onRetry: () => void; busy: boolean }) {
   const { t } = useTranslation();
   const stale = failure.code === ASSISTANT_ERROR.StaleContext;
-  const known = t(`copilot.error.${failure.code}` as never, { defaultValue: "" }) as string;
+  const known = codeLabel("copilot.error", failure.code, "");
   return (
-    <li className="copilot-message" data-kind="error" role="alert">
-      <span className="copilot-outcome">{t("copilot.error.title")}</span>
-      <p className="copilot-text">{known || t("copilot.error.request_failed")}</p>
-      {failure.message && failure.message !== known ? <p className="copilot-error-detail">{failure.message}</p> : null}
-      <p className="copilot-meta">
-        <span>
-          {failure.status
-            ? t("copilot.error.meta", { status: failure.status, code: failure.code })
-            : t("copilot.error.metaNoStatus", { code: failure.code })}
-        </span>
-        <time dateTime={at}>{clock(at)}</time>
-        {failure.correlation_id ? (
-          <span className="copilot-meta-id" title={failure.correlation_id}>
-            {t("copilot.meta.correlation", { id: failure.correlation_id })}
-          </span>
-        ) : null}
-      </p>
-      {failure.retryable || stale ? (
-        <Button
-          size="sm"
-          variant="bordered"
-          className="self-start border-white/15 text-[var(--color-ink)]"
-          startContent={<RetryIcon className="h-3.5 w-3.5" />}
-          isDisabled={busy}
-          onPress={onRetry}
-        >
-          {stale ? t("copilot.error.askAgain") : t("copilot.error.retry")}
-        </Button>
-      ) : null}
+    <li className="copilot-row" data-kind="error" role="alert">
+      <Avatar alert />
+      <div className="copilot-stack">
+        <div className="copilot-bubble">
+          <p className="copilot-outcome">
+            <span className="copilot-outcome-pill">{t("copilot.error.title")}</span>
+          </p>
+          <p className="copilot-text">{known || t("copilot.error.request_failed")}</p>
+          {failure.message && failure.message !== known ? <p className="copilot-error-detail">{failure.message}</p> : null}
+          <p className="copilot-error-meta">
+            <span>
+              {failure.status
+                ? t("copilot.error.meta", { status: failure.status, code: failure.code })
+                : t("copilot.error.metaNoStatus", { code: failure.code })}
+            </span>
+            {failure.correlation_id ? (
+              <span className="copilot-meta-id" title={failure.correlation_id}>
+                {t("copilot.meta.correlation", { id: failure.correlation_id })}
+              </span>
+            ) : null}
+          </p>
+          {failure.retryable || stale ? (
+            <button type="button" className="copilot-retry" disabled={busy} onClick={onRetry}>
+              <RetryIcon className="h-3.5 w-3.5" />
+              {stale ? t("copilot.error.askAgain") : t("copilot.error.retry")}
+            </button>
+          ) : null}
+        </div>
+        <p className="copilot-meta">
+          <time dateTime={at}>{clock(at)}</time>
+        </p>
+      </div>
     </li>
   );
 }
@@ -169,9 +198,11 @@ export function CopilotMessages({
       {messages.map((message) => {
         if (message.kind === "user") {
           return (
-            <li key={message.id} className="copilot-message" data-kind="user">
-              <span className="sr-only">{t("copilot.you")}: </span>
-              <p className="copilot-text">{message.request.text}</p>
+            <li key={message.id} className="copilot-row" data-kind="user">
+              <div className="copilot-bubble">
+                <span className="sr-only">{t("copilot.you")}: </span>
+                <p className="copilot-text">{message.request.text}</p>
+              </div>
             </li>
           );
         }

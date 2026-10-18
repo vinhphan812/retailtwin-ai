@@ -516,16 +516,24 @@ export const en = {
       none: "Not available",
     },
     note: {
-      demo: "Demo simulation: scripted answers from the demo store, not an AI model. Nothing here changes the store.",
-      live: "Answers come from Gemini on Vertex AI through apps/api. The Copilot only reads the store and opens simulations; you approve every change.",
+      demo: "Scripted answers from the demo store, not an AI model.",
+      live: "Gemini on Vertex AI through apps/api. It reads and simulates; you approve every change.",
       none: "This dev twin has no Copilot. Open the demo or the Live twin.",
     },
-    intro: "Ask why a product is low, or for a safer plan. A plan opens as a simulation; nothing changes until you accept it.",
+    welcome: "Ask about the store",
+    intro: "Explain a product, or get a plan to try in Simulation. Nothing changes until you accept it.",
     samples: {
       label: "Try asking",
       explain: "What is happening with {{sku}}?",
       plan: "Suggest a safer restock for {{sku}} this weekend",
       approve: "Approve the plan",
+      hint: {
+        explain: "Stock, open alerts and sales",
+        plan: "A scored plan to open in Simulation",
+        approve: "The chat can't commit: see the guardrail",
+        missing: "A product this store doesn't carry",
+        livePlan: "A plan Gemini opens as a simulation",
+      },
     },
     input: "Message the Copilot",
     placeholder: "Ask about a product, e.g. {{sku}}",
@@ -572,6 +580,9 @@ export const en = {
     meta: {
       context: "Live {{version}}",
       correlation: "Correlation {{id}}",
+      trace: "Trace",
+      correlationLabel: "Correlation",
+      contextLabel: "Live version",
     },
     proposal: {
       title: "Proposed plan",

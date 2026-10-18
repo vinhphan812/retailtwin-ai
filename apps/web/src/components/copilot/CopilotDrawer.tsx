@@ -1,8 +1,8 @@
 import { Button } from "@heroui/react";
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ComponentType, type FormEvent, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { ChatIcon, CloseIcon, SendIcon } from "@/components/icons";
+import { ChatIcon, ChevronDownIcon, CloseIcon, InfoIcon, KpiIcon, SendIcon, ShieldIcon, SimulationIcon } from "@/components/icons";
 import { COPILOT_MAX_MESSAGE, COPILOT_WIDTH, PANEL_WIDTH } from "@/constants/app.constant";
 import { ask, retry } from "@/core/assistant/conversation";
 import { ASSISTANT_MODE } from "@/enums/assistant.enum";
@@ -15,23 +15,31 @@ import "./copilot.css";
 /** The demo's sample products: P003 is out on the shelf with stock in the backroom; P017 is not in the demo store. */
 const DEMO_SKU = "P003";
 const MISSING_SKU = "P017";
+/** Tallest the message box grows before it scrolls, in px. */
+const INPUT_MAX_HEIGHT = 120;
+
+/** A prompt to start from: what it asks, and what it shows. */
+type Sample = { text: string; hint: string; Icon: ComponentType<{ className?: string }> };
 
 /** Prompts to start from, for the twin the Copilot talks about. */
-function useSamples(assistant: Assistant | null): string[] {
+function useSamples(assistant: Assistant | null): Sample[] {
   const { t } = useTranslation();
   if (!assistant) return [];
   if (assistant.mode === ASSISTANT_MODE.Demo) {
     return [
-      t("copilot.samples.explain", { sku: DEMO_SKU }),
-      t("copilot.samples.plan", { sku: DEMO_SKU }),
-      t("copilot.samples.approve"),
-      t("copilot.samples.explain", { sku: MISSING_SKU }),
+      { text: t("copilot.samples.explain", { sku: DEMO_SKU }), hint: t("copilot.samples.hint.explain"), Icon: KpiIcon },
+      { text: t("copilot.samples.plan", { sku: DEMO_SKU }), hint: t("copilot.samples.hint.plan"), Icon: SimulationIcon },
+      { text: t("copilot.samples.approve"), hint: t("copilot.samples.hint.approve"), Icon: ShieldIcon },
+      { text: t("copilot.samples.explain", { sku: MISSING_SKU }), hint: t("copilot.samples.hint.missing"), Icon: InfoIcon },
     ];
   }
-  return [t("copilot.samples.explain", { sku: MISSING_SKU }), t("copilot.samples.plan", { sku: MISSING_SKU })];
+  return [
+    { text: t("copilot.samples.explain", { sku: MISSING_SKU }), hint: t("copilot.samples.hint.explain"), Icon: KpiIcon },
+    { text: t("copilot.samples.plan", { sku: MISSING_SKU }), hint: t("copilot.samples.hint.livePlan"), Icon: SimulationIcon },
+  ];
 }
 
-/** The chip under the title: the demo script, or Live and, once one has answered, the model behind it. */
+/** The chip beside the title: the demo script, or Live and, once one has answered, the model behind it. */
 function SourceChip({ assistant }: { assistant: Assistant | null }) {
   const { t } = useTranslation();
   const lastTurn = useCopilotStore((state) => {
@@ -51,8 +59,48 @@ function SourceChip({ assistant }: { assistant: Assistant | null }) {
   }
   return (
     <span className="copilot-source" data-source={lastTurn?.source ?? "live"} title={t("copilot.source.liveHint")}>
-      {lastTurn ? sourceLabel(lastTurn, t) : t("copilot.source.live")}
+      {lastTurn ? sourceLabel(lastTurn) : t("copilot.source.live")}
     </span>
+  );
+}
+
+/** The empty conversation: what the Copilot is for, and prompts that show it, each with what it demonstrates. */
+function Welcome({ assistant, onAsk }: { assistant: Assistant | null; onAsk: (text: string) => void }) {
+  const { t } = useTranslation();
+  const samples = useSamples(assistant);
+  return (
+    <li className="copilot-welcome">
+      <span className="copilot-welcome-mark" aria-hidden>
+        <ChatIcon className="h-5 w-5" />
+      </span>
+      <h3 className="copilot-welcome-title">{t("copilot.welcome")}</h3>
+      <p className="copilot-welcome-text">{t(assistant ? "copilot.intro" : "copilot.note.none")}</p>
+      {samples.length ? (
+        <div className="copilot-samples" role="group" aria-label={t("copilot.samples.label")}>
+          {samples.map(({ text, hint, Icon }, index) => (
+            <button
+              key={text}
+              type="button"
+              className="copilot-sample"
+              aria-label={text}
+              aria-describedby={`copilot-sample-${index}`}
+              onClick={() => onAsk(text)}
+            >
+              <span className="copilot-sample-icon" aria-hidden>
+                <Icon className="h-4 w-4" />
+              </span>
+              <span className="copilot-sample-body">
+                <span className="copilot-sample-text">{text}</span>
+                <span className="copilot-sample-hint" id={`copilot-sample-${index}`}>
+                  {hint}
+                </span>
+              </span>
+              <ChevronDownIcon className="copilot-sample-go" />
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </li>
   );
 }
 
@@ -70,7 +118,6 @@ export function CopilotDrawer({ assistant }: { assistant: Assistant | null }) {
   const pending = useCopilotStore((state) => state.pending);
   // Sit left of the floating Agent Activity panel instead of under it.
   const panelInset = usePanelStore((state) => (state.open ? PANEL_WIDTH + 24 : 0));
-  const samples = useSamples(assistant);
   const [text, setText] = useState("");
   const input = useRef<HTMLTextAreaElement>(null);
   const list = useRef<HTMLOListElement>(null);
@@ -84,6 +131,14 @@ export function CopilotDrawer({ assistant }: { assistant: Assistant | null }) {
     const node = list.current;
     if (node) node.scrollTop = node.scrollHeight;
   }, [messages, pending]);
+
+  // The message box grows with what is typed, up to INPUT_MAX_HEIGHT, then scrolls.
+  useLayoutEffect(() => {
+    const node = input.current;
+    if (!node) return;
+    node.style.height = "auto";
+    node.style.height = `${Math.min(node.scrollHeight, INPUT_MAX_HEIGHT)}px`;
+  }, [text, open]);
 
   const send = (value: string) => {
     if (!value.trim() || pending) return;
@@ -100,7 +155,8 @@ export function CopilotDrawer({ assistant }: { assistant: Assistant | null }) {
       send(text);
     }
   };
-  const note = !assistant ? "copilot.note.none" : assistant.mode === ASSISTANT_MODE.Demo ? "copilot.note.demo" : "copilot.note.live";
+  const note = assistant?.mode === ASSISTANT_MODE.Demo ? "copilot.note.demo" : "copilot.note.live";
+  const canSend = text.trim() !== "" && pending === null;
 
   return (
     <AnimatePresence>
@@ -122,86 +178,89 @@ export function CopilotDrawer({ assistant }: { assistant: Assistant | null }) {
           }}
         >
           <header className="copilot-head">
-            <span className="copilot-mark">
+            <span className="copilot-mark" aria-hidden>
               <ChatIcon className="h-4 w-4" />
             </span>
             <div className="copilot-heading">
-              <h2 id="copilot-title">{t("copilot.title")}</h2>
-              <SourceChip assistant={assistant} />
+              <div className="copilot-title-row">
+                <h2 id="copilot-title">{t("copilot.title")}</h2>
+                <SourceChip assistant={assistant} />
+              </div>
+              {assistant ? (
+                <p className="copilot-subtitle" data-mode={assistant.mode}>
+                  {t(note)}
+                </p>
+              ) : null}
             </div>
             <Button
               isIconOnly
               size="sm"
               variant="light"
-              radius="sm"
+              radius="full"
               aria-label={t("copilot.close")}
               title={t("copilot.close")}
               onPress={() => setOpen(false)}
-              className="ml-auto min-w-0 cursor-pointer text-ink-muted data-[hover=true]:bg-card data-[hover=true]:text-ink"
+              className="min-w-0 shrink-0 cursor-pointer text-ink-muted data-[hover=true]:bg-card data-[hover=true]:text-ink"
             >
               <CloseIcon className="h-4 w-4" />
             </Button>
           </header>
-          <p className="copilot-note" data-mode={assistant?.mode ?? "none"}>
-            {t(note)}
-          </p>
 
-          <ol ref={list} className="copilot-messages" aria-label={t("copilot.label")} aria-live="polite" aria-busy={pending !== null}>
+          <ol
+            ref={list}
+            className="copilot-messages"
+            data-empty={messages.length === 0 || undefined}
+            aria-label={t("copilot.label")}
+            aria-live="polite"
+            aria-busy={pending !== null}
+          >
             {messages.length === 0 ? (
-              <li className="copilot-empty">
-                <p>{t("copilot.intro")}</p>
-                {samples.length ? (
-                  <div className="copilot-samples" role="group" aria-label={t("copilot.samples.label")}>
-                    {samples.map((sample) => (
-                      <button key={sample} type="button" onClick={() => send(sample)}>
-                        {sample}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-              </li>
+              <Welcome assistant={assistant} onAsk={send} />
             ) : (
               <CopilotMessages messages={messages} busy={pending !== null} onRetry={(messageId) => void retry(assistant, messageId)} />
             )}
             {pending ? (
-              <li className="copilot-message" data-kind="pending" role="status">
-                <span className="copilot-dots" aria-hidden />
-                {t("copilot.thinking")}
+              <li className="copilot-row" data-kind="pending" role="status">
+                <span className="copilot-avatar" aria-hidden>
+                  <ChatIcon className="h-3.5 w-3.5" />
+                </span>
+                <span className="copilot-bubble copilot-typing">
+                  <span className="copilot-dots" aria-hidden>
+                    <i />
+                    <i />
+                    <i />
+                  </span>
+                  {t("copilot.thinking")}
+                </span>
               </li>
             ) : null}
           </ol>
 
           <form className="copilot-compose" onSubmit={onSubmit}>
-            <label className="sr-only" htmlFor="copilot-input">
-              {t("copilot.input")}
-            </label>
-            <textarea
-              id="copilot-input"
-              ref={input}
-              className="text-field copilot-input"
-              rows={2}
-              maxLength={COPILOT_MAX_MESSAGE}
-              value={text}
-              placeholder={t("copilot.placeholder", { sku: assistant?.mode === ASSISTANT_MODE.Demo ? DEMO_SKU : MISSING_SKU })}
-              aria-describedby="copilot-hint"
-              onChange={(event) => setText(event.target.value)}
-              onKeyDown={onKeyDown}
-            />
-            <Button
-              type="submit"
-              isIconOnly
-              color="secondary"
-              aria-label={t("copilot.send")}
-              title={t("copilot.send")}
-              isDisabled={!text.trim() || pending !== null}
-              className="h-9 w-9 min-w-0"
-            >
-              <SendIcon className="h-4 w-4" />
-            </Button>
+            <div className="copilot-composer">
+              <label className="sr-only" htmlFor="copilot-input">
+                {t("copilot.input")}
+              </label>
+              <textarea
+                id="copilot-input"
+                ref={input}
+                className="copilot-input"
+                rows={1}
+                maxLength={COPILOT_MAX_MESSAGE}
+                value={text}
+                placeholder={t("copilot.placeholder", { sku: assistant?.mode === ASSISTANT_MODE.Demo ? DEMO_SKU : MISSING_SKU })}
+                aria-describedby="copilot-hint"
+                onChange={(event) => setText(event.target.value)}
+                onKeyDown={onKeyDown}
+              />
+              <button type="submit" className="copilot-send" aria-label={t("copilot.send")} title={t("copilot.send")} disabled={!canSend}>
+                <SendIcon className="h-4 w-4" />
+              </button>
+            </div>
+            <p id="copilot-hint" className="copilot-hint">
+              {t("copilot.hint")}
+            </p>
           </form>
-          <p id="copilot-hint" className="copilot-hint">
-            {t("copilot.hint")}
-          </p>
         </motion.aside>
       ) : null}
     </AnimatePresence>

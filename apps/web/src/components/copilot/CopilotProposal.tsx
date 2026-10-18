@@ -133,7 +133,7 @@ export function CopilotProposal({ proposal }: { proposal: AssistantProposal }) {
           <Button
             size="sm"
             color="secondary"
-            className="self-start font-semibold"
+            className="w-full font-semibold"
             startContent={<SimulationIcon className="h-3.5 w-3.5" />}
             title={t("copilot.proposal.reviewHint")}
             onPress={() => openProposal(proposal)}

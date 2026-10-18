@@ -17,22 +17,27 @@ export function ReadSource() {
   );
 }
 
-/** What a failure means for the user, by its code; the served message when the code is unknown. */
-function explanation(failure: ReadFailure, t: ReturnType<typeof useTranslation>["t"]): string {
+/** The `read.failure` text for a failure's code; null when it has none, and the served message shows. */
+function explanationKey(failure: ReadFailure): string | null {
   switch (failure.code) {
     case "analytics_unavailable":
-      return t("read.failure.analyticsUnavailable");
+      return "read.failure.analyticsUnavailable";
     case "validation_error":
-      return t("read.failure.validation");
+      return "read.failure.validation";
     case INVALID_RESPONSE:
-      return t("read.failure.invalidResponse", { message: failure.message });
+      return "read.failure.invalidResponse";
     case "network_error":
-      return t("read.failure.network");
-    case "demo_read_only":
-      return failure.message;
+      return "read.failure.network";
     default:
-      return failure.status === 404 && failure.code === "http_error" ? t("read.failure.notDeployed") : failure.message;
+      return failure.status === 404 && failure.code === "http_error" ? "read.failure.notDeployed" : null;
   }
+}
+
+/** What a failure means for the user, by its code; the served message when the code is unknown. */
+function explanation(failure: ReadFailure, t: ReturnType<typeof useTranslation>["t"]): string {
+  const key = explanationKey(failure);
+  // A key picked at run time: typed `t` keys would instantiate the whole message tree here.
+  return key ? String(t(key as never, { message: failure.message } as never)) : failure.message;
 }
 
 /**
