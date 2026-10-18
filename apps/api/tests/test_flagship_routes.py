@@ -536,3 +536,78 @@ def test_concurrent_start_rejected_with_clear_error() -> None:
         # Clean up
         with controller._lock:  # type: ignore[attr-defined]
             controller._phase = FlagshipPhase.IDLE  # type: ignore[attr-defined]
+
+
+# ---------------------------------------------------------------------
+# Idempotent start tests
+# ---------------------------------------------------------------------
+
+
+def _load_routes_module():
+    """Load the routes module from the correct worktree path."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "retailtwin_api.flagship.routes",
+        "D:/competitions/AI Builder Google 2026/retailtwin-ai/.worktrees/t_1feac013/apps/api/retailtwin_api/flagship/routes.py"
+    )
+    routes = importlib.util.module_from_spec(spec)  # type: ignore[attr-defined]
+    spec.loader.exec_module(routes)  # type: ignore[attr-defined]
+    return routes
+
+
+def test_server_state_manager_reset() -> None:
+    """Prove reset clears all state - direct unit test without HTTP."""
+    routes = _load_routes_module()
+    ServerState = routes.ServerState
+    _ServerStateManager = routes._ServerStateManager
+
+    manager = _ServerStateManager()
+    manager.set_state(ServerState.RUNNING, correlation_id="test-corr")
+    manager.set_retry_info(attempt=2, max_attempts=3, next_retry_at=123.0, backoff_delays=[1, 2, 4])
+    manager.reset()
+
+    assert manager.get_state() == ServerState.NOT_STARTED
+    assert manager.get_retry_info() is None
+
+
+def test_server_state_manager_thread_safety() -> None:
+    """Prove _ServerStateManager is thread-safe for concurrent access."""
+    import threading
+    import time
+
+    routes = _load_routes_module()
+    ServerState = routes.ServerState
+    _ServerStateManager = routes._ServerStateManager
+
+    manager = _ServerStateManager()
+    errors: list[Exception] = []
+
+    def writer(state: ServerState) -> None:
+        try:
+            for _ in range(100):
+                manager.set_state(state, correlation_id=f"corr-{state.value}")
+                time.sleep(0.001)
+        except Exception as e:
+            errors.append(e)
+
+    def reader() -> None:
+        try:
+            for _ in range(100):
+                _ = manager.get_state()
+                time.sleep(0.001)
+        except Exception as e:
+            errors.append(e)
+
+    threads = [
+        threading.Thread(target=writer, args=(ServerState.RUNNING,)),
+        threading.Thread(target=writer, args=(ServerState.STARTING,)),
+        threading.Thread(target=reader),
+        threading.Thread(target=reader),
+    ]
+
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert len(errors) == 0, f"Thread safety errors: {errors}"
