@@ -48,3 +48,4 @@ assets/3d/generated/
 
 # Day-0 Foundation Gate evidence (build output)
 artifacts/
+*.tsbuildinfo
