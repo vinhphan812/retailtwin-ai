@@ -5,7 +5,7 @@ import logging
 from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
 from typing import Any, Literal, cast
-
+from retailtwin_api.schemas import REVENUE_PERIOD_LITERAL
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, Response
 
 from retailtwin_api.agents.executor import CommitService
@@ -747,7 +747,7 @@ def get_revenue(
     try:
         return repo.get_revenue(
             store_id=target_store,
-            period=backend_period,
+            period=cast(REVENUE_PERIOD_LITERAL, backend_period),
             start=period_start,
             end=period_end,
         )
