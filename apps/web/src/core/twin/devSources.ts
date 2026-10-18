@@ -19,6 +19,8 @@ import { commitSimulation, createMemoryReviewer, discardSimulation, openSimulati
 import { createApiReviewer, type SimulationReviewer } from "./simulationReview";
 import { isDemoMode, LIVE_PATH } from "./demoMode";
 import { defaultClient } from "@/core/api/client";
+import { createApiDemoRunner, type DemoRunner } from "@/core/demo/demoRunner";
+import { createFixtureDemoRunner } from "@/core/demo/fixtureDemoRunner";
 
 /** The editable twin behind `?twin=memory|demo`, once `pickSource` has made it. */
 let memoryTwin: MemoryTwin | null = null;
@@ -161,6 +163,17 @@ export function pickSimulationReviewer(): SimulationReviewer | null {
   return memoryTwin && (mode === "memory" || mode === "demo" || mode === "firestore")
     ? createMemoryReviewer(memoryTwin)
     : null;
+}
+
+/**
+ * What the Run AI Demo button runs: the flagship controller of apps/api (#41), or the demo
+ * fixtures standing in for it under `?twin=demo`, which never call apps/api. Other dev twins
+ * have no demo. Call after `pickSource`.
+ */
+export function pickDemoRunner(): DemoRunner | null {
+  const mode = devTwinMode();
+  if (!mode) return createApiDemoRunner(defaultClient);
+  return mode === "demo" && memoryTwin ? createFixtureDemoRunner(memoryTwin) : null;
 }
 
 /**

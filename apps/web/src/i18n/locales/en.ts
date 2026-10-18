@@ -472,6 +472,21 @@ export const en = {
       proposal_changed: "The proposal changed after it was reviewed.",
     },
   },
+  demo: {
+    run: "Run AI Demo",
+    again: "Run AI Demo again",
+    starting: "Starting the AI demo…",
+    running: "AI demo running…",
+    hint: "Resets the store and lets the agent handle the seeded problem, step by step",
+    stopFollowing: "Stop following",
+    error: "The AI demo could not run: {{error}}",
+    retry: "Retry",
+    failed: "The AI demo could not run",
+    source: {
+      replay: "Replay of demo data, no Live writes",
+      flagship: "Flagship run on apps/api",
+    },
+  },
   flagship: {
     section: "Flagship controller (live status)",
     runId: "Run id",

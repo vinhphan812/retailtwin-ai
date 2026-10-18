@@ -9,6 +9,7 @@ import { AgentFocusCaption } from "@/components/twin/AgentFocusCaption";
 import { AiImpactDialog } from "@/components/twin/AiImpactDialog";
 import { AiImpactToast } from "@/components/twin/AiImpactToast";
 import { LensSwitcher } from "@/components/layout/LensSwitcher";
+import { RunDemoButton } from "@/components/layout/RunDemoButton";
 import { ViewModeSwitch } from "@/components/layout/ViewModeSwitch";
 import { OverlayLegend } from "@/components/layout/OverlayLegend";
 import { OverlayToggles } from "@/components/layout/OverlayToggles";
@@ -22,12 +23,14 @@ import { TwinFooter } from "@/components/layout/TwinFooter";
 import { TwinHeader } from "@/components/layout/TwinHeader";
 import {
   isApiTwin,
+  pickDemoRunner,
   pickSimulationReviewer,
   pickSimulationSource,
   pickSource,
 } from "@/core/twin/devSources";
 import { useAgentFeed } from "@/hooks/agentFeed.hook";
 import { useAgentFocus } from "@/hooks/agentFocus.hook";
+import { useDemoDirector } from "@/hooks/demoDirector.hook";
 import { useAnomalyPolling } from "@/hooks/anomalyPolling.hook";
 import { useFlagshipStatus } from "@/hooks/flagshipStatus.hook";
 import { useNetworkStatus } from "@/hooks/networkStatus.hook";
@@ -40,6 +43,8 @@ const source = pickSource();
 const simulationSource = pickSimulationSource();
 // After pickSource: under ?twin=memory|demo it reviews on the twin pickSource made.
 const reviewer = pickSimulationReviewer();
+// After pickSource too: under ?twin=demo the demo fixtures stand in for the flagship controller.
+const demoRunner = pickDemoRunner();
 
 export function TwinPage() {
   useTwinSource(source);
@@ -47,6 +52,7 @@ export function TwinPage() {
   useNetworkStatus();
   useProductParam();
   useAgentFocus();
+  useDemoDirector();
   useAnomalyPolling();
   useFlagshipStatus(isApiTwin());
   useAgentFeed(isApiTwin());
@@ -67,6 +73,7 @@ export function TwinPage() {
           <div className="lens-switcher">
             <LensSwitcher />
             <ViewModeSwitch />
+            <RunDemoButton runner={demoRunner} />
           </div>
           <KpiStrip />
           {/* Bottom left: the overlay legend over the camera help and the Overlays toggles. */}
