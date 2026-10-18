@@ -210,11 +210,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # Analytics repositories: GCP-backed (BigQuery + Firestore); empty adapters in dev.
     # Checkout reads use the explicit in-memory scaffold pending a verified BQ schema.
     # Swap app.state repositories in integration tests.
-    anomalies, revenue, promotions, _ = unavailable_analytics_repositories()
+    anomalies, revenue, _, checkouts = unavailable_analytics_repositories()
     app.state.anomalies = anomalies
-    app.state.revenue = revenue
-    app.state.promotions = promotions
-    app.state.checkouts = get_checkout_repository()
+    # Connect revenue and promotions to BigQuery
+    from retailtwin_api.analytics_repository import get_revenue_repository, get_promotion_repository
+    app.state.revenue = get_revenue_repository()
+    app.state.promotions = get_promotion_repository()
+    app.state.checkouts = checkouts
 
     # Correlation + structured logging middleware (must be outermost)
     app.add_middleware(CorrelationMiddleware)

@@ -260,6 +260,146 @@ class InMemoryPromotionRepository:
         with self._lock:
             self._promotions = [p.model_copy(deep=True) for p in promotions]
 
+    def seed_demo_promotions(self, store_id: str = "store-001") -> None:
+        """Seed demo promotions with all status types for the demo store."""
+        from datetime import datetime, timezone, timedelta
+
+        now = datetime.now(timezone.utc)
+        today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        yesterday = today - timedelta(days=1)
+        tomorrow = today + timedelta(days=1)
+        next_week = today + timedelta(days=7)
+        last_week = today - timedelta(days=7)
+        two_weeks_ago = today - timedelta(days=14)
+
+        demo_promotions = [
+            # Active promotions
+            Promotion(
+                promotion_id="PRM-101",
+                name="Breakfast Week - 15% Off",
+                promotion_type=PromotionType.PERCENT_OFF,
+                status=PromotionStatus.ACTIVE,
+                store_id=store_id,
+                sku="P001",
+                category="cereal",
+                discount_value=15.0,
+                start_time=yesterday,
+                end_time=today + timedelta(days=3),
+                skus=["P001", "P008"],
+                revenue=1240.50,
+                incremental_revenue=310.20,
+                discount_cost=186.10,
+                redemption_count=89,
+            ),
+            Promotion(
+                promotion_id="PRM-102",
+                name="Chicken Breast 2 for 1",
+                promotion_type=PromotionType.BUY_X_GET_Y,
+                status=PromotionStatus.ACTIVE,
+                store_id=store_id,
+                sku="P009",
+                category="meat",
+                discount_value=1.0,
+                start_time=today - timedelta(days=2),
+                end_time=tomorrow,
+                skus=["P009"],
+                revenue=512.40,
+                incremental_revenue=96.80,
+                discount_cost=143.80,
+                redemption_count=34,
+            ),
+            # Scheduled promotion
+            Promotion(
+                promotion_id="PRM-103",
+                name="Pasta Night Bundle",
+                promotion_type=PromotionType.BUNDLE,
+                status=PromotionStatus.SCHEDULED,
+                store_id=store_id,
+                sku="P004",
+                category="pasta",
+                discount_value=3.99,
+                start_time=tomorrow,
+                end_time=next_week,
+                skus=["P004", "P007"],
+                revenue=0,
+                incremental_revenue=0,
+                discount_cost=0,
+                redemption_count=0,
+            ),
+            # Pending Review
+            Promotion(
+                promotion_id="PRM-104",
+                name="Frozen Peas $1 Off",
+                promotion_type=PromotionType.AMOUNT_OFF,
+                status=PromotionStatus.PENDING_REVIEW,
+                store_id=store_id,
+                sku="P010",
+                category="frozen",
+                discount_value=1.0,
+                start_time=today + timedelta(days=2),
+                end_time=today + timedelta(days=8),
+                skus=["P010"],
+                revenue=0,
+                incremental_revenue=0,
+                discount_cost=0,
+                redemption_count=0,
+            ),
+            # Draft
+            Promotion(
+                promotion_id="PRM-105",
+                name="Apple Season - 10% Off",
+                promotion_type=PromotionType.PERCENT_OFF,
+                status=PromotionStatus.DRAFT,
+                store_id=store_id,
+                sku="P011",
+                category="produce",
+                discount_value=10.0,
+                start_time=next_week,
+                end_time=next_week + timedelta(days=14),
+                skus=["P011"],
+                revenue=0,
+                incremental_revenue=0,
+                discount_cost=0,
+                redemption_count=0,
+            ),
+            # Ended promotions
+            Promotion(
+                promotion_id="PRM-099",
+                name="Coffee Mornings - 20% Off",
+                promotion_type=PromotionType.PERCENT_OFF,
+                status=PromotionStatus.ENDED,
+                store_id=store_id,
+                sku="P006",
+                category="beverages",
+                discount_value=20.0,
+                start_time=two_weeks_ago,
+                end_time=last_week,
+                skus=["P006"],
+                revenue=860.00,
+                incremental_revenue=205.40,
+                discount_cost=172.00,
+                redemption_count=156,
+            ),
+            Promotion(
+                promotion_id="PRM-098",
+                name="Back to School Sale",
+                promotion_type=PromotionType.PERCENT_OFF,
+                status=PromotionStatus.ENDED,
+                store_id=store_id,
+                sku="P002",
+                category="snacks",
+                discount_value=25.0,
+                start_time=last_week,
+                end_time=yesterday,
+                skus=["P002", "P003"],
+                revenue=1450.00,
+                incremental_revenue=420.50,
+                discount_cost=362.50,
+                redemption_count=203,
+            ),
+        ]
+        self.seed(demo_promotions)
+
     def list_promotions(
         self,
         store_id: str,
@@ -276,10 +416,18 @@ class InMemoryPromotionRepository:
                 and (sku is None or p.sku == sku)
                 and (category is None or p.category == category)
             ]
-            items.sort(key=lambda p: (p.start_time, p.promotion_id), reverse=True)
+            items.sort(key=lambda p: (p.starts_at, p.id), reverse=True)
             items = items[:limit]
             active = [p for p in items if p.status == PromotionStatus.ACTIVE]
+            # Calculate totals for FE-compatible response
+            total_revenue = sum(p.revenue for p in items)
+            total_incremental = sum(p.incremental_revenue for p in items)
+            total_discount = sum(p.discount_cost for p in items)
             return PromotionsResponse(
+                store_id=store_id,
+                revenue=total_revenue,
+                incremental_revenue=total_incremental,
+                discount_cost=total_discount,
                 promotions=[p.model_copy(deep=True) for p in items],
                 total=len(items),
                 active_count=len(active),
@@ -625,7 +773,15 @@ class BigQueryPromotionRepository:
         )
         promotions = [_row_to_promotion(r) for r in rows]
         active = [p for p in promotions if p.status == PromotionStatus.ACTIVE]
+        # Calculate totals for FE-compatible response
+        total_revenue = sum(p.revenue for p in promotions)
+        total_incremental = sum(p.incremental_revenue for p in promotions)
+        total_discount = sum(p.discount_cost for p in promotions)
         return PromotionsResponse(
+            store_id=store_id,
+            revenue=total_revenue,
+            incremental_revenue=total_incremental,
+            discount_cost=total_discount,
             promotions=promotions,
             total=len(promotions),
             active_count=len(active),
@@ -709,12 +865,25 @@ def _row_to_promotion(row: dict[str, object]) -> Promotion:
         return datetime.now(timezone.utc)
 
     type_str = str(row.get("promotion_type", "discount_percent")).lower()
+    # Map old type names to new ones for backward compatibility
+    type_mapping = {
+        "discount_percent": "percent_off",
+        "discount_absolute": "amount_off",
+        "buy_one_get_one": "buy_x_get_y",
+    }
+    type_str = type_mapping.get(type_str, type_str)
     try:
         ptype = PromotionType(type_str)
     except ValueError:
-        ptype = PromotionType.DISCOUNT_PERCENT
+        ptype = PromotionType.PERCENT_OFF
 
     status_str = str(row.get("status", "active")).lower()
+    # Map old status names to new ones for backward compatibility
+    status_mapping = {
+        "upcoming": "scheduled",
+        "cancelled": "ended",
+    }
+    status_str = status_mapping.get(status_str, status_str)
     try:
         pstatus = PromotionStatus(status_str)
     except ValueError:
@@ -724,6 +893,15 @@ def _row_to_promotion(row: dict[str, object]) -> Promotion:
     if not isinstance(metadata_raw, dict):
         metadata_raw = {}
     metadata = {str(k): str(v) for k, v in metadata_raw.items()}
+
+    # Handle both old field names and new FE-compatible names
+    sku_value = row.get("sku") or row.get("skus")
+    if isinstance(sku_value, str):
+        skus_list = [sku_value]
+    elif isinstance(sku_value, list):
+        skus_list = sku_value
+    else:
+        skus_list = []
 
     return Promotion(
         promotion_id=str(row["promotion_id"]),
@@ -739,6 +917,10 @@ def _row_to_promotion(row: dict[str, object]) -> Promotion:
         end_time=_ts(row.get("end_time")),
         redemption_count=int(cast(Any, row.get("redemption_count") or 0)),
         metadata=metadata,
+        # New FE-compatible fields
+        revenue=float(cast(Any, row.get("revenue", 0))),
+        incremental_revenue=float(cast(Any, row.get("incremental_revenue", 0))),
+        discount_cost=float(cast(Any, row.get("discount_cost", 0))),
     )
 
 
@@ -836,4 +1018,12 @@ class _UnavailablePromotionRepository:
         category: str | None = None,
         limit: int = 100,
     ) -> PromotionsResponse:
-        return PromotionsResponse(promotions=[], total=0, active_count=0)
+        return PromotionsResponse(
+            store_id=store_id,
+            revenue=0,
+            incremental_revenue=0,
+            discount_cost=0,
+            promotions=[],
+            total=0,
+            active_count=0,
+        )

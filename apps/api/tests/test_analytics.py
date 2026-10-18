@@ -255,7 +255,7 @@ class TestPromotions:
             Promotion(
                 promotion_id="p-001",
                 name="Summer Sale 20% Off",
-                promotion_type=PromotionType.DISCOUNT_PERCENT,
+                promotion_type=PromotionType.PERCENT_OFF,
                 status=PromotionStatus.ACTIVE,
                 store_id="store-001",
                 sku="SKU001",
@@ -270,8 +270,13 @@ class TestPromotions:
         data = response.json()
         assert data["total"] == 1
         assert data["active_count"] == 1
-        assert data["promotions"][0]["promotion_id"] == "p-001"
+        # FE-compatible field names in response
+        assert data["promotions"][0]["id"] == "p-001"
         assert data["promotions"][0]["status"] == "active"
+        # Check FE-compatible revenue fields
+        assert "revenue" in data["promotions"][0]
+        assert "incremental_revenue" in data["promotions"][0]
+        assert "discount_cost" in data["promotions"][0]
 
     def test_filters_by_status(
         self, client: TestClient, promotion_repo: InMemoryPromotionRepository
@@ -281,7 +286,7 @@ class TestPromotions:
             Promotion(
                 promotion_id="p-active",
                 name="Active Promo",
-                promotion_type=PromotionType.DISCOUNT_PERCENT,
+                promotion_type=PromotionType.PERCENT_OFF,
                 status=PromotionStatus.ACTIVE,
                 store_id="store-001",
                 discount_value=10.0,
@@ -291,7 +296,7 @@ class TestPromotions:
             Promotion(
                 promotion_id="p-ended",
                 name="Ended Promo",
-                promotion_type=PromotionType.DISCOUNT_PERCENT,
+                promotion_type=PromotionType.PERCENT_OFF,
                 status=PromotionStatus.ENDED,
                 store_id="store-001",
                 discount_value=10.0,
@@ -303,7 +308,7 @@ class TestPromotions:
         assert response.status_code == 200
         data = response.json()
         assert data["total"] == 1
-        assert data["promotions"][0]["promotion_id"] == "p-active"
+        assert data["promotions"][0]["id"] == "p-active"
 
     def test_filters_by_sku(
         self, client: TestClient, promotion_repo: InMemoryPromotionRepository
@@ -313,7 +318,7 @@ class TestPromotions:
             Promotion(
                 promotion_id="p-sku001",
                 name="SKU001 promo",
-                promotion_type=PromotionType.DISCOUNT_ABSOLUTE,
+                promotion_type=PromotionType.AMOUNT_OFF,
                 status=PromotionStatus.ACTIVE,
                 store_id="store-001",
                 sku="SKU001",
@@ -324,7 +329,7 @@ class TestPromotions:
             Promotion(
                 promotion_id="p-sku002",
                 name="SKU002 promo",
-                promotion_type=PromotionType.DISCOUNT_ABSOLUTE,
+                promotion_type=PromotionType.AMOUNT_OFF,
                 status=PromotionStatus.ACTIVE,
                 store_id="store-001",
                 sku="SKU002",
@@ -347,7 +352,7 @@ class TestPromotions:
             Promotion(
                 promotion_id=f"p-{i:03d}",
                 name=f"Promo {i}",
-                promotion_type=PromotionType.DISCOUNT_PERCENT,
+                promotion_type=PromotionType.PERCENT_OFF,
                 status=PromotionStatus.ACTIVE,
                 store_id="store-001",
                 discount_value=10.0,
@@ -370,17 +375,17 @@ class TestPromotions:
             Promotion(
                 promotion_id="p-active",
                 name="Active",
-                promotion_type=PromotionType.BUY_ONE_GET_ONE,
+                promotion_type=PromotionType.BUY_X_GET_Y,
                 status=PromotionStatus.ACTIVE,
                 store_id="store-001",
                 start_time=now - timedelta(days=1),
                 end_time=now + timedelta(days=1),
             ),
             Promotion(
-                promotion_id="p-upcoming",
-                name="Upcoming",
-                promotion_type=PromotionType.BUY_ONE_GET_ONE,
-                status=PromotionStatus.UPCOMING,
+                promotion_id="p-scheduled",
+                name="Scheduled",
+                promotion_type=PromotionType.BUY_X_GET_Y,
+                status=PromotionStatus.SCHEDULED,
                 store_id="store-001",
                 start_time=now + timedelta(days=1),
                 end_time=now + timedelta(days=10),
@@ -388,7 +393,7 @@ class TestPromotions:
             Promotion(
                 promotion_id="p-ended",
                 name="Ended",
-                promotion_type=PromotionType.BUY_ONE_GET_ONE,
+                promotion_type=PromotionType.BUY_X_GET_Y,
                 status=PromotionStatus.ENDED,
                 store_id="store-001",
                 start_time=now - timedelta(days=10),

@@ -223,36 +223,59 @@ class RevenueResponse(BaseModel):
 
 class PromotionStatus(StrEnum):
     ACTIVE = "active"
-    UPCOMING = "upcoming"
+    SCHEDULED = "scheduled"
+    PENDING_REVIEW = "pending_review"
+    DRAFT = "draft"
     ENDED = "ended"
-    CANCELLED = "cancelled"
 
 
 class PromotionType(StrEnum):
-    DISCOUNT_PERCENT = "discount_percent"
-    DISCOUNT_ABSOLUTE = "discount_absolute"
-    BUY_ONE_GET_ONE = "buy_one_get_one"
+    PERCENT_OFF = "percent_off"
+    AMOUNT_OFF = "amount_off"
+    BUY_X_GET_Y = "buy_x_get_y"
     BUNDLE = "bundle"
-    LOYALTY_MULTIPLIER = "loyalty_multiplier"
 
 
 class Promotion(BaseModel):
-    promotion_id: str = Field(min_length=1)
-    name: str = Field(min_length=1)
-    promotion_type: PromotionType
+    """Promotion schema aligned with FE Promotion type."""
+    model_config = ConfigDict(populate_by_name=True, alias_names={"promotion_id": "id", "promotion_type": "kind", "discount_value": "value", "start_time": "starts_at", "end_time": "ends_at"})
+
+    # FE-compatible field names - use serialization_alias to allow both old and new names
+    id: str = Field(serialization_alias="id", validation_alias="promotion_id", min_length=1)
+    name: str
+    kind: PromotionType = Field(serialization_alias="kind", validation_alias="promotion_type")
     status: PromotionStatus
-    store_id: str = Field(min_length=1)
+    store_id: str
     sku: str | None = None
     category: str | None = None
-    discount_value: float | None = None
+    value: float | None = Field(default=None, serialization_alias="value", validation_alias="discount_value")
     conditions: str | None = None
-    start_time: datetime
-    end_time: datetime
+    starts_at: datetime = Field(serialization_alias="starts_at", validation_alias="start_time")
+    ends_at: datetime = Field(serialization_alias="ends_at", validation_alias="end_time")
+    skus: list[str] = Field(default_factory=list)
+    revenue: float = 0
+    incremental_revenue: float = 0
+    discount_cost: float = 0
     redemption_count: int = 0
     metadata: dict[str, str] = Field(default_factory=dict)
 
+    @field_validator("skus", mode="before")
+    @classmethod
+    def compute_skus(cls, v: list[str] | str | None) -> list[str]:
+        """Convert single SKU to list for FE compatibility."""
+        if v is None:
+            return []
+        if isinstance(v, str):
+            return [v]
+        return v
+
 
 class PromotionsResponse(BaseModel):
+    """Response aligned with FE PromotionsSummary type."""
+    store_id: str
+    revenue: float = 0
+    incremental_revenue: float = 0
+    discount_cost: float = 0
     promotions: list[Promotion]
     total: int
     active_count: int
