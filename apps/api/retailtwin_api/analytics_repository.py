@@ -96,7 +96,7 @@ class RevenueRepository(Protocol):
     def get_revenue(
         self,
         store_id: str,
-        period: Literal["hourly", "daily", "weekly", "monthly"],
+        period: Literal["hourly", "daily", "weekly", "monthly", "7d", "30d"],
         start: datetime,
         end: datetime,
     ) -> RevenueResponse: ...
@@ -210,7 +210,7 @@ class InMemoryRevenueRepository:
     def get_revenue(
         self,
         store_id: str,
-        period: Literal["hourly", "daily", "weekly", "monthly"],
+        period: Literal["hourly", "daily", "weekly", "monthly", "7d", "30d"],
         start: datetime,
         end: datetime,
     ) -> RevenueResponse:
@@ -476,7 +476,7 @@ class BigQueryRevenueRepository:
     def get_revenue(
         self,
         store_id: str,
-        period: Literal["hourly", "daily", "weekly", "monthly"],
+        period: Literal["hourly", "daily", "weekly", "monthly", "7d", "30d"],
         start: datetime,
         end: datetime,
     ) -> RevenueResponse:
@@ -502,7 +502,7 @@ class BigQueryRevenueRepository:
         )
 
 
-def _period_trunc(period: Literal["hourly", "daily", "weekly", "monthly"]) -> str:
+def _period_trunc(period: Literal["hourly", "daily", "weekly", "monthly", "7d", "30d"]) -> str:
     return {
         "hourly": "TIMESTAMP_TRUNC(occurred_at, HOUR)",
         "daily": "TIMESTAMP_TRUNC(occurred_at, DAY)",
@@ -516,7 +516,7 @@ def _bq_revenue_query(
     project: str,
     dataset: str,
     store_id: str,
-    period: Literal["hourly", "daily", "weekly", "monthly"],
+    period: Literal["hourly", "daily", "weekly", "monthly", "7d", "30d"],
     start: datetime,
     end: datetime,
 ) -> tuple[list[RevenueBucket], dict[str, int | float]]:
@@ -808,7 +808,7 @@ class _UnavailableRevenueRepository:
     def get_revenue(
         self,
         store_id: str,
-        period: Literal["hourly", "daily", "weekly", "monthly"],
+        period: Literal["hourly", "daily", "weekly", "monthly", "7d", "30d"],
         start: datetime,
         end: datetime,
     ) -> RevenueResponse:
