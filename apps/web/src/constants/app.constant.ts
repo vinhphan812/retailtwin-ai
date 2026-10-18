@@ -36,3 +36,9 @@ export const COPILOT_MAX_MESSAGE = 1000;
 
 /** Copilot drawer width in px, on screens wide enough to hold it beside the panel. */
 export const COPILOT_WIDTH = 380;
+
+/** How often the Live timeline reads `GET /agent/events` again, in ms. */
+export const AGENT_FEED_POLL_MS = 5000;
+
+/** Most pages of `GET /agent/events` one read of the feed follows. */
+export const AGENT_FEED_PAGES = 10;

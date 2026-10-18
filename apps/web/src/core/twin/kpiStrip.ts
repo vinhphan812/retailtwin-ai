@@ -46,12 +46,14 @@ export type KpiBasis = (typeof KPI_BASIS)[keyof typeof KPI_BASIS];
 export type TimedRead<T> = { value: T; readAt: number };
 
 /**
- * Today's revenue as `GET /revenue?period=today` served it: missing until it has, and again
- * once the last good read is older than `REVENUE_TODAY_STALE_MS` at `now`.
+ * Today's revenue as `GET /revenue` served it: missing until it has, and again once the last
+ * good read is older than `REVENUE_TODAY_STALE_MS` at `now`. A day with no sale recorded is
+ * empty, not a revenue of 0.
  */
 export function revenueToday(read: TimedRead<RevenueSummary> | null, now: number): KpiTileValue<number> {
   if (!read) return missing(KPI_MISSING.NotServed);
   if (now - read.readAt > REVENUE_TODAY_STALE_MS) return missing(KPI_MISSING.Stale);
+  if (read.value.transactions === 0 && read.value.revenue === 0) return missing(KPI_MISSING.Empty);
   return { value: read.value.revenue };
 }
 

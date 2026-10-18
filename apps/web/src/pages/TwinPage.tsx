@@ -28,6 +28,7 @@ import {
   pickSimulationSource,
   pickSource,
 } from "@/core/twin/devSources";
+import { useAgentFeed } from "@/hooks/agentFeed.hook";
 import { useAgentFocus } from "@/hooks/agentFocus.hook";
 import { useAnomalyPolling } from "@/hooks/anomalyPolling.hook";
 import { useFlagshipStatus } from "@/hooks/flagshipStatus.hook";
@@ -52,6 +53,7 @@ export function TwinPage() {
   useAgentFocus();
   useAnomalyPolling();
   useFlagshipStatus(isApiTwin());
+  useAgentFeed(isApiTwin());
 
   return (
     <>
@@ -64,8 +66,8 @@ export function TwinPage() {
           <StoreScene />
           <SimulationBanner reviewer={reviewer} />
           <TwinStatusOverlay />
-          {/* TODO(BE): apps/api does not serve GET /revenue and GET /promotions yet; until it does the
-          Revenue and Promotions lenses show their empty report and a toast, or the demo data under ?twin=demo. */}
+          {/* The Revenue and Promotions lenses read GET /revenue and GET /promotions, or the demo data under
+          ?twin=demo; a failed read shows as a failure card with a retry, never as figures of 0. */}
           <div className="lens-switcher">
             <LensSwitcher />
             <ViewModeSwitch />

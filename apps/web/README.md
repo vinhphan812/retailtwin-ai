@@ -16,9 +16,9 @@ npm run dev     # http://localhost:5173
 npm run build   # tsc --noEmit, then vite build
 ```
 
-Set `VITE_API_BASE_URL` to the API origin. The default is `http://127.0.0.1:8000`. Put it in `apps/web/.env.local`, and do not commit that file.
+Set `VITE_API_BASE_URL` to the API origin. The default is `http://127.0.0.1:8000`. Put it in `apps/web/.env.local`, and do not commit that file. `VITE_STORE_TIME_ZONE` (an IANA zone such as `America/New_York`, UTC by default) sets where the store's day starts for the Revenue windows.
 
-> **Source policy.** Every build reads `apps/api` by default: the Live Twin (`GET /store`), `GET /health`, `GET /inventory/{sku}`, and the Revenue and Promotions routes. Only a development build swaps in a local twin or demo data, and only under `?twin=` (see *Twin sources*). `?twin=demo` calls no API at all. A failed API read never falls back to demo data. Routes `apps/api` does not serve yet (`/revenue`, `/promotions`, checkouts; `TODO(BE)`) leave their panel empty. `GET /anomalies` is served, but the FE does not read it yet (#95), so outside `?twin=demo` the alert list stays empty.
+> **Source policy.** Every build reads `apps/api` by default: the Live Twin (`GET /store`), `GET /health`, `GET /inventory/{sku}`, and the Revenue and Promotions routes. Only a development build swaps in a local twin or demo data, and only under `?twin=` (see *Twin sources*). `?twin=demo` calls no API at all. A failed API read never falls back to demo data. A failed read says so in its panel, with the HTTP status, code, correlation id and a retry. Checkouts, which `apps/api` does not serve yet (`TODO(BE)`), leave their card empty. `GET /anomalies` is served, but the FE does not read it yet (#95), so outside `?twin=demo` the alert list stays empty.
 
 ## What is on screen
 
@@ -30,7 +30,7 @@ Set `VITE_API_BASE_URL` to the API origin. The default is `http://127.0.0.1:8000
 
 - **3D view** (`StoreScene`): the store room, its fixtures, and the stock that twin state puts on them.
 - **Overlays on the 3D view**:
-  - `LensSwitcher` (top left): Operations, Revenue, or Promotions. Picking a lens opens the side panel on it. Revenue and Promotions read routes `apps/api` does not serve yet (`TODO(BE)`), so they show their empty report until it does.
+  - `LensSwitcher` (top left): Operations, Revenue, or Promotions. Picking a lens opens the side panel on it. Revenue and Promotions read their `apps/api` routes, and say so when a read fails or answers with nothing.
   - `ViewModeSwitch` (top left, next to the lenses): **Live** or **Simulation**. Simulation can be picked only while a simulation is open (`twin.store.simulation`), and the view goes back to Live when it closes. A newly opened run raises a toast once ("New proposal: <id>", none if the Simulation view is already on), and a pulsing violet dot stays on Simulation until that run has been looked at. See *Live and Simulation views* below.
   - `KpiStrip` (top left, under the switches): four business KPI tiles. See *Business KPI strip* below.
   - `SimulationBanner`: in the Simulation view, a violet frame around the 3D view (`--color-simulation`) and a label under the switches: SIMULATION, "Proposed store, not executed", the run id and status, the Live version it started from, and a warning once Live has moved on since.
@@ -194,14 +194,41 @@ For `CHANGE_CUE_MS` (4 s) the hook returns `{ diff, at, before }`, where `before
 
 ### Revenue and promotions
 
-| Lens | Route | Response type | Client |
+| Lens | Route | Served as | Shown as | Client |
+| --- | --- | --- | --- | --- |
+| Revenue | `GET /revenue?period=hourly\|daily&start=…&end=…` | `RevenueResponse` | `RevenueSummary` (`types/revenue.type.ts`) | `client.revenue(period)` |
+| Promotions | `GET /promotions` | `PromotionsSummary` (`types/promotion.type.ts`); TODO(#333): apps/api serves another shape | same | `client.promotions()` |
+
+**The revenue contract (#334).** The lens has its own windows (`today`, `7d`, `30d`), but apps/api's `period` is a bucket grain (`hourly`, `daily`, `weekly`, `monthly`), with an optional `start` and `end`. Sending `period=today` got a 422. `revenueQuery` (`core/commerce/revenueWindow.ts`) maps each window to a grain plus a window:
+
+| Lens window | `period` | `start` (inclusive) | `end` (inclusive) |
 | --- | --- | --- | --- |
-| Revenue | `GET /revenue?period=today\|7d\|30d` | `RevenueSummary` (`types/revenue.type.ts`) | `client.revenue(period)` |
-| Promotions | `GET /promotions` | `PromotionsSummary` (`types/promotion.type.ts`) | `client.promotions()` |
+| Today | `hourly` | the first moment of today | now |
+| 7 days | `daily` | the first moment of the day 6 days ago | now |
+| 30 days | `daily` | the first moment of the day 29 days ago | now |
 
-`useRevenue` and `usePromotions` read the route the first time a lens (or a period, or a product's details dialog for promotions) opens, never on page load (except today's revenue, which the KPI strip reads quietly, below), then cache the result, so switching lenses does not call the API again. The lens shows the empty report (`emptyRevenue`, `emptyPromotions`) until the read lands. A failed read shows one toast and is retried the next time the lens opens.
+Days are calendar days in `STORE_TIME_ZONE` (`VITE_STORE_TIME_ZONE`, UTC by default, matching apps/api's UTC buckets), so a window across a daylight-saving change still starts at local midnight. `parseRevenueResponse` checks the payload, and `toRevenueSummary` maps it. That mapping keeps `store_id`, the window served, `currency` (it must be `CURRENCY`) and the totals. It fills the hours or days apps/api served no bucket for with 0 (it only groups the sales it read). Anything it does not serve (margin, the window before, lost sales, categories, top and slow SKUs) is `null`, which the lens shows as *Not served*, never as 0. A payload that breaks the contract fails as `invalid_response`; it is never cast.
 
-`apps/api` does not serve either route yet (`TODO(BE)` on the types), so outside `?twin=demo` the read fails with one toast and the lens keeps its empty report. Under `?twin=demo`, `commerceClient` reads the demo report instead.
+**Read states.** `useRevenue` and `usePromotions` read the route the first time a lens (or a period, or a product's details dialog for promotions) opens, never on page load (except today's revenue, which the KPI strip reads quietly, below), then cache the result, so switching lenses does not call the API again. They return `{ value, state, failure, retry }`:
+
+- Until the read answers, the lens says *Reading GET /revenue…*; it never shows figures of 0.
+- A failed read shows a `ReadFailureCard` in place of the figures. It gives what failed, the HTTP status and code (`analytics_unavailable`, `validation_error` with the fields apps/api refused, `invalid_response`, …), the route, the source (*Live · apps/api* or *Demo data*), the time, the correlation id, and **Retry**.
+- A revenue read that answers with no sale shows *No sales recorded*, with the window and **Retry**, instead of a report of zeros.
+- Revenue, promotions and `GET /agent/events` reads send an `X-Correlation-ID` (`web-<uuid>`; apps/api's CORS allows the header, and its logs carry it), so a failure card names the request. A cross-origin page cannot read apps/api's echo of it; TODO(BE): `expose_headers=["X-Correlation-ID"]`.
+
+Under `?twin=demo`, `commerceClient` reads the demo report instead, which serves every figure. A failed Live read never falls back to it.
+
+### Agent Activity feed
+
+On the Live Twin, `useAgentFeed` reads `GET /agent/events` on load and every `AGENT_FEED_POLL_MS`, page by page from the last cursor served, into the timeline (`useRunStore` keeps each event once). `useAgentFeedStore` holds how the feed stands, and the timeline says why it is empty or not moving (`timelineState`):
+
+| State | When | Shown |
+| --- | --- | --- |
+| `no_events` | the feed answered with no event | *No agent activity yet. GET /agent/events answered with no events.* |
+| `agent_api_failed` | the last read failed | a failure card with the HTTP status, code, correlation id and **Retry**; with events on screen, the card sits above them and they stay |
+| `disconnected` | the browser is offline, or the Live Twin's feed dropped | *Disconnected* (above the events, when there are some) |
+| `replay_idle` | the demo, which never reads the Live agent | *Demo replay: no synthetic run is playing.* |
+| `loading` | before the first answer | *Reading GET /agent/events…* |
 
 ### Business KPI strip
 
@@ -209,7 +236,7 @@ For `CHANGE_CUE_MS` (4 s) the hook returns `{ diff, at, before }`, where `before
 
 | Tile | Basis | Source | Value |
 | --- | --- | --- | --- |
-| Revenue today | recorded | `GET /revenue?period=today` (`useRevenueToday`) | `revenue` as served, labelled *Recorded sales* |
+| Revenue today | recorded | `GET /revenue?period=hourly` for today (`useRevenueToday`) | `revenue` as served, labelled *Recorded sales*; "—" and *No data yet* when apps/api served no sale today |
 | On-shelf availability | live | Live Twin (`GET /store`, `twin.store.live`) | share of served products with `shelf_quantity > 0`; moves when an ACT restocks |
 | Stockout risk | live | anomaly feed (`GET /anomalies`, `anomaly.store`) | products with an open `stockout` anomaly |
 | Projected impact | projected | KPI evaluator (the open simulation's candidates) | `business_score` of the selected candidate (else the top-scored one) minus the baseline's, labelled *Simulation only*, never measured |
@@ -446,7 +473,6 @@ src/
   fixtures/
     storeFixture.ts         the static layout: gondolas and equipment, no products
     decorFixture.ts         where each plant, street tile, building, and car stands
-    commerceFixture.ts      empty revenue and promotions reports, shown until a read lands
   constants/                <area>.constant.ts: camera, dimensions, scene, twin, app, i18n, commerce
   enums/                    <area>.enum.ts: as-const value sets and their types
   types/                    <domain>.type.ts: twin, simulation, api, agent, anomaly, revenue, promotion, scene
@@ -496,7 +522,9 @@ Vitest runs in the `node` environment. Scene tests use `@react-three/test-render
 | `core/api/validate.test.ts` | contract check: bad envelopes throw, bad products are left out with a reason; a review answer needs a known decision, status and (for an approval) guard verdict |
 | `core/api/version.test.ts` | context version parsing and ordering |
 | `core/assistant/*.test.ts`, `components/copilot/CopilotDrawer.test.tsx` | the Copilot: the reply contract (no commit capability, matching ids, a plan with its status), the Live client's request and error codes, the demo script (explain, plan with served KPIs, refusals, unknown SKU, idempotency), the conversation (retry by id, stale context asked anew, no duplicate reply), timeline entries, and the drawer (keyboard, sources, plan card opening Simulation, error card with Retry) |
-| `core/api/client.test.ts` | REST client paths, including revenue, promotions, simulations and the approve / reject POST with its body, and error envelopes |
+| `core/api/client.test.ts` | REST client paths, including revenue (a grain and a window, never `today`/`7d`/`30d`), promotions, simulations and the approve / reject POST with its body, and error envelopes: a 422's validation details, a 503, a malformed payload, and the `X-Correlation-ID` sent |
+| `core/commerce/revenueContract.test.ts` | the revenue windows (UTC, a store time zone, daylight-saving changes, a skipped midnight, inclusive edges), `RevenueResponse` checks field by field, the mapping to `RevenueSummary` (empty hours filled, not-served fields null, wrong grain, currency or bucket refused) |
+| `hooks/agentFeed.test.tsx`, `core/agent/timelineState.test.ts` | the Live Agent Activity feed: pages and cursor, a failed read with its status and correlation id, recovery by poll and by Retry, no events vs failed vs disconnected vs the demo's idle replay |
 | `core/twin/twinConnection.test.ts` | load states, out-of-order snapshot and updates, feed drop and recovery, unreadable payloads |
 | `core/twin/stateDiff.test.ts` | issue #91: moves (across and within a shelf), facings, signed quantity deltas, added and removed SKUs, several changes at once; equal states, product order, and other stores give no diff |
 | `hooks/recentChanges.test.tsx` | issue #91: a Live change is cued and fades after `CHANGE_CUE_MS`; the Simulation view cues the proposal against Live and leaves Live alone |
@@ -524,7 +552,7 @@ Vitest runs in the `node` environment. Scene tests use `@react-three/test-render
 | `components/twin/ProductDetails.test.tsx` | the details dialog opens from the product card and a shelf's list, shows the product's twin figures, its anomalies, and only the promotions it is in; **Show in the store** selects it, and a promotion opens the Promotions lens on it; the lens shows every status again, flashes that card, and clears the request |
 | `components/commerce/productLinks.test.tsx` | Revenue SKU rows and promotion products select their product; a promotion SKU the twin lacks cannot be selected |
 | `hooks/agentFocus.test.tsx`, `core/agent/agentFocus.test.ts`, `hooks/focusSelection.test.ts` | issue #28: an agent event focuses its product, else its shelf or equipment, and captions the reason; Follow agent off moves nothing; the focus waits while the user drags or has just used the camera, then takes the latest event; a user selection drops the caption; orbit and pan still work after a flight |
-| `components/**`, `app/App.test.tsx` | StoreStatus (a lookup selects the product it finds), AgentActivityPanel (a timeline SKU selects its product, Follow agent toggles), LensSwitcher (revenue and promotions reads), routing |
+| `components/**`, `app/App.test.tsx` | StoreStatus (a lookup selects the product it finds), AgentActivityPanel (a timeline SKU selects its product, Follow agent toggles), LensSwitcher (revenue and promotions reads; reading, failed with Retry, and empty states, never figures of 0), routing |
 | `fixtures/demo/*.test.ts*` | demo mode is on only under `?twin=demo`; the demo store, anomalies, checkouts, revenue, and promotions add up; the lenses read them in demo mode |
 | `stockedState.test.ts` | the stocked test store (`stockedState.ts`) passes the contract and places every product; out-of-stock products draw no items |
 | `fixtures/commerceFixture.test.ts`, `i18n/`, `core/utils/` | empty commerce reports, English messages and issue reasons, formatters and utils |
@@ -538,7 +566,7 @@ Vitest runs in the `node` environment. Scene tests use `@react-three/test-render
   3. Restart the API. Within 5 s the scene redraws P001. A page reload rebuilds the same state.
 - With the API stopped, the page shows a toast and a small "Could not load" banner over the store with empty shelves. When the API comes back, the next poll loads the store.
 - `StoreStatus` also calls the API (issue #8).
-- Revenue and promotions read `GET /revenue` and `GET /promotions`, which `apps/api` does not serve yet (`TODO(BE)`). The lens switch shows them anyway; they stay empty until the routes exist.
+- Revenue reads `GET /revenue` with the grain and window apps/api takes (#334); margin, the window before, lost sales, categories and SKU rankings are not served yet and show as such. Promotions reads `GET /promotions`, whose served shape is bound in #333.
 - Issue #22: selection, highlight, details cards, the product details dialog, camera focus, and the anomaly halo are done on the FE. A product can be selected from the 3D view, a shelf's card, the Agent Activity timeline, a SKU lookup, Revenue's SKU lists, and a promotion's products. It stays open until `apps/api` serves anomalies (and their events) and checkout data. To check by hand: `npm run dev`, open `/?twin=demo`. P002, P003, P006, P008, P009, P010, P011, and P012 carry demo anomalies and show a halo in their severity's color where the shelf has items (P003 and P010 are empty). Select one, and its card and **Details** list the anomaly. To raise one by hand, run `twin.raise("P001")` in the console; `twin.resolve("P001")` clears it.
 - Issue #38: **Alerts and opportunities** are done on the FE (see *Alerts and opportunities*) and checked on `?twin=demo`. The issue's end-to-end check, *publish a demand spike → the alert appears without a prompt, links to the right SKU, and goes through its lifecycle*, still needs:
   - `apps/api` to write detected demand surges into `anomalies` and serve `correlation_id` (#79, #12);

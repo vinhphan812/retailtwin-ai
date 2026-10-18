@@ -40,7 +40,7 @@ vi.mock("@/hooks/commerce.hook", async () => {
     discount_cost: 0,
     promotions: [promotion("promo-1", "Pasta night bundle", ["P004", "P007"]), promotion("promo-2", "Breakfast week", ["P001"])],
   };
-  return { usePromotions: () => summary };
+  return { usePromotions: () => ({ value: summary, state: "ready", failure: null, retry: () => {} }) };
 });
 
 MotionGlobalConfig.skipAnimations = true;

@@ -110,7 +110,7 @@ function AnomalyRows({ anomalies, contextVersion }: { anomalies: Anomaly[]; cont
  */
 function ProductPromotions({ sku, onView }: { sku: string; onView: (promotionId: string) => void }) {
   const { t } = useTranslation();
-  const { promotions } = usePromotions();
+  const promotions = usePromotions().value?.promotions ?? [];
   const inPromotions = promotions.filter((promotion) => promotion.skus.includes(sku));
 
   return (

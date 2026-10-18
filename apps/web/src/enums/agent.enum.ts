@@ -18,3 +18,31 @@ export const ACTIVITY_VIEW = {
 } as const;
 export type ActivityView = (typeof ACTIVITY_VIEW)[keyof typeof ACTIVITY_VIEW];
 export const ACTIVITY_VIEWS: readonly ActivityView[] = Object.values(ACTIVITY_VIEW);
+
+/** Where the Live timeline's `GET /agent/events` feed stands. */
+export const AGENT_FEED_STATE = {
+  /** Nothing reads it: the demo, or a `?twin=` dev twin. */
+  Off: "off",
+  /** The first read has not answered yet. */
+  Loading: "loading",
+  /** The last read answered. */
+  Ready: "ready",
+  /** The last read failed; the timeline keeps the events it had. */
+  Failed: "failed",
+} as const;
+export type AgentFeedState = (typeof AGENT_FEED_STATE)[keyof typeof AGENT_FEED_STATE];
+
+/** Why the timeline is empty, or why it is not moving: shown in its empty state and above it. */
+export const TIMELINE_STATE = {
+  /** The feed answered and has served no event. */
+  NoEvents: "no_events",
+  /** The last read of the feed failed. */
+  ApiFailed: "agent_api_failed",
+  /** The browser is offline, or the Live Twin's feed dropped. */
+  Disconnected: "disconnected",
+  /** The demo: nothing plays until a replay is started. */
+  ReplayIdle: "replay_idle",
+  /** Waiting for the feed's first answer. */
+  Loading: "loading",
+} as const;
+export type TimelineState = (typeof TIMELINE_STATE)[keyof typeof TIMELINE_STATE];

@@ -1,3 +1,4 @@
+import { CURRENCY } from "@/constants/i18n.constant";
 import { defaultClient } from "@/core/api/client";
 import { mulberry32 } from "@/core/utils/random";
 import { BUCKET_SIZE, PROMOTION_KIND, PROMOTION_STATUS, REVENUE_PERIOD, type RevenuePeriod } from "@/enums/commerce.enum";
@@ -154,6 +155,11 @@ export function demoRevenue(period: RevenuePeriod): RevenueSummary {
     ...current,
     store_id: STORE_ID,
     period,
+    start: window[0].date.toISOString(),
+    // The end of the demo's business day.
+    end: new Date(TODAY.getTime() + DAY_MS - 1).toISOString(),
+    currency: CURRENCY,
+    items_sold: skus.reduce((sum, sku) => sum + sku.units, 0),
     // Stockouts began a few days ago: the longer the window, the less of it they cover.
     lost_to_stockout: cents(lostPerDay * Math.min(span, 4)),
     previous: totals(before, MARGIN_RATE - 0.01),
