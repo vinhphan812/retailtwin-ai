@@ -23,8 +23,9 @@ const UI_TO_BACKEND_PERIOD: Record<string, string> = {
  * Maps backend period to UI-facing RevenuePeriod.
  * Derives "7d" vs "30d" from the start/end window span when backend returns "daily".
  */
+// Maps backend period to UI-facing RevenuePeriod.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function backendPeriodToUi(backendPeriod: string, _start: Date, _end: Date): string {
+function _backendPeriodToUi(backendPeriod: string, _start: Date, _end: Date): string {
   if (backendPeriod === "hourly") return REVENUE_PERIOD.Today;
   // For "daily", compute the span in days to distinguish 7d from 30d.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -34,7 +35,7 @@ function backendPeriodToUi(backendPeriod: string, _start: Date, _end: Date): str
 
 /** Converts a raw backend RevenueResponse to the internal RevenueSummary shape. */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function revenueResponseToSummary(res: RevenueResponse, uiPeriod: string): RevenueSummary {
+function __revenueResponseToSummary(res: RevenueResponse, uiPeriod: string): RevenueSummary {
   // Map backend buckets (timestamp-based) to FE buckets (start-based).
   const buckets: RevenueBucket[] = res.buckets.map((b) => ({
     start: b.timestamp,
@@ -109,7 +110,7 @@ export function createClient(baseUrl: string, fetchImpl?: typeof fetch): RetailT
     inventory: (sku: string) => request<ProductInventory>(`/inventory/${encodeURIComponent(sku)}`),
     revenue: (period) =>
       request<RevenueResponse>(`/revenue?period=${encodeURIComponent(UI_TO_BACKEND_PERIOD[period] ?? period)}`).then((res) =>
-        revenueResponseToSummary(res, period),
+        __revenueResponseToSummary(res, period),
       ),
     promotions: () => request<PromotionsSummary>("/promotions"),
     simulations: () => request<SimulationsResponse>("/simulations?status=open"),
