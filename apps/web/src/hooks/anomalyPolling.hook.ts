@@ -42,8 +42,8 @@ export function useAnomalyPolling(): void {
       const response = await client.anomalies();
       setAll(response);
     } catch (error) {
-      fail(i18n.t("anomalies.loadFailed"));
-      notify.error(i18n.t("anomalies.loadFailed"), error);
+      fail(i18n.t("anomaly.loadFailed"));
+      notify.error(i18n.t("anomaly.loadFailed"), error);
     } finally {
       pollingState.active = false;
     }
