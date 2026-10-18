@@ -136,17 +136,21 @@ class TestFirestoreDecisionSourceRoundTrip:
         decision = _decision()
 
         source.put("sim-x", decision)
-        assert len(transport.calls) == 1
-        method, url, payload = transport.calls[0]
-        assert method == "PATCH"
-        assert url.endswith("/decision_records/sim-x")
-        assert payload is not None
-        decoded = json.loads(payload.decode())
+        # put() issues GET (CAS read) then PATCH (write).
+        assert len(transport.calls) == 2
+        get_call, patch_call = transport.calls
+        assert get_call[0] == "GET"
+        assert patch_call[0] == "PATCH"
+        assert patch_call[1].endswith("/decision_records/sim-x")
+        assert patch_call[2] is not None
+        decoded = json.loads(patch_call[2].decode())
         assert decoded["fields"]["simulation_id"] == {"stringValue": "sim-x"}
         decision_json = decoded["fields"]["decision_json"]["stringValue"]
         # Round-trip through model_validate_json to confirm canonical form.
         re_decoded = Decision.model_validate_json(decision_json)
         assert re_decoded == decision
+        # CAS hash is also stored.
+        assert "decision_hash" in decoded["fields"]
 
     def test_put_sends_bearer_token(self) -> None:
         captured_headers: list[Mapping[str, str]] = []
@@ -259,23 +263,67 @@ class TestFirestoreDecisionSourceFailureClosed:
 
 
 class TestFirestoreDecisionSourceIdempotent:
-    def test_put_twice_overwrites_simulation_id(self) -> None:
+    def test_put_same_payload_is_idempotent(self) -> None:
+        """Same payload at the same simulation_id: second write succeeds (idempotent retry)."""
         transport = FakeHttpTransport()
         source = FirestoreDecisionSource(
             transport=transport, token_provider=_FakeToken()
         )
-
+        # Pre-seed an existing document with the same payload hash.
         first = _decision("sim-idem")
-        second = _decision("sim-idem")
-        # Two different decisions at the same simulation id: the second wins.
-        object.__setattr__(second, "decision_id", "dec-replaced")
-
+        transport._docs["sim-idem"] = {
+            "fields": {
+                "simulation_id": {"stringValue": "sim-idem"},
+                "decision_json": {"stringValue": first.model_dump_json()},
+                "decision_hash": {
+                    "stringValue": FirestoreDecisionSource._decision_hash(first)
+                },
+            }
+        }
+        # Same payload: should not raise.
         source.put("sim-idem", first)
-        source.put("sim-idem", second)
 
-        loaded = source.get_for_simulation("sim-idem")
-        assert loaded is not None
-        assert loaded.decision_id == "dec-replaced"
+    def test_put_different_payload_raises_conflict(self) -> None:
+        """Different Decision payload at same simulation_id raises DecisionConflict."""
+        from retailtwin_api.firestore_decisions import DecisionConflict
+
+        transport = FakeHttpTransport()
+        source = FirestoreDecisionSource(
+            transport=transport, token_provider=_FakeToken()
+        )
+        first = _decision("sim-conflict")
+        transport._docs["sim-conflict"] = {
+            "fields": {
+                "simulation_id": {"stringValue": "sim-conflict"},
+                "decision_json": {"stringValue": first.model_dump_json()},
+                "decision_hash": {
+                    "stringValue": FirestoreDecisionSource._decision_hash(first)
+                },
+            }
+        }
+        # Second decision with the same sim-id but a different payload.
+        second = _decision("sim-conflict")
+        object.__setattr__(second, "decision_id", "dec-conflicting")
+        with pytest.raises(DecisionConflict) as exc_info:
+            source.put("sim-conflict", second)
+        assert "different payload" in str(exc_info.value)
+        assert "hash mismatch" in str(exc_info.value)
+
+    def test_put_raises_on_get_failure(self) -> None:
+        """A non-404, non-200 GET response raises DecisionStoreUnavailable."""
+        def handler(method, url, payload, _docs):
+            if method == "GET" and "sim-500" in url:
+                return HttpResponse(
+                    503, json.dumps({"error": {"status": "UNAVAILABLE"}})
+                )
+            return None
+
+        transport = FakeHttpTransport(handler=handler)
+        source = FirestoreDecisionSource(
+            transport=transport, token_provider=_FakeToken()
+        )
+        with pytest.raises(DecisionStoreUnavailable):
+            source.put("sim-500", _decision())
 
     def test_put_uses_correct_collection_path(self) -> None:
         transport = FakeHttpTransport()
@@ -289,6 +337,22 @@ class TestFirestoreDecisionSourceIdempotent:
         assert f"/{COLLECTION_DECISIONS}/sim-path" in url
         assert "retailtwin-ai-511002" in url
         assert "databases/(default)/documents" in url
+
+    def test_put_stores_decision_hash_in_document(self) -> None:
+        transport = FakeHttpTransport()
+        source = FirestoreDecisionSource(
+            transport=transport, token_provider=_FakeToken()
+        )
+        decision = _decision("sim-hash")
+        source.put("sim-hash", decision)
+        # First call is GET (read for CAS), second is PATCH (write).
+        get_call, patch_call = transport.calls
+        assert get_call[0] == "GET"
+        assert patch_call[0] == "PATCH"
+        doc = json.loads(patch_call[2].decode())  # type: ignore[union-attr]
+        assert "decision_hash" in doc["fields"]
+        expected_hash = FirestoreDecisionSource._decision_hash(decision)
+        assert doc["fields"]["decision_hash"]["stringValue"] == expected_hash
 
 
 class TestFirestoreDecisionSourceAvailable:

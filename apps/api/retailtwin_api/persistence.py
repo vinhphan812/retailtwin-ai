@@ -16,10 +16,10 @@ Selection rule
 * ``"firestore"`` — Firestore-backed durable adapters. The same project
   as the Live Twin (``retailtwin-ai-511002``).
 
-There is no implicit fallback: production must set
-``LIVE_TWIN_BACKEND=firestore`` explicitly. A missing or unknown value
-stays on the in-memory adapters and logs a warning so the operator can
-see why the chain does not survive a deploy.
+Production (``APP_ENV=production``) is fail-closed: an unknown or missing
+``LIVE_TWIN_BACKEND`` raises ``ValueError`` instead of silently falling
+back to in-process memory. This prevents a misconfigured Cloud Run
+revision from losing agent state across a deploy.
 """
 
 from __future__ import annotations
@@ -129,6 +129,15 @@ def get_persistence(
     misconfigured Cloud Run revision surfaces in the startup log.
     """
     backend = settings.live_twin_backend
+    # fail-closed: production may only use firestore. Any other value (including
+    # memory and fixture) must raise before building in-process state that would
+    # be lost on the next Cloud Run deploy.
+    if settings.is_production and backend != "firestore":
+        raise ValueError(
+            f"LIVE_TWIN_BACKEND={backend!r} is not supported in production. "
+            "Set LIVE_TWIN_BACKEND=firestore explicitly. "
+            "Supported production value: 'firestore'."
+        )
     if backend == "firestore":
         log.info(
             "persistence.firestore project=%s",
@@ -181,7 +190,19 @@ def get_persistence(
             activity=activity_log,
             activation_ledger=MemoryActivationLedger(),
         )
-    raise ValueError(f"Unknown LIVE_TWIN_BACKEND {backend!r}")
+    # fail-closed: production must never silently fall back to memory.
+    if settings.is_production:
+        raise ValueError(
+            f"LIVE_TWIN_BACKEND={backend!r} is not supported in production. "
+            "Set LIVE_TWIN_BACKEND=firestore explicitly. "
+            "Supported production value: 'firestore'."
+        )
+    log.warning(
+        "persistence.unknown_backend backend=%r store_id=%s",
+        backend,
+        settings.store_id,
+    )
+    raise ValueError(f"Unknown LIVE_TWIN_BACKEND {backend!r}. Supported values: 'fixture', 'memory', 'firestore'.")
 
 
 __all__ = ["DurableAdapters", "get_persistence"]

@@ -1,19 +1,22 @@
 """Firestore-backed ``DecisionSource`` (ADR 0024).
 
 Stores Decisions as JSON in Firestore documents at
-``/decision_records/{simulation_id}``. The document has two fields:
+``/decision_records/{simulation_id}``. The document has three fields:
 
 * ``simulation_id`` (``stringValue``) — the Firestore Decision id.
 * ``decision_json`` (``stringValue``) — JSON-encoded ``Decision`` payload.
+* ``decision_hash`` (``stringValue``) — SHA-256 of the JSON-encoded payload.
+  Used as a CAS token to detect overwrites with a different payload.
 
-Document IDs are unique on ``simulation_id``, so a duplicate write replaces
-the existing record idempotently. No ``updateTime`` check is needed because
-the keyspace is fixed: replan ``r.decision_id`` and ``sim-<run_id>`` are
-deterministic.
+Writes use compare-and-swap (CAS): ``put`` reads the existing document,
+computes its hash, and issues a conditional update that only succeeds
+when the stored hash is absent (first write) or matches the value
+observed at read time. A different payload for the same ``simulation_id``
+raises ``DecisionConflict`` so the caller treats it as a non-terminal
+outcome rather than silently overwriting evidence from an earlier run.
 
 Reads (``GET /decision_records/{simulation_id}``) return ``None`` for
-``HTTP 404``. Writes (``PATCH``) succeed with ``HTTP 200`` or ``HTTP 201``.
-Network errors and unexpected HTTP statuses raise
+``HTTP 404``. Network errors and unexpected HTTP statuses raise
 :class:`DecisionStoreUnavailable`; the surrounding code treats that as a
 typed failure (``insufficient_evidence`` or ``provider_failed``) and never
 silently falls back to process memory.
@@ -24,6 +27,7 @@ No model reasoning, prompts, or credentials are stored. Only the canonical
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import threading
@@ -54,6 +58,16 @@ COLLECTION_DECISIONS = "decision_records"
 
 class DecisionStoreUnavailable(RuntimeError):
     """Firestore decision storage is unreachable or rejected the write."""
+
+
+class DecisionConflict(RuntimeError):
+    """A different Decision payload is already stored for this simulation_id.
+
+    Raised when ``put`` detects that the stored ``decision_hash`` does not
+    match the hash of the payload being written. The caller must treat this
+    as a non-terminal outcome and never silently overwrite evidence from an
+    earlier run.
+    """
 
 
 class TokenProvider(TypingProtocol):
@@ -153,17 +167,58 @@ class FirestoreDecisionSource:
     def available(self) -> bool:
         return True
 
+    @staticmethod
+    def _decision_hash(decision: Decision) -> str:
+        """Stable SHA-256 hash of the canonical JSON form."""
+        canonical = decision.model_dump_json()
+        return hashlib.sha256(canonical.encode()).hexdigest()
+
     def put(self, simulation_id: str, decision: Decision) -> None:
+        decision_json = decision.model_dump_json()
+        decision_hash = self._decision_hash(decision)
+
+        # Read-modify-write CAS: detect conflicting payloads before writing.
+        response = self._call("GET", self._doc_url(simulation_id), None)
+        if response.status == 404:
+            # First write: create with no precondition (document does not exist).
+            body = {
+                "fields": {
+                    "simulation_id": {"stringValue": simulation_id},
+                    "decision_json": {"stringValue": decision_json},
+                    "decision_hash": {"stringValue": decision_hash},
+                }
+            }
+            write_resp = self._call("PATCH", self._doc_url(simulation_id), body)
+            if write_resp.status not in (200, 201):
+                raise DecisionStoreUnavailable(
+                    f"Firestore PATCH decision_records/{simulation_id} returned HTTP {write_resp.status}"
+                )
+            return
+        if response.status != 200:
+            raise DecisionStoreUnavailable(
+                f"Firestore GET decision_records/{simulation_id} returned HTTP {response.status}"
+            )
+        # Existing document: extract the stored hash and compare.
+        existing_hash = self._extract_hash(response.body)
+        if existing_hash is not None and existing_hash != decision_hash:
+            raise DecisionConflict(
+                f"Decision for simulation_id={simulation_id!r} already exists "
+                f"with a different payload (hash mismatch). "
+                "Cannot overwrite evidence from an earlier run. "
+                "Read the existing record and resolve the conflict manually."
+            )
+        # Same hash (idempotent retry) or no hash field (legacy doc): overwrite.
         body = {
             "fields": {
                 "simulation_id": {"stringValue": simulation_id},
-                "decision_json": {"stringValue": decision.model_dump_json()},
+                "decision_json": {"stringValue": decision_json},
+                "decision_hash": {"stringValue": decision_hash},
             }
         }
-        response = self._call("PATCH", self._doc_url(simulation_id), body)
-        if response.status not in (200, 201):
+        write_resp = self._call("PATCH", self._doc_url(simulation_id), body)
+        if write_resp.status not in (200, 201):
             raise DecisionStoreUnavailable(
-                f"Firestore PATCH decision_records/{simulation_id} returned HTTP {response.status}"
+                f"Firestore PATCH decision_records/{simulation_id} returned HTTP {write_resp.status}"
             )
 
     def get_for_simulation(self, simulation_id: str) -> Decision | None:
@@ -207,6 +262,24 @@ class FirestoreDecisionSource:
             ) from exc
 
     @staticmethod
+    def _extract_hash(body: str) -> str | None:
+        """Extract ``decision_hash`` from a Firestore GET response body."""
+        try:
+            payload = json.loads(body)
+        except json.JSONDecodeError:
+            return None
+        if not isinstance(payload, dict):
+            return None
+        fields = payload.get("fields", {})
+        if not isinstance(fields, dict):
+            return None
+        hash_field = fields.get("decision_hash")
+        if not isinstance(hash_field, dict):
+            return None
+        value = hash_field.get("stringValue")
+        return value if isinstance(value, str) else None
+
+    @staticmethod
     def _parse(body: str, simulation_id: str) -> Decision | None:
         try:
             payload = json.loads(body)
@@ -237,6 +310,7 @@ class FirestoreDecisionSource:
 
 __all__ = [
     "COLLECTION_DECISIONS",
+    "DecisionConflict",
     "DecisionStoreUnavailable",
     "FirestoreDecisionSource",
     "TokenProvider",

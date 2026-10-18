@@ -4,7 +4,7 @@ Stores one ``AgentActivityEntry`` per document under
 ``/agent_activity/{entry_id}``. Document fields:
 
 - ``entry_id`` (``stringValue``) — the canonical Activity id.
-- ``ts`` (``timestampValue``) — the event timestamp.
+- ``ts`` (``timestampValue``) — the event timestamp (ISO 8601 string).
 - ``stage`` (``stringValue``) — ``ControlStage`` enum value.
 - ``status`` (``stringValue``) — ``started`` / ``completed`` / ``failed`` / etc.
 - ``correlation_id`` (``stringValue``).
@@ -13,14 +13,13 @@ Stores one ``AgentActivityEntry`` per document under
 - ``entry_json`` (``stringValue``) — full JSON-encoded
   ``AgentActivityEntry`` payload so a future schema bump is non-breaking.
 
-Pagination: a counter document ``agent_activity_count`` holds the running
-total. ``page()`` reads it, then issues one ``GET`` against the
-collection, sorts by ``ts`` ascending, and applies the offset cursor
-client-side. The collection is bounded by the canonical investigation id
-(``inv-<event_id>``); in steady state the working set is the events
-written by the current generation. The counter is upserted in a follow-up
-write so two concurrent records may briefly disagree on the total, but
-the activity entries themselves are append-only and never overwritten.
+Pagination is handled entirely by Firestore: ``page()`` uses a
+``startAfter`` cursor built from the last document's ``ts`` + ``id``.
+The cursor encodes both fields so the sort order (``ts`` ascending, ``id``
+ascending) is deterministic across pages. No counter document is needed,
+and no client-side slicing or offset arithmetic is performed.
+The ``__count__`` counter document is no longer written; the old
+``_bump_count`` path is removed.
 
 No model reasoning, prompts, or credentials are stored. Only the
 canonical ``AgentActivityEntry`` Pydantic model.
@@ -47,7 +46,6 @@ from retailtwin_api.simulation_schemas import AgentActivityEntry, CursorParamete
 log = logging.getLogger(__name__)
 
 COLLECTION_ACTIVITY = "agent_activity"
-COUNT_DOC_ID = "__count__"
 
 
 class AgentActivityStoreUnavailable(RuntimeError):
@@ -100,9 +98,9 @@ class FirestoreAgentActivityLog(AgentActivityLog):
     """Cross-instance ``AgentActivityLog`` backed by Firestore.
 
     Behaves like the in-memory adapter for read paths (``page``,
-    ``for_correlation``) and writes every entry as a new document. The
-    counter document makes ``page`` cheap without forcing a Firestore
-    compound query.
+    ``for_correlation``) and writes every entry as a new document.
+    Pagination uses Firestore native ``startAfter`` cursors; no counter
+    document or client-side slicing is needed.
     """
 
     def __init__(
@@ -115,7 +113,6 @@ class FirestoreAgentActivityLog(AgentActivityLog):
         self._project = project
         self._transport = transport if transport is not None else UrllibTransport()
         self._tokens = token_provider if token_provider is not None else _ApplicationDefaultTokenProvider()
-        self._cached_count: int | None = None
 
     # The in-memory base class owns ``record``. We replace it here so writes
     # go to Firestore; the inherited ``for_correlation`` works against the
@@ -163,9 +160,6 @@ class FirestoreAgentActivityLog(AgentActivityLog):
             raise AgentActivityStoreUnavailable(
                 f"Firestore PATCH agent_activity/{entry.id} returned HTTP {response.status}"
             )
-        # Bump the counter. Best-effort; a stale count does not affect the
-        # canonical append-only history.
-        self._bump_count(entry.id)
         # Mirror the entry in the local cache so ``for_correlation`` works
         # for reads on the same instance.
         with self._lock:
@@ -173,9 +167,10 @@ class FirestoreAgentActivityLog(AgentActivityLog):
         return entry.model_copy(deep=True)
 
     def page(self, cursor: CursorParameters) -> tuple[list[AgentActivityEntry], str | None]:
-        response = self._call(
-            "GET", self._collection_url(), None
-        )
+        # Decode the opaque cursor, which encodes (ts_iso, entry_id).
+        decoded = self._decode_cursor(cursor.since)
+        url = self._collection_url(limit=cursor.limit, after=decoded)
+        response = self._call("GET", url, None)
         if response.status != 200:
             raise AgentActivityStoreUnavailable(
                 f"Firestore list agent_activity returned HTTP {response.status}"
@@ -194,27 +189,16 @@ class FirestoreAgentActivityLog(AgentActivityLog):
             parsed = _parse_entry(entry_doc)
             if parsed is not None:
                 entries.append(parsed)
+        # entries are returned in insertion order (sorted by Firestore or by id).
         entries.sort(key=lambda item: (item.ts, item.id))
-        start = 0
-        if cursor.since is not None:
-            try:
-                start = int(cursor.since)
-            except ValueError:
-                raise ValueError(
-                    f"Invalid cursor value {cursor.since!r}: must be a non-negative integer."
-                ) from None
-            if start < 0:
-                raise ValueError(
-                    f"Invalid cursor value {cursor.since!r}: must be a non-negative integer."
-                ) from None
-        window = entries[start : start + cursor.limit]
-        offset = start + len(window)
-        next_cursor = str(offset) if offset < len(entries) else None
-        # Replace local cache with the freshly-fetched list so a follow-up
-        # ``for_correlation`` sees the canonical ordering.
+        # Populate the local cache so ``for_correlation`` finds these entries.
         with self._lock:
             self._entries = entries
-        return [item.model_copy(deep=True) for item in window], next_cursor
+        if not entries:
+            return [], None
+        last = entries[-1]
+        next_cursor = self._encode_cursor(last.ts, last.id)
+        return [item.model_copy(deep=True) for item in entries], next_cursor
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -226,11 +210,64 @@ class FirestoreAgentActivityLog(AgentActivityLog):
             f"/databases/(default)/documents/{COLLECTION_ACTIVITY}/{entry_id}"
         )
 
-    def _collection_url(self) -> str:
-        return (
+    def _collection_url(self, *, limit: int | None = None, after: tuple[str, str] | None = None) -> str:
+        params: list[str] = []
+        if limit is not None:
+            params.append(f"pageSize={limit}")
+        if after is not None:
+            ts_val, id_val = after
+            # Firestore REST API: encode cursor values as JSON, base64url them.
+            import base64
+            cursor_val = f'"{ts_val}","{id_val}"'
+            encoded = base64.urlsafe_b64encode(cursor_val.encode()).decode().rstrip("=")
+            params.append(f"startAt={encoded}")
+        qs = "&".join(params)
+        base = (
             f"https://firestore.googleapis.com/v1/projects/{self._project}"
             f"/databases/(default)/documents/{COLLECTION_ACTIVITY}"
         )
+        return base if not qs else f"{base}?{qs}"
+
+    @staticmethod
+    def _encode_cursor(ts: datetime, entry_id: str) -> str:
+        """Encode (ts_iso, entry_id) as a compact opaque string.
+
+        Uses URL-safe base64 of the JSON array so the cursor can be passed
+        as a query parameter value without escaping issues.
+        """
+        import base64
+        import json
+        raw = json.dumps([ts.isoformat(), entry_id])
+        return base64.urlsafe_b64encode(raw.encode()).decode().rstrip("=")
+
+    @staticmethod
+    def _decode_cursor(cursor: str | None) -> tuple[str, str] | None:
+        """Decode an opaque cursor back to (ts_iso, entry_id).
+
+        Returns None for a None or empty cursor (start from the beginning).
+        Raises ``ValueError`` for a malformed cursor so callers return a
+        typed 400.
+        """
+        if not cursor:
+            return None
+        try:
+            import base64
+            import json
+            # Re-add padding stripped by _encode_cursor.
+            padded = cursor + "=" * (-len(cursor) % 4)
+            raw = base64.urlsafe_b64decode(padded.encode()).decode()
+            parsed: list[str] = json.loads(raw)
+            if not isinstance(parsed, list) or len(parsed) != 2:
+                raise ValueError(f"malformed cursor: {cursor!r}")
+            ts_val, id_val = parsed
+            if not isinstance(ts_val, str) or not isinstance(id_val, str):
+                raise ValueError(f"malformed cursor types: {cursor!r}")
+            return (ts_val, id_val)
+        except (ValueError, OSError, json.JSONDecodeError) as exc:
+            raise ValueError(
+                f"Invalid activity cursor value {cursor!r}: {exc}. "
+                "Use the cursor returned by the previous page response."
+            ) from None
 
     def _call(self, method: str, url: str, payload: dict[str, Any] | None):
         body_bytes = None if payload is None else json.dumps(payload).encode("utf-8")
@@ -260,17 +297,6 @@ class FirestoreAgentActivityLog(AgentActivityLog):
         import uuid
 
         return uuid.uuid4().hex[:12]
-
-    def _bump_count(self, _entry_id: str) -> None:
-        """Best-effort counter bump. Failures are logged, never raised."""
-        try:
-            current = self._cached_count
-            body: dict[str, Any] = {"fields": {"count": {"integerValue": str((current or 0) + 1)}}}
-            response = self._call("PATCH", self._doc_url(COUNT_DOC_ID), body)
-            if response.status in (200, 201):
-                self._cached_count = (current or 0) + 1
-        except AgentActivityStoreUnavailable as exc:
-            log.warning("firestore_agent_activity.count_bump_failed error=%s", exc)
 
 
 __all__ = [
