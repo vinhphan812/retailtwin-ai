@@ -13,11 +13,13 @@ const POLL_MS = 2000;
  *
  * A failed read keeps the last known status and bumps `error`. The poll
  * stops on unmount; tab visibility is not gated (matches `apiSource`).
+ * Off (`enabled` false) on a `?twin=` dev twin and in the demo, which read no apps/api.
  */
-export function useFlagshipStatus(): void {
+export function useFlagshipStatus(enabled = true): void {
   const setStatus = useFlagshipStore((state) => state.setStatus);
 
   useEffect(() => {
+    if (!enabled) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
@@ -39,5 +41,5 @@ export function useFlagshipStatus(): void {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [setStatus]);
+  }, [enabled, setStatus]);
 }

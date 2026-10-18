@@ -100,6 +100,32 @@ describe("CandidatePanel", () => {
     expect(screen.queryByText("Top score")).toBeNull();
   });
 
+  it("folded, shows only the recommended plan with its served score and rationale, and opens the table on request", () => {
+    open();
+    render(<CandidatePanel defaultExpanded={false} />);
+    expect(screen.queryByRole("table")).toBeNull();
+    const lead = screen.getByText("AI recommends").closest("p")!;
+    expect(lead.textContent).toContain("Plan B");
+    expect(lead.textContent).toContain("Business score");
+    expect(lead.textContent).toContain("0.88");
+    expect(screen.getByText("Why AI chose Plan B:")).toBeTruthy();
+    const toggle = screen.getByRole("button", { name: "Compare plans" });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(toggle);
+    expect(screen.getByRole("table")).toBeTruthy();
+    expect(column("Plan C")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Hide comparison" }));
+    expect(screen.queryByRole("table")).toBeNull();
+  });
+
+  it("folded with no recommendation served, leads with the top served business score", () => {
+    const { candidates } = open();
+    act(() => useTwinStore.getState().setCandidates(candidates.map((item) => ({ ...item, recommended: false }))));
+    render(<CandidatePanel defaultExpanded={false} />);
+    expect(screen.queryByText("AI recommends")).toBeNull();
+    expect(screen.getByText("Top score").closest("p")!.textContent).toContain("Plan B");
+  });
+
   it("hides the rationale line when none is served, and never writes one itself", () => {
     const { candidates } = open();
     act(() => useTwinStore.getState().setCandidates(candidates.map((item) => ({ ...item, rationale: null }))));
