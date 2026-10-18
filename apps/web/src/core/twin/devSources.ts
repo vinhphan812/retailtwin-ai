@@ -19,6 +19,9 @@ import { commitSimulation, createMemoryReviewer, discardSimulation, openSimulati
 import { createApiReviewer, type SimulationReviewer } from "./simulationReview";
 import { isDemoMode, LIVE_PATH } from "./demoMode";
 import { defaultClient } from "@/core/api/client";
+import { createApiAssistant } from "@/core/assistant/apiAssistant";
+import { createDemoAssistant } from "@/core/assistant/demoAssistant";
+import type { Assistant } from "@/types/assistant.type";
 
 /** The editable twin behind `?twin=memory|demo`, once `pickSource` has made it. */
 let memoryTwin: MemoryTwin | null = null;
@@ -161,6 +164,17 @@ export function pickSimulationReviewer(): SimulationReviewer | null {
   return memoryTwin && (mode === "memory" || mode === "demo" || mode === "firestore")
     ? createMemoryReviewer(memoryTwin)
     : null;
+}
+
+/**
+ * Where the Copilot's messages go (#332): apps/api for the Live Twin, the demo script on
+ * the memory twin under `?twin=memory|demo|firestore`, which opens its plans as simulations
+ * there. Other dev twins have none. Call after `pickSource`.
+ */
+export function pickAssistant(): Assistant | null {
+  if (!devTwinMode()) return createApiAssistant();
+  const twin = memoryTwin;
+  return twin ? createDemoAssistant((actions) => openSimulation(twin, actions)) : null;
 }
 
 /**

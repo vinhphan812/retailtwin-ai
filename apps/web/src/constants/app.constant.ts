@@ -27,3 +27,12 @@ export const IMPACT_TOAST_MS = 8000;
 
 /** KPI rows the AI Impact toast shows, in served order; the card in the panel shows them all. */
 export const IMPACT_TOAST_ROWS = 3;
+
+/** How long the demo Copilot takes to answer, in ms, so the wait shows as it would on Live. */
+export const COPILOT_DEMO_DELAY_MS = 700;
+
+/** Longest message the Copilot sends, in characters. */
+export const COPILOT_MAX_MESSAGE = 1000;
+
+/** Copilot drawer width in px, on screens wide enough to hold it beside the panel. */
+export const COPILOT_WIDTH = 380;

@@ -2,6 +2,7 @@ import {
   AgentActivityOpenButton,
   AgentActivityPanel,
 } from "@/components/layout/AgentActivityPanel";
+import { CopilotDrawer } from "@/components/copilot/CopilotDrawer";
 import { BuildBadge } from "@/components/layout/BuildBadge";
 import { CameraHelp } from "@/components/layout/CameraHelp";
 import { KpiStrip } from "@/components/layout/KpiStrip";
@@ -22,6 +23,7 @@ import { TwinFooter } from "@/components/layout/TwinFooter";
 import { TwinHeader } from "@/components/layout/TwinHeader";
 import {
   isApiTwin,
+  pickAssistant,
   pickSimulationReviewer,
   pickSimulationSource,
   pickSource,
@@ -39,6 +41,8 @@ const source = pickSource();
 const simulationSource = pickSimulationSource();
 // After pickSource: under ?twin=memory|demo it reviews on the twin pickSource made.
 const reviewer = pickSimulationReviewer();
+// After pickSource too: the demo Copilot opens its plans on that twin.
+const assistant = pickAssistant();
 
 export function TwinPage() {
   useTwinSource(source);
@@ -78,6 +82,7 @@ export function TwinPage() {
           <AgentFocusCaption />
           <AiImpactToast />
           <AgentActivityOpenButton />
+          <CopilotDrawer assistant={assistant} />
           <EntityInspector />
           <ProductDetailsDialog />
           <TwinIssuesNotice />
