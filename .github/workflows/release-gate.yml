@@ -264,7 +264,7 @@ jobs:
       is_manual: ${{ github.event_name == 'workflow_dispatch' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Set smoke run ID + canonical event id
         id: run_id
         run: |
