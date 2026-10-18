@@ -297,6 +297,50 @@ The UI never works out a risk itself, neither from quantities nor from alerts. I
 4. Click *Shelf A02 breaks its planogram*: the camera flies to gondola A02.
 5. `twin.failAnomalies()` shows the failure notice and `twin.reloadAnomalies()` clears it.
 
+### Store Copilot (#332)
+
+**Copilot** in the header opens a conversation drawer beside the Agent Activity panel, which it never replaces (`CopilotDrawer`). On a narrow screen it covers the view. Enter sends, Shift+Enter breaks the line, Escape closes it. Sample prompts start it off. A reply shows its text, the products it names (each selects its product), its evidence (source, as-of, confidence when served), the tools it called, and who wrote it: *Demo script* or *Gemini on Vertex AI · <model>*. It also shows the Live version it read and its correlation id.
+
+The Copilot reads and simulates; it never writes the Live Twin. A plan comes as a **Proposed plan** card: its actions, its KPIs against the baseline as the evaluator served them, the checks it holds to, and the guard's word on it. **Review in Simulation** opens its run in the Simulation view on its candidate, with its product selected. Accept and Reject stay with the Simulation banner (`POST /simulations/{id}/approve|reject` and the guard). A message asking to approve, commit or change the store, or to drop the rules, is refused.
+
+| Twin | Where messages go | Says |
+| --- | --- | --- |
+| Live (`/live`, default) | `POST /assistant/conversations/{conversation_id}/messages` (`createApiAssistant`) | the reply as served, or why there is none |
+| `?twin=demo` (and `memory`, `firestore`) | `createDemoAssistant`, a fixed script; it never calls apps/api | *Demo script* on every reply |
+| other dev twins | none | *This dev twin has no Copilot* |
+
+**The contract (FE proposal; TODO(BE #332): apps/api serves no assistant route yet).** The request (`AssistantMessageRequest`) is `{ message_id, text, store_id, context_version, mode: "live" }` with an `X-Correlation-ID` header. `message_id` is the idempotency key: a resend with the same id must return the same turn. The reply (`AssistantTurn`, checked by `parseAssistantTurn`) is:
+
+- `conversation_id`, `message_id` (both must match what was sent), `reply_id`, `correlation_id`, `run_id`, `store_id`, `context_version`
+- `source` (`vertex_gemini` | `demo_script`), `model`, and `status` (`answered` | `proposed` | `unsupported` | `refused`) with `outcome_code`
+- `text`, which is never chain of thought
+- `evidence[]`: `{ id, kind, label, detail, source: firestore|bigquery|detector|evaluator|fixture, tool, sku, as_of, confidence }`
+- `tool_calls[]`: `{ tool, capability: read|simulation, ok, error_code, sku, duration_ms }`. A `commit_request` or any other capability makes the whole reply invalid.
+- `proposal`: `{ simulation_id, candidate_id, decision_id, base_context_version, actions[], summary, kpis[], baseline_kpis[], evaluator_version, constraints[{label, passed}], guard }`
+- `created_at`
+
+**Errors** (`AssistantFailure`) show as a card with the HTTP status, code and correlation id, and **Retry** when a resend may help. Retry sends the same message (same id); after `stale_context` it asks again as a new message on the current Live. The codes:
+
+- `assistant_not_deployed`: FastAPI's own 404
+- `model_unavailable`, `analytics_unavailable`: 503
+- `stale_context`: 409, or `VERSION_*`
+- `permission_denied`: 401 or 403
+- `rate_limited`: 429
+- `invalid_message`: 422
+- `network_error`
+- `invalid_reply`: the reply broke the contract; none of it is shown
+
+Nothing ever stands in for a Live reply.
+
+**Agent Activity.** A turn's tool calls go to the timeline under its `correlation_id` (`turnActivity`): reads as INVESTIGATE, the plan as PLAN, simulation calls as SIMULATE. Follow agent flies the camera to the product it read.
+
+**The demo script** (`core/assistant/demoAssistant.ts`) answers from what the page holds: the twin, the open anomalies and `fixtures/demo` sales. Every figure is cited, with source `fixture`.
+
+- *What is happening with P003?* gives the stock, the open alerts and the demo sales.
+- *Suggest a safer restock for P003* gives the demo run's recommended candidate (Plan B) with its demo KPIs. Once that run is closed, it opens the plan as a new, unscored simulation on the memory twin.
+- *Approve the plan* and *Please set P003 stock to 50* are refused.
+- *What is happening with P017?* says P017 is not in this store.
+
 ### Twin sources
 
 `apiSource` (the Live Twin from `GET /store` on `VITE_API_BASE_URL`) is the default, and the only source of a production build unless it is built with `VITE_ALLOW_DEMO=true` (see *Hosted demo* below). In development, `?twin=` swaps in a local source:
@@ -370,6 +414,7 @@ src/
     promotions/             PromotionsPanel, PromotionCard
     commerce/               shared panel parts: MetricTile, AnimatedNumber, Segmented
     common/                 ListDialog: a fixed-size dialog of a filtered table that alone scrolls
+    copilot/                CopilotDrawer (and the header's CopilotButton), CopilotMessages, CopilotProposal
     icons.tsx               line icons
   core/
     api/
@@ -386,6 +431,8 @@ src/
       simulationReview.ts   SimulationReviewer: Accept / Reject through POST /simulations/{id}/approve|reject
       stateDiff.ts          diffStates: what changed between two twin states, per SKU
     agent/agentFocus.ts     agentFocusOf: what an activity entry points the camera at; agentFocusWait
+    assistant/              the Store Copilot: createApiAssistant, createDemoAssistant, parseAssistantTurn,
+                            conversation (ask, retry), turnActivity, openProposal
     anomaly/alerts.ts       alertCategory, alertStep, sortAlerts, alertTarget: the Alerts & opportunities list (#38)
     notify.ts               toast helpers and errorMessage
     utils/                  groupBy, padId, seeded PRNG, number/money/date formatters
@@ -464,6 +511,7 @@ Vitest runs in the `node` environment. Scene tests use `@react-three/test-render
 | `core/api/sources/fixtureSource.test.ts` | the fixture state is valid; `PRODUCT_FIELDS` matches the pydantic models in `apps/api` |
 | `core/api/validate.test.ts` | contract check: bad envelopes throw, bad products are left out with a reason; a review answer needs a known decision, status and (for an approval) guard verdict |
 | `core/api/version.test.ts` | context version parsing and ordering |
+| `core/assistant/*.test.ts`, `components/copilot/CopilotDrawer.test.tsx` | the Copilot: the reply contract (no commit capability, matching ids, a plan with its status), the Live client's request and error codes, the demo script (explain, plan with served KPIs, refusals, unknown SKU, idempotency), the conversation (retry by id, stale context asked anew, no duplicate reply), timeline entries, and the drawer (keyboard, sources, plan card opening Simulation, error card with Retry) |
 | `core/api/client.test.ts` | REST client paths, including revenue, promotions, simulations and the approve / reject POST with its body, and error envelopes |
 | `core/twin/twinConnection.test.ts` | load states, out-of-order snapshot and updates, feed drop and recovery, unreadable payloads |
 | `core/twin/stateDiff.test.ts` | issue #91: moves (across and within a shelf), facings, signed quantity deltas, added and removed SKUs, several changes at once; equal states, product order, and other stores give no diff |

@@ -94,7 +94,7 @@ export function createClient(baseUrl: string, fetchImpl?: typeof fetch): RetailT
   };
 }
 
-async function toApiError(response: Response): Promise<ApiError> {
+export async function toApiError(response: Response): Promise<ApiError> {
   let payload: unknown = null;
   try {
     payload = await response.json();

@@ -111,6 +111,20 @@ const WINDOW_DAYS: Record<RevenuePeriod, number> = {
   [REVENUE_PERIOD.Month]: 30,
 };
 
+/** Revenue and units of every named SKU over a window: today's mix, scaled to the window. */
+export function demoSkuSales(period: RevenuePeriod): SkuRevenue[] {
+  const span = WINDOW_DAYS[period];
+  const scale = totals(DAYS.slice(DAYS.length - span), MARGIN_RATE).revenue / TODAY_REVENUE;
+  const facings = new Map(demoStoreState().products.map((product) => [product.sku, product.facings]));
+  return [...TODAY_BY_SKU].map(([sku, { revenue, units }]) => ({
+    sku,
+    name: DEMO_NAMES[sku] ?? sku,
+    revenue: cents(revenue * scale),
+    units: Math.round(units * scale),
+    facings: facings.get(sku) ?? 0,
+  }));
+}
+
 /** `GET /revenue?period=` for the demo store. */
 export function demoRevenue(period: RevenuePeriod): RevenueSummary {
   const span = WINDOW_DAYS[period];
@@ -118,15 +132,7 @@ export function demoRevenue(period: RevenuePeriod): RevenueSummary {
   const before = DAYS.slice(DAYS.length - 2 * span, DAYS.length - span);
   const current = totals(window, MARGIN_RATE);
   // Per-SKU and per-category figures follow today's mix, scaled to the window.
-  const scale = current.revenue / TODAY_REVENUE;
-  const facings = new Map(demoStoreState().products.map((product) => [product.sku, product.facings]));
-  const skus: SkuRevenue[] = [...TODAY_BY_SKU].map(([sku, { revenue, units }]) => ({
-    sku,
-    name: DEMO_NAMES[sku] ?? sku,
-    revenue: cents(revenue * scale),
-    units: Math.round(units * scale),
-    facings: facings.get(sku) ?? 0,
-  }));
+  const skus = demoSkuSales(period);
   const categories = new Map<string, number>();
   for (const sku of skus) categories.set(categoryOf(sku.sku), (categories.get(categoryOf(sku.sku)) ?? 0) + sku.revenue);
   const outOfStock = demoStoreState().products.filter((product) => product.shelf_quantity === 0);
