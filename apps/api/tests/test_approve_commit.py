@@ -225,7 +225,14 @@ def test_fixture_backend_has_no_commit_path(settings: Settings) -> None:
 
 def test_production_without_a_signing_key_has_no_commit_path(settings: Settings, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv(SIGNING_KEY_ENV, raising=False)
-    app = create_app(settings.model_copy(update={"app_env": "production"}))
+    # Production live-action deployments must point at ``firestore``;
+    # the composition root fails closed on ``memory`` / ``fixture``
+    # for ``APP_ENV=production`` (review #244).
+    app = create_app(
+        settings.model_copy(
+            update={"app_env": "production", "live_twin_backend": "firestore"}
+        )
+    )
     app.state.simulations = InMemorySimulationRepository([_simulation()])
     app.state.decisions = InMemoryDecisionSource()
     with TestClient(app) as client:

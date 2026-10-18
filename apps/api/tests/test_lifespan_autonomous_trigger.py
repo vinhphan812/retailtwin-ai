@@ -88,6 +88,7 @@ def test_lifespan_production_uses_memory_pipe_regardless_of_project() -> None:
 
     settings = _settings(
         app_env="production",
+        live_twin_backend="firestore",
         autonomous_pubsub_project="retailtwin-ai-511002",
         google_cloud_project="retailtwin-ai-511002",
     )
@@ -107,6 +108,7 @@ def test_lifespan_production_does_not_start_pull_loop() -> None:
 
     settings = _settings(
         app_env="production",
+        live_twin_backend="firestore",
         autonomous_trigger_enabled=True,
         autonomous_trigger_interval_seconds=45,
     )
@@ -138,6 +140,7 @@ def test_lifespan_production_can_opt_into_pull_loop_explicitly() -> None:
 
     settings = _settings(
         app_env="production",
+        live_twin_backend="firestore",
         autonomous_trigger_enabled=True,
         autonomous_trigger_interval_seconds=45,
         autonomous_pubsub_pull_disabled_in_production=False,

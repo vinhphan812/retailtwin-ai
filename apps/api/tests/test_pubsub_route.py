@@ -265,6 +265,10 @@ def _production_settings(**overrides: object) -> Settings:
         app_env="production",
         store_id="store-001",
         store_fixture_path=DEFAULT_FIXTURE,
+        # Production live-action deployments must point at firestore;
+        # the composition root fails closed on ``memory`` /
+        # ``fixture`` for ``APP_ENV=production`` (review #244).
+        live_twin_backend="firestore",
         app_base_url="https://retailtwin-api-511002.run.app",
         pubsub_push_service_account="service-537192856637@gcp-sa-pubsub.iam.gserviceaccount.com",
         **overrides,  # type: ignore[arg-type]
@@ -566,6 +570,7 @@ def test_pubsub_route_in_production_with_unset_service_account_returns_503() -> 
         app_env="production",
         store_id="store-001",
         store_fixture_path=DEFAULT_FIXTURE,
+        live_twin_backend="firestore",
         app_base_url="https://retailtwin-api-511002.run.app",
     )
     app = create_app(settings)

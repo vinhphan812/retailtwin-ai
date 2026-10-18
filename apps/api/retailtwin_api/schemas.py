@@ -27,6 +27,35 @@ class ReadyResponse(BaseModel):
     service: Literal["retailtwin-api"]
     store_id: str
     correlation_id: str
+    backend_identities: dict[str, str] = Field(
+        default_factory=dict,
+        description=(
+            "Production composition identities (never credentials). Exposed so "
+            "the release-gate and Cloud Run readiness probe can assert the "
+            "canonical adapters are bound (ADR 0029)."
+        ),
+    )
+    ai_state: Literal["ai_ready", "ai_disabled", "ai_unconfigured"] = Field(
+        default="ai_disabled",
+        description=(
+            "AI workflow readiness tri-state. ``ai_ready`` — Vertex built. "
+            "``ai_disabled`` — AUTONOMY_ENABLED=false by configuration. "
+            "``ai_unconfigured`` — AUTONOMY_ENABLED=true but Vertex failed. "
+            "ADR 0029."
+        ),
+    )
+    ai_reason: str = Field(
+        default="autonomy_disabled_by_config",
+        description="Reason code accompanying ai_state; stable for log/metric correlation.",
+    )
+    analytics_readiness: dict[str, str] = Field(
+        default_factory=dict,
+        description=(
+            "BigQuery probe outcome: ``ready`` (bool), ``reason`` (stable "
+            "code), ``project_id`` / ``dataset`` / ``region`` when bound. "
+            "``reason=not_applicable`` outside production/staging."
+        ),
+    )
 
 
 class VersionResponse(BaseModel):
