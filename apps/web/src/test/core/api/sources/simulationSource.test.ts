@@ -43,7 +43,6 @@ function fakeClient(
     flagshipReset: vi.fn(),
     flagshipStart: vi.fn(),
     agentEvents: vi.fn(),
-    stockoutRisk: vi.fn(),
   };
 }
 
