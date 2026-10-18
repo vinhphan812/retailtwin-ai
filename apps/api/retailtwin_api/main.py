@@ -25,10 +25,12 @@ from retailtwin_api.agents.orchestrator.autonomy import AutonomousInvestigations
 from retailtwin_api.agents.orchestrator.tool_registry import ToolRegistry, build_store_registry
 from retailtwin_api.backbone import EventPipe, MemoryPipe, MemoryQuarantine
 from retailtwin_api.analytics_repository import (
+    get_anomaly_repository,
     get_checkout_repository,
-    unavailable_analytics_repositories,
+    get_promotion_repository,
+    get_revenue_repository,
 )
-from retailtwin_api.decisions import InMemoryDecisionSource, unavailable_decision_source
+from retailtwin_api.decisions import unavailable_decision_source
 from retailtwin_api.persistence import get_persistence
 from retailtwin_api.demand_surge import DemandSurgeScheduler
 from retailtwin_api.errors import ApiError, api_error_handler, http_error_handler, validation_error_handler
@@ -182,8 +184,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     else:
         provider = None
     if provider is not None:
-        decisions = InMemoryDecisionSource()
-        app.state.decisions = decisions
         autonomy_registry = build_store_registry(store)
         # Issue #215 / ADR 0024: wire the BigQuery-backed
         # ``get_sales_history`` reader so the autonomy path sees real
@@ -198,7 +198,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             registry=autonomy_registry,
             store_view=store.view,
             proposals=app.state.simulations,
-            decisions=decisions,
+            decisions=app.state.decisions,
             activity=app.state.activity,
             build_state=_build_state,
         )
@@ -210,10 +210,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # Analytics repositories: GCP-backed (BigQuery + Firestore); empty adapters in dev.
     # Checkout reads use the explicit in-memory scaffold pending a verified BQ schema.
     # Swap app.state repositories in integration tests.
-    anomalies, revenue, promotions, _ = unavailable_analytics_repositories()
-    app.state.anomalies = anomalies
-    app.state.revenue = revenue
-    app.state.promotions = promotions
+    app.state.anomalies = get_anomaly_repository()
+    app.state.revenue = get_revenue_repository()
+    app.state.promotions = get_promotion_repository()
     app.state.checkouts = get_checkout_repository()
 
     # Correlation + structured logging middleware (must be outermost)
