@@ -38,6 +38,7 @@ from retailtwin_api.flagship.agent_starter import FlagshipInvestigationStarter
 from retailtwin_api.guard.decision_context_guard import InMemoryGuardAudit
 from retailtwin_api.middleware import CorrelationMiddleware
 from retailtwin_api.routes import router
+from retailtwin_api.assistant.routes import router as assistant_router
 from retailtwin_api.llm.factory import create_provider, llm_config_from_settings
 from retailtwin_api.settings import Settings, get_settings
 from retailtwin_api.simulation import SimulationRepository, _build_state
@@ -229,6 +230,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_headers=["accept", "content-type", "x-correlation-id"],
     )
     app.include_router(router)
+    app.include_router(assistant_router)
 
     # Flagship controller — wired against the same canonical services
     # ``create_app`` already configured (Live Twin, Guard, store_id). The

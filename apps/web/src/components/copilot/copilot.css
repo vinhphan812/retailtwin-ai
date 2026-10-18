@@ -1,0 +1,497 @@
+/* ---- Store Copilot (#332): a drawer over the 3D view, left of the Agent Activity panel ---- */
+
+/* Above the overlays and, on narrow screens, the panel's bottom sheet. Width and the gap for the
+   panel are set inline (COPILOT_WIDTH, PANEL_WIDTH). */
+.copilot {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  height: min(620px, calc(100% - 76px));
+  max-width: calc(100% - 24px);
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-panel) 97%, transparent);
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(12px);
+}
+
+/* Full screen on narrow screens, over the panel's bottom sheet. */
+@media (max-width: 800px) {
+  .copilot {
+    top: 12px;
+    left: 12px;
+    height: auto;
+    width: auto !important;
+    margin-right: 0 !important;
+  }
+}
+
+.copilot-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px 8px;
+}
+
+.copilot-mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  border-radius: 8px;
+}
+
+.copilot-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-width: 0;
+}
+
+.copilot-heading h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+}
+
+/* Who answers: amber dashed for the demo script, accent for apps/api, violet once Gemini has. */
+.copilot-source {
+  display: inline-block;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  color: var(--color-ink-soft);
+  border: 1px solid var(--color-line-strong);
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.copilot-source[data-source="demo_script"],
+.copilot-source[data-source="fixture"] {
+  color: var(--color-warning);
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--color-warning) 55%, transparent);
+}
+
+.copilot-source[data-source="live"] {
+  color: var(--color-accent);
+}
+
+.copilot-source[data-source="vertex_gemini"] {
+  color: var(--color-simulation);
+  border-color: color-mix(in srgb, var(--color-simulation) 55%, transparent);
+}
+
+.copilot-note {
+  margin: 0;
+  padding: 0 14px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-ink-muted);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.copilot-note[data-mode="demo"] {
+  color: var(--color-warning);
+}
+
+.copilot-messages {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  margin: 0;
+  padding: 12px 14px;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.copilot-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-ink-soft);
+}
+
+.copilot-empty p {
+  margin: 0;
+}
+
+.copilot-samples {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.copilot-samples button {
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  color: var(--color-ink);
+  background: var(--color-card);
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.copilot-samples button:hover,
+.copilot-samples button:focus-visible {
+  border-color: var(--color-line-strong);
+}
+
+.copilot-message {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 100%;
+  padding: 9px 11px;
+  font-size: 13px;
+  background: var(--color-card);
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+}
+
+.copilot-message[data-kind="user"] {
+  align-self: flex-end;
+  max-width: 85%;
+  background: color-mix(in srgb, var(--color-accent) 14%, var(--color-card));
+  border-color: transparent;
+}
+
+.copilot-message[data-status="refused"],
+.copilot-message[data-status="unsupported"] {
+  border-color: color-mix(in srgb, var(--color-warning) 45%, transparent);
+}
+
+.copilot-message[data-kind="error"] {
+  border-color: color-mix(in srgb, var(--color-alert) 55%, transparent);
+}
+
+.copilot-message[data-kind="pending"] {
+  flex-direction: row;
+  align-items: center;
+  align-self: flex-start;
+  color: var(--color-ink-muted);
+}
+
+.copilot-text {
+  margin: 0;
+  line-height: 1.45;
+  color: var(--color-ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.copilot-outcome {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-warning);
+}
+
+.copilot-message[data-kind="error"] .copilot-outcome {
+  color: var(--color-alert);
+}
+
+.copilot-error-detail {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.copilot-products {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.copilot-products .activity-sku {
+  margin-left: 0;
+}
+
+.copilot-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin: 0;
+  font-size: 11px;
+  color: var(--color-ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.copilot-meta-id {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copilot-details {
+  font-size: 12px;
+  color: var(--color-ink-soft);
+}
+
+.copilot-details summary {
+  cursor: pointer;
+  color: var(--color-ink-muted);
+}
+
+.copilot-details ul {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.copilot-details li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+}
+
+.copilot-details-label {
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.copilot-details-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  width: 100%;
+  font-size: 11px;
+  color: var(--color-ink-faint);
+}
+
+.copilot-tool code {
+  font-size: 11px;
+  color: var(--color-ink);
+}
+
+.copilot-tool[data-ok="false"] code {
+  color: var(--color-alert);
+}
+
+/* ---- The plan card: violet, as the Simulation view is ---- */
+
+.copilot-proposal {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--color-simulation) 45%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-simulation) 7%, transparent);
+}
+
+.copilot-proposal-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  color: var(--color-simulation);
+}
+
+.copilot-proposal-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.copilot-proposal-run {
+  font-size: 11px;
+  color: var(--color-ink-muted);
+}
+
+.copilot-proposal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.copilot-proposal-actions button {
+  padding: 2px 0;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  color: var(--color-ink);
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  text-decoration-color: var(--color-line-strong);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.copilot-proposal-actions button:disabled {
+  color: var(--color-ink-muted);
+  text-decoration: none;
+  cursor: default;
+}
+
+.copilot-proposal-kpis table {
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.copilot-proposal-kpis th {
+  padding: 1px 10px 1px 0;
+  font-weight: 500;
+  text-align: left;
+  color: var(--color-ink-soft);
+}
+
+.copilot-proposal-kpis td {
+  padding: 1px 4px;
+  color: var(--color-ink-muted);
+}
+
+.copilot-proposal-kpis .copilot-proposal-kpi-value {
+  color: var(--color-ink);
+}
+
+.copilot-proposal-kpis .candidate-cell-delta {
+  display: table-cell;
+  font-size: 11px;
+}
+
+.copilot-proposal-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  font-size: 12px;
+  list-style: none;
+}
+
+.copilot-proposal-checks li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-ink-soft);
+}
+
+.copilot-proposal-checks li[data-passed="true"] svg {
+  color: var(--color-good);
+}
+
+.copilot-proposal-checks li[data-passed="false"] svg {
+  color: var(--color-warning);
+}
+
+.copilot-proposal-guard {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-ink-soft);
+}
+
+.copilot-proposal-stale {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-warning);
+}
+
+.copilot-proposal-muted {
+  margin: 0;
+  font-size: 11px;
+  color: var(--color-ink-muted);
+}
+
+/* ---- Composer ---- */
+
+.copilot-compose {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 10px 14px 4px;
+  border-top: 1px solid var(--color-line);
+}
+
+.copilot-input {
+  flex: 1;
+  height: auto;
+  min-height: 36px;
+  max-height: 120px;
+  padding: 8px 10px;
+  resize: none;
+  line-height: 1.35;
+}
+
+.copilot-hint {
+  margin: 0;
+  padding: 0 14px 10px;
+  font-size: 11px;
+  color: var(--color-ink-faint);
+}
+
+/* Three dots while a reply is on its way. */
+.copilot-dots {
+  width: 18px;
+  height: 6px;
+  background:
+    radial-gradient(circle, currentColor 2px, transparent 2.5px) 0 50% / 6px 6px repeat-x;
+  animation: copilot-dots 1s steps(3) infinite;
+}
+
+@keyframes copilot-dots {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 -34% 0 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .copilot-dots {
+    animation: none;
+  }
+}
+
+/* The header's Copilot button. */
+.twin-header-copilot {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 9px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-simulation) 18%, var(--color-card));
+  border: 1px solid color-mix(in srgb, var(--color-simulation) 45%, transparent);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.twin-header-copilot:hover,
+.twin-header-copilot[aria-expanded="true"] {
+  background: color-mix(in srgb, var(--color-simulation) 30%, var(--color-card));
+}

@@ -80,7 +80,7 @@ export function createClient(baseUrl: string, fetchImpl?: typeof fetch): RetailT
   };
 }
 
-async function toApiError(response: Response): Promise<ApiError> {
+export async function toApiError(response: Response): Promise<ApiError> {
   let payload: unknown = null;
   try {
     payload = await response.json();
@@ -96,6 +96,6 @@ async function toApiError(response: Response): Promise<ApiError> {
   return new ApiError(response.status, code, message);
 }
 
-const configuredBase = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
+export const configuredBase = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
 
 export const defaultClient = createClient(configuredBase);

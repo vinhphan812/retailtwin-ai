@@ -1,0 +1,1 @@
+"""Store Copilot assistant routes."""
