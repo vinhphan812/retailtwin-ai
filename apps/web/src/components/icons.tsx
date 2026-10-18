@@ -171,3 +171,11 @@ export function SendIcon({ className }: IconProps) {
     </svg>
   );
 }
+
+export function PlayIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden className={className} {...stroke}>
+      <path d="M7 5.5v13l11-6.5z" fill="currentColor" />
+    </svg>
+  );
+}

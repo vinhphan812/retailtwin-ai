@@ -22,6 +22,8 @@ import { defaultClient } from "@/core/api/client";
 import { createApiAssistant } from "@/core/assistant/apiAssistant";
 import { createDemoAssistant } from "@/core/assistant/demoAssistant";
 import type { Assistant } from "@/types/assistant.type";
+import { createApiDemoRunner, type DemoRunner } from "@/core/demo/demoRunner";
+import { createFixtureDemoRunner } from "@/core/demo/fixtureDemoRunner";
 
 /** The editable twin behind `?twin=memory|demo`, once `pickSource` has made it. */
 let memoryTwin: MemoryTwin | null = null;
@@ -175,6 +177,17 @@ export function pickAssistant(): Assistant | null {
   if (!devTwinMode()) return createApiAssistant();
   const twin = memoryTwin;
   return twin ? createDemoAssistant((actions) => openSimulation(twin, actions)) : null;
+}
+
+/**
+ * What the Run AI Demo button runs: the flagship controller of apps/api (#41), or the demo
+ * fixtures standing in for it under `?twin=demo`, which never call apps/api. Other dev twins
+ * have no demo. Call after `pickSource`.
+ */
+export function pickDemoRunner(): DemoRunner | null {
+  const mode = devTwinMode();
+  if (!mode) return createApiDemoRunner(defaultClient);
+  return mode === "demo" && memoryTwin ? createFixtureDemoRunner(memoryTwin) : null;
 }
 
 /**
