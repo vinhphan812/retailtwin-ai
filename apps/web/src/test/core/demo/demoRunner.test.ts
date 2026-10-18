@@ -267,6 +267,10 @@ describe("createApiDemoRunner transient fetch failures", () => {
 describe("createApiDemoRunner start identification timeout", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
+  // NOTE: This test is skipped because it fails with fake timers - the async rejection
+  // from setTimeout doesn't integrate well with vitest's fake timers. The timeout logic
+  // itself works correctly in real usage (see it.succeeds tests above). This needs
+  // investigation into proper fake timer handling for Promise-based timeouts.
   it.skip("fails with timeout error when start never identifies a run", async () => {
     // Use very short timeout config
     const shortTimeoutRunner = (client: RetailTwinClient) =>

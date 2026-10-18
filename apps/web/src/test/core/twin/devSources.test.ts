@@ -3,8 +3,8 @@ import { createElement } from "react";
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApiSource } from "@/core/api/sources/apiSource";
-import { isDemoMode } from "@/core/twin/demoMode";
-import { pickSimulationSource, pickSource } from "@/core/twin/devSources";
+import { demoRequested, isDemoMode } from "@/core/twin/demoMode";
+import { pickSimulationSource, pickSource, isApiTwin } from "@/core/twin/devSources";
 import { DemoBadge } from "@/components/twin/DemoBadge";
 import { demoStoreState } from "@/fixtures/demo/store";
 import { useCheckoutSummary, useCheckoutTransactions } from "@/hooks/checkout.hook";
@@ -131,5 +131,62 @@ describe("pickSimulationSource", () => {
       at(`/?twin=${mode}`);
       expect(pickSimulationSource()).toBeNull();
     }
+  });
+});
+
+describe("isApiTwin", () => {
+  it("returns true on / (Live Twin)", () => {
+    at("/");
+    expect(isApiTwin()).toBe(true);
+  });
+
+  it("returns true on /live", () => {
+    at("/live");
+    expect(isApiTwin()).toBe(true);
+  });
+
+  it("returns false on /demo", () => {
+    at("/demo");
+    expect(isApiTwin()).toBe(false);
+  });
+
+  it("returns false on /?twin=demo", () => {
+    at("/?twin=demo");
+    expect(isApiTwin()).toBe(false);
+  });
+
+  it("returns false on /?twin=memory", () => {
+    at("/?twin=memory");
+    expect(isApiTwin()).toBe(false);
+  });
+});
+
+describe("demoRequested integration", () => {
+  it("marks demo on /demo path regardless of ?twin=", () => {
+    at("/demo");
+    expect(demoRequested(window.location)).toBe(true);
+    expect(isDemoMode()).toBe(true);
+  });
+
+  it("marks live on /live path regardless of ?twin=", () => {
+    at("/live?twin=demo");
+    expect(demoRequested(window.location)).toBe(false);
+    expect(isDemoMode()).toBe(false);
+  });
+
+  it("respects VITE_ALLOW_DEMO on / in production", () => {
+    vi.stubEnv("DEV", false);
+    vi.stubEnv("VITE_ALLOW_DEMO", "true");
+    at("/");
+    expect(demoRequested(window.location)).toBe(true);
+    expect(isDemoMode()).toBe(true);
+  });
+
+  it("ignores VITE_ALLOW_DEMO on /live in production", () => {
+    vi.stubEnv("DEV", false);
+    vi.stubEnv("VITE_ALLOW_DEMO", "true");
+    at("/live");
+    expect(demoRequested(window.location)).toBe(false);
+    expect(isDemoMode()).toBe(false);
   });
 });

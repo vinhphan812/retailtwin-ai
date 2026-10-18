@@ -10,6 +10,8 @@ export function App() {
       <div className="app">
         <Routes>
           <Route path="/" element={<TwinPage />} />
+          <Route path="/demo" element={<TwinPage />} />
+          <Route path="/live" element={<TwinPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </div>

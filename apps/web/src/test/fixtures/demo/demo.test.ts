@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseStoreState } from "@/core/api/validate";
-import { isDemoMode } from "@/core/twin/demoMode";
+import { demoRequested, isDemoMode } from "@/core/twin/demoMode";
 import { ANOMALY_SEVERITIES, ANOMALY_TYPE } from "@/enums/anomaly.enum";
 import { PAYMENT_METHODS } from "@/enums/checkout.enum";
 import { DEMO_RUN_ID, demoAgentRun } from "@/fixtures/demo/agentRun";
@@ -11,7 +11,92 @@ import { demoStoreState } from "@/fixtures/demo/store";
 import { useCheckoutSummary, useCheckoutTransactions } from "@/hooks/checkout.hook";
 import { storeLayout, toSceneStore } from "@/scene/layout";
 
-afterEach(() => window.history.replaceState(null, "", "/"));
+const at = (url: string) => window.history.replaceState(null, "", url);
+
+afterEach(() => at("/"));
+
+beforeEach(() => {
+  vi.stubEnv("DEV", "true");
+  vi.stubEnv("VITE_ALLOW_DEMO", "false");
+});
+
+describe("demoRequested", () => {
+  it("returns false on / without VITE_ALLOW_DEMO", () => {
+    vi.stubEnv("VITE_ALLOW_DEMO", "false");
+    at("/");
+    expect(demoRequested(window.location)).toBe(false);
+  });
+
+  it("returns true on / with VITE_ALLOW_DEMO=true (hosted demo)", () => {
+    vi.stubEnv("VITE_ALLOW_DEMO", "true");
+    at("/");
+    expect(demoRequested(window.location)).toBe(true);
+  });
+
+  it("returns true on /demo regardless of VITE_ALLOW_DEMO", () => {
+    vi.stubEnv("VITE_ALLOW_DEMO", "false");
+    at("/demo");
+    expect(demoRequested(window.location)).toBe(true);
+  });
+
+  it("returns false on /live regardless of VITE_ALLOW_DEMO or ?twin=", () => {
+    vi.stubEnv("VITE_ALLOW_DEMO", "true");
+    at("/live");
+    expect(demoRequested(window.location)).toBe(false);
+  });
+
+  it("returns false on /live?twin=demo (path is authoritative)", () => {
+    vi.stubEnv("VITE_ALLOW_DEMO", "true");
+    at("/live?twin=demo");
+    expect(demoRequested(window.location)).toBe(false);
+  });
+
+  it("returns true on /?twin=demo", () => {
+    at("/?twin=demo");
+    expect(demoRequested(window.location)).toBe(true);
+  });
+
+  it("returns false on /?twin=memory", () => {
+    at("/?twin=memory");
+    expect(demoRequested(window.location)).toBe(false);
+  });
+});
+
+describe("isDemoMode", () => {
+  it("is false on / without VITE_ALLOW_DEMO", () => {
+    vi.stubEnv("VITE_ALLOW_DEMO", "false");
+    at("/");
+    expect(isDemoMode()).toBe(false);
+  });
+
+  it("is true on / with VITE_ALLOW_DEMO=true", () => {
+    vi.stubEnv("VITE_ALLOW_DEMO", "true");
+    at("/");
+    expect(isDemoMode()).toBe(true);
+  });
+
+  it("is true on /demo", () => {
+    vi.stubEnv("VITE_ALLOW_DEMO", "false");
+    at("/demo");
+    expect(isDemoMode()).toBe(true);
+  });
+
+  it("is false on /live", () => {
+    vi.stubEnv("VITE_ALLOW_DEMO", "true");
+    at("/live");
+    expect(isDemoMode()).toBe(false);
+  });
+
+  it("is true on /?twin=demo", () => {
+    at("/?twin=demo");
+    expect(isDemoMode()).toBe(true);
+  });
+
+  it("is false on /?twin=memory", () => {
+    at("/?twin=memory");
+    expect(isDemoMode()).toBe(false);
+  });
+});
 
 describe("demo mode", () => {
   it("is on only under ?twin=demo", () => {

@@ -17,7 +17,7 @@ import { useTwinStore } from "@/state/twin.store";
 import type { SimulationAction } from "@/types/simulation.type";
 import { commitSimulation, createMemoryReviewer, discardSimulation, openSimulation } from "./memorySimulation";
 import { createApiReviewer, type SimulationReviewer } from "./simulationReview";
-import { demoAllowed } from "./demoMode";
+import { demoRequested } from "./demoMode";
 
 /** The editable twin behind `?twin=memory|demo`, once `pickSource` has made it. */
 let memoryTwin: MemoryTwin | null = null;
@@ -104,12 +104,19 @@ function memoryTwinSource(initial: StoreResponse = fixtureStoreState()): TwinSou
 }
 
 /**
- * The `?twin=` dev twin picked in the URL, or "" for apps/api. In a production build, only
- * `demo`, and only when the build allows it (`demoAllowed`).
+ * The `?twin=` dev twin picked in the URL, or "" for apps/api. In a production build, demo mode
+ * is determined by `demoRequested()` which checks DEMO_PATH, LIVE_PATH, ?twin=, and VITE_ALLOW_DEMO.
  */
 function devTwinMode(): string {
+  if (!import.meta.env.DEV) {
+    // Production: use demoRequested() to determine demo mode
+    // demoRequested() returns true for /demo, ?twin=demo, or / with VITE_ALLOW_DEMO=true
+    // Returns false for /live, ?twin=anything-else, or / without VITE_ALLOW_DEMO
+    if (demoRequested(window.location)) return "demo";
+    return "";
+  }
+  // Development: allow ?twin=memory|demo|fixture|offline|slow|flaky
   const mode = new URLSearchParams(window.location.search).get("twin") ?? "";
-  if (!import.meta.env.DEV) return mode === "demo" && demoAllowed() ? mode : "";
   return mode === "memory" || mode === "demo" || mode in DEV_SOURCES ? mode : "";
 }
 
@@ -130,6 +137,14 @@ export function pickSimulationReviewer(): SimulationReviewer | null {
   const mode = devTwinMode();
   if (!mode) return createApiReviewer();
   return memoryTwin && (mode === "memory" || mode === "demo") ? createMemoryReviewer(memoryTwin) : null;
+}
+
+/**
+ * True when the app reads the Live Twin from apps/api, not a dev twin.
+ * Use in the header to show "Live data" vs "Demo data" chip.
+ */
+export function isApiTwin(): boolean {
+  return devTwinMode() === "";
 }
 
 /**
