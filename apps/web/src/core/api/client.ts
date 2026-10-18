@@ -7,6 +7,59 @@ import type { RevenueSummary } from "@/types/revenue.type";
 import type { CandidatesResponse, ReviewResult, Simulation, SimulationsResponse } from "@/types/simulation.type";
 import type { AnomaliesResponse } from "@/types/anomaly.type";
 import type { CheckoutResponse } from "@/types/checkout.type";
+import { REVENUE_PERIOD, BUCKET_SIZE, type RevenuePeriod } from "@/enums/commerce.enum";
+
+/** Maps frontend period keys to backend period values. */
+function toBackendPeriod(period: RevenuePeriod): string {
+  switch (period) {
+    case REVENUE_PERIOD.Today:
+      return "hourly";
+    case REVENUE_PERIOD.Week:
+    case REVENUE_PERIOD.Month:
+      return "daily";
+  }
+}
+
+/** Backend RevenueResponse fields mapped to frontend RevenueSummary. */
+interface BackendRevenueResponse {
+  store_id: string;
+  period: "hourly" | "daily" | "weekly" | "monthly";
+  start: string;
+  end: string;
+  total_revenue: number;
+  total_transactions: number;
+  total_items_sold: number;
+  avg_transaction_value: number;
+  currency: "USD";
+  buckets: { timestamp: string; revenue: number; transactions: number; items_sold: number }[];
+}
+
+/** Transform backend RevenueResponse to frontend RevenueSummary. */
+function fromBackendRevenue(response: BackendRevenueResponse, period: RevenuePeriod): RevenueSummary {
+  return {
+    store_id: response.store_id,
+    period,
+    revenue: response.total_revenue,
+    transactions: response.total_transactions,
+    average_basket: response.avg_transaction_value,
+    margin_rate: 0, // Backend doesn't provide this
+    lost_to_stockout: 0, // Backend doesn't provide this
+    previous: {
+      revenue: 0,
+      transactions: 0,
+      average_basket: 0,
+      margin_rate: 0,
+    },
+    bucket_size: period === REVENUE_PERIOD.Today ? BUCKET_SIZE.Hour : BUCKET_SIZE.Day,
+    buckets: response.buckets.map((b) => ({
+      start: b.timestamp,
+      revenue: b.revenue,
+    })),
+    categories: [], // Backend doesn't provide this
+    top_skus: [], // Backend doesn't provide this
+    slow_skus: [], // Backend doesn't provide this
+  };
+}
 
 export class ApiError extends Error {
   readonly status: number;
@@ -52,7 +105,10 @@ export function createClient(baseUrl: string, fetchImpl?: typeof fetch): RetailT
     health: () => request<HealthResponse>("/health"),
     store: () => request<StoreResponse>("/store"),
     inventory: (sku: string) => request<ProductInventory>(`/inventory/${encodeURIComponent(sku)}`),
-    revenue: (period) => request<RevenueSummary>(`/revenue?period=${encodeURIComponent(period)}`),
+    revenue: (period) =>
+      request<BackendRevenueResponse>(`/revenue?period=${encodeURIComponent(toBackendPeriod(period))}`).then(
+        (response) => fromBackendRevenue(response, period),
+      ),
     promotions: () => request<PromotionsSummary>("/promotions"),
     simulations: () => request<SimulationsResponse>("/simulations?status=open"),
     simulation: (simulationId: string) => request<Simulation>(`/simulations/${encodeURIComponent(simulationId)}`),
