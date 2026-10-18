@@ -580,9 +580,6 @@ export const en = {
   commerce: {
     loadFailed: "Could not load the sales figures.",
   },
-  anomalies: {
-    loadFailed: "Could not load the anomalies.",
-  },
   storeStatus: {
     title: "Inventory",
     note: "Read only. Pick a row to find the product in the store.",
