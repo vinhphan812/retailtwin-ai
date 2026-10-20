@@ -2,6 +2,7 @@ import {
   AgentActivityOpenButton,
   AgentActivityPanel,
 } from "@/components/layout/AgentActivityPanel";
+import { CopilotDrawer } from "@/components/copilot/CopilotDrawer";
 import { BuildBadge } from "@/components/layout/BuildBadge";
 import { CameraHelp } from "@/components/layout/CameraHelp";
 import { KpiStrip } from "@/components/layout/KpiStrip";
@@ -85,6 +86,7 @@ export function TwinPage() {
           <AgentFocusCaption />
           <AiImpactToast />
           <AgentActivityOpenButton />
+          <CopilotDrawer assistant={null} />
           <EntityInspector />
           <ProductDetailsDialog />
           <TwinIssuesNotice />
