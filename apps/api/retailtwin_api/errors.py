@@ -45,9 +45,11 @@ def http_error_handler(request: Request, exc: Exception) -> JSONResponse:
     if not isinstance(exc, StarletteHTTPException):
         raise exc
     message = exc.detail if isinstance(exc.detail, str) else "Request failed."
+    path = request.url.path if request else None
+    method = request.method if request else None
     return JSONResponse(
         status_code=exc.status_code,
-        content=error_payload("http_error", message, path=request.url.path, method=request.method),
+        content=error_payload("http_error", message, path=path, method=method),
     )
 
 
