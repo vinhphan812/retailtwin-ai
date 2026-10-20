@@ -613,6 +613,7 @@ def _wire_flagship_controller(
         store_id=settings.store_id,
         registry=registry,
         evaluator=_build_flagship_evaluator(),
+        activity=app.state.activity,
     )
     app.state.flagship_controller = controller
     logger.info(
