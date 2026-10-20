@@ -199,6 +199,13 @@ jobs:
         with:
           node-version: '20.17'
 
+      # The deploy runner receives only the checked-out repository and web-dist;
+      # it does not inherit build-test's node_modules. Install the CLI from the
+      # committed npm lockfile before invoking its local binary.
+      - name: Install pinned Firebase CLI
+        working-directory: apps/web
+        run: npm ci --ignore-scripts
+
       - name: Deploy to Firebase Hosting
         id: deploy
         env:
