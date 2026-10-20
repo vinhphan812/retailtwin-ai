@@ -56,7 +56,7 @@ export function RevenueChart({ summary }: { summary: RevenueSummary }) {
           ) : null}
         </AnimatePresence>
         <AnimatePresence>
-          {hovered === null ? null : (
+          {hovered === null || !buckets[hovered] ? null : (
             <motion.div
               key="tip"
               className="revenue-chart-tip"
