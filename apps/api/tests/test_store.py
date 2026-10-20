@@ -44,6 +44,8 @@ def test_store_is_unavailable_without_a_fixture(tmp_path, monkeypatch) -> None:
         "error": {
             "code": "store_unavailable",
             "message": "Store fixture is not available.",
+            "path": "/store",
+            "method": "GET",
         }
     }
 
