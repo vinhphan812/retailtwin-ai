@@ -22,7 +22,7 @@ from retailtwin_api.schemas import (
     AnomalySeverity,
     AnomalyType,
     Promotion,
-    PromotionsResponse,
+    PromotionsSummary,
     PromotionStatus,
     PromotionType,
     RevenueBucket,
@@ -111,7 +111,7 @@ class PromotionRepository(Protocol):
         sku: str | None = None,
         category: str | None = None,
         limit: int = 100,
-    ) -> PromotionsResponse: ...
+    ) -> PromotionsSummary: ...
 
 
 class CheckoutRepository(Protocol):
@@ -268,22 +268,21 @@ class InMemoryPromotionRepository:
         sku: str | None = None,
         category: str | None = None,
         limit: int = 100,
-    ) -> PromotionsResponse:
+    ) -> PromotionsSummary:
         with self._lock:
             items = [
                 p for p in self._promotions
-                if p.store_id == store_id
-                and (status is None or p.status == status)
-                and (sku is None or p.sku == sku)
-                and (category is None or p.category == category)
+                if (status is None or p.status == status)
+                and (sku is None or sku in p.skus)
             ]
-            items.sort(key=lambda p: (p.start_time, p.promotion_id), reverse=True)
+            items.sort(key=lambda p: p.id, reverse=True)
             items = items[:limit]
-            active = [p for p in items if p.status == PromotionStatus.ACTIVE]
-            return PromotionsResponse(
+            return PromotionsSummary(
+                store_id=store_id,
+                revenue=sum(p.revenue for p in items),
+                incremental_revenue=sum(p.incremental_revenue for p in items),
+                discount_cost=sum(p.discount_cost for p in items),
                 promotions=[p.model_copy(deep=True) for p in items],
-                total=len(items),
-                active_count=len(active),
             )
 
 
@@ -615,7 +614,7 @@ class BigQueryPromotionRepository:
         sku: str | None = None,
         category: str | None = None,
         limit: int = 100,
-    ) -> PromotionsResponse:
+    ) -> PromotionsSummary:
         rows = _bq_promotions_query(
             self._runner,
             self._project,
@@ -627,11 +626,15 @@ class BigQueryPromotionRepository:
             limit,
         )
         promotions = [_row_to_promotion(r) for r in rows]
-        active = [p for p in promotions if p.status == PromotionStatus.ACTIVE]
-        return PromotionsResponse(
+        revenue = sum(p.revenue for p in promotions)
+        incremental = sum(p.incremental_revenue for p in promotions)
+        discount_cost = sum(p.discount_cost for p in promotions)
+        return PromotionsSummary(
+            store_id=store_id,
+            revenue=revenue,
+            incremental_revenue=incremental,
+            discount_cost=discount_cost,
             promotions=promotions,
-            total=len(promotions),
-            active_count=len(active),
         )
 
 
@@ -689,9 +692,9 @@ def _bq_promotions_query(
 
     sql = f"""
         SELECT
-            promotion_id, name, promotion_type, status, store_id,
-            sku, category, discount_value, conditions,
-            start_time, end_time, redemption_count, metadata
+            promotion_id, name, promotion_type, status,
+            start_time, end_time,
+            skus, revenue, incremental_revenue, discount_cost
         FROM {table}
         WHERE {" AND ".join(conditions)}
         ORDER BY start_time DESC
@@ -704,12 +707,16 @@ def _bq_promotions_query(
 
 
 def _row_to_promotion(row: dict[str, object]) -> Promotion:
-    def _ts(v: object) -> datetime:
+    """Map a BQ row dict to a ``Promotion`` model matching the FE contract."""
+
+    def _ts(v: object) -> str:
         if isinstance(v, str):
-            return datetime.fromisoformat(v.replace("Z", "+00:00"))
-        if isinstance(v, datetime):
-            return v
-        return datetime.now(timezone.utc)
+            dt = datetime.fromisoformat(v.replace("Z", "+00:00"))
+        elif isinstance(v, datetime):
+            dt = v
+        else:
+            dt = datetime.now(timezone.utc)
+        return dt.isoformat()
 
     type_str = str(row.get("promotion_type", "discount_percent")).lower()
     try:
@@ -723,25 +730,29 @@ def _row_to_promotion(row: dict[str, object]) -> Promotion:
     except ValueError:
         pstatus = PromotionStatus.ACTIVE
 
-    metadata_raw = row.get("metadata") or {}
-    if not isinstance(metadata_raw, dict):
-        metadata_raw = {}
-    metadata = {str(k): str(v) for k, v in metadata_raw.items()}
+    # `skus` may be a JSON string or a list in the BQ row.
+    skus_raw = row.get("skus")
+    if isinstance(skus_raw, str):
+        try:
+            skus = list(json.loads(skus_raw))
+        except Exception:
+            skus = []
+    elif isinstance(skus_raw, list):
+        skus = [str(s) for s in skus_raw]
+    else:
+        skus = []
 
     return Promotion(
-        promotion_id=str(row["promotion_id"]),
+        id=str(row["promotion_id"]),
         name=str(row["name"]),
-        promotion_type=ptype,
+        kind=ptype,
         status=pstatus,
-        store_id=str(row["store_id"]),
-        sku=str(row["sku"]) if row.get("sku") else None,
-        category=str(row["category"]) if row.get("category") else None,
-        discount_value=float(cast(Any, row["discount_value"])) if row.get("discount_value") else None,
-        conditions=str(row["conditions"]) if row.get("conditions") else None,
-        start_time=_ts(row.get("start_time")),
-        end_time=_ts(row.get("end_time")),
-        redemption_count=int(cast(Any, row.get("redemption_count") or 0)),
-        metadata=metadata,
+        starts_at=_ts(row.get("start_time")),
+        ends_at=_ts(row.get("end_time")),
+        skus=skus,
+        revenue=float(cast(Any, row.get("revenue") or 0)),
+        incremental_revenue=float(cast(Any, row.get("incremental_revenue") or 0)),
+        discount_cost=float(cast(Any, row.get("discount_cost") or 0)),
     )
 
 
@@ -838,5 +849,11 @@ class _UnavailablePromotionRepository:
         sku: str | None = None,
         category: str | None = None,
         limit: int = 100,
-    ) -> PromotionsResponse:
-        return PromotionsResponse(promotions=[], total=0, active_count=0)
+    ) -> PromotionsSummary:
+        return PromotionsSummary(
+            store_id=store_id,
+            revenue=0.0,
+            incremental_revenue=0.0,
+            discount_cost=0.0,
+            promotions=[],
+        )

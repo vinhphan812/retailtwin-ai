@@ -38,7 +38,8 @@ from retailtwin_api.schemas import (
     HealthResponse,
     ProductInventory,
     PromotionStatus,
-    PromotionsResponse,
+    PromotionKind,
+    PromotionsSummary,
     ReadyResponse,
     RevenueResponse,
     CheckoutResponse,
@@ -710,9 +711,18 @@ def list_anomalies(
 @router.get("/revenue", response_model=RevenueResponse, include_in_schema=True)
 def get_revenue(
     request: Request,
-    period: Literal["hourly", "daily", "weekly", "monthly", "7d", "30d"] = Query(default="daily"),
-    start: datetime | None = Query(default=None),
-    end: datetime | None = Query(default=None),
+    period: Literal["hourly", "daily", "weekly", "monthly", "7d", "30d"] = Query(
+        default="daily",
+        description="Aggregation period: hourly, daily, weekly, monthly, 7d, or 30d.",
+    ),
+    start: datetime | None = Query(
+        default=None,
+        description="Start of the reporting window (ISO-8601 with timezone, e.g. 2024-01-15T00:00:00+00:00).",
+    ),
+    end: datetime | None = Query(
+        default=None,
+        description="End of the reporting window (ISO-8601 with timezone, e.g. 2024-01-15T23:59:59+00:00).",
+    ),
     store_id: str | None = Query(default=None, min_length=1),
     repo: RevenueRepository = Depends(get_revenue_repo),
 ) -> RevenueResponse:
@@ -721,6 +731,16 @@ def get_revenue(
     Supports extended UI-facing periods (7d, 30d) which map to daily aggregation
     with explicit date windows. Degrades gracefully: if the analytics backend is
     unavailable, returns an empty revenue response with code "analytics_unavailable".
+
+    **422 errors** can occur when:
+    - ``period`` is not one of: hourly, daily, weekly, monthly, 7d, 30d
+    - ``start`` or ``end`` are not valid ISO-8601 datetime strings with timezone
+
+    **Examples**::
+
+        GET /revenue                                    # daily, last 24h
+        GET /revenue?period=7d                         # daily, last 7 days
+        GET /revenue?period=hourly&start=2024-01-01T00:00:00Z  # hourly from start
     """
     target_store = store_id or request.app.state.settings.store_id
     now = datetime.now(timezone.utc)
@@ -762,7 +782,7 @@ def get_revenue(
         raise ApiError(503, "analytics_unavailable", "Revenue analytics are currently unavailable.") from exc
 
 
-@router.get("/promotions", response_model=PromotionsResponse, include_in_schema=True)
+@router.get("/promotions", response_model=PromotionsSummary, include_in_schema=True)
 def list_promotions(
     request: Request,
     status: PromotionStatus | None = Query(default=None),
@@ -771,7 +791,7 @@ def list_promotions(
     limit: int = Query(default=100, ge=1, le=500),
     store_id: str | None = Query(default=None, min_length=1),
     repo: PromotionRepository = Depends(get_promotions),
-) -> PromotionsResponse:
+) -> PromotionsSummary:
     """Return promotions for a store, newest first.
 
     Degrades gracefully: if the analytics backend is unavailable, returns an empty
