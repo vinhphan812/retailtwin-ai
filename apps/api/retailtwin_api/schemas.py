@@ -229,6 +229,8 @@ class PromotionStatus(StrEnum):
     UPCOMING = "upcoming"
     ENDED = "ended"
     CANCELLED = "cancelled"
+    PENDING_REVIEW = "pending_review"
+    DRAFT = "draft"
 
 
 class PromotionType(StrEnum):
@@ -239,23 +241,40 @@ class PromotionType(StrEnum):
     LOYALTY_MULTIPLIER = "loyalty_multiplier"
 
 
+# Aliases for FE compatibility: `PromotionKind` maps to `PromotionType`.
+PromotionKind = PromotionType
+
+
 class Promotion(BaseModel):
-    promotion_id: str = Field(min_length=1)
+    """Promotion model aligned with the frontend `Promotion` type.
+
+    Field names and enum values match the frontend contract exactly.
+    The API response wraps this in a ``PromotionsSummary`` which also
+    carries aggregate financial fields (revenue, incremental_revenue,
+    discount_cost) computed from the listed promotions.
+    """
+
+    id: str = Field(min_length=1)
     name: str = Field(min_length=1)
-    promotion_type: PromotionType
+    kind: PromotionType = Field(alias="kind", validation_alias="kind")
     status: PromotionStatus
-    store_id: str = Field(min_length=1)
-    sku: str | None = None
-    category: str | None = None
-    discount_value: float | None = None
-    conditions: str | None = None
-    start_time: datetime
-    end_time: datetime
-    redemption_count: int = 0
-    metadata: dict[str, str] = Field(default_factory=dict)
+    starts_at: str
+    ends_at: str
+    skus: list[str] = Field(default_factory=list)
+    revenue: float = 0.0
+    incremental_revenue: float = 0.0
+    discount_cost: float = 0.0
 
 
-class PromotionsResponse(BaseModel):
+class PromotionsSummary(BaseModel):
+    """Response for ``GET /promotions`` — mirrors the frontend ``PromotionsSummary`` type."""
+
+    store_id: str
+    revenue: float
+    incremental_revenue: float
+    discount_cost: float
     promotions: list[Promotion]
-    total: int
-    active_count: int
+
+
+# Backwards compat alias
+PromotionsResponse = PromotionsSummary
