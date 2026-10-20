@@ -144,7 +144,7 @@ export function createClient(baseUrl: string, fetchImpl?: typeof fetch): RetailT
     },
     promotions: () =>
       request<PromotionsSummary>("/promotions").then((response) => {
-        const promotions: Promotion[] = (response.promotions as Promotion[]).map(
+        const promotions: Promotion[] = ((response.promotions ?? []) as Promotion[]).map(
           (p) =>
             "kind" in p
               ? p // already transformed (demo client path)
