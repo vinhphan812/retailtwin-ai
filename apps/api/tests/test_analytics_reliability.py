@@ -143,8 +143,9 @@ class TestPromotionsReliability:
         assert response.status_code == 200
         data = response.json()
         assert data["promotions"] == []
-        assert data["total"] == 0
-        assert data["active_count"] == 0
+        assert data["revenue"] == 0.0
+        assert data["incremental_revenue"] == 0.0
+        assert data["discount_cost"] == 0.0
 
     def test_raises_503_on_analytics_error(self, settings):
         """Real AnalyticsError from failing repo is caught and mapped to 503."""

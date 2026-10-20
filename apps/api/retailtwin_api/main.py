@@ -26,7 +26,9 @@ from retailtwin_api.agents.orchestrator.tool_registry import ToolRegistry, build
 from retailtwin_api.backbone import EventPipe, MemoryPipe, MemoryQuarantine
 from retailtwin_api.analytics_repository import (
     get_checkout_repository,
-    unavailable_analytics_repositories,
+    InMemoryAnomalyRepository,
+    InMemoryRevenueRepository,
+    InMemoryPromotionRepository,
 )
 from retailtwin_api.decisions import InMemoryDecisionSource, unavailable_decision_source
 from retailtwin_api.persistence import get_persistence
@@ -207,13 +209,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "fixture.unavailable",
             extra={"store_error": store.error, "fixture_path": str(resolved.store_fixture_path)},
         )
-    # Analytics repositories: GCP-backed (BigQuery + Firestore); empty adapters in dev.
-    # Checkout reads use the explicit in-memory scaffold pending a verified BQ schema.
-    # Swap app.state repositories in integration tests.
-    anomalies, revenue, promotions, _ = unavailable_analytics_repositories()
-    app.state.anomalies = anomalies
-    app.state.revenue = revenue
-    app.state.promotions = promotions
+    # Analytics repositories: in-memory seeded stores for development / demo mode.
+    # These serve realistic data without GCP credentials. Production deployments
+    # should override app.state repositories with BigQuery-backed implementations
+    # (BigQueryAnomalyRepository, BigQueryRevenueRepository, BigQueryPromotionRepository)
+    # once verified BQ tables and Firestore collections exist.
+    app.state.anomalies = InMemoryAnomalyRepository()
+    app.state.revenue = InMemoryRevenueRepository()
+    app.state.promotions = InMemoryPromotionRepository()
     app.state.checkouts = get_checkout_repository()
 
     # Correlation + structured logging middleware (must be outermost)
