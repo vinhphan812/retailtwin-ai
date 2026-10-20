@@ -170,11 +170,6 @@ export function demoRevenue(period: RevenuePeriod): RevenueSummary {
   };
 }
 
-/** Get SKU sales data for a revenue period. */
-export function demoSkuSales(period: RevenuePeriod): SkuRevenue[] {
-  return demoRevenue(period).top_skus ?? [];
-}
-
 const PROMOTIONS: Promotion[] = [
   {
     id: "PRM-101",

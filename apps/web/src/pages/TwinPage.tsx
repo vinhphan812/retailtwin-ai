@@ -86,7 +86,7 @@ export function TwinPage() {
           <AgentFocusCaption />
           <AiImpactToast />
           <AgentActivityOpenButton />
-          <CopilotDrawer assistant={assistant} />
+          <CopilotDrawer assistant={null} />
           <EntityInspector />
           <ProductDetailsDialog />
           <TwinIssuesNotice />
