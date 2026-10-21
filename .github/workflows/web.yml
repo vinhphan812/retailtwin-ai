@@ -215,6 +215,15 @@ jobs:
         with:
           node-version: '20.17'
 
+      # The deploy runner receives only the checked-out repository and web-dist;
+      # it does not inherit build-test's node_modules. Install the CLI from the
+      # committed npm lockfile before invoking its local binary.
+      # --include=dev is required because firebase-tools is a devDependency and
+      # npm ci omits devDependencies when NODE_ENV=production / omit=dev.
+      - name: Install pinned Firebase CLI
+        working-directory: apps/web
+        run: npm ci --include=dev --ignore-scripts
+
       - name: Deploy to Firebase Hosting
         id: deploy
         env:
@@ -224,7 +233,7 @@ jobs:
           # The site is read from firebase.json (hosting.site), not from a CLI flag.
           # firebase-tools is installed locally to avoid npx download latency/failures.
           set +e
-          DEPLOY_OUTPUT=$(./apps/web/node_modules/.bin/firebase-tools deploy \
+          DEPLOY_OUTPUT=$(./apps/web/node_modules/.bin/firebase deploy \
             --only hosting \
             --project retailtwin-ai-511002 \
             --token "${GOOGLE_OAUTH_ACCESS_TOKEN}" \
