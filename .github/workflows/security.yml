@@ -23,6 +23,13 @@ on:
 permissions:
   contents: read
 
+# Keep one active security run per PR/ref. When a newer commit is pushed,
+# GitHub cancels the obsolete in-progress run and replaces any queued run.
+# This makes the newest head SHA the only security result eligible for merge.
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   scan:
     if: false
