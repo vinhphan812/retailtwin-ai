@@ -231,17 +231,22 @@ This is fail-closed: every validation failure ends without a Live Twin mutation.
 
 The UI should show concise, factual activity such as:
 
-```text
-16:01:02 Trigger      Demand surge detected: P017
-16:01:03 Evidence     Shelf qty 8; backroom 54; velocity +46%
-16:01:05 Diagnosis    Shelf allocation likely insufficient
-16:01:07 Simulation   A/B/C evaluated
-16:01:08 Selection    Scenario B selected
-16:01:09 Guard        REFRESH_REQUIRED — inventory version changed
-16:01:11 Evidence     Context refreshed
-16:01:14 Guard        ALLOW
-16:01:15 Action       Facings 2→4; replenish +12
-16:01:17 Verification PASS
+```mermaid
+sequenceDiagram
+  participant Trigger as "Trigger"
+  participant Evidence as "Evidence"
+  participant Simulation as "Simulation"
+  participant Guard as "Decision Context Guard"
+  participant Action as "Action"
+  participant Verification as "Verification"
+  Trigger->>Evidence: "Demand surge detected: P017"
+  Evidence->>Simulation: "Shelf qty 8; backroom 54; velocity +46%"
+  Simulation->>Guard: "Evaluate and select scenario"
+  Guard-->>Evidence: "REFRESH_REQUIRED when inventory version changes"
+  Evidence->>Guard: "Refresh context"
+  Guard->>Action: "ALLOW"
+  Action->>Verification: "Facings 2 to 4; replenish 12"
+  Verification-->>Trigger: "PASS"
 ```
 
 These are evidence/action summaries, not model chain-of-thought.

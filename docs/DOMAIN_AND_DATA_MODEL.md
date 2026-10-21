@@ -151,22 +151,15 @@ Gemini does **not** call a generic live update.
 
 Expected flow:
 
-```text
-proposed_actions
-      ↓
-Simulation Twin
-      ↓
-Decision
-      ↓
-submit_action_for_commit(decision)
-      ↓
-DCG
-      ↓
-commit authorization
-      ↓
-Executor
-      ↓
-exact allowed live actions
+```mermaid
+flowchart TD
+  Proposed["Proposed actions"] --> Simulation["Simulation Twin"]
+  Simulation --> Decision["Decision"]
+  Decision --> Submit["submit_action_for_commit"]
+  Submit --> Guard["Decision Context Guard"]
+  Guard --> Authorisation["Commit authorisation"]
+  Authorisation --> Executor["Executor"]
+  Executor --> Live["Exact allowed live actions"]
 ```
 
 ## 10. Live Twin / Simulation Twin isolation
