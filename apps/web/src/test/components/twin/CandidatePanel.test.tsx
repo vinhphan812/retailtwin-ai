@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { MotionGlobalConfig } from "framer-motion";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CandidatePanel } from "@/components/twin/CandidatePanel";
 import { demoCandidates } from "@/fixtures/demo/candidates";
@@ -11,6 +12,8 @@ import { VIEW_MODE } from "@/enums/ui.enum";
 import { BASELINE_CANDIDATE_ID } from "@/enums/simulation.enum";
 
 vi.mock("@/core/notify", () => ({ notify: { info: vi.fn(), warning: vi.fn(), error: vi.fn(), success: vi.fn() } }));
+
+MotionGlobalConfig.skipAnimations = true;
 
 const live = demoStoreState();
 
