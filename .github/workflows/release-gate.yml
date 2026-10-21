@@ -99,6 +99,12 @@ jobs:
     outputs:
       gate_sha: ${{ steps.validate.outputs.gate_sha }}
       gate_passed: ${{ steps.validate.outputs.both_passed }}
+      # Track which CI workflows actually ran for this SHA so smoke jobs can
+      # skip gracefully for API-only or Web-only commits.  A no-candidate run
+      # (docs-only / single-surface) is not a gate failure, but smoke jobs must
+      # still know which surface to exercise.
+      api_ci_ran: ${{ steps.validate.outputs.api_ci_ran }}
+      web_ci_ran: ${{ steps.validate.outputs.web_ci_ran }}
     steps:
       - name: Fetch gate SHA
         id: sha
@@ -144,6 +150,8 @@ jobs:
           python3 - "${GATE_SHA}" << 'PYEOF'
           import json, sys
           errors = []
+          warnings = []
+          run_count = 0
           for label, path in [("API CI", "/tmp/api_run.json"), ("Web CI / CD", "/tmp/web_run.json")]:
               try:
                   run = json.load(open(path))
@@ -154,13 +162,23 @@ jobs:
               status   = run.get("status")   or ""
               conc     = run.get("conclusion") or ""
               if not head_sha:
-                  errors.append(f"{label}: no run found for SHA {sys.argv[1]}")
-              elif status in ("in_progress", "queued", "waiting"):
+                  # No run for this SHA — workflow not applicable for this change.
+                  # Per CI_CONTRACT.md: docs-only/API-only/Web-only commits that
+                  # have no run for one surface exit the gate as a no-candidate
+                  # result, avoiding a secondary expected failure.
+                  warnings.append(f"{label}: no run for SHA {sys.argv[1]} (no-candidate)")
+                  continue
+              run_count += 1
+              if status in ("in_progress", "queued", "waiting"):
                   errors.append(f"{label}: run is {status} for SHA {sys.argv[1]}")
               elif conc != "success":
                   errors.append(f"{label}: conclusion={conc or 'null'} (not success) for SHA {sys.argv[1]}")
+              else:
+                  warnings.append(f"{label}: PASS for SHA {sys.argv[1]}")
           ok = not errors
-          print(f"::debug::Gate decision: ok={ok}")
+          print(f"::debug::Gate decision: ok={ok}, runs={run_count}")
+          for w in warnings:
+              print(f"::notice::{w}")
           for e in errors:
               print(f"::error::{e}")
           sys.exit(0 if ok else 1)
@@ -177,6 +195,26 @@ jobs:
             echo "::error::Release gate FAILED — both 'API CI' and 'Web CI / CD' must succeed for the same SHA."
             exit 1
           fi
+
+          # Emit api_ci_ran / web_ci_ran so downstream smoke jobs know which surface
+          # actually deployed.  We use a single Python heredoc that reads both JSON files
+          # and emits shell 'echo ... >> $GITHUB_OUTPUT' commands; bash then runs those.
+          echo "::group::Determine which CI workflows ran for ${GATE_SHA}"
+          python3 - <<'PYEOF'
+            import json
+            for label, path in [("api_ci_ran", "/tmp/api_run.json"), ("web_ci_ran", "/tmp/web_run.json")]:
+                try:
+                    run = json.load(open(path))
+                    hs = run.get("head_sha") or ""
+                except Exception:
+                    hs = ""
+                ran = "true" if hs else "false"
+                # Emit a shell command that sets the GitHub Actions output
+                print(f"echo \"{label}={ran}\" >> $GITHUB_OUTPUT")
+                status = "ran" if hs else "no-candidate"
+                print(f"::notice::{label}={ran} — workflow {status} for SHA")
+            PYEOF
+          echo "::endgroup::"
 
       - name: Authenticate to Google Cloud (deployed-artifact verification)
         if: github.event_name == 'workflow_dispatch'
@@ -264,7 +302,7 @@ jobs:
       is_manual: ${{ github.event_name == 'workflow_dispatch' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
       - name: Set smoke run ID + canonical event id
         id: run_id
         run: |
@@ -460,7 +498,7 @@ jobs:
     name: "1. Backend Liveness"
     runs-on: self-hosted
     needs: [metadata, gate]
-    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true'
+    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true' && needs.gate.outputs.api_ci_ran == 'true'
     env:
       BACKEND_URL: ${{ needs.metadata.outputs.backend_url }}
       SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
@@ -507,7 +545,7 @@ jobs:
     name: "2. Backend Readiness"
     runs-on: self-hosted
     needs: [metadata, gate, smoke-backend-health]
-    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true'
+    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true' && needs.gate.outputs.api_ci_ran == 'true'
     env:
       BACKEND_URL: ${{ needs.metadata.outputs.backend_url }}
       SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
@@ -539,7 +577,7 @@ jobs:
     name: "3. Firestore-Backed Store Read"
     runs-on: self-hosted
     needs: [metadata, gate, smoke-backend-readiness]
-    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true'
+    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true' && needs.gate.outputs.api_ci_ran == 'true'
     env:
       BACKEND_URL: ${{ needs.metadata.outputs.backend_url }}
       SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
@@ -640,7 +678,7 @@ jobs:
     name: "4. P001 Inventory Read"
     runs-on: self-hosted
     needs: [metadata, gate, smoke-firestore-store]
-    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true'
+    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true' && needs.gate.outputs.api_ci_ran == 'true'
     env:
       BACKEND_URL: ${{ needs.metadata.outputs.backend_url }}
       SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
@@ -689,7 +727,7 @@ jobs:
     name: "5. P017 Inventory Read (Competition Demo Gate)"
     runs-on: self-hosted
     needs: [metadata, gate, smoke-p001-inventory]
-    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true'
+    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true' && needs.gate.outputs.api_ci_ran == 'true'
     env:
       BACKEND_URL: ${{ needs.metadata.outputs.backend_url }}
       SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
@@ -734,7 +772,7 @@ jobs:
     name: "6. BigQuery Analytics Read"
     runs-on: self-hosted
     needs: [metadata, gate, smoke-p017-inventory]
-    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true'
+    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true' && needs.gate.outputs.api_ci_ran == 'true'
     env:
       GCP_PROJECT: ${{ env.GCP_PROJECT }}
       BIGQUERY_DATASET: ${{ env.BIGQUERY_DATASET }}
@@ -781,7 +819,7 @@ jobs:
     name: "7. Pub/Sub Deterministic Event Trigger"
     runs-on: self-hosted
     needs: [metadata, gate, smoke-bigquery-analytics]
-    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true'
+    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true' && needs.gate.outputs.api_ci_ran == 'true'
     env:
       GCP_PROJECT: ${{ env.GCP_PROJECT }}
       PUBSUB_TOPIC: ${{ env.PUBSUB_TOPIC }}
@@ -839,7 +877,7 @@ jobs:
     name: "8. Agent Activity (Observer/Investigator)"
     runs-on: self-hosted
     needs: [metadata, gate, smoke-pubsub-event]
-    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true'
+    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true' && needs.gate.outputs.api_ci_ran == 'true'
     env:
       BACKEND_URL: ${{ needs.metadata.outputs.backend_url }}
       SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
@@ -906,7 +944,7 @@ jobs:
     name: "9. Vertex Gemini Real Tool Call"
     runs-on: self-hosted
     needs: [metadata, gate, smoke-agent-activity]
-    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true'
+    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true' && needs.gate.outputs.api_ci_ran == 'true'
     env:
       GCP_PROJECT: ${{ env.GCP_PROJECT }}
       GCP_REGION: ${{ env.GCP_REGION }}
@@ -954,7 +992,7 @@ jobs:
     name: "10. Simulation / DCG Safe Outcome"
     runs-on: self-hosted
     needs: [metadata, gate, smoke-vertex-gemini]
-    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true'
+    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true' && needs.gate.outputs.api_ci_ran == 'true'
     env:
       BACKEND_URL: ${{ needs.metadata.outputs.backend_url }}
       SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
@@ -1010,7 +1048,7 @@ jobs:
     name: "11. No Secrets in Output"
     runs-on: self-hosted
     needs: [metadata, gate, smoke-simulation-dcg]
-    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true'
+    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true' && needs.gate.outputs.api_ci_ran == 'true'
     env:
       BACKEND_URL: ${{ needs.metadata.outputs.backend_url }}
       SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
@@ -1062,7 +1100,7 @@ jobs:
     name: "12. Frontend HTTP Availability"
     runs-on: self-hosted
     needs: [metadata, gate, smoke-secret-scan]
-    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true'
+    if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true' && needs.gate.outputs.web_ci_ran == 'true'
     env:
       FRONTEND_URL: ${{ needs.metadata.outputs.frontend_url }}
       SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
