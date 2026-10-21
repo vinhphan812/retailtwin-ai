@@ -39,9 +39,9 @@ flowchart TD
       Observer[Observer]:::guard
       Investigator[Investigator]:::guard
       Planner[Planner]:::guard
-      Simulator[Simulation Twin]:::guard
+      Simulator["Simulation Twin"]:::guard
       DCG["Decision Context Guard<br/>No-Stale-Commit + signed token"]:::guard
-      Executor[Guarded Executor]:::guard
+      Executor["Guarded Executor"]:::guard
       Verifier[Verifier]:::guard
     end
 
