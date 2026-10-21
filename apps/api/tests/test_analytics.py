@@ -18,6 +18,7 @@ from retailtwin_api.schemas import (
     Promotion,
     PromotionStatus,
     PromotionType,
+    PromotionsSummary,
     RevenueBucket,
     CheckoutResponse,
     CheckoutSummary,
@@ -224,6 +225,38 @@ class TestRevenue:
         response = client.get("/revenue", params={"start": start, "end": end})
         assert response.status_code == 422
 
+
+    def test_invalid_datetime_format(self, client: TestClient):
+        """Malformed start/end datetime returns 422 with ISO-8601 hint."""
+        response = client.get("/revenue", params={"start": "not-a-date", "end": "2024-01-01"})
+        assert response.status_code == 422
+        data = response.json()
+        assert data["error"]["code"] == "validation_error"
+        details = data["error"]["details"]
+        # Should have field-level details
+        assert any("start" in str(d) or "end" in str(d) for d in details)
+
+    def test_invalid_range_returns_422_with_invalid_range_code(self, client: TestClient):
+        """start > end returns 422 with explicit invalid_range code."""
+        now = datetime.now(timezone.utc)
+        start = now.isoformat()
+        end = (now - timedelta(days=1)).isoformat()
+        response = client.get("/revenue", params={"start": start, "end": end})
+        assert response.status_code == 422
+        data = response.json()
+        assert data["error"]["code"] == "invalid_range"
+        assert "start" in data["error"]["message"] or "before" in data["error"]["message"]
+
+    def test_empty_store_id_returns_422(self, client: TestClient):
+        """Empty store_id returns 422 with min_length hint."""
+        response = client.get("/revenue", params={"store_id": ""})
+        assert response.status_code == 422
+        data = response.json()
+        assert data["error"]["code"] == "validation_error"
+        # Should have field-level info
+        details = data["error"]["details"]
+        assert any("store_id" in str(d) for d in details)
+
     def test_accepts_period_parameter(self, client: TestClient):
         for period in ("hourly", "daily", "weekly", "monthly", "7d", "30d"):
             response = client.get("/revenue", params={"period": period})
@@ -236,6 +269,7 @@ class TestRevenue:
         assert response.json()["period"] == "daily"
 
 
+
 # ─── /promotions tests ────────────────────────────────────────────────────────
 
 class TestPromotions:
@@ -244,8 +278,9 @@ class TestPromotions:
         assert response.status_code == 200
         data = response.json()
         assert data["promotions"] == []
-        assert data["total"] == 0
-        assert data["active_count"] == 0
+        assert data["revenue"] == 0.0
+        assert data["incremental_revenue"] == 0.0
+        assert data["discount_cost"] == 0.0
 
     def test_returns_promotions(
         self, client: TestClient, promotion_repo: InMemoryPromotionRepository
@@ -253,25 +288,27 @@ class TestPromotions:
         now = datetime.now(timezone.utc)
         promotion_repo.seed([
             Promotion(
-                promotion_id="p-001",
+                id="p-001",
                 name="Summer Sale 20% Off",
-                promotion_type=PromotionType.DISCOUNT_PERCENT,
+                kind=PromotionType.DISCOUNT_PERCENT,
                 status=PromotionStatus.ACTIVE,
-                store_id="store-001",
-                sku="SKU001",
-                discount_value=20.0,
-                start_time=now - timedelta(days=5),
-                end_time=now + timedelta(days=5),
-                redemption_count=42,
+                starts_at=now.isoformat(),
+                ends_at=(now + timedelta(days=10)).isoformat(),
+                skus=["SKU001", "SKU002"],
+                revenue=1200.0,
+                incremental_revenue=300.0,
+                discount_cost=180.0,
             ),
         ])
         response = client.get("/promotions")
         assert response.status_code == 200
         data = response.json()
-        assert data["total"] == 1
-        assert data["active_count"] == 1
-        assert data["promotions"][0]["promotion_id"] == "p-001"
+        assert len(data["promotions"]) == 1
+        assert data["promotions"][0]["id"] == "p-001"
         assert data["promotions"][0]["status"] == "active"
+        assert data["revenue"] == 1200.0
+        assert data["incremental_revenue"] == 300.0
+        assert data["discount_cost"] == 180.0
 
     def test_filters_by_status(
         self, client: TestClient, promotion_repo: InMemoryPromotionRepository
@@ -279,31 +316,35 @@ class TestPromotions:
         now = datetime.now(timezone.utc)
         promotion_repo.seed([
             Promotion(
-                promotion_id="p-active",
+                id="p-active",
                 name="Active Promo",
-                promotion_type=PromotionType.DISCOUNT_PERCENT,
+                kind=PromotionType.DISCOUNT_PERCENT,
                 status=PromotionStatus.ACTIVE,
-                store_id="store-001",
-                discount_value=10.0,
-                start_time=now - timedelta(days=1),
-                end_time=now + timedelta(days=1),
+                starts_at=now.isoformat(),
+                ends_at=(now + timedelta(days=1)).isoformat(),
+                skus=["SKU001"],
+                revenue=100.0,
+                incremental_revenue=25.0,
+                discount_cost=15.0,
             ),
             Promotion(
-                promotion_id="p-ended",
+                id="p-ended",
                 name="Ended Promo",
-                promotion_type=PromotionType.DISCOUNT_PERCENT,
+                kind=PromotionType.DISCOUNT_PERCENT,
                 status=PromotionStatus.ENDED,
-                store_id="store-001",
-                discount_value=10.0,
-                start_time=now - timedelta(days=10),
-                end_time=now - timedelta(days=5),
+                starts_at=(now - timedelta(days=10)).isoformat(),
+                ends_at=(now - timedelta(days=5)).isoformat(),
+                skus=["SKU002"],
+                revenue=50.0,
+                incremental_revenue=10.0,
+                discount_cost=5.0,
             ),
         ])
         response = client.get("/promotions", params={"status": "active"})
         assert response.status_code == 200
         data = response.json()
-        assert data["total"] == 1
-        assert data["promotions"][0]["promotion_id"] == "p-active"
+        assert len(data["promotions"]) == 1
+        assert data["promotions"][0]["id"] == "p-active"
 
     def test_filters_by_sku(
         self, client: TestClient, promotion_repo: InMemoryPromotionRepository
@@ -311,33 +352,35 @@ class TestPromotions:
         now = datetime.now(timezone.utc)
         promotion_repo.seed([
             Promotion(
-                promotion_id="p-sku001",
+                id="p-sku001",
                 name="SKU001 promo",
-                promotion_type=PromotionType.DISCOUNT_ABSOLUTE,
+                kind=PromotionType.DISCOUNT_ABSOLUTE,
                 status=PromotionStatus.ACTIVE,
-                store_id="store-001",
-                sku="SKU001",
-                discount_value=5.0,
-                start_time=now - timedelta(days=1),
-                end_time=now + timedelta(days=1),
+                starts_at=now.isoformat(),
+                ends_at=(now + timedelta(days=1)).isoformat(),
+                skus=["SKU001"],
+                revenue=50.0,
+                incremental_revenue=10.0,
+                discount_cost=8.0,
             ),
             Promotion(
-                promotion_id="p-sku002",
+                id="p-sku002",
                 name="SKU002 promo",
-                promotion_type=PromotionType.DISCOUNT_ABSOLUTE,
+                kind=PromotionType.DISCOUNT_ABSOLUTE,
                 status=PromotionStatus.ACTIVE,
-                store_id="store-001",
-                sku="SKU002",
-                discount_value=3.0,
-                start_time=now - timedelta(days=1),
-                end_time=now + timedelta(days=1),
+                starts_at=now.isoformat(),
+                ends_at=(now + timedelta(days=1)).isoformat(),
+                skus=["SKU002"],
+                revenue=30.0,
+                incremental_revenue=5.0,
+                discount_cost=3.0,
             ),
         ])
         response = client.get("/promotions", params={"sku": "SKU001"})
         assert response.status_code == 200
         data = response.json()
-        assert data["total"] == 1
-        assert data["promotions"][0]["sku"] == "SKU001"
+        assert len(data["promotions"]) == 1
+        assert "SKU001" in data["promotions"][0]["skus"]
 
     def test_respects_limit(
         self, client: TestClient, promotion_repo: InMemoryPromotionRepository
@@ -345,61 +388,73 @@ class TestPromotions:
         now = datetime.now(timezone.utc)
         promotion_repo.seed([
             Promotion(
-                promotion_id=f"p-{i:03d}",
+                id=f"p-{i:03d}",
                 name=f"Promo {i}",
-                promotion_type=PromotionType.DISCOUNT_PERCENT,
+                kind=PromotionType.DISCOUNT_PERCENT,
                 status=PromotionStatus.ACTIVE,
-                store_id="store-001",
-                discount_value=10.0,
-                start_time=now - timedelta(days=i),
-                end_time=now + timedelta(days=5),
+                starts_at=(now - timedelta(days=i)).isoformat(),
+                ends_at=(now + timedelta(days=5)).isoformat(),
+                skus=[f"SKU{i:03d}"],
+                revenue=100.0,
+                incremental_revenue=25.0,
+                discount_cost=15.0,
             )
             for i in range(10)
         ])
         response = client.get("/promotions", params={"limit": 3})
         assert response.status_code == 200
         data = response.json()
-        assert data["total"] == 3
         assert len(data["promotions"]) == 3
 
-    def test_active_count_excludes_non_active(
+    def test_promotions_summary_includes_aggregates(
         self, client: TestClient, promotion_repo: InMemoryPromotionRepository
     ):
         now = datetime.now(timezone.utc)
         promotion_repo.seed([
             Promotion(
-                promotion_id="p-active",
+                id="p-active",
                 name="Active",
-                promotion_type=PromotionType.BUY_ONE_GET_ONE,
+                kind=PromotionType.BUY_ONE_GET_ONE,
                 status=PromotionStatus.ACTIVE,
-                store_id="store-001",
-                start_time=now - timedelta(days=1),
-                end_time=now + timedelta(days=1),
+                starts_at=(now - timedelta(days=1)).isoformat(),
+                ends_at=(now + timedelta(days=1)).isoformat(),
+                skus=["SKU001"],
+                revenue=200.0,
+                incremental_revenue=50.0,
+                discount_cost=30.0,
             ),
             Promotion(
-                promotion_id="p-upcoming",
+                id="p-upcoming",
                 name="Upcoming",
-                promotion_type=PromotionType.BUY_ONE_GET_ONE,
+                kind=PromotionType.BUY_ONE_GET_ONE,
                 status=PromotionStatus.UPCOMING,
-                store_id="store-001",
-                start_time=now + timedelta(days=1),
-                end_time=now + timedelta(days=10),
+                starts_at=(now + timedelta(days=1)).isoformat(),
+                ends_at=(now + timedelta(days=10)).isoformat(),
+                skus=["SKU002"],
+                revenue=0.0,
+                incremental_revenue=0.0,
+                discount_cost=0.0,
             ),
             Promotion(
-                promotion_id="p-ended",
+                id="p-ended",
                 name="Ended",
-                promotion_type=PromotionType.BUY_ONE_GET_ONE,
+                kind=PromotionType.BUY_ONE_GET_ONE,
                 status=PromotionStatus.ENDED,
-                store_id="store-001",
-                start_time=now - timedelta(days=10),
-                end_time=now - timedelta(days=5),
+                starts_at=(now - timedelta(days=10)).isoformat(),
+                ends_at=(now - timedelta(days=5)).isoformat(),
+                skus=["SKU003"],
+                revenue=100.0,
+                incremental_revenue=20.0,
+                discount_cost=15.0,
             ),
         ])
         response = client.get("/promotions")
         assert response.status_code == 200
         data = response.json()
-        assert data["total"] == 3
-        assert data["active_count"] == 1  # only ACTIVE counts
+        assert len(data["promotions"]) == 3
+        assert data["revenue"] == 300.0
+        assert data["incremental_revenue"] == 70.0
+        assert data["discount_cost"] == 45.0
 
 
 # ─── /checkouts tests ──────────────────────────────────────────────────────────
