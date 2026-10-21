@@ -204,7 +204,7 @@ jobs:
       # committed npm lockfile before invoking its local binary.
       - name: Install pinned Firebase CLI
         working-directory: apps/web
-        run: npm ci --ignore-scripts
+        run: npm ci --include=dev --ignore-scripts
 
       - name: Deploy to Firebase Hosting
         id: deploy
@@ -215,7 +215,7 @@ jobs:
           # The site is read from firebase.json (hosting.site), not from a CLI flag.
           # firebase-tools is installed locally to avoid npx download latency/failures.
           set +e
-          DEPLOY_OUTPUT=$(./apps/web/node_modules/.bin/firebase-tools deploy \
+          DEPLOY_OUTPUT=$(./apps/web/node_modules/.bin/firebase deploy \
             --only hosting \
             --project retailtwin-ai-511002 \
             --token "${GOOGLE_OAUTH_ACCESS_TOKEN}" \
