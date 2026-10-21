@@ -75,6 +75,8 @@ def test_same_event_id_with_a_different_payload_conflicts(client, patch: dict[st
         "error": {
             "code": "event_id_conflict",
             "message": "Event 'evt-000123' already exists with a different payload.",
+            "path": "/events",
+            "method": "POST",
         }
     }
     assert client.get("/inventory/P001").json()["shelf_quantity"] == 8

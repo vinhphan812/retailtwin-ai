@@ -15,6 +15,8 @@ def test_unknown_sku_is_a_controlled_not_found(client) -> None:
         "error": {
             "code": "sku_not_found",
             "message": "SKU 'P017' is not in store store-001.",
+            "path": "/inventory/P017",
+            "method": "GET",
         }
     }
 

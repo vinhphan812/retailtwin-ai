@@ -1,13 +1,14 @@
 import i18n from "@/i18n";
 import { isDemoMode } from "@/core/twin/demoMode";
 import type { AgentEventsResponse, FlagshipStatusResponse, HealthResponse, RetailTwinClient } from "@/types/api.type";
-import { REVENUE_PERIOD } from "@/enums/commerce.enum";
+import { PROMOTION_KIND, REVENUE_PERIOD } from "@/enums/commerce.enum";
 import type { ProductInventory, StoreResponse } from "@/types/twin.type";
-import type { PromotionsSummary } from "@/types/promotion.type";
+import type { Promotion, PromotionsSummary } from "@/types/promotion.type";
 import type { RevenueSummary } from "@/types/revenue.type";
 import type { CandidatesResponse, ReviewResult, Simulation, SimulationsResponse } from "@/types/simulation.type";
 import type { AnomaliesResponse } from "@/types/anomaly.type";
 import type { CheckoutResponse } from "@/types/checkout.type";
+import type { RevenueResponse } from "@/types/revenue.type";
 
 export class ApiError extends Error {
   readonly status: number;
@@ -42,6 +43,77 @@ export function createClient(baseUrl: string, fetchImpl?: typeof fetch): RetailT
     [REVENUE_PERIOD.Month]: "30d",
   };
 
+  /**
+   * Backend `PromotionType` → FE `PromotionKind` mapping.
+   * The BE schema uses `PromotionType` enum values (e.g. "discount_percent");
+   * the FE `Promotion` type uses `PromotionKind` (e.g. "percent_off").
+   * See: BE `schemas.py PromotionType`, FE `types/promotion.type.ts Promotion.kind`.
+   */
+  const PROMOTION_TYPE_TO_KIND: Record<string, (typeof PROMOTION_KIND)[keyof typeof PROMOTION_KIND]> = {
+    discount_percent: PROMOTION_KIND.PercentOff,
+    discount_absolute: PROMOTION_KIND.AmountOff,
+    buy_one_get_one: PROMOTION_KIND.BuyXGetY,
+    bundle: PROMOTION_KIND.Bundle,
+    loyalty_multiplier: PROMOTION_KIND.PercentOff, // closest approximation
+  };
+
+  /**
+   * Transform a BE `Promotion` (from `PromotionsResponse.promotions`) to the FE `Promotion` type.
+   * Handles field name differences (`promotion_type` → `kind`) and type enum translation.
+   */
+  function toPromotion(raw: {
+    promotion_id: string;
+    name: string;
+    promotion_type: string;
+    status: string;
+    store_id: string;
+    sku: string | null;
+    category: string | null;
+    discount_value: number | null;
+    conditions: string | null;
+    start_time: string;
+    end_time: string;
+    redemption_count: number;
+    metadata?: Record<string, string>;
+  }): Promotion {
+    return {
+      id: raw.promotion_id,
+      name: raw.name,
+      kind: PROMOTION_TYPE_TO_KIND[raw.promotion_type] ?? PROMOTION_KIND.PercentOff,
+      status: raw.status as Promotion["status"],
+      value: raw.discount_value ?? 0,
+      starts_at: raw.start_time,
+      ends_at: raw.end_time,
+      skus: raw.sku ? [raw.sku] : [],
+      revenue: 0,
+      incremental_revenue: 0,
+      discount_cost: 0,
+    };
+  }
+
+  /** Transform the BE `RevenueResponse` to the FE `RevenueSummary`. */
+  function toRevenueSummary(response: RevenueResponse, period: string): RevenueSummary {
+    return {
+      store_id: response.store_id,
+      period: period as RevenueSummary["period"],
+      start: response.start,
+      end: response.end,
+      currency: response.currency,
+      revenue: response.total_revenue,
+      transactions: response.total_transactions,
+      average_basket: response.avg_transaction_value,
+      items_sold: response.total_items_sold,
+      margin_rate: null,
+      lost_to_stockout: null,
+      previous: null,
+      bucket_size: period === REVENUE_PERIOD.Today ? "hour" : "day",
+      buckets: (response.buckets ?? []).map((b) => ({ start: b.timestamp ?? b.start ?? "", revenue: b.revenue })),
+      categories: null,
+      top_skus: null,
+      slow_skus: null,
+    };
+  }
+
   async function request<T>(path: string, init?: RequestInit): Promise<T> {
     // The demo is synthetic: whatever control a click reaches, it never writes to apps/api.
     if (init?.method && init.method !== "GET" && isDemoMode()) {
@@ -66,9 +138,26 @@ export function createClient(baseUrl: string, fetchImpl?: typeof fetch): RetailT
     inventory: (sku: string) => request<ProductInventory>(`/inventory/${encodeURIComponent(sku)}`),
     revenue: (period) => {
       const backendPeriod = UI_TO_BACKEND_PERIOD[period] ?? period;
-      return request<RevenueSummary>(`/revenue?period=${encodeURIComponent(backendPeriod)}`);
+      return request<RevenueResponse>(`/revenue?period=${encodeURIComponent(backendPeriod)}`).then(
+        (response) => toRevenueSummary(response, backendPeriod),
+      );
     },
-    promotions: () => request<PromotionsSummary>("/promotions"),
+    promotions: () =>
+      request<PromotionsSummary>("/promotions").then((response) => {
+        const promotions: Promotion[] = ((response.promotions ?? []) as Promotion[]).map(
+          (p) =>
+            "kind" in p
+              ? p // already transformed (demo client path)
+              : toPromotion(p as Parameters<typeof toPromotion>[0]),
+        );
+        return {
+          store_id: response.store_id,
+          revenue: promotions.reduce((sum, p) => sum + (p.revenue ?? 0), 0),
+          incremental_revenue: promotions.reduce((sum, p) => sum + (p.incremental_revenue ?? 0), 0),
+          discount_cost: promotions.reduce((sum, p) => sum + (p.discount_cost ?? 0), 0),
+          promotions,
+        };
+      }),
     simulations: () => request<SimulationsResponse>("/simulations?status=open"),
     simulation: (simulationId: string) => request<Simulation>(`/simulations/${encodeURIComponent(simulationId)}`),
     candidates: (simulationId: string) => request<CandidatesResponse>(`/simulations/${encodeURIComponent(simulationId)}/candidates`),
