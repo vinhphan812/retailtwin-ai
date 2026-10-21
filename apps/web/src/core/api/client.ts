@@ -107,7 +107,7 @@ export function createClient(baseUrl: string, fetchImpl?: typeof fetch): RetailT
       lost_to_stockout: null,
       previous: null,
       bucket_size: period === REVENUE_PERIOD.Today ? "hour" : "day",
-      buckets: response.buckets.map((b) => ({ start: b.timestamp ?? b.start ?? "", revenue: b.revenue })),
+      buckets: (response.buckets ?? []).map((b) => ({ start: b.timestamp ?? b.start ?? "", revenue: b.revenue })),
       categories: null,
       top_skus: null,
       slow_skus: null,
