@@ -10,8 +10,14 @@ The submission is intentionally positioned as an autonomous retail-operations sy
 
 Core judge-visible story:
 
-```text
-EVENT → AI → INVESTIGATE → SIMULATE → GUARD → LIVE 3D ACTION → VERIFY
+```mermaid
+flowchart LR
+  Event["Store event"] --> Ai["Autonomous AI"]
+  Ai --> Investigate["Investigate"]
+  Investigate --> Simulate["Simulate"]
+  Simulate --> Guard["Guard"]
+  Guard --> LiveAction["Live 3D action"]
+  LiveAction --> Verify["Verify"]
 ```
 
 The technical differentiator is the **Decision Context Guard (DCG)** and **No-Stale-Commit** behavior: a decision is bound to the context that justified it and is revalidated immediately before a live action. A stale decision must fail closed.

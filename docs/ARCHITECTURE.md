@@ -2,84 +2,59 @@
 
 ## 1. Architecture objective
 
-> This document is the **target architecture**. It does not imply every component is already implemented. See `docs/CURRENT_STATUS.md` for the current `main` baseline and gate status.
+> This document is a source-backed architecture map. It does not assert that a cloud deployment or release gate has passed; see `docs/CURRENT_STATUS.md` for recorded maturity and gate evidence.
 
-RetailTwin AI must autonomously react to retail events while preserving a strict boundary between AI reasoning and live operational state.
+RetailTwin AI preserves a boundary between AI reasoning and live operational state. The FastAPI service owns store reads, agent orchestration, guard decisions, and the guarded write path; the Vite/React client reads it over HTTP.
 
-High-level path:
-
-```text
-POS / Inventory / Promotion / Demo Events
-                 |
-              Pub/Sub
-                 |
-             Observer
-                 |
-           Investigator
-                 |
-        Gemini Planner/Orchestrator
-                 |
-        Candidate Action Plans
-                 |
-          Simulation Service
-          /       |        \
-     Scenario A Scenario B Scenario C
-          \       |        /
-          KPI Evaluator
-                 |
-          Selected Decision
-                 |
-       Decision Context Guard
-          |       |       |
-        DENY   REFRESH   ALLOW
-                  |        |
-               Re-plan   Commit Authorization
-                           |
-                        Executor
-                           |
-                       Live Twin
-                           |
-                    3D Visualization
-                           |
-                        Verifier
+```mermaid
+flowchart TD
+  Event["Store or demo event"] --> Observer["Observer"]
+  Observer --> Investigator["Investigator"]
+  Investigator --> Planner["Planner"]
+  Planner --> Simulation["Simulation repository"]
+  Simulation --> Guard["Decision Context Guard"]
+  Guard -->|"ALLOW"| Authorization["Signed single-use authorisation"]
+  Authorization --> Executor["Guarded executor"]
+  Executor --> LiveTwin["Memory or Firestore Live Twin"]
+  Executor --> Verifier["Post-action verifier"]
+  Guard -->|"DENY or HUMAN_REVIEW"| Stop["No live mutation"]
+  Guard -->|"REFRESH_REQUIRED"| Replan["Bounded replan"]
+  Replan --> Investigator
+  Web["Vite React web client"] -->|"HTTP JSON"| Api["FastAPI service"]
+  Api -->|"GET /store"| LiveTwin
 ```
 
-## 2. Architecture end-to-end flow (planned vs implemented)
+**Source anchors:** `apps/api/retailtwin_api/main.py`, `apps/api/retailtwin_api/routes.py`, `apps/api/retailtwin_api/settings.py`, `apps/api/retailtwin_api/agents/`, and `apps/web/src/core/api/`.
+
+## 2. Architecture end-to-end flow
 
 ```mermaid
 flowchart LR
-  subgraph Events ["Events"]
-    E[Store events<br/>POS / inventory / promotion]
-    PS[Pub/Sub]
+  subgraph Events["Events"]
+    Event["Store events"]
+    PubSub["Pub/Sub"]
   end
 
-  E --> PS
-  PS --> O[Observer]
-  O --> I[Investigator]
-  I --> P[Gemini planner]
-  P --> S[Simulation Twin]
-  S --> K[KPI evaluator]
-  K --> G[Decision Context Guard]
+  Event --> PubSub
+  PubSub --> Observer["Observer"]
+  Observer --> Investigator["Investigator"]
+  Investigator --> Planner["Gemini planner"]
+  Planner --> Simulation["Simulation Twin"]
+  Simulation --> Evaluator["KPI evaluator"]
+  Evaluator --> Guard["Decision Context Guard"]
 
-  G -- "ALLOW + authorization" --> X[Executor]
-  G -- REFRESH_REQUIRED --> P
-  G -- DENY --> F[Fail closed]
-  G -- HUMAN_REVIEW --> H[Human review]
-  H -.-> P
+  Guard -->|"ALLOW plus authorisation"| Executor["Executor"]
+  Guard -->|"REFRESH_REQUIRED"| Planner
+  Guard -->|"DENY"| FailClosed["Fail closed"]
+  Guard -->|"HUMAN_REVIEW"| HumanReview["Human review"]
+  HumanReview -.-> Planner
 
-  X --> L[Live Twin]
-  L --> V[3D view]
-  V --> Z[Verifier]
-
-  classDef implemented fill:#d9f7e8,stroke:#16794a
-  classDef planned fill:#fff2cc,stroke:#9a6700
-  classDef event fill:#eaf4fc,stroke:#3772a5
-  class E,PS event
-  class V implemented
-  class O,I,P,S,K,G,X,L,F,H,Z planned
+  Executor --> LiveTwin["Live Twin"]
+  LiveTwin --> View["3D view"]
+  View --> Verifier["Verifier"]
 ```
 
-Gate posture (per `docs/CURRENT_STATUS.md`): all gates **pending** — no linked test, deployment, or 20-run evidence was available in the checked-out repository.
+The diagram describes the implementation boundary, not proof that every external adapter or gate has run. The web client polls the API's `GET /store` route; it does not read a Live Twin directly. `docs/CURRENT_STATUS.md` records current gate evidence.
 
 ## 2. Technology stack
 
@@ -99,16 +74,15 @@ Gate posture (per `docs/CURRENT_STATUS.md`): all gates **pending** — no linked
 - Google ADK is optional for specialized multi-agent orchestration after the single-orchestrator MVP is stable
 - Structured tool/function calling only
 
-### Operational data
-- Firestore: current Live Twin and simulation branch metadata/state
-- BigQuery: sales history, inventory history, analytical features, action/audit history
-- Pub/Sub: event-driven activation
-- Cloud Storage: 3D/static assets
-- Secret Manager: runtime secrets where required
-- Cloud Logging: technical logs
-- Firebase Authentication: role/user authentication when enabled
+### Operational data and runtime adapters
+- **Store backend:** `fixture`, `memory`, or `firestore`; local settings default to in-process `memory` seeded from the committed fixture.
+- **Firestore and BigQuery:** adapters and infrastructure are present in the repository; a source-level description is not a claim that a remote resource is live.
+- **Pub/Sub:** `POST /events` accepts normalised events. In production, the autonomous subscription is designed for push delivery to `POST /pubsub/agent-events`; the application does not start a competing pull loop there.
+- **Cloud Storage:** configured for static/3D assets in the infrastructure documentation.
+- **Cloud Run and Firebase Hosting:** deployment workflows are configured; recorded runtime results belong to the release-gate workflow and evidence documents.
+- **Secret Manager and Cloud Logging:** runtime integration points where configured; no secret value belongs in repository documentation.
 
-### LLM Provider Architecture
+### LLM provider architecture
 The inference layer uses a **provider-neutral contract** in `apps/api/retailtwin_api/llm/contracts.py`.
 All adapters implement `LlmProvider.complete(request: LlmRequest) -> LlmResponse`.
 
@@ -183,18 +157,14 @@ Possible outcomes:
 
 ### No-Stale-Commit
 
-```text
-Decision built at store version v23871
-             |
-     live context changes
-             v
-Current version v23879
-             |
-            DCG
-             |
-      REFRESH_REQUIRED
-             |
- refresh evidence → new decision → simulate → DCG again
+```mermaid
+flowchart TD
+  Decision["Decision built with a context version"] --> Change["Relevant live context changes"]
+  Change --> Guard["Decision Context Guard"]
+  Guard --> Refresh["REFRESH_REQUIRED"]
+  Refresh --> Evidence["Refresh evidence"]
+  Evidence --> Replan["Create and simulate a new decision"]
+  Replan --> Guard
 ```
 
 No valid authorization means no Live Twin mutation.
@@ -252,22 +222,29 @@ Suggested policy:
 
 ## 10. Repository ownership map
 
-```text
-apps/web                         3D + UX
-apps/api                         API/integration boundary
-agents/orchestrator              autonomous state machine
-agents/observer                  event activation
-agents/investigator              evidence gathering
-agents/planner                   structured plans
-agents/simulator                 simulation orchestration
-agents/executor                  guarded execution
-agents/verifier                  post-action verification
-guard/decision_context_guard     deterministic live-action guard
-services/twin                    canonical twin access
-services/simulation              clone/apply/evaluate
-services/optimizer               optional candidate optimizer
-services/forecasting             demand/risk services
-data/*                           schemas, seed, synthetic scenarios
-infrastructure/*                 GCP/Firebase configuration
-tests/*                          unit/integration/E2E
-```
+| Area | Responsibility |
+|---|---|
+| `apps/web` | 3D user experience and typed HTTP client |
+| `apps/api` | API and integration boundary |
+| `apps/api/retailtwin_api/agents` | Observer, investigation, planning, simulation, execution, and verification |
+| `apps/api/retailtwin_api/guard` | Deterministic live-action guard |
+| `services/simulation` | Clone, apply, and evaluate simulation candidates |
+| `services/optimizer` | Optional candidate optimiser |
+| `services/forecasting` | Demand and risk services |
+| `data` | Schemas, seed data, and synthetic scenarios |
+| `infrastructure` | GCP and Firebase configuration |
+| `tests` | Unit, integration, and end-to-end validation |
+
+## 11. Deployment configuration
+
+`firebase.json` configures a Firebase Hosting site with `apps/web/dist` as its public directory and a single-page-app rewrite to `/index.html`. `.github/workflows/web.yml` builds the web client with the repository variable `FIREBASE_API_BASE_URL`; on a `main` push it uses WIF/OIDC to deploy the Hosting configuration, then performs its configured smoke checks.
+
+`.github/workflows/api.yml` has a separate `main`-push Cloud Run deployment job. Its declared production environment includes `APP_ENV=production`, `LOG_LEVEL=INFO`, and `LIVE_TWIN_BACKEND=firestore`. The manual scripts are different paths: `scripts/deploy-cloudrun.sh` uses Artifact Registry and sets additional runtime variables, while `scripts/deploy-web.sh` builds with its configured API origin and refuses a localhost value in the generated bundle.
+
+These workflow definitions establish intended deployment behaviour only. They do not establish current Firebase Hosting, Cloud Run, API-origin, CORS, or remote-resource health for this commit.
+
+**Source anchors:** `firebase.json`, `.firebaserc`, `.github/workflows/web.yml`, `.github/workflows/api.yml`, `scripts/deploy-web.sh`, and `scripts/deploy-cloudrun.sh`.
+
+## 12. Validation limit
+
+A route, adapter, workflow, or diagram is not deployment evidence. Use `docs/CURRENT_STATUS.md`, `docs/CLOUD_RUNTIME_MATRIX.md`, release-gate output, and historical evidence/runbooks to distinguish source configuration from recorded remote validation.

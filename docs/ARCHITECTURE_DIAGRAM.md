@@ -1,8 +1,8 @@
 # RetailTwin AI — Architecture Diagram
 
-> **Purpose.** This document distills the canonical architecture of RetailTwin AI into four Mermaid diagrams. It is the **diagram half** of issue [#46](../README.md): one self-contained Mermaid block per layer, renderable on GitHub and in VS Code without extensions.
+> **Purpose.** This document contains extended Mermaid diagrams for the intended architecture and source configuration. It is not remote-runtime or release-gate evidence; use [CURRENT_STATUS.md](CURRENT_STATUS.md) and the linked evidence/runbooks for recorded results.
 >
-> **Audience.** Submission reviewers, new contributors, and judges who want a single-page map of the system before reading the deeper docs.
+> **Audience.** Submission reviewers, new contributors, and judges who want a single-page map before reading the source-backed [ARCHITECTURE.md](ARCHITECTURE.md).
 >
 > **Authoritative sources.** All diagrams are derived from `docs/PROJECT_CONTEXT.md`, `docs/ARCHITECTURE.md`, `docs/DOMAIN_AND_DATA_MODEL.md`, `docs/CURRENT_STATUS.md`, `docs/CLOUD_RUNTIME_MATRIX.md`, and the ADRs in `docs/adr/`. When this file disagrees with those, the source docs win. See `docs/SUBMISSION_INDEX.md` for a quick pointer map.
 
@@ -10,7 +10,7 @@
 
 ## 1. System context — who talks to whom
 
-This is the bird's-eye view: an external store event or operator command enters through the Google Cloud boundary, the RetailTwin AI control loop returns a guarded live mutation, and the 3D Twin surfaces the result.
+This is an illustrative target/system map. The committed web client reads FastAPI routes; it does not access Firestore directly. Where source configuration names a GCP resource, that name is not evidence that the resource is live or that this flow has executed.
 
 ```mermaid
 flowchart TD
@@ -67,7 +67,7 @@ flowchart TD
     Storage -. "GLB models + fixtures<br/>read-only" .-> Web
 ```
 
-**Read it left-to-right**: a synthetic POS event enters Pub/Sub; the Cloud Run API consumes it through the seven-stage control loop; mutations are committed to Firestore only through the guarded Executor; BigQuery holds the audit trail; the 3D Twin reflects the Live state. The Gemini inference path is dotted because it is one constrained tool call, not a free-form chat.
+**Read it as a target/source configuration map**: it shows the intended separation of event intake, guarded execution, audit, and the 3D client. It does not claim that a specific Pub/Sub delivery path, cloud adapter, Gemini call, BigQuery audit row, or remote 3D update has executed. For the current API/web boundary and validation limits, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 
