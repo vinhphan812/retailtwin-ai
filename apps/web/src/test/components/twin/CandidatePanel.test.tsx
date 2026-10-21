@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MotionGlobalConfig } from "framer-motion";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { CandidatePanel } from "@/components/twin/CandidatePanel";
 import { demoCandidates } from "@/fixtures/demo/candidates";
 import { demoSimulation } from "@/fixtures/demo/simulation";
@@ -29,6 +29,20 @@ function open() {
 }
 
 beforeEach(() => vi.clearAllMocks());
+
+/**
+ * HeroUI's Tooltip lazily loads framer-motion's animation features
+ * (`@heroui/dom-animation`) the first time it mounts. The import resolves
+ * asynchronously, and framer-motion then sets state on the LazyMotion
+ * component. If that lands after Vitest tears the jsdom environment down,
+ * React's update reads `window` and the run fails with
+ * "ReferenceError: window is not defined". Loading the module up front here
+ * ensures the import settles inside the test's lifetime, before teardown.
+ */
+beforeAll(async () => {
+  await import("@heroui/dom-animation");
+});
+
 afterEach(() => {
   cleanup();
   useUiStore.setState(useUiStore.getInitialState(), true);
