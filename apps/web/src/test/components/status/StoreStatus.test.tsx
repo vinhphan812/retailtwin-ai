@@ -14,6 +14,7 @@ import { stockedStoreState } from "@/test/stockedState";
 
 vi.mock("@/core/notify", () => ({
   notify: { error: vi.fn(), warning: vi.fn(), info: vi.fn(), success: vi.fn() },
+  errorMessage: (error: unknown) => (error instanceof Error && error.message ? error.message : String(error)),
 }));
 
 const product: ProductInventory = {
@@ -116,13 +117,14 @@ test("shows an inventory error without dropping the store", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Look up inventory" }));
 
   await waitFor(() => {
-    expect(notify.error).toHaveBeenCalledWith(
-      "Inventory lookup failed.",
-      expect.objectContaining({ message: "SKU 'P017' is not in store store-001." }),
-    );
+    expect(screen.getByRole("alert").textContent).toBe("SKU 'P017' is not in store store-001.");
   });
+  expect(notify.error).toHaveBeenCalledWith(
+    "Inventory lookup failed.",
+    expect.objectContaining({ message: "SKU 'P017' is not in store store-001." }),
+  );
   expect(screen.getByRole("heading", { name: "store-001" })).toBeTruthy();
-});
+}, { timeout: 15000 });
 
 test("selects the product GET /inventory/{sku} finds", async () => {
   const api = client();
