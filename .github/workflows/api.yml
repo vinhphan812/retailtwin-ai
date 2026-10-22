@@ -198,6 +198,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up Google Cloud CLI
+        # The self-hosted runners are not guaranteed to ship the gcloud SDK, and
+        # `gcloud auth configure-docker` below fails with exit 127 on runners
+        # without it. Install it into the runner tool cache so the deploy step
+        # is deterministic regardless of runner provisioning.
+        uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
+
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2.1.7  # 6fc4af4b145ae7821d527454aa9bd537d1f2dc5f
         with:
