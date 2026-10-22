@@ -54,6 +54,7 @@ export function useStoreStatus(client?: RetailTwinClient) {
   const [loading, setLoading] = useState(() => client !== undefined && !healthLoaded.has(client));
   const [sku, setSku] = useState("");
   const [inventory, setInventory] = useState<ProductInventory | null>(null);
+  const [lookupError, setLookupError] = useState<unknown | null>(null);
   const [lookupPending, setLookupPending] = useState(false);
 
   useEffect(() => {
@@ -74,28 +75,34 @@ export function useStoreStatus(client?: RetailTwinClient) {
     const query = sku.trim();
     if (!query) {
       setInventory(null);
+      setLookupError(null);
       notify.warning(t("storeStatus.enterSku"));
       return;
     }
     if (!client) {
       const found = store?.products.find((product) => product.sku.toLowerCase() === query.toLowerCase()) ?? null;
       setInventory(found);
+      const err = found ? null : t("storeStatus.notInStore", { sku: query });
+      setLookupError(err);
       if (found) show(found);
-      else notify.error(t("storeStatus.lookupFailed"), t("storeStatus.notInStore", { sku: query }));
+      else notify.error(t("storeStatus.lookupFailed"), err);
       return;
     }
     setLookupPending(true);
+    setLookupError(null);
     try {
       const found = await client.inventory(query);
       setInventory(found);
+      setLookupError(null);
       show(found);
     } catch (error) {
       setInventory(null);
+      setLookupError(error);
       notify.error(t("storeStatus.lookupFailed"), error);
     } finally {
       setLookupPending(false);
     }
   }
 
-  return { health, store, loading: loading || storeLoading, sku, setSku, inventory, lookupPending, onLookup };
+  return { health, store, loading: loading || storeLoading, sku, setSku, inventory, lookupError, lookupPending, onLookup };
 }
