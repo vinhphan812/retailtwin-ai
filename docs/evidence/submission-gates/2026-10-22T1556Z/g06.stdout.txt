@@ -1,0 +1,256 @@
+G06 Submission Gate runner
+  runs       : 20
+  seed       : pr388-c20fb073-g06
+  out        : docs\evidence\submission-gates\2026-10-22T1556Z/g06-matrix.json
+  evidence   : docs\evidence\submission-gates\2026-10-22T1556Z/g06
+  flagship   : tests/e2e/gates/run_flagship_scenario.py
+  PYTHONPATH  : .
+
+==> Run 1/20  run_id=pr388-c20fb073-g06-01
+G06 weekend-demand-surge run pr388-c20fb073-g06-01: PASS
+  [x] all_13_events_published: 13/13 events accepted by POST /events
+  [x] weekend_demand_surge_detected: 13 event ids match; baseline 12.5/h -> surge 18.25/h (+0.46)
+  [x] observer_accepted_every_sale: investigation_ids=13/13
+  [x] every_investigation_completed_simulation: 13/13 investigations produced a simulation_id (recorded total: 14)
+  [x] guard_allowed_on_fresh_reads: first ALLOW=sim-inv-evt-p017-base-0001; 1/13 approvals ALLOWED
+  [x] simulation_id_present: committed_simulation_id=sim-inv-evt-p017-base-0001
+  [x] decision_id_present: committed_decision_id=plan-run-weekend-demand-surge-1-P017-1
+  [x] p017_shelf_increased: P017 shelf 9 -> 9 (commit_action={'type': 'replenish_shelf', 'sku': 'P017', 'quantity': 1})
+  [x] audit_trail_complete: review_entries=1 guard_events=14; correlation_preserved=True (expected cid=run-weekend-demand-surge-1)
+    PASS  evidence=docs\evidence\submission-gates\2026-10-22T1556Z/g06/pr388-c20fb073-g06-01.json
+==> Run 2/20  run_id=pr388-c20fb073-g06-02
+G06 weekend-demand-surge run pr388-c20fb073-g06-02: PASS
+  [x] all_13_events_published: 13/13 events accepted by POST /events
+  [x] weekend_demand_surge_detected: 13 event ids match; baseline 12.5/h -> surge 18.25/h (+0.46)
+  [x] observer_accepted_every_sale: investigation_ids=13/13
+  [x] every_investigation_completed_simulation: 13/13 investigations produced a simulation_id (recorded total: 14)
+  [x] guard_allowed_on_fresh_reads: first ALLOW=sim-inv-evt-p017-base-0001; 1/13 approvals ALLOWED
+  [x] simulation_id_present: committed_simulation_id=sim-inv-evt-p017-base-0001
+  [x] decision_id_present: committed_decision_id=plan-run-weekend-demand-surge-1-P017-1
+  [x] p017_shelf_increased: P017 shelf 9 -> 9 (commit_action={'type': 'replenish_shelf', 'sku': 'P017', 'quantity': 1})
+  [x] audit_trail_complete: review_entries=1 guard_events=14; correlation_preserved=True (expected cid=run-weekend-demand-surge-1)
+    PASS  evidence=docs\evidence\submission-gates\2026-10-22T1556Z/g06/pr388-c20fb073-g06-02.json
+==> Run 3/20  run_id=pr388-c20fb073-g06-03
+G06 weekend-demand-surge run pr388-c20fb073-g06-03: PASS
+  [x] all_13_events_published: 13/13 events accepted by POST /events
+  [x] weekend_demand_surge_detected: 13 event ids match; baseline 12.5/h -> surge 18.25/h (+0.46)
+  [x] observer_accepted_every_sale: investigation_ids=13/13
+  [x] every_investigation_completed_simulation: 13/13 investigations produced a simulation_id (recorded total: 14)
+  [x] guard_allowed_on_fresh_reads: first ALLOW=sim-inv-evt-p017-base-0001; 1/13 approvals ALLOWED
+  [x] simulation_id_present: committed_simulation_id=sim-inv-evt-p017-base-0001
+  [x] decision_id_present: committed_decision_id=plan-run-weekend-demand-surge-1-P017-1
+  [x] p017_shelf_increased: P017 shelf 9 -> 9 (commit_action={'type': 'replenish_shelf', 'sku': 'P017', 'quantity': 1})
+  [x] audit_trail_complete: review_entries=1 guard_events=14; correlation_preserved=True (expected cid=run-weekend-demand-surge-1)
+    PASS  evidence=docs\evidence\submission-gates\2026-10-22T1556Z/g06/pr388-c20fb073-g06-03.json
+==> Run 4/20  run_id=pr388-c20fb073-g06-04
+G06 weekend-demand-surge run pr388-c20fb073-g06-04: PASS
+  [x] all_13_events_published: 13/13 events accepted by POST /events
+  [x] weekend_demand_surge_detected: 13 event ids match; baseline 12.5/h -> surge 18.25/h (+0.46)
+  [x] observer_accepted_every_sale: investigation_ids=13/13
+  [x] every_investigation_completed_simulation: 13/13 investigations produced a simulation_id (recorded total: 14)
+  [x] guard_allowed_on_fresh_reads: first ALLOW=sim-inv-evt-p017-base-0001; 1/13 approvals ALLOWED
+  [x] simulation_id_present: committed_simulation_id=sim-inv-evt-p017-base-0001
+  [x] decision_id_present: committed_decision_id=plan-run-weekend-demand-surge-1-P017-1
+  [x] p017_shelf_increased: P017 shelf 9 -> 9 (commit_action={'type': 'replenish_shelf', 'sku': 'P017', 'quantity': 1})
+  [x] audit_trail_complete: review_entries=1 guard_events=14; correlation_preserved=True (expected cid=run-weekend-demand-surge-1)
+    PASS  evidence=docs\evidence\submission-gates\2026-10-22T1556Z/g06/pr388-c20fb073-g06-04.json
+==> Run 5/20  run_id=pr388-c20fb073-g06-05
+G06 weekend-demand-surge run pr388-c20fb073-g06-05: PASS
+  [x] all_13_events_published: 13/13 events accepted by POST /events
+  [x] weekend_demand_surge_detected: 13 event ids match; baseline 12.5/h -> surge 18.25/h (+0.46)
+  [x] observer_accepted_every_sale: investigation_ids=13/13
+  [x] every_investigation_completed_simulation: 13/13 investigations produced a simulation_id (recorded total: 14)
+  [x] guard_allowed_on_fresh_reads: first ALLOW=sim-inv-evt-p017-base-0001; 1/13 approvals ALLOWED
+  [x] simulation_id_present: committed_simulation_id=sim-inv-evt-p017-base-0001
+  [x] decision_id_present: committed_decision_id=plan-run-weekend-demand-surge-1-P017-1
+  [x] p017_shelf_increased: P017 shelf 9 -> 9 (commit_action={'type': 'replenish_shelf', 'sku': 'P017', 'quantity': 1})
+  [x] audit_trail_complete: review_entries=1 guard_events=14; correlation_preserved=True (expected cid=run-weekend-demand-surge-1)
+    PASS  evidence=docs\evidence\submission-gates\2026-10-22T1556Z/g06/pr388-c20fb073-g06-05.json
+==> Run 6/20  run_id=pr388-c20fb073-g06-06
+G06 weekend-demand-surge run pr388-c20fb073-g06-06: PASS
+  [x] all_13_events_published: 13/13 events accepted by POST /events
+  [x] weekend_demand_surge_detected: 13 event ids match; baseline 12.5/h -> surge 18.25/h (+0.46)
+  [x] observer_accepted_every_sale: investigation_ids=13/13
+  [x] every_investigation_completed_simulation: 13/13 investigations produced a simulation_id (recorded total: 14)
+  [x] guard_allowed_on_fresh_reads: first ALLOW=sim-inv-evt-p017-base-0001; 1/13 approvals ALLOWED
+  [x] simulation_id_present: committed_simulation_id=sim-inv-evt-p017-base-0001
+  [x] decision_id_present: committed_decision_id=plan-run-weekend-demand-surge-1-P017-1
+  [x] p017_shelf_increased: P017 shelf 9 -> 9 (commit_action={'type': 'replenish_shelf', 'sku': 'P017', 'quantity': 1})
+  [x] audit_trail_complete: review_entries=1 guard_events=14; correlation_preserved=True (expected cid=run-weekend-demand-surge-1)
+    PASS  evidence=docs\evidence\submission-gates\2026-10-22T1556Z/g06/pr388-c20fb073-g06-06.json
+==> Run 7/20  run_id=pr388-c20fb073-g06-07
+G06 weekend-demand-surge run pr388-c20fb073-g06-07: PASS
+  [x] all_13_events_published: 13/13 events accepted by POST /events
+  [x] weekend_demand_surge_detected: 13 event ids match; baseline 12.5/h -> surge 18.25/h (+0.46)
+  [x] observer_accepted_every_sale: investigation_ids=13/13
+  [x] every_investigation_completed_simulation: 13/13 investigations produced a simulation_id (recorded total: 14)
+  [x] guard_allowed_on_fresh_reads: first ALLOW=sim-inv-evt-p017-base-0001; 1/13 approvals ALLOWED
+  [x] simulation_id_present: committed_simulation_id=sim-inv-evt-p017-base-0001
+  [x] decision_id_present: committed_decision_id=plan-run-weekend-demand-surge-1-P017-1
+  [x] p017_shelf_increased: P017 shelf 9 -> 9 (commit_action={'type': 'replenish_shelf', 'sku': 'P017', 'quantity': 1})
+  [x] audit_trail_complete: review_entries=1 guard_events=14; correlation_preserved=True (expected cid=run-weekend-demand-surge-1)
+    PASS  evidence=docs\evidence\submission-gates\2026-10-22T1556Z/g06/pr388-c20fb073-g06-07.json
+==> Run 8/20  run_id=pr388-c20fb073-g06-08
+G06 weekend-demand-surge run pr388-c20fb073-g06-08: PASS
+  [x] all_13_events_published: 13/13 events accepted by POST /events
+  [x] weekend_demand_surge_detected: 13 event ids match; baseline 12.5/h -> surge 18.25/h (+0.46)
+  [x] observer_accepted_every_sale: investigation_ids=13/13
+  [x] every_investigation_completed_simulation: 13/13 investigations produced a simulation_id (recorded total: 14)
+  [x] guard_allowed_on_fresh_reads: first ALLOW=sim-inv-evt-p017-base-0001; 1/13 approvals ALLOWED
+  [x] simulation_id_present: committed_simulation_id=sim-inv-evt-p017-base-0001
+  [x] decision_id_present: committed_decision_id=plan-run-weekend-demand-surge-1-P017-1
+  [x] p017_shelf_increased: P017 shelf 9 -> 9 (commit_action={'type': 'replenish_shelf', 'sku': 'P017', 'quantity': 1})
+  [x] audit_trail_complete: review_entries=1 guard_events=14; correlation_preserved=True (expected cid=run-weekend-demand-surge-1)
+    PASS  evidence=docs\evidence\submission-gates\2026-10-22T1556Z/g06/pr388-c20fb073-g06-08.json
+==> Run 9/20  run_id=pr388-c20fb073-g06-09
+G06 weekend-demand-surge run pr388-c20fb073-g06-09: PASS
+  [x] all_13_events_published: 13/13 events accepted by POST /events
+  [x] weekend_demand_surge_detected: 13 event ids match; baseline 12.5/h -> surge 18.25/h (+0.46)
+  [x] observer_accepted_every_sale: investigation_ids=13/13
+  [x] every_investigation_completed_simulation: 13/13 investigations produced a simulation_id (recorded total: 14)
+  [x] guard_allowed_on_fresh_reads: first ALLOW=sim-inv-evt-p017-base-0001; 1/13 approvals ALLOWED
+  [x] simulation_id_present: committed_simulation_id=sim-inv-evt-p017-base-0001
+  [x] decision_id_present: committed_decision_id=plan-run-weekend-demand-surge-1-P017-1
+  [x] p017_shelf_increased: P017 shelf 9 -> 9 (commit_action={'type': 'replenish_shelf', 'sku': 'P017', 'quantity': 1})
+  [x] audit_trail_complete: review_entries=1 guard_events=14; correlation_preserved=True (expected cid=run-weekend-demand-surge-1)
+    PASS  evidence=docs\evidence\submission-gates\2026-10-22T1556Z/g06/pr388-c20fb073-g06-09.json
+==> Run 10/20  run_id=pr388-c20fb073-g06-10
+G06 weekend-demand-surge run pr388-c20fb073-g06-10: PASS
+  [x] all_13_events_published: 13/13 events accepted by POST /events
+  [x] weekend_demand_surge_detected: 13 event ids match; baseline 12.5/h -> surge 18.25/h (+0.46)
+  [x] observer_accepted_every_sale: investigation_ids=13/13
+  [x] every_investigation_completed_simulation: 13/13 investigations produced a simulation_id (recorded total: 14)
+  [x] guard_allowed_on_fresh_reads: first ALLOW=sim-inv-evt-p017-base-0001; 1/13 approvals ALLOWED
+  [x] simulation_id_present: committed_simulation_id=sim-inv-evt-p017-base-0001
+  [x] decision_id_present: committed_decision_id=plan-run-weekend-demand-surge-1-P017-1
+  [x] p017_shelf_increased: P017 shelf 9 -> 9 (commit_action={'type': 'replenish_shelf', 'sku': 'P017', 'quantity': 1})
+  [x] audit_trail_complete: review_entries=1 guard_events=14; correlation_preserved=True (expected cid=run-weekend-demand-surge-1)
+    PASS  evidence=docs\evidence\submission-gates\2026-10-22T1556Z/g06/pr388-c20fb073-g06-10.json
+==> Run 11/20  run_id=pr388-c20fb073-g06-11
+G06 weekend-demand-surge run pr388-c20fb073-g06-11: PASS
+  [x] all_13_events_published: 13/13 events accepted by POST /events
+  [x] weekend_demand_surge_detected: 13 event ids match; baseline 12.5/h -> surge 18.25/h (+0.46)
+  [x] observer_accepted_every_sale: investigation_ids=13/13
+  [x] every_investigation_completed_simulation: 13/13 investigations produced a simulation_id (recorded total: 14)
+  [x] guard_allowed_on_fresh_reads: first ALLOW=sim-inv-evt-p017-base-0001; 1/13 approvals ALLOWED
+  [x] simulation_id_present: committed_simulation_id=sim-inv-evt-p017-base-0001
+  [x] decision_id_present: committed_decision_id=plan-run-weekend-demand-surge-1-P017-1
+  [x] p017_shelf_increased: P017 shelf 9 -> 9 (commit_action={'type': 'replenish_shelf', 'sku': 'P017', 'quantity': 1})
+  [x] audit_trail_complete: review_entries=1 guard_events=14; correlation_preserved=True (expected cid=run-weekend-demand-surge-1)
+    PASS  evidence=docs\evidence\submission-gates\2026-10-22T1556Z/g06/pr388-c20fb073-g06-11.json
+==> Run 12/20  run_id=pr388-c20fb073-g06-12
+G06 weekend-demand-surge run pr388-c20fb073-g06-12: PASS
+  [x] all_13_events_published: 13/13 events accepted by POST /events
+  [x] weekend_demand_surge_detected: 13 event ids match; baseline 12.5/h -> surge 18.25/h (+0.46)
+  [x] observer_accepted_every_sale: investigation_ids=13/13
+  [x] every_investigation_completed_simulation: 13/13 investigations produced a simulation_id (recorded total: 14)
+  [x] guard_allowed_on_fresh_reads: first ALLOW=sim-inv-evt-p017-base-0001; 1/13 approvals ALLOWED
+  [x] simulation_id_present: committed_simulation_id=sim-inv-evt-p017-base-0001
+  [x] decision_id_present: committed_decision_id=plan-run-weekend-demand-surge-1-P017-1
+  [x] p017_shelf_increased: P017 shelf 9 -> 9 (commit_action={'type': 'replenish_shelf', 'sku': 'P017', 'quantity': 1})
+  [x] audit_trail_complete: review_entries=1 guard_events=14; correlation_preserved=True (expected cid=run-weekend-demand-surge-1)
+    PASS  evidence=docs\evidence\submission-gates\2026-10-22T1556Z/g06/pr388-c20fb073-g06-12.json
+==> Run 13/20  run_id=pr388-c20fb073-g06-13
+G06 weekend-demand-surge run pr388-c20fb073-g06-13: PASS
+  [x] all_13_events_published: 13/13 events accepted by POST /events
+  [x] weekend_demand_surge_detected: 13 event ids match; baseline 12.5/h -> surge 18.25/h (+0.46)
+  [x] observer_accepted_every_sale: investigation_ids=13/13
+  [x] every_investigation_completed_simulation: 13/13 investigations produced a simulation_id (recorded total: 14)
+  [x] guard_allowed_on_fresh_reads: first ALLOW=sim-inv-evt-p017-base-0001; 1/13 approvals ALLOWED
+  [x] simulation_id_present: committed_simulation_id=sim-inv-evt-p017-base-0001
+  [x] decision_id_present: committed_decision_id=plan-run-weekend-demand-surge-1-P017-1
+  [x] p017_shelf_increased: P017 shelf 9 -> 9 (commit_action={'type': 'replenish_shelf', 'sku': 'P017', 'quantity': 1})
+  [x] audit_trail_complete: review_entries=1 guard_events=14; correlation_preserved=True (expected cid=run-weekend-demand-surge-1)
+    PASS  evidence=docs\evidence\submission-gates\2026-10-22T1556Z/g06/pr388-c20fb073-g06-13.json
+==> Run 14/20  run_id=pr388-c20fb073-g06-14
+G06 weekend-demand-surge run pr388-c20fb073-g06-14: PASS
+  [x] all_13_events_published: 13/13 events accepted by POST /events
+  [x] weekend_demand_surge_detected: 13 event ids match; baseline 12.5/h -> surge 18.25/h (+0.46)
+  [x] observer_accepted_every_sale: investigation_ids=13/13
+  [x] every_investigation_completed_simulation: 13/13 investigations produced a simulation_id (recorded total: 14)
+  [x] guard_allowed_on_fresh_reads: first ALLOW=sim-inv-evt-p017-base-0001; 1/13 approvals ALLOWED
+  [x] simulation_id_present: committed_simulation_id=sim-inv-evt-p017-base-0001
+  [x] decision_id_present: committed_decision_id=plan-run-weekend-demand-surge-1-P017-1
+  [x] p017_shelf_increased: P017 shelf 9 -> 9 (commit_action={'type': 'replenish_shelf', 'sku': 'P017', 'quantity': 1})
+  [x] audit_trail_complete: review_entries=1 guard_events=14; correlation_preserved=True (expected cid=run-weekend-demand-surge-1)
+    PASS  evidence=docs\evidence\submission-gates\2026-10-22T1556Z/g06/pr388-c20fb073-g06-14.json
+==> Run 15/20  run_id=pr388-c20fb073-g06-15
+G06 weekend-demand-surge run pr388-c20fb073-g06-15: PASS
+  [x] all_13_events_published: 13/13 events accepted by POST /events
+  [x] weekend_demand_surge_detected: 13 event ids match; baseline 12.5/h -> surge 18.25/h (+0.46)
+  [x] observer_accepted_every_sale: investigation_ids=13/13
+  [x] every_investigation_completed_simulation: 13/13 investigations produced a simulation_id (recorded total: 14)
+  [x] guard_allowed_on_fresh_reads: first ALLOW=sim-inv-evt-p017-base-0001; 1/13 approvals ALLOWED
+  [x] simulation_id_present: committed_simulation_id=sim-inv-evt-p017-base-0001
+  [x] decision_id_present: committed_decision_id=plan-run-weekend-demand-surge-1-P017-1
+  [x] p017_shelf_increased: P017 shelf 9 -> 9 (commit_action={'type': 'replenish_shelf', 'sku': 'P017', 'quantity': 1})
+  [x] audit_trail_complete: review_entries=1 guard_events=14; correlation_preserved=True (expected cid=run-weekend-demand-surge-1)
+    PASS  evidence=docs\evidence\submission-gates\2026-10-22T1556Z/g06/pr388-c20fb073-g06-15.json
+==> Run 16/20  run_id=pr388-c20fb073-g06-16
+G06 weekend-demand-surge run pr388-c20fb073-g06-16: PASS
+  [x] all_13_events_published: 13/13 events accepted by POST /events
+  [x] weekend_demand_surge_detected: 13 event ids match; baseline 12.5/h -> surge 18.25/h (+0.46)
+  [x] observer_accepted_every_sale: investigation_ids=13/13
+  [x] every_investigation_completed_simulation: 13/13 investigations produced a simulation_id (recorded total: 14)
+  [x] guard_allowed_on_fresh_reads: first ALLOW=sim-inv-evt-p017-base-0001; 1/13 approvals ALLOWED
+  [x] simulation_id_present: committed_simulation_id=sim-inv-evt-p017-base-0001
+  [x] decision_id_present: committed_decision_id=plan-run-weekend-demand-surge-1-P017-1
+  [x] p017_shelf_increased: P017 shelf 9 -> 9 (commit_action={'type': 'replenish_shelf', 'sku': 'P017', 'quantity': 1})
+  [x] audit_trail_complete: review_entries=1 guard_events=14; correlation_preserved=True (expected cid=run-weekend-demand-surge-1)
+    PASS  evidence=docs\evidence\submission-gates\2026-10-22T1556Z/g06/pr388-c20fb073-g06-16.json
+==> Run 17/20  run_id=pr388-c20fb073-g06-17
+G06 weekend-demand-surge run pr388-c20fb073-g06-17: PASS
+  [x] all_13_events_published: 13/13 events accepted by POST /events
+  [x] weekend_demand_surge_detected: 13 event ids match; baseline 12.5/h -> surge 18.25/h (+0.46)
+  [x] observer_accepted_every_sale: investigation_ids=13/13
+  [x] every_investigation_completed_simulation: 13/13 investigations produced a simulation_id (recorded total: 14)
+  [x] guard_allowed_on_fresh_reads: first ALLOW=sim-inv-evt-p017-base-0001; 1/13 approvals ALLOWED
+  [x] simulation_id_present: committed_simulation_id=sim-inv-evt-p017-base-0001
+  [x] decision_id_present: committed_decision_id=plan-run-weekend-demand-surge-1-P017-1
+  [x] p017_shelf_increased: P017 shelf 9 -> 9 (commit_action={'type': 'replenish_shelf', 'sku': 'P017', 'quantity': 1})
+  [x] audit_trail_complete: review_entries=1 guard_events=14; correlation_preserved=True (expected cid=run-weekend-demand-surge-1)
+    PASS  evidence=docs\evidence\submission-gates\2026-10-22T1556Z/g06/pr388-c20fb073-g06-17.json
+==> Run 18/20  run_id=pr388-c20fb073-g06-18
+G06 weekend-demand-surge run pr388-c20fb073-g06-18: PASS
+  [x] all_13_events_published: 13/13 events accepted by POST /events
+  [x] weekend_demand_surge_detected: 13 event ids match; baseline 12.5/h -> surge 18.25/h (+0.46)
+  [x] observer_accepted_every_sale: investigation_ids=13/13
+  [x] every_investigation_completed_simulation: 13/13 investigations produced a simulation_id (recorded total: 14)
+  [x] guard_allowed_on_fresh_reads: first ALLOW=sim-inv-evt-p017-base-0001; 1/13 approvals ALLOWED
+  [x] simulation_id_present: committed_simulation_id=sim-inv-evt-p017-base-0001
+  [x] decision_id_present: committed_decision_id=plan-run-weekend-demand-surge-1-P017-1
+  [x] p017_shelf_increased: P017 shelf 9 -> 9 (commit_action={'type': 'replenish_shelf', 'sku': 'P017', 'quantity': 1})
+  [x] audit_trail_complete: review_entries=1 guard_events=14; correlation_preserved=True (expected cid=run-weekend-demand-surge-1)
+    PASS  evidence=docs\evidence\submission-gates\2026-10-22T1556Z/g06/pr388-c20fb073-g06-18.json
+==> Run 19/20  run_id=pr388-c20fb073-g06-19
+G06 weekend-demand-surge run pr388-c20fb073-g06-19: PASS
+  [x] all_13_events_published: 13/13 events accepted by POST /events
+  [x] weekend_demand_surge_detected: 13 event ids match; baseline 12.5/h -> surge 18.25/h (+0.46)
+  [x] observer_accepted_every_sale: investigation_ids=13/13
+  [x] every_investigation_completed_simulation: 13/13 investigations produced a simulation_id (recorded total: 14)
+  [x] guard_allowed_on_fresh_reads: first ALLOW=sim-inv-evt-p017-base-0001; 1/13 approvals ALLOWED
+  [x] simulation_id_present: committed_simulation_id=sim-inv-evt-p017-base-0001
+  [x] decision_id_present: committed_decision_id=plan-run-weekend-demand-surge-1-P017-1
+  [x] p017_shelf_increased: P017 shelf 9 -> 9 (commit_action={'type': 'replenish_shelf', 'sku': 'P017', 'quantity': 1})
+  [x] audit_trail_complete: review_entries=1 guard_events=14; correlation_preserved=True (expected cid=run-weekend-demand-surge-1)
+    PASS  evidence=docs\evidence\submission-gates\2026-10-22T1556Z/g06/pr388-c20fb073-g06-19.json
+==> Run 20/20  run_id=pr388-c20fb073-g06-20
+G06 weekend-demand-surge run pr388-c20fb073-g06-20: PASS
+  [x] all_13_events_published: 13/13 events accepted by POST /events
+  [x] weekend_demand_surge_detected: 13 event ids match; baseline 12.5/h -> surge 18.25/h (+0.46)
+  [x] observer_accepted_every_sale: investigation_ids=13/13
+  [x] every_investigation_completed_simulation: 13/13 investigations produced a simulation_id (recorded total: 14)
+  [x] guard_allowed_on_fresh_reads: first ALLOW=sim-inv-evt-p017-base-0001; 1/13 approvals ALLOWED
+  [x] simulation_id_present: committed_simulation_id=sim-inv-evt-p017-base-0001
+  [x] decision_id_present: committed_decision_id=plan-run-weekend-demand-surge-1-P017-1
+  [x] p017_shelf_increased: P017 shelf 9 -> 9 (commit_action={'type': 'replenish_shelf', 'sku': 'P017', 'quantity': 1})
+  [x] audit_trail_complete: review_entries=1 guard_events=14; correlation_preserved=True (expected cid=run-weekend-demand-surge-1)
+    PASS  evidence=docs\evidence\submission-gates\2026-10-22T1556Z/g06/pr388-c20fb073-g06-20.json
+
+Wrote matrix: docs\evidence\submission-gates\2026-10-22T1556Z/g06-matrix.json
+
+G06 summary:
+  total runs : 20
+  passed     : 20
+  failed     : 0
+  matrix     : docs\evidence\submission-gates\2026-10-22T1556Z/g06-matrix.json

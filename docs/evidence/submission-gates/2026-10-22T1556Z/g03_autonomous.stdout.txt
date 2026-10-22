@@ -1,0 +1,9 @@
+G03 run pr388-c20fb073-g03_autonomous: PASS
+  [x] event_accepted_and_handed_to_the_observer: POST /events -> 201, investigation_id=inv-evt-pr388-c20fb073-g03_autonomous-sale
+  [x] no_prompt_started_it: the only user message is the event handoff {"correlation_id":"pr388-c20fb073-g03_autonomous-sale","event_id":"evt-pr388-c20fb073-g03_autonomous-sale","sku":"P001","store_id":"store-001"}
+  [x] agent_activity_began_automatically: GET /agent/events for pr388-c20fb073-g03_autonomous-sale: [('OBSERVE', 'started'), ('INVESTIGATE', 'completed'), ('PLAN', 'completed'), ('SIMULATE', 'completed')]
+  [x] proposal_open_for_the_guarded_route: simulation sim-inv-evt-pr388-c20fb073-g03_autonomous-sale: status=pending
+  [x] replay_starts_nothing: replay -> 200 duplicate=True; activity entries 4 -> 4
+  [x] live_twin_unchanged: store stayed at store-001:v1; Live changes only through POST /approve
+  [x] autonomous_proposal_commits_only_through_the_guard: POST /approve on the autonomous proposal: verdict=ALLOW detail=COMMITTED live=store-001:v2
+  [x] provider_failure_is_visible_and_harmless: provider down: event 201, activity [('OBSERVE', 'started'), ('INVESTIGATE', 'failed')], Live unchanged

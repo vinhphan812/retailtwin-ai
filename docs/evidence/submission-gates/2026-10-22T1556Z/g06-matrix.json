@@ -1,0 +1,213 @@
+{
+  "gate": "G06",
+  "issue": 53,
+  "scenario": "weekend-demand-surge",
+  "seed": "pr388-c20fb073-g06",
+  "total_runs": 20,
+  "passed": 20,
+  "failed": 0,
+  "started_at": "2026-10-22T15:56:55Z",
+  "finished_at": "2026-10-22T15:58:16Z",
+  "runs": [
+    {
+      "run_index": 1,
+      "run_id": "pr388-c20fb073-g06-01",
+      "exit_code": 0,
+      "result": "PASS",
+      "started_at": "2026-10-22T15:56:55Z",
+      "finished_at": "2026-10-22T15:57:00Z",
+      "evidence_path": "docs\\evidence\\submission-gates\\2026-10-22T1556Z/g06/pr388-c20fb073-g06-01.json",
+      "evidence_sha256": "9cc807fc08d4804fdbcf8d6aa2ebe0f5bcf708d556595de29a4b17dcb879167d"
+    },
+    {
+      "run_index": 2,
+      "run_id": "pr388-c20fb073-g06-02",
+      "exit_code": 0,
+      "result": "PASS",
+      "started_at": "2026-10-22T15:57:01Z",
+      "finished_at": "2026-10-22T15:57:05Z",
+      "evidence_path": "docs\\evidence\\submission-gates\\2026-10-22T1556Z/g06/pr388-c20fb073-g06-02.json",
+      "evidence_sha256": "45943ed647d5efdfb33c810b47bd42d489c120b38cbe73eaf9157a55b4fafef7"
+    },
+    {
+      "run_index": 3,
+      "run_id": "pr388-c20fb073-g06-03",
+      "exit_code": 0,
+      "result": "PASS",
+      "started_at": "2026-10-22T15:57:06Z",
+      "finished_at": "2026-10-22T15:57:10Z",
+      "evidence_path": "docs\\evidence\\submission-gates\\2026-10-22T1556Z/g06/pr388-c20fb073-g06-03.json",
+      "evidence_sha256": "4f33beb73ad22439aee89c475072552d5618121f367ac399d0a9ea3970a3b41f"
+    },
+    {
+      "run_index": 4,
+      "run_id": "pr388-c20fb073-g06-04",
+      "exit_code": 0,
+      "result": "PASS",
+      "started_at": "2026-10-22T15:57:11Z",
+      "finished_at": "2026-10-22T15:57:16Z",
+      "evidence_path": "docs\\evidence\\submission-gates\\2026-10-22T1556Z/g06/pr388-c20fb073-g06-04.json",
+      "evidence_sha256": "4962075f23948b78325599158600a182f64483a359d1757ea016336766fbf8d9"
+    },
+    {
+      "run_index": 5,
+      "run_id": "pr388-c20fb073-g06-05",
+      "exit_code": 0,
+      "result": "PASS",
+      "started_at": "2026-10-22T15:57:17Z",
+      "finished_at": "2026-10-22T15:57:21Z",
+      "evidence_path": "docs\\evidence\\submission-gates\\2026-10-22T1556Z/g06/pr388-c20fb073-g06-05.json",
+      "evidence_sha256": "e64e0b621b29517e8869bd3d27e53d2deb12f2f7637be00490905c82c187d700"
+    },
+    {
+      "run_index": 6,
+      "run_id": "pr388-c20fb073-g06-06",
+      "exit_code": 0,
+      "result": "PASS",
+      "started_at": "2026-10-22T15:57:22Z",
+      "finished_at": "2026-10-22T15:57:26Z",
+      "evidence_path": "docs\\evidence\\submission-gates\\2026-10-22T1556Z/g06/pr388-c20fb073-g06-06.json",
+      "evidence_sha256": "2db4506fbf98af5ccf20e44761d1ca3c9f1dd46eadca5145eebb4206803fb643"
+    },
+    {
+      "run_index": 7,
+      "run_id": "pr388-c20fb073-g06-07",
+      "exit_code": 0,
+      "result": "PASS",
+      "started_at": "2026-10-22T15:57:26Z",
+      "finished_at": "2026-10-22T15:57:29Z",
+      "evidence_path": "docs\\evidence\\submission-gates\\2026-10-22T1556Z/g06/pr388-c20fb073-g06-07.json",
+      "evidence_sha256": "5c2ea876409afc56b35d1f93b4696cce5767c57e8f312ec334b9a7c2ae588b8b"
+    },
+    {
+      "run_index": 8,
+      "run_id": "pr388-c20fb073-g06-08",
+      "exit_code": 0,
+      "result": "PASS",
+      "started_at": "2026-10-22T15:57:30Z",
+      "finished_at": "2026-10-22T15:57:32Z",
+      "evidence_path": "docs\\evidence\\submission-gates\\2026-10-22T1556Z/g06/pr388-c20fb073-g06-08.json",
+      "evidence_sha256": "2371fb3235c7e4333f97e87b4758c6504c53d7a07751f316ee881445221584ab"
+    },
+    {
+      "run_index": 9,
+      "run_id": "pr388-c20fb073-g06-09",
+      "exit_code": 0,
+      "result": "PASS",
+      "started_at": "2026-10-22T15:57:33Z",
+      "finished_at": "2026-10-22T15:57:36Z",
+      "evidence_path": "docs\\evidence\\submission-gates\\2026-10-22T1556Z/g06/pr388-c20fb073-g06-09.json",
+      "evidence_sha256": "bf2f796cb539a1d0ab6a7ae2402cebc616a37c2bdacbc46392568514649c5eb5"
+    },
+    {
+      "run_index": 10,
+      "run_id": "pr388-c20fb073-g06-10",
+      "exit_code": 0,
+      "result": "PASS",
+      "started_at": "2026-10-22T15:57:37Z",
+      "finished_at": "2026-10-22T15:57:40Z",
+      "evidence_path": "docs\\evidence\\submission-gates\\2026-10-22T1556Z/g06/pr388-c20fb073-g06-10.json",
+      "evidence_sha256": "794c2bc94c24b7a2d8908f1d7663aac15e225976cef6e577afd7d0cf6631481e"
+    },
+    {
+      "run_index": 11,
+      "run_id": "pr388-c20fb073-g06-11",
+      "exit_code": 0,
+      "result": "PASS",
+      "started_at": "2026-10-22T15:57:40Z",
+      "finished_at": "2026-10-22T15:57:44Z",
+      "evidence_path": "docs\\evidence\\submission-gates\\2026-10-22T1556Z/g06/pr388-c20fb073-g06-11.json",
+      "evidence_sha256": "c679e348c4d0601fb79b0e393ac56db069eb5079b5830307098af00ce72c3765"
+    },
+    {
+      "run_index": 12,
+      "run_id": "pr388-c20fb073-g06-12",
+      "exit_code": 0,
+      "result": "PASS",
+      "started_at": "2026-10-22T15:57:44Z",
+      "finished_at": "2026-10-22T15:57:47Z",
+      "evidence_path": "docs\\evidence\\submission-gates\\2026-10-22T1556Z/g06/pr388-c20fb073-g06-12.json",
+      "evidence_sha256": "ec88613692261173700babe6b3e8c3a6cade45269dfac38a83e0e85be73a5d20"
+    },
+    {
+      "run_index": 13,
+      "run_id": "pr388-c20fb073-g06-13",
+      "exit_code": 0,
+      "result": "PASS",
+      "started_at": "2026-10-22T15:57:48Z",
+      "finished_at": "2026-10-22T15:57:51Z",
+      "evidence_path": "docs\\evidence\\submission-gates\\2026-10-22T1556Z/g06/pr388-c20fb073-g06-13.json",
+      "evidence_sha256": "f126b49f4e4a7adb0a80234cc5f84161fa489b4a36ee9e01fe2c46c8370bc184"
+    },
+    {
+      "run_index": 14,
+      "run_id": "pr388-c20fb073-g06-14",
+      "exit_code": 0,
+      "result": "PASS",
+      "started_at": "2026-10-22T15:57:52Z",
+      "finished_at": "2026-10-22T15:57:55Z",
+      "evidence_path": "docs\\evidence\\submission-gates\\2026-10-22T1556Z/g06/pr388-c20fb073-g06-14.json",
+      "evidence_sha256": "683d0a18d5c60114d166061ee8b19ddacdce81eae07993925fbce122bd880195"
+    },
+    {
+      "run_index": 15,
+      "run_id": "pr388-c20fb073-g06-15",
+      "exit_code": 0,
+      "result": "PASS",
+      "started_at": "2026-10-22T15:57:56Z",
+      "finished_at": "2026-10-22T15:57:59Z",
+      "evidence_path": "docs\\evidence\\submission-gates\\2026-10-22T1556Z/g06/pr388-c20fb073-g06-15.json",
+      "evidence_sha256": "afe42b746bfcbd20fe07e6e95014c6a0c48ed9fceae1624f5877a49cba4d3f35"
+    },
+    {
+      "run_index": 16,
+      "run_id": "pr388-c20fb073-g06-16",
+      "exit_code": 0,
+      "result": "PASS",
+      "started_at": "2026-10-22T15:58:00Z",
+      "finished_at": "2026-10-22T15:58:03Z",
+      "evidence_path": "docs\\evidence\\submission-gates\\2026-10-22T1556Z/g06/pr388-c20fb073-g06-16.json",
+      "evidence_sha256": "24d709c96aac860e036f7a07d3c2ef37fff495271de813e7ddfde9b87856126f"
+    },
+    {
+      "run_index": 17,
+      "run_id": "pr388-c20fb073-g06-17",
+      "exit_code": 0,
+      "result": "PASS",
+      "started_at": "2026-10-22T15:58:03Z",
+      "finished_at": "2026-10-22T15:58:06Z",
+      "evidence_path": "docs\\evidence\\submission-gates\\2026-10-22T1556Z/g06/pr388-c20fb073-g06-17.json",
+      "evidence_sha256": "1cbf1c152eddd8ff1a20d85925ccf84c3dd785b942139ca40a9457d2009a6a4c"
+    },
+    {
+      "run_index": 18,
+      "run_id": "pr388-c20fb073-g06-18",
+      "exit_code": 0,
+      "result": "PASS",
+      "started_at": "2026-10-22T15:58:07Z",
+      "finished_at": "2026-10-22T15:58:09Z",
+      "evidence_path": "docs\\evidence\\submission-gates\\2026-10-22T1556Z/g06/pr388-c20fb073-g06-18.json",
+      "evidence_sha256": "37b0668aec3606978319af56e2586f85e07c553994a750a7e194a620a3dd1c8f"
+    },
+    {
+      "run_index": 19,
+      "run_id": "pr388-c20fb073-g06-19",
+      "exit_code": 0,
+      "result": "PASS",
+      "started_at": "2026-10-22T15:58:10Z",
+      "finished_at": "2026-10-22T15:58:13Z",
+      "evidence_path": "docs\\evidence\\submission-gates\\2026-10-22T1556Z/g06/pr388-c20fb073-g06-19.json",
+      "evidence_sha256": "0816e0cb6ebf99edea63c34d03bcce40d72258fc1d0e0f545b1405d9cc46fef9"
+    },
+    {
+      "run_index": 20,
+      "run_id": "pr388-c20fb073-g06-20",
+      "exit_code": 0,
+      "result": "PASS",
+      "started_at": "2026-10-22T15:58:13Z",
+      "finished_at": "2026-10-22T15:58:16Z",
+      "evidence_path": "docs\\evidence\\submission-gates\\2026-10-22T1556Z/g06/pr388-c20fb073-g06-20.json",
+      "evidence_sha256": "07f99dbc901c94e4d74b8e0de3c3c9fb6c950002d9b790bb72ba42edbf80f40a"
+    }
+  ]
+}
