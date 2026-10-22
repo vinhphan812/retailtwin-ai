@@ -70,7 +70,7 @@ from fastapi.testclient import TestClient
 _REPO = Path(__file__).resolve().parents[3]
 if __package__ in (None, ""):  # run as a script: make ``gates`` importable
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-for _root in (_REPO / "services" / "simulation", _REPO / "services" / "forecasting"):
+for _root in (_REPO / "apps" / "api", _REPO / "services" / "simulation", _REPO / "services" / "forecasting"):
     if str(_root) not in sys.path:
         sys.path.insert(0, str(_root))
 

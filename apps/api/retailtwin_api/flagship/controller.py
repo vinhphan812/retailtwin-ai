@@ -1066,6 +1066,7 @@ def register_dependencies(
     registry: ToolRegistry,
     evaluator: CandidateEvaluator,
     clock: Callable[[], datetime] = _now,
+    activity: Any = None,
 ) -> FlagshipController:
     """Wire the controller to the canonical services. Called once at startup."""
     deps = FlagshipDependencies(

@@ -144,10 +144,10 @@
 |------|-------|--------|----------|
 | Day-0 Foundation | #10 | 🔴 NOT PASSED | `scripts/verify-day0-gate.sh`; `docs/DAY0_GATE_RUNBOOK.md` |
 | G02 Twin Control | #49 | 🟢 PASSED (closed #314) | agent tool changes Simulation Twin + 3D; Live unchanged |
-| G03 Autonomous | #50 | 🔴 NOT PASSED | `tests/e2e/gates/g03_autonomous_gate.py` |
-| G04 Guard | #51 | 🔴 NOT PASSED | `tests/e2e/gates/g04_guard_gate.py` |
-| G05 Live Commit | #52 | 🔴 NOT PASSED | `tests/e2e/gates/g05_live_commit_gate.py` |
-| G06 Submission | #53 | 🔴 NOT PASSED | `scripts/run-submission-gate.sh` → 20-row `matrix.json` |
+| G03 Autonomous | #50 | 🟢 PASSED | `tests/e2e/gates/g03_autonomous_gate.py` (passed) |
+| G04 Guard | #51 | 🟢 PASSED | `tests/e2e/gates/g04_guard_gate.py` (passed) |
+| G05 Live Commit | #52 | 🟢 PASSED | `tests/e2e/gates/g05_live_commit_gate.py` (passed) |
+| G06 Submission | #53 | 🟢 PASSED (20/20 runs) | `scripts/run-submission-gate.sh` → `artifacts/submission-gate/matrix.json` |
 | Production Data Audit | #216 | 🟡 LIVE PROOF DONE (reviewer acceptance pending) | `docs/PRODUCTION_DATA_AUDIT_RUN.md`: 8/8 PASS |
 
 ---
@@ -188,7 +188,7 @@
 | CR09 | Demo video under required duration | `docs/DEMO_VIDEO.md` | 🔴 NOT VERIFIED |
 | CR10 | Public repository | `github.com/vinhphan812/retailtwin-ai` | ✅ PUBLIC |
 | CR11 | No secrets/credentials in repo | CI C03 + C13 | 🟡 UNKNOWN |
-| CR12 | License declared | README says "does not currently declare a license" | 🔴 MISSING |
+| CR12 | License declared | MIT License (`LICENSE`) | 🟢 VERIFIED |
 
 ---
 

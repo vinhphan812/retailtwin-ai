@@ -103,7 +103,7 @@ for i in $(seq 1 "$RUNS"); do
 
     echo "==> Run $i/$RUNS  run_id=${run_id}"
     set +e
-    python3 "$FLAGSHIP" --run-id "$run_id" --out "$evidence_path" 2>"${EVIDENCE_DIR}/${run_id}.stderr.log"
+    python "$FLAGSHIP" --run-id "$run_id" --out "$evidence_path" 2>"${EVIDENCE_DIR}/${run_id}.stderr.log"
     exit_code=$?
     set -e
     run_finished_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
@@ -113,7 +113,7 @@ for i in $(seq 1 "$RUNS"); do
         # Read the embedded result field if present
         result="PASS"
         if [[ -f "$evidence_path" ]]; then
-            embedded=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('result','PASS'))" "$evidence_path" 2>/dev/null || echo "PASS")
+            embedded=$(python -c "import json,sys; print(json.load(open(sys.argv[1])).get('result','PASS'))" "$evidence_path" 2>/dev/null || echo "PASS")
             result="$embedded"
         fi
         echo "    PASS  evidence=${evidence_path}"
@@ -129,7 +129,7 @@ for i in $(seq 1 "$RUNS"); do
     fi
 
     # Append one record to the jsonl file
-    python3 - "$run_id" "$run_started_at" "$run_finished_at" "$exit_code" "$result" "$evidence_path" "$RUN_DETAILS_JSONL" <<'PY'
+    python - "$run_id" "$run_started_at" "$run_finished_at" "$exit_code" "$result" "$evidence_path" "$RUN_DETAILS_JSONL" <<'PY'
 import json, sys
 run_id, started, finished, exit_code, result, evidence_path, out_path = sys.argv[1:]
 record = {
@@ -146,7 +146,7 @@ PY
 done
 
 # Build the aggregate matrix
-python3 - "$RUNS" "$SEED" "$RUN_DETAILS_JSONL" "$OUT" <<'PY'
+python - "$RUNS" "$SEED" "$RUN_DETAILS_JSONL" "$OUT" <<'PY'
 import json, sys, hashlib
 from datetime import datetime, timezone
 
