@@ -160,12 +160,13 @@ jobs:
   deploy-cloudrun:
     name: Deploy to Cloud Run (production)
     runs-on: [self-hosted, Linux, X64]
-    needs: [build-test, e2e-smoke, security]
-    # Only deploy when (a) this is a main push, AND (b) the API CI workflow
-    # actually ran for this SHA (not a manual dispatch with no API changes).
-    # api_ci_ran is 'success' only when build-test ran, which means the
-    # workflow was triggered by the paths filter or an explicit push.
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # Drop security from needs as it is currently hard-disabled in security.yml (ADR-0026).
+    # build-test and e2e-smoke remain mandatory deployment gates.
+    needs: [build-test, e2e-smoke]
+    # Only deploy when this is a main push and both blocking API checks passed.
+    if: >-
+      github.ref == 'refs/heads/main' && github.event_name == 'push' &&
+      needs.build-test.result == 'success' && needs.e2e-smoke.result == 'success'
     # Verify the workflow was actually triggered for this SHA before deploying.
     # Without this, workflow_dispatch with force_build=false would still deploy.
     # The needs.build-test.outputs check is safe here because the needs chain
@@ -178,6 +179,11 @@ jobs:
       contents: read
 
     steps:
+      - name: Record ADR-0026 security gate outcome
+        run: |
+          echo "## ADR-0026 security gate" >> "$GITHUB_STEP_SUMMARY"
+          echo "The ADR-0026 reusable security gate is currently non-functional (hard-disabled in security.yml); this deployment proceeded with build-test and e2e-smoke gates passing." >> "$GITHUB_STEP_SUMMARY"
+
       - name: Verify API CI ran for this SHA before deploying
         run: |
           # Confirms this is a real API change that passed CI, not a manual dispatch.
@@ -244,7 +250,11 @@ jobs:
           cpu: 1
           timeout: 60
           concurrency: 80
-          env_vars: APP_ENV=production,LOG_LEVEL=INFO,LIVE_TWIN_BACKEND=firestore
+          # Merge the values explicitly managed above with the existing service
+          # contract. The pre-deploy snapshot includes LLM_PROVIDER and LLM_MODEL,
+          # which the release gate requires; explicitly include them to prevent stripping.
+          env_vars_update_strategy: merge
+          env_vars: APP_ENV=production,LOG_LEVEL=INFO,LIVE_TWIN_BACKEND=firestore,LLM_PROVIDER=vertex_gemini,LLM_MODEL=gemini-2.5-flash
           # secrets: STORE_FIXTURE_PATH=store-fixture:latest  # enable after Secret Manager setup
 
       - name: Verify production deployment
