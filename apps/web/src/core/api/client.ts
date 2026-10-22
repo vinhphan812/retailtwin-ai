@@ -54,7 +54,7 @@ export function createClient(baseUrl: string, fetchImpl?: typeof fetch): RetailT
     discount_absolute: PROMOTION_KIND.AmountOff,
     buy_one_get_one: PROMOTION_KIND.BuyXGetY,
     bundle: PROMOTION_KIND.Bundle,
-    loyalty_multiplier: PROMOTION_KIND.PercentOff, // closest approximation
+    loyalty_multiplier: PROMOTION_KIND.LoyaltyMultiplier,
   };
 
   /**
@@ -62,32 +62,46 @@ export function createClient(baseUrl: string, fetchImpl?: typeof fetch): RetailT
    * Handles field name differences (`promotion_type` → `kind`) and type enum translation.
    */
   function toPromotion(raw: {
-    promotion_id: string;
+    promotion_id?: string;
+    id?: string;
     name: string;
-    promotion_type: string;
+    promotion_type?: string;
+    kind?: string;
     status: string;
-    store_id: string;
-    sku: string | null;
-    category: string | null;
-    discount_value: number | null;
-    conditions: string | null;
-    start_time: string;
-    end_time: string;
-    redemption_count: number;
+    store_id?: string;
+    sku?: string | null;
+    skus?: string[];
+    category?: string | null;
+    discount_value?: number | null;
+    value?: number | null;
+    discount_cost?: number | null;
+    conditions?: string | null;
+    start_time?: string;
+    starts_at?: string;
+    end_time?: string;
+    ends_at?: string;
+    redemption_count?: number;
     metadata?: Record<string, string>;
+    revenue?: number;
+    incremental_revenue?: number;
   }): Promotion {
+    const rawKind = raw.promotion_type ?? raw.kind ?? "";
+    const kind = PROMOTION_TYPE_TO_KIND[rawKind] ?? PROMOTION_KIND.Unknown;
+    const value = raw.discount_value !== undefined ? raw.discount_value : raw.value !== undefined ? raw.value : null;
+    const discountCost = raw.discount_cost !== undefined ? raw.discount_cost : null;
+
     return {
-      id: raw.promotion_id,
+      id: raw.promotion_id ?? raw.id ?? "",
       name: raw.name,
-      kind: PROMOTION_TYPE_TO_KIND[raw.promotion_type] ?? PROMOTION_KIND.PercentOff,
+      kind,
       status: raw.status as Promotion["status"],
-      value: raw.discount_value ?? 0,
-      starts_at: raw.start_time,
-      ends_at: raw.end_time,
-      skus: raw.sku ? [raw.sku] : [],
-      revenue: 0,
-      incremental_revenue: 0,
-      discount_cost: 0,
+      value: typeof value === "number" && Number.isFinite(value) ? value : null,
+      starts_at: raw.start_time ?? raw.starts_at ?? "",
+      ends_at: raw.end_time ?? raw.ends_at ?? "",
+      skus: raw.skus ?? (raw.sku ? [raw.sku] : []),
+      revenue: raw.revenue ?? 0,
+      incremental_revenue: raw.incremental_revenue ?? 0,
+      discount_cost: typeof discountCost === "number" && Number.isFinite(discountCost) ? discountCost : null,
     };
   }
 
