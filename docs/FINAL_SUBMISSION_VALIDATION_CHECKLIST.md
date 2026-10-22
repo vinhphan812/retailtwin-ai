@@ -3,7 +3,7 @@
 **Issue:** tracks completion of all pre-submission requirements for the AI Builder Google 2026 competition.
 **Status:** `OPEN — NOT READY`
 **Owner:** maintainers
-**Last updated:** 2026-10-20
+**Last updated:** 2026-10-22
 
 ---
 
@@ -111,6 +111,29 @@ A passing CI workflow at one SHA does **not** mean the code is reviewed. CI prov
 
 ---
 
+### G03–G06 execution record — 2026-10-22 (local/in-memory baseline)
+
+The following artefacts are retained at
+[`docs/submission-evidence/2026-10-22-c20fb073/`](submission-evidence/2026-10-22-c20fb073/)
+and are reproducible with the commands recorded in that directory's README.
+They were executed on `c20fb073e4ab919fdced85b7285751e38090cbe3`
+(`origin/main` at execution time), using `FakeLlmProvider`, memory Live Twin,
+and `APP_ENV=e2e-smoke`:
+
+| Gate | Command | Run identifier / result | Retained artifact |
+|------|---------|-------------------------|-------------------|
+| G03 | `PYTHONPATH="apps/api:services/simulation:services/forecasting" python3 tests/e2e/gates/g03_autonomous_gate.py --run-id issue367-c20fb073-g03 --out …/g03-autonomous.json` | `issue367-c20fb073-g03` — PASS (2026-10-22T15:54:36Z) | `g03-autonomous.json` |
+| G04 | `PYTHONPATH="apps/api:services/simulation:services/forecasting" python3 tests/e2e/gates/g04_guard_gate.py --run-id issue367-c20fb073-g04 --out …/g04-guard.json` | `issue367-c20fb073-g04` — PASS (2026-10-22T15:54:40Z) | `g04-guard.json` |
+| G05 | `PYTHONPATH="apps/api:services/simulation:services/forecasting" python3 tests/e2e/gates/g05_live_commit_gate.py --run-id issue367-c20fb073-g05 --out …/g05-live-commit.json` | `issue367-c20fb073-g05` — PASS (2026-10-22T15:54:45Z) | `g05-live-commit.json` |
+| G06 | `bash scripts/run-submission-gate.sh --runs 20 --seed issue367-c20fb073 --out …/g06-matrix.json --evidence-dir …/g06-runs` | `issue367-c20fb073-01` … `-20` — **20 PASS / 0 FAIL** (2026-10-22T15:54:47Z–15:56:28Z) | `g06-matrix.json`; `g06-run-evidence.tar.gz` (20 raw JSON outputs) |
+
+These are **not final-submission or Cloud Run acceptance evidence**: the final
+submission SHA must be re-run after merge, must have green CI, and must be
+verified against the deployed Cloud Run revision before any relevant status is
+marked green. The currently serving revision does not identify a Git SHA.
+
+---
+
 ## 2. CI Passing
 
 > **⚠ CI passing at a previous SHA is not verified evidence for submission.** Every CI entry below is 🟡 UNKNOWN until CI runs at the **submission SHA** and the job succeeds. A green CI badge on a different SHA means the workflow definition is correct — it does not mean the code at `HEAD` passes. Re-run CI before submission and update the Status column with the run URL and SHA.
@@ -184,10 +207,10 @@ A passing CI workflow at one SHA does **not** mean the code is reviewed. CI prov
 |------|-------|--------|----------|
 | Day-0 Foundation | #10 | 🔴 NOT PASSED | *(static reference)* `scripts/verify-day0-gate.sh`; `docs/DAY0_GATE_RUNBOOK.md` — run required at submission SHA |
 | G02 Twin Control | #49 | 🟢 PASSED (closed #314) | *(run required)* agent tool changes Simulation Twin + 3D; Live unchanged — verified at gate run SHA |
-| G03 Autonomous | #50 | 🔴 NOT PASSED | *(run required)* `tests/e2e/gates/g03_autonomous_gate.py` — run required at submission SHA |
-| G04 Guard | #51 | 🔴 NOT PASSED | *(run required)* `tests/e2e/gates/g04_guard_gate.py` — run required at submission SHA |
-| G05 Live Commit | #52 | 🔴 NOT PASSED | *(run required)* `tests/e2e/gates/g05_live_commit_gate.py` — run required at submission SHA |
-| G06 Submission | #53 | 🔴 NOT PASSED | *(run required)* `scripts/run-submission-gate.sh` → 20-row `matrix.json` — run required at submission SHA |
+| G03 Autonomous | #50 | 🟡 LOCAL BASELINE PASS (not final SHA) | `docs/submission-evidence/2026-10-22-c20fb073/g03-autonomous.json`; exact command/run ID in evidence README; re-run at final SHA |
+| G04 Guard | #51 | 🟡 LOCAL BASELINE PASS (not final SHA) | `docs/submission-evidence/2026-10-22-c20fb073/g04-guard.json`; exact command/run ID in evidence README; re-run at final SHA |
+| G05 Live Commit | #52 | 🟡 LOCAL BASELINE PASS (not final SHA) | `docs/submission-evidence/2026-10-22-c20fb073/g05-live-commit.json`; exact command/run ID in evidence README; re-run at final SHA |
+| G06 Submission | #53 | 🟡 LOCAL BASELINE PASS (20/20; not final SHA) | `docs/submission-evidence/2026-10-22-c20fb073/g06-matrix.json` + committed 20-run archive; re-run at final SHA |
 | Production Data Audit | #216 | 🟡 LIVE PROOF DONE (reviewer acceptance pending) | *(live run)* `docs/PRODUCTION_DATA_AUDIT_RUN.md`: 8/8 PASS — verified at audit SHA, re-verify recommended at submission SHA |
 
 ---
@@ -218,17 +241,17 @@ A passing CI workflow at one SHA does **not** mean the code is reviewed. CI prov
 | # | Requirement | Evidence | Status |
 |---|-------------|----------|--------|
 | CR01 | Live 3D Digital Twin (not decorative) | *(static reference)* `GET /store` drives 3D; `apps/web/src/state/twin.store.ts` — code review, not automated proof | 🟡 IN CODE |
-| CR02 | Autonomous: no human prompt to trigger investigation | *(run required)* Gate G03 — run required at submission SHA | 🔴 NOT VERIFIED |
-| CR03 | AI gathers evidence, plans, simulates before acting | *(run required)* Gates G03/G05 — run required at submission SHA | 🔴 NOT VERIFIED |
-| CR04 | Safety: DCG prevents stale/invalid commits | *(run required)* Gate G04 — run required at submission SHA | 🔴 NOT VERIFIED |
+| CR02 | Autonomous: no human prompt to trigger investigation | *(run required)* Gate G03 — local baseline PASS at `c20fb073`; re-run at final SHA | 🟡 BASELINE PASS |
+| CR03 | AI gathers evidence, plans, simulates before acting | *(run required)* Gates G03/G05 — local baseline PASS at `c20fb073`; re-run at final SHA | 🟡 BASELINE PASS |
+| CR04 | Safety: DCG prevents stale/invalid commits | *(run required)* Gate G04 — local baseline PASS at `c20fb073`; re-run at final SHA | 🟡 BASELINE PASS |
 | CR05 | Google AI (Gemini on Vertex AI) for inference | *(static reference)* ADR 0020/0021; smoke job `smoke-vertex-gemini` — run required at submission SHA | 🟡 PARTIAL |
 | CR06 | Google Cloud: Cloud Run, Firestore, BigQuery, Pub/Sub | *(run required)* smoke jobs D01–D12 — run required at submission SHA | 🟡 PARTIAL |
 | CR07 | Firebase Hosting for web delivery | *(run required)* smoke job `smoke-frontend-availability` — run required at submission SHA | 🟡 PARTIAL |
-| CR08 | Reproducible flagship scenario | *(run required)* Gate G06: 20-run matrix — run required at submission SHA | 🔴 NOT VERIFIED |
-| CR09 | Demo video under required duration | *(static reference)* `docs/DEMO_VIDEO.md` — video artifact required | 🔴 NOT VERIFIED |
+| CR08 | Reproducible flagship scenario | *(run required)* Gate G06 — 20/20 local baseline PASS at `c20fb073`; re-run at final SHA | 🟡 BASELINE PASS |
+| CR09 | Demo video under required duration | *(static reference)* `docs/DEMO_VIDEO.md` — video artifact required; no published URL is recorded | 🔴 MISSING VIDEO URL |
 | CR10 | Public repository | `github.com/vinhphan812/retailtwin-ai` | ✅ PUBLIC |
 | CR11 | No secrets/credentials in repo | *(run required)* CI C03 + C13 — run required at submission SHA | 🟡 UNKNOWN |
-| CR12 | License declared | README says "does not currently declare a license" | 🔴 MISSING |
+| CR12 | License declared | `LICENSE` (MIT); README links the license | 🟢 VERIFIED |
 
 ---
 
@@ -243,14 +266,14 @@ A passing CI workflow at one SHA does **not** mean the code is reviewed. CI prov
 
 ### Summary
 
-- **Features (F01–F12, S01–S05, G01–G10, U01–U06, P01–P06):** 0 / 37 verified  
-- **CI checks (C01–C15):** requires live run  
-- **Deployment (D01–D12, A01–A04, W01–W04):** 🟡 PARTIAL — cloud preflight and data audit passed  
-- **Release gates (G02–G06, #216):** G02 passed; G03–G06 NOT PASSED  
-- **Competition requirements (CR01–CR12):** 2 confirmed, 1 missing (license), rest 🟡/🔴  
-- **Documentation (D01–D14):** 14 documents present; currency not verified  
+- **Features (F01–F12, S01–S05, G01–G10, U01–U06, P01–P06):** local baseline evidence is retained for G03–G06 at `c20fb073`; it is not final-SHA or deployment verification
+- **CI checks (C01–C15):** requires a green live run at final SHA; current `origin/main` API CI #39746990404 is failing
+- **Deployment (D01–D12, A01–A04, W01–W04):** 🟡 PARTIAL — Cloud Run health/readiness responds, but the serving revision does not expose a verifiable Git SHA
+- **Release gates (G02–G06, #216):** G02 passed; G03–G06 have retained local baseline PASS evidence and require re-run at final SHA
+- **Competition requirements (CR01–CR12):** MIT license is present; demo video URL is missing; Cloud Run/Vertex proof remains pending
+- **Documentation (D01–D14):** 14 documents present; currency not verified
 
-> **Verdict:** Not ready for submission. The code is largely in place but no release gate evidence (G03–G06) has been recorded. Cloud preflight (G01) and production data audit (#216) are green. The first action is to run the G03–G06 submission gate harnesses and record the evidence matrices.
+> **Verdict:** Not ready for submission. Local G03–G06 evidence is retained, but final acceptance requires the merged final SHA to pass CI, deploy to Cloud Run, and be verified through the production smoke gates. A published demo-video URL is also required.
 
 ---
 

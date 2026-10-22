@@ -1,0 +1,782 @@
+{
+  "gate": "G05",
+  "issue": 52,
+  "run_id": "issue367-c20fb073-g05",
+  "result": "PASS",
+  "started_at": "2026-10-22T15:54:45.562761+00:00",
+  "finished_at": "2026-10-22T15:54:46.682964+00:00",
+  "git_sha": "c20fb073e4ab919fdced85b7285751e38090cbe3",
+  "runtime": {
+    "app": "retailtwin_api.main.create_app",
+    "live_twin_backend": "memory (seeded from data/schemas/store-state.example.json)",
+    "provider": "FakeLlmProvider: scripted tool calls and plan JSON; tools execute against the Live Twin",
+    "simulator": "agents.simulator.simulate + services/simulation/kpi (simulation-kpi-v1)",
+    "provider_calls": 1
+  },
+  "checks": [
+    {
+      "check": "candidate_was_simulated",
+      "passed": true,
+      "detail": "1 candidates scored by simulation-kpi-v1; chose plan-issue367-c20fb073-g05-P001-1 (kpi_score=0.5) on sim-issue367-c20fb073-g05"
+    },
+    {
+      "check": "simulation_left_live_unchanged",
+      "passed": true,
+      "detail": "P001 still at version 1 after scoring"
+    },
+    {
+      "check": "guard_allowed_on_fresh_reads",
+      "passed": true,
+      "detail": "gates: integrity=pass,evidence=pass,context=pass,freshness=pass,feasibility=pass,policy=pass"
+    },
+    {
+      "check": "authorization_redeemed_for_these_actions",
+      "passed": true,
+      "detail": "guard audit: authorize:ALLOW,commit:ALLOW; the commit-stage recheck runs only after the Executor redeems a token bound to the decision's ordered action hashes; context_hash=2c9c787e739e\u2026"
+    },
+    {
+      "check": "live_twin_shows_exactly_the_authorized_transition",
+      "passed": true,
+      "detail": "expected shelf_quantity 8->9, backroom_quantity 42->41, version 1->2; observed shelf_quantity 8->9, backroom_quantity 42->41, version 1->2"
+    },
+    {
+      "check": "live_version_incremented",
+      "passed": true,
+      "detail": "P001 version 1->2; store store-001:v1->store-001:v2"
+    },
+    {
+      "check": "live_view_source_reflects_the_commit",
+      "passed": true,
+      "detail": "GET /store (read by the 3D Live view) carries the committed row"
+    },
+    {
+      "check": "audit_written",
+      "passed": true,
+      "detail": "review=[('ALLOW', 'APPROVED')]; guard events carry correlation_id=issue367-c20fb073-g05"
+    },
+    {
+      "check": "verifier_confirmed_the_live_state",
+      "passed": true,
+      "detail": "re-read P001=VERIFIED; report status=INCONCLUSIVE reason=KPI_UNOBSERVED"
+    },
+    {
+      "check": "committed_simulation_cannot_commit_again",
+      "passed": true,
+      "detail": "second approve: verdict=DENY reason=SIMULATION_NOT_OPEN; Live unchanged"
+    },
+    {
+      "check": "infeasible_decision_changes_nothing",
+      "passed": true,
+      "detail": "replenish 42 with 41 in the backroom: verdict=DENY detail=INFEASIBLE_ACTION; Live unchanged"
+    },
+    {
+      "check": "correlation_preserved",
+      "passed": true,
+      "detail": "3 guard audit events, all with correlation_id=issue367-c20fb073-g05"
+    }
+  ],
+  "steps": {
+    "simulation": {
+      "simulation_id": "sim-issue367-c20fb073-g05",
+      "context_version": "store-001:v1",
+      "candidates": [
+        {
+          "decision_id": "plan-issue367-c20fb073-g05-P001-1",
+          "kpi_score": 0.5,
+          "formula_id": "simulation-kpi-v1",
+          "actions": [
+            {
+              "type": "replenish_shelf",
+              "sku": "P001",
+              "quantity": 1
+            }
+          ]
+        }
+      ],
+      "chosen": "plan-issue367-c20fb073-g05-P001-1"
+    },
+    "commit": {
+      "decision_id": "plan-issue367-c20fb073-g05-P001-1",
+      "simulation_id": "sim-issue367-c20fb073-g05",
+      "response": {
+        "http_status": 200,
+        "simulation_id": "sim-issue367-c20fb073-g05",
+        "decision": "approved",
+        "status": "committed",
+        "verdict": "ALLOW",
+        "reason_code": "APPROVED",
+        "live_context_version": "store-001:v2",
+        "detail_code": "COMMITTED",
+        "guard": {
+          "verdict": "ALLOW",
+          "reason_code": "ALLOWED",
+          "context_version": "store-001:v1",
+          "context_hash": "2c9c787e739e6e25cdacfd71e2220e020d613f5b8b5d188ab9c3b81670467c8e",
+          "expiry": "2026-10-22T15:56:45.562761Z",
+          "policy_result": {
+            "failed_gate": null,
+            "checks": [
+              {
+                "gate": "integrity",
+                "passed": true,
+                "detail": ""
+              },
+              {
+                "gate": "evidence",
+                "passed": true,
+                "detail": ""
+              },
+              {
+                "gate": "context",
+                "passed": true,
+                "detail": ""
+              },
+              {
+                "gate": "freshness",
+                "passed": true,
+                "detail": ""
+              },
+              {
+                "gate": "feasibility",
+                "passed": true,
+                "detail": ""
+              },
+              {
+                "gate": "policy",
+                "passed": true,
+                "detail": ""
+              }
+            ],
+            "store_id": "store-001",
+            "correlation_id": "issue367-c20fb073-g05",
+            "entity_versions": {
+              "P001": "1"
+            }
+          }
+        },
+        "binding_id": "2c9c787e739e6e25cdacfd71e2220e020d613f5b8b5d188ab9c3b81670467c8e",
+        "expires_at": "2026-10-22T15:55:16.163073Z",
+        "action_hashes": [
+          "6faede57810cd7e26ae090abfc9002d744df2003716d8885efb828801f0c96a6"
+        ]
+      },
+      "live_before": {
+        "store_id": "store-001",
+        "sku": "P001",
+        "shelf_id": "A01",
+        "slot_id": "A01-S01",
+        "facings": 3,
+        "shelf_quantity": 8,
+        "backroom_quantity": 42,
+        "version": 1
+      },
+      "live_after": {
+        "store_id": "store-001",
+        "sku": "P001",
+        "shelf_id": "A01",
+        "slot_id": "A01-S01",
+        "facings": 3,
+        "shelf_quantity": 9,
+        "backroom_quantity": 41,
+        "version": 2
+      },
+      "store_version_before": "store-001:v1",
+      "store_version_after": "store-001:v2",
+      "guard_audit": [
+        {
+          "stage": "authorize",
+          "decision_id": "plan-issue367-c20fb073-g05-P001-1",
+          "correlation_id": "issue367-c20fb073-g05",
+          "store_id": "store-001",
+          "verdict": "ALLOW",
+          "reason_code": "ALLOWED",
+          "failed_gate": null,
+          "context_hash": "2c9c787e739e6e25cdacfd71e2220e020d613f5b8b5d188ab9c3b81670467c8e",
+          "entity_versions": {
+            "P001": "1"
+          },
+          "at": "2026-10-22T15:54:46.162533Z",
+          "gate_checks": [
+            {
+              "gate": "integrity",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "evidence",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "context",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "freshness",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "feasibility",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "policy",
+              "passed": true,
+              "detail": ""
+            }
+          ]
+        },
+        {
+          "stage": "commit",
+          "decision_id": "plan-issue367-c20fb073-g05-P001-1",
+          "correlation_id": "issue367-c20fb073-g05",
+          "store_id": "store-001",
+          "verdict": "ALLOW",
+          "reason_code": "ALLOWED",
+          "failed_gate": null,
+          "context_hash": "2c9c787e739e6e25cdacfd71e2220e020d613f5b8b5d188ab9c3b81670467c8e",
+          "entity_versions": {
+            "P001": "1"
+          },
+          "at": "2026-10-22T15:54:46.164155Z",
+          "gate_checks": [
+            {
+              "gate": "integrity",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "evidence",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "context",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "freshness",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "feasibility",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "policy",
+              "passed": true,
+              "detail": ""
+            }
+          ]
+        }
+      ],
+      "review_audit": [
+        {
+          "simulation_id": "sim-issue367-c20fb073-g05",
+          "decision": "approved",
+          "base_context_version": "store-001:v1",
+          "proposal_context_version": "sim-issue367-c20fb073-g05:v1",
+          "live_context_version": "store-001:v2",
+          "verdict": "ALLOW",
+          "reason_code": "APPROVED",
+          "recorded_at": "2026-10-22T15:54:46.164954Z"
+        }
+      ]
+    },
+    "verification": {
+      "decision_id": "plan-issue367-c20fb073-g05-P001-1",
+      "correlation_id": "issue367-c20fb073-g05",
+      "store_id": "store-001",
+      "status": "INCONCLUSIVE",
+      "reason_code": "KPI_UNOBSERVED",
+      "outcomes": [
+        {
+          "action_id": "plan-issue367-c20fb073-g05-P001-1:0",
+          "verified": true,
+          "reason": null
+        }
+      ],
+      "checks": [
+        {
+          "sku": "P001",
+          "reason_code": "VERIFIED",
+          "expected": {
+            "store_id": "store-001",
+            "sku": "P001",
+            "shelf_id": "A01",
+            "slot_id": "A01-S01",
+            "facings": 3,
+            "shelf_quantity": 9,
+            "backroom_quantity": 41,
+            "version": 2
+          },
+          "observed": {
+            "store_id": "store-001",
+            "sku": "P001",
+            "shelf_id": "A01",
+            "slot_id": "A01-S01",
+            "facings": 3,
+            "shelf_quantity": 9,
+            "backroom_quantity": 41,
+            "version": 2
+          }
+        }
+      ]
+    },
+    "verification_note": "State is verified by re-reading Live. The decision carries a simulated KPI and no observed post-action KPI exists yet, so the Verifier reports KPI_UNOBSERVED for the KPI half.",
+    "failure_cases": {
+      "approve_again": {
+        "http_status": 200,
+        "simulation_id": "sim-issue367-c20fb073-g05",
+        "decision": "approved",
+        "status": "committed",
+        "verdict": "DENY",
+        "reason_code": "SIMULATION_NOT_OPEN",
+        "live_context_version": "store-001:v2",
+        "detail_code": null,
+        "guard": null,
+        "binding_id": null,
+        "expires_at": null,
+        "action_hashes": []
+      },
+      "infeasible": {
+        "http_status": 200,
+        "simulation_id": "sim-issue367-c20fb073-g05-infeasible",
+        "decision": "approved",
+        "status": "evaluated",
+        "verdict": "DENY",
+        "reason_code": "DCG_DENY",
+        "live_context_version": "store-001:v2",
+        "detail_code": "INFEASIBLE_ACTION",
+        "guard": {
+          "verdict": "DENY",
+          "reason_code": "INFEASIBLE_ACTION",
+          "context_version": "store-001:v1",
+          "context_hash": "41170d543b080ac7f7c4fc75b7759394957a4e12575037df3181ef6e86beab43",
+          "expiry": "2026-10-22T15:54:46.581521Z",
+          "policy_result": {
+            "failed_gate": "feasibility",
+            "checks": [
+              {
+                "gate": "integrity",
+                "passed": true,
+                "detail": ""
+              },
+              {
+                "gate": "evidence",
+                "passed": true,
+                "detail": ""
+              },
+              {
+                "gate": "context",
+                "passed": true,
+                "detail": ""
+              },
+              {
+                "gate": "freshness",
+                "passed": true,
+                "detail": ""
+              },
+              {
+                "gate": "feasibility",
+                "passed": false,
+                "detail": "P001 has 41 in the backroom; 42 requested."
+              }
+            ],
+            "store_id": "store-001",
+            "correlation_id": "issue367-c20fb073-g05",
+            "entity_versions": {
+              "P001": "2"
+            }
+          }
+        },
+        "binding_id": null,
+        "expires_at": null,
+        "action_hashes": []
+      }
+    },
+    "guard_audit_chain": [
+      {
+        "stage": "authorize",
+        "decision_id": "plan-issue367-c20fb073-g05-P001-1",
+        "verdict": "ALLOW",
+        "reason_code": "ALLOWED",
+        "failed_gate": null,
+        "entity_versions": {
+          "P001": "1"
+        },
+        "at": "2026-10-22T15:54:46.162533Z"
+      },
+      {
+        "stage": "commit",
+        "decision_id": "plan-issue367-c20fb073-g05-P001-1",
+        "verdict": "ALLOW",
+        "reason_code": "ALLOWED",
+        "failed_gate": null,
+        "entity_versions": {
+          "P001": "1"
+        },
+        "at": "2026-10-22T15:54:46.164155Z"
+      },
+      {
+        "stage": "authorize",
+        "decision_id": "plan-issue367-c20fb073-g05-P001-1-infeasible",
+        "verdict": "DENY",
+        "reason_code": "INFEASIBLE_ACTION",
+        "failed_gate": "feasibility",
+        "entity_versions": {
+          "P001": "2"
+        },
+        "at": "2026-10-22T15:54:46.581990Z"
+      }
+    ],
+    "verification_audit": [
+      {
+        "decision_id": "plan-issue367-c20fb073-g05-P001-1",
+        "correlation_id": "issue367-c20fb073-g05",
+        "status": "INCONCLUSIVE",
+        "reason_code": "KPI_UNOBSERVED",
+        "skus": [
+          "P001"
+        ]
+      }
+    ]
+  },
+  "logs": [
+    {
+      "ts": "2026-10-22T15:54:45.729+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=a11aac1d-f212-4002-a058-5af4356fd30c",
+      "correlation_id": "a11aac1d-f212-4002-a058-5af4356fd30c"
+    },
+    {
+      "ts": "2026-10-22T15:54:45.794+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=a11aac1d-f212-4002-a058-5af4356fd30c",
+      "correlation_id": "a11aac1d-f212-4002-a058-5af4356fd30c"
+    },
+    {
+      "ts": "2026-10-22T15:54:45.804+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=b0689658-6f0b-4e5d-85dc-3ad063d1e961",
+      "correlation_id": "b0689658-6f0b-4e5d-85dc-3ad063d1e961"
+    },
+    {
+      "ts": "2026-10-22T15:54:45.809+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=b0689658-6f0b-4e5d-85dc-3ad063d1e961",
+      "correlation_id": "b0689658-6f0b-4e5d-85dc-3ad063d1e961"
+    },
+    {
+      "ts": "2026-10-22T15:54:45.817+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_inventory capability=READ correlation_id=issue367-c20fb073-g05 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:54:45.819+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_shelf_state capability=READ correlation_id=issue367-c20fb073-g05 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:54:45.863+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_sales_history capability=READ correlation_id=issue367-c20fb073-g05 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:54:45.864+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=forecast_demand capability=READ correlation_id=issue367-c20fb073-g05 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:54:45.866+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_promotions capability=READ correlation_id=issue367-c20fb073-g05 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:54:45.867+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_planogram capability=READ correlation_id=issue367-c20fb073-g05 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:54:45.868+00:00",
+      "logger": "retailtwin_api.agents.investigator.evidence",
+      "level": "INFO",
+      "message": "evidence collected correlation_id=issue367-c20fb073-g05 sku=P001 is_sufficient=True missing="
+    },
+    {
+      "ts": "2026-10-22T15:54:45.963+00:00",
+      "logger": "retailtwin_api.agents.planner.plans",
+      "level": "INFO",
+      "message": "plans created (deterministic) correlation_id=issue367-c20fb073-g05 sku=P001 decisions=1"
+    },
+    {
+      "ts": "2026-10-22T15:54:45.967+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=66eacc84-a0a7-489a-8dd6-7a36b6127bfc",
+      "correlation_id": "66eacc84-a0a7-489a-8dd6-7a36b6127bfc"
+    },
+    {
+      "ts": "2026-10-22T15:54:45.969+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=66eacc84-a0a7-489a-8dd6-7a36b6127bfc",
+      "correlation_id": "66eacc84-a0a7-489a-8dd6-7a36b6127bfc"
+    },
+    {
+      "ts": "2026-10-22T15:54:45.973+00:00",
+      "logger": "retailtwin_api.agents.simulator.branch",
+      "level": "INFO",
+      "message": "simulation scored correlation_id=issue367-c20fb073-g05 simulation_id=sim-issue367-c20fb073-g05 candidates=1"
+    },
+    {
+      "ts": "2026-10-22T15:54:45.977+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=6e39e02e-4df4-4feb-a438-20be4c9871af",
+      "correlation_id": "6e39e02e-4df4-4feb-a438-20be4c9871af"
+    },
+    {
+      "ts": "2026-10-22T15:54:46.064+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=6e39e02e-4df4-4feb-a438-20be4c9871af",
+      "correlation_id": "6e39e02e-4df4-4feb-a438-20be4c9871af"
+    },
+    {
+      "ts": "2026-10-22T15:54:46.069+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=c90d7bfb-b737-43ba-9c59-f0c2a7585e14",
+      "correlation_id": "c90d7bfb-b737-43ba-9c59-f0c2a7585e14"
+    },
+    {
+      "ts": "2026-10-22T15:54:46.071+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=c90d7bfb-b737-43ba-9c59-f0c2a7585e14",
+      "correlation_id": "c90d7bfb-b737-43ba-9c59-f0c2a7585e14"
+    },
+    {
+      "ts": "2026-10-22T15:54:46.076+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=issue367-c20fb073-g05",
+      "correlation_id": "issue367-c20fb073-g05"
+    },
+    {
+      "ts": "2026-10-22T15:54:46.080+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.guard",
+      "level": "INFO",
+      "message": "dcg verdict decision_id=plan-issue367-c20fb073-g05-P001-1 correlation_id=issue367-c20fb073-g05 verdict=ALLOW"
+    },
+    {
+      "ts": "2026-10-22T15:54:46.162+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.no_stale_commit",
+      "level": "INFO",
+      "message": "dcg authorize decision_id=plan-issue367-c20fb073-g05-P001-1 correlation_id=issue367-c20fb073-g05 verdict=ALLOW reason=ALLOWED"
+    },
+    {
+      "ts": "2026-10-22T15:54:46.163+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.guard",
+      "level": "INFO",
+      "message": "dcg verdict decision_id=plan-issue367-c20fb073-g05-P001-1 correlation_id=issue367-c20fb073-g05 verdict=ALLOW"
+    },
+    {
+      "ts": "2026-10-22T15:54:46.164+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.no_stale_commit",
+      "level": "INFO",
+      "message": "dcg commit decision_id=plan-issue367-c20fb073-g05-P001-1 correlation_id=issue367-c20fb073-g05 verdict=ALLOW reason=ALLOWED"
+    },
+    {
+      "ts": "2026-10-22T15:54:46.164+00:00",
+      "logger": "retailtwin_api.agents.executor.executor",
+      "level": "INFO",
+      "message": "executor committed decision_id=plan-issue367-c20fb073-g05-P001-1 skus=P001 store_version=v2"
+    },
+    {
+      "ts": "2026-10-22T15:54:46.165+00:00",
+      "logger": "retailtwin_api.routes",
+      "level": "INFO",
+      "message": "simulation_review.approved",
+      "simulation_id": "sim-issue367-c20fb073-g05",
+      "verdict": "ALLOW",
+      "reason_code": "APPROVED",
+      "detail_code": "COMMITTED",
+      "live_context_version": "store-001:v2"
+    },
+    {
+      "ts": "2026-10-22T15:54:46.271+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=issue367-c20fb073-g05",
+      "correlation_id": "issue367-c20fb073-g05"
+    },
+    {
+      "ts": "2026-10-22T15:54:46.277+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=e62e3111-dd9a-4890-a1a3-56f138a79fbc",
+      "correlation_id": "e62e3111-dd9a-4890-a1a3-56f138a79fbc"
+    },
+    {
+      "ts": "2026-10-22T15:54:46.280+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=e62e3111-dd9a-4890-a1a3-56f138a79fbc",
+      "correlation_id": "e62e3111-dd9a-4890-a1a3-56f138a79fbc"
+    },
+    {
+      "ts": "2026-10-22T15:54:46.287+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=2c40a89b-3092-43d1-b29e-da39a20f0181",
+      "correlation_id": "2c40a89b-3092-43d1-b29e-da39a20f0181"
+    },
+    {
+      "ts": "2026-10-22T15:54:46.290+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=2c40a89b-3092-43d1-b29e-da39a20f0181",
+      "correlation_id": "2c40a89b-3092-43d1-b29e-da39a20f0181"
+    },
+    {
+      "ts": "2026-10-22T15:54:46.372+00:00",
+      "logger": "retailtwin_api.agents.verifier.verify",
+      "level": "INFO",
+      "message": "verifier.checked",
+      "correlation_id": "issue367-c20fb073-g05",
+      "reason_code": "KPI_UNOBSERVED"
+    },
+    {
+      "ts": "2026-10-22T15:54:46.374+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=ff559a9e-6ae8-46ef-970a-f7e41d87e6d7",
+      "correlation_id": "ff559a9e-6ae8-46ef-970a-f7e41d87e6d7"
+    },
+    {
+      "ts": "2026-10-22T15:54:46.377+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=ff559a9e-6ae8-46ef-970a-f7e41d87e6d7",
+      "correlation_id": "ff559a9e-6ae8-46ef-970a-f7e41d87e6d7"
+    },
+    {
+      "ts": "2026-10-22T15:54:46.383+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=issue367-c20fb073-g05",
+      "correlation_id": "issue367-c20fb073-g05"
+    },
+    {
+      "ts": "2026-10-22T15:54:46.387+00:00",
+      "logger": "retailtwin_api.routes",
+      "level": "WARNING",
+      "message": "simulation_review.not_open",
+      "simulation_id": "sim-issue367-c20fb073-g05"
+    },
+    {
+      "ts": "2026-10-22T15:54:46.471+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=issue367-c20fb073-g05",
+      "correlation_id": "issue367-c20fb073-g05"
+    },
+    {
+      "ts": "2026-10-22T15:54:46.475+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=1995a771-f4e1-4281-ba34-b6625761e0d1",
+      "correlation_id": "1995a771-f4e1-4281-ba34-b6625761e0d1"
+    },
+    {
+      "ts": "2026-10-22T15:54:46.477+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=1995a771-f4e1-4281-ba34-b6625761e0d1",
+      "correlation_id": "1995a771-f4e1-4281-ba34-b6625761e0d1"
+    },
+    {
+      "ts": "2026-10-22T15:54:46.483+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=a469fc01-2522-4e7f-b7b2-14b465ed5b7b",
+      "correlation_id": "a469fc01-2522-4e7f-b7b2-14b465ed5b7b"
+    },
+    {
+      "ts": "2026-10-22T15:54:46.485+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=a469fc01-2522-4e7f-b7b2-14b465ed5b7b",
+      "correlation_id": "a469fc01-2522-4e7f-b7b2-14b465ed5b7b"
+    },
+    {
+      "ts": "2026-10-22T15:54:46.577+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=issue367-c20fb073-g05",
+      "correlation_id": "issue367-c20fb073-g05"
+    },
+    {
+      "ts": "2026-10-22T15:54:46.581+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.guard",
+      "level": "INFO",
+      "message": "dcg verdict decision_id=plan-issue367-c20fb073-g05-P001-1-infeasible correlation_id=issue367-c20fb073-g05 verdict=DENY reason=INFEASIBLE_ACTION gate=feasibility"
+    },
+    {
+      "ts": "2026-10-22T15:54:46.582+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.no_stale_commit",
+      "level": "INFO",
+      "message": "dcg authorize decision_id=plan-issue367-c20fb073-g05-P001-1-infeasible correlation_id=issue367-c20fb073-g05 verdict=DENY reason=INFEASIBLE_ACTION"
+    },
+    {
+      "ts": "2026-10-22T15:54:46.582+00:00",
+      "logger": "retailtwin_api.routes",
+      "level": "INFO",
+      "message": "simulation_review.approved",
+      "simulation_id": "sim-issue367-c20fb073-g05-infeasible",
+      "verdict": "DENY",
+      "reason_code": "DCG_DENY",
+      "detail_code": "INFEASIBLE_ACTION",
+      "live_context_version": "store-001:v2"
+    },
+    {
+      "ts": "2026-10-22T15:54:46.583+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=issue367-c20fb073-g05",
+      "correlation_id": "issue367-c20fb073-g05"
+    },
+    {
+      "ts": "2026-10-22T15:54:46.676+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=067882c3-cb0e-4125-9e16-05d652cd189b",
+      "correlation_id": "067882c3-cb0e-4125-9e16-05d652cd189b"
+    },
+    {
+      "ts": "2026-10-22T15:54:46.678+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=067882c3-cb0e-4125-9e16-05d652cd189b",
+      "correlation_id": "067882c3-cb0e-4125-9e16-05d652cd189b"
+    }
+  ]
+}
