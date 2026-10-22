@@ -29,6 +29,39 @@ _SETTINGS_ENV = (
     "LOG_LEVEL",
 )
 
+# Production-only Pub/Sub push identity settings.
+#
+# ``Settings`` is a ``pydantic-settings`` model, so it reads ``os.environ``
+# *in addition to* any ``_env_file``. ``_env_file=None`` only disables the
+# dotenv file; it does not disable the process environment. The self-hosted
+# CI runner exports these two variables globally, so without this guard an
+# ambient ``PUBSUB_PUSH_SERVICE_ACCOUNT`` silently populates every
+# ``Settings(...)`` constructed by the suite and the "service account is not
+# configured" branch of the Pub/Sub route can never be reached.
+#
+# Tests that need either variable set it explicitly (via ``monkeypatch`` or
+# an explicit keyword argument), so removing them here keeps the suite
+# hermetic and deterministic regardless of the runner environment.
+_PUBSUB_PUSH_ENV = (
+    "PUBSUB_PUSH_SERVICE_ACCOUNT",
+    "APP_BASE_URL",
+)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_pubsub_push_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Strip ambient Pub/Sub push identity env vars for the duration of a test.
+
+    Regression guard for the CI failure where the runner-exported
+    ``PUBSUB_PUSH_SERVICE_ACCOUNT`` made
+    ``test_pubsub_route_in_production_with_unset_service_account_returns_503``
+    observe a 401 (OIDC verification ran against the fake token) instead of
+    the expected 503 fail-closed response.
+    """
+
+    for key in _PUBSUB_PUSH_ENV:
+        monkeypatch.delenv(key, raising=False)
+
 
 @pytest.fixture
 def settings(monkeypatch: pytest.MonkeyPatch) -> Settings:
