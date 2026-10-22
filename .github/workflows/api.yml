@@ -29,17 +29,23 @@ on:
 permissions:
   contents: read
 
-# Production topology. API_BASE_URL is the public origin of the Cloud Run
-# service: it is the OIDC audience of the Pub/Sub push token (ADR 0023), so
-# APP_BASE_URL on the service MUST equal the push endpoint URL, and it is
-# the origin the web client talks to.
-env:
-  API_BASE_URL: https://retailtwin-api-5rgtvr4gpa-uc.a.run.app
-  GCP_PROJECT: retailtwin-ai-511002
-  CLOUD_RUN_REGION: us-central1
-  CLOUD_RUN_SERVICE: retailtwin-api
-  PUBSUB_AGENT_SUBSCRIPTION: store-events-agent
-  PUBSUB_PUSH_SERVICE_ACCOUNT: service-537192856637@gcp-sa-pubsub.iam.gserviceaccount.com
+# NOTE: the production topology variables (API_BASE_URL, GCP_PROJECT,
+# CLOUD_RUN_REGION, CLOUD_RUN_SERVICE, PUBSUB_*) are deliberately NOT
+# declared at workflow level. A workflow-level `env:` is inherited by every
+# job, including the test jobs, and `PUBSUB_PUSH_SERVICE_ACCOUNT` /
+# `APP_BASE_URL` are read by the application Settings at import time — a
+# workflow-level value would leak into the test environment and change
+# application behaviour under test (it broke
+# test_pubsub_route_in_production_with_unset_service_account_returns_503:
+# the suite expects an unset service account, but the environment supplied
+# one, so the route authenticated instead of failing closed with 503).
+# They are declared on the deploy-cloudrun job instead, which is the only
+# job that needs them.
+#
+# API_BASE_URL is the public origin of the Cloud Run service: it is the OIDC
+# audience of the Pub/Sub push token (ADR 0023), so APP_BASE_URL on the
+# service MUST equal the push endpoint URL, and it is the origin the web
+# client talks to.
 
 concurrency:
   group: api-ci-${{ github.ref }}
@@ -185,6 +191,16 @@ jobs:
     # already guarantees build-test ran (if it didn't, e2e-smoke would be skipped).
     # We additionally verify that the run's head_sha matches our SHA.
     environment: production
+
+    # Production topology for the deploy job only (see the note above: a
+    # workflow-level `env:` would leak these into the test jobs).
+    env:
+      API_BASE_URL: https://retailtwin-api-5rgtvr4gpa-uc.a.run.app
+      GCP_PROJECT: retailtwin-ai-511002
+      CLOUD_RUN_REGION: us-central1
+      CLOUD_RUN_SERVICE: retailtwin-api
+      PUBSUB_AGENT_SUBSCRIPTION: store-events-agent
+      PUBSUB_PUSH_SERVICE_ACCOUNT: service-537192856637@gcp-sa-pubsub.iam.gserviceaccount.com
 
     permissions:
       id-token: write
