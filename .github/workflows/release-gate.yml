@@ -242,6 +242,7 @@ jobs:
   metadata:
     name: Gather Release Metadata
     runs-on: self-hosted
+    needs: [gate]
     if: always()
     outputs:
       backend_url: ${{ steps.backend.outputs.url }}
@@ -264,7 +265,7 @@ jobs:
       is_manual: ${{ github.event_name == 'workflow_dispatch' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Set smoke run ID + canonical event id
         id: run_id
         run: |
@@ -317,7 +318,7 @@ jobs:
             fi
             echo "url=${URL}" >> $GITHUB_OUTPUT
           fi
-          echo "Backend URL: ${{ steps.backend.outputs.url }}"
+          echo "Backend URL: ${URL}"
       - name: Resolve frontend URL + Firebase Hosting release / version
         id: frontend
         run: |
@@ -356,7 +357,7 @@ jobs:
             echo "version=" >> $GITHUB_OUTPUT
           fi
           echo "::endgroup::"
-          echo "Frontend URL: ${{ steps.frontend.outputs.url }}"
+          echo "Frontend URL: ${URL}"
       - name: Get Cloud Run revision
         id: revision
         run: |
@@ -544,9 +545,9 @@ jobs:
       BACKEND_URL: ${{ needs.metadata.outputs.backend_url }}
       SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
       STORE_ID: store-001
-      GCP_PROJECT: ${{ env.GCP_PROJECT }}
-      CLOUD_RUN_SERVICE: ${{ env.CLOUD_RUN_SERVICE }}
-      GCP_REGION: ${{ env.GCP_REGION }}
+    # REMOVED: env context not allowed in job-level env: GCP_PROJECT: ${{ env.GCP_PROJECT }}
+    # REMOVED: env context not allowed in job-level env: CLOUD_RUN_SERVICE: ${{ env.CLOUD_RUN_SERVICE }}
+    # REMOVED: env context not allowed in job-level env: GCP_REGION: ${{ env.GCP_REGION }}
       STAGE: smoke-firestore-store
     steps:
       - name: Authenticate to Google Cloud
@@ -644,7 +645,7 @@ jobs:
     env:
       BACKEND_URL: ${{ needs.metadata.outputs.backend_url }}
       SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
-      SKU: ${{ env.FIXTURE_P001 }}
+    # REMOVED: env context not allowed in job-level env: SKU: ${{ env.FIXTURE_P001 }}
       STAGE: smoke-p001-inventory
     steps:
       - name: Read P001 inventory
@@ -693,7 +694,7 @@ jobs:
     env:
       BACKEND_URL: ${{ needs.metadata.outputs.backend_url }}
       SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
-      SKU: ${{ env.FIXTURE_P017 }}
+    # REMOVED: env context not allowed in job-level env: SKU: ${{ env.FIXTURE_P017 }}
       STAGE: smoke-p017-inventory
     steps:
       - name: Read P017 inventory (mandatory)
@@ -736,8 +737,8 @@ jobs:
     needs: [metadata, gate, smoke-p017-inventory]
     if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true'
     env:
-      GCP_PROJECT: ${{ env.GCP_PROJECT }}
-      BIGQUERY_DATASET: ${{ env.BIGQUERY_DATASET }}
+    # REMOVED: env context not allowed in job-level env: GCP_PROJECT: ${{ env.GCP_PROJECT }}
+    # REMOVED: env context not allowed in job-level env: BIGQUERY_DATASET: ${{ env.BIGQUERY_DATASET }}
       STAGE: smoke-bigquery-analytics
     steps:
       - name: Authenticate to Google Cloud
@@ -783,8 +784,8 @@ jobs:
     needs: [metadata, gate, smoke-bigquery-analytics]
     if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true'
     env:
-      GCP_PROJECT: ${{ env.GCP_PROJECT }}
-      PUBSUB_TOPIC: ${{ env.PUBSUB_TOPIC }}
+    # REMOVED: env context not allowed in job-level env: GCP_PROJECT: ${{ env.GCP_PROJECT }}
+    # REMOVED: env context not allowed in job-level env: PUBSUB_TOPIC: ${{ env.PUBSUB_TOPIC }}
       SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
       GIT_SHA: ${{ needs.metadata.outputs.git_sha }}
       EVENT_ID: ${{ needs.metadata.outputs.event_id }}
@@ -843,7 +844,7 @@ jobs:
     env:
       BACKEND_URL: ${{ needs.metadata.outputs.backend_url }}
       SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
-      GCP_PROJECT: ${{ env.GCP_PROJECT }}
+    # REMOVED: env context not allowed in job-level env: GCP_PROJECT: ${{ env.GCP_PROJECT }}
       STAGE: smoke-agent-activity
     steps:
       - name: Check /agent/events endpoint
@@ -908,8 +909,8 @@ jobs:
     needs: [metadata, gate, smoke-agent-activity]
     if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true'
     env:
-      GCP_PROJECT: ${{ env.GCP_PROJECT }}
-      GCP_REGION: ${{ env.GCP_REGION }}
+    # REMOVED: env context not allowed in job-level env: GCP_PROJECT: ${{ env.GCP_PROJECT }}
+    # REMOVED: env context not allowed in job-level env: GCP_REGION: ${{ env.GCP_REGION }}
       VERTEX_MODEL: ${{ needs.metadata.outputs.llm_model }}
       STAGE: smoke-vertex-gemini
     steps:
@@ -1066,8 +1067,8 @@ jobs:
     env:
       FRONTEND_URL: ${{ needs.metadata.outputs.frontend_url }}
       SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
-      FIREBASE_SITE: ${{ env.FIREBASE_SITE }}
-      GCP_PROJECT: ${{ env.GCP_PROJECT }}
+    # REMOVED: env context not allowed in job-level env: FIREBASE_SITE: ${{ env.FIREBASE_SITE }}
+    # REMOVED: env context not allowed in job-level env: GCP_PROJECT: ${{ env.GCP_PROJECT }}
       STAGE: smoke-frontend-availability
     steps:
       - name: Authenticate to Google Cloud
@@ -1300,9 +1301,9 @@ jobs:
     needs: [metadata, gate, release-decision]
     if: failure() && needs.metadata.result != 'failure'
     env:
-      GCP_PROJECT: ${{ env.GCP_PROJECT }}
-      GCP_REGION: ${{ env.GCP_REGION }}
-      CLOUD_RUN_SERVICE: ${{ env.CLOUD_RUN_SERVICE }}
+    # REMOVED: env context not allowed in job-level env: GCP_PROJECT: ${{ env.GCP_PROJECT }}
+    # REMOVED: env context not allowed in job-level env: GCP_REGION: ${{ env.GCP_REGION }}
+    # REMOVED: env context not allowed in job-level env: CLOUD_RUN_SERVICE: ${{ env.CLOUD_RUN_SERVICE }}
       SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
       GIT_SHA: ${{ needs.metadata.outputs.git_sha }}
     steps:
@@ -1400,10 +1401,10 @@ jobs:
     name: Manual Rollback (workflow_dispatch only)
     runs-on: self-hosted
     if: github.event_name == 'workflow_dispatch' && inputs.action == 'rollback'
-    env:
-      GCP_PROJECT: ${{ env.GCP_PROJECT }}
-      GCP_REGION: ${{ env.GCP_REGION }}
-      CLOUD_RUN_SERVICE: ${{ env.CLOUD_RUN_SERVICE }}
+    # env: removed (empty)
+    # REMOVED: env context not allowed in job-level env: GCP_PROJECT: ${{ env.GCP_PROJECT }}
+    # REMOVED: env context not allowed in job-level env: GCP_REGION: ${{ env.GCP_REGION }}
+    # REMOVED: env context not allowed in job-level env: CLOUD_RUN_SERVICE: ${{ env.CLOUD_RUN_SERVICE }}
     steps:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2  # c200f3691d83b41bf9bbd8638997a462592937ed

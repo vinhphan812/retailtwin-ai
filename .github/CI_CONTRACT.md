@@ -2,183 +2,158 @@
 
 > **Issue:** [#142][issue-142] — CI Canonical Required Checks
 > **Enforced on:** `main` branch (branch protection rules)
-> **Last updated:** 2026-10-15
+> **Last updated:** 2026-10-20  # routing + deploy-gate + release-smoke scope
 
 ---
 
 ## Required Status Checks
 
-The following checks must all pass before merging any PR into `main`. These are
-configured as **required status checks** in the repository's branch protection
-settings for `main`.
+The following check names are required by branch protection on `main` and must
+remain stable:
 
-| Required check name | Workflow | Purpose |
-|---------------------|----------|---------|
-| `Repository Hygiene` | [`ci.yml`](workflows/ci.yml) | Fast gate: conflict markers, YAML validity, no committed secrets |
-| `API Build & Test` | [`ci.yml`](workflows/ci.yml) | API unit & integration tests, type checking, coverage |
-| `API E2E Smoke` | [`ci.yml`](workflows/ci.yml) | End-to-end smoke tests against the API |
-| `Web Build & Test` | [`ci.yml`](workflows/ci.yml) | Web build, type checking, unit & coverage |
+| Required check name | Workflow | Contract |
+|---|---|---|
+| `Repository Hygiene` | [`ci.yml`](workflows/ci.yml) | Always runs: conflict markers, workflow YAML validity, and secret/.env checks. |
+| `API Build & Test` | [`ci.yml`](workflows/ci.yml) | Green after the API executor succeeds, or green explicit no-op when the API surface is inapplicable. |
+| `API E2E Smoke` | [`ci.yml`](workflows/ci.yml) | Green after the API E2E executor succeeds, or green explicit no-op when the API surface is inapplicable. |
+| `Web Build & Test` | [`ci.yml`](workflows/ci.yml) | Green after the web executor succeeds, or green explicit no-op when the web surface is inapplicable. |
 
-All four checks **must be required** in branch protection. Do not remove any of
-them.
-
----
-
-## Workflow Architecture
-
-```
-.github/workflows/
-├── ci.yml          # Top-level merge gate (no path filter) — always runs
-├── api.yml         # API CI + Cloud Run deployment (path-filtered)
-├── web.yml         # Web CI/CD (path-filtered)
-└── conflict-markers.yml  # Backup conflict-marker gate
-```
-
-### Why `ci.yml` has no path filter
-
-GitHub branch protection requires a named check to exist for every commit. If a
-workflow runs only on a path filter and no matching files change, the named
-check is never emitted — creating a **required-check / path-filter deadlock**.
-
-`ci.yml` solves this by:
-1. Running on every PR/push with **no path filter**.
-2. Conditionally running expensive jobs (API tests, Web tests) only when relevant
-   files change.
-3. Always running the fast `Repository Hygiene` job (conflict markers, YAML
-   validation, secrets scan).
-
-This guarantees a stable set of required check names regardless of which files a
-PR touches.
+The three expensive checks use a **stable gate + conditional executor** design.
+The named gate is never silently absent: when a suite does not apply, it records
+a successful explicit no-op. When it does apply, the gate fails unless its
+executor succeeded. This avoids branch-protection deadlocks without treating a
+skipped job as an implementation detail of GitHub Actions.
 
 ---
 
-## Path → CI Mapping
+## Routing Truth Table
 
-| File(s) changed | Triggers |
-|----------------|----------|
-| `apps/api/**`, `services/forecasting/**`, `tests/e2e/**`, `.github/workflows/api.yml` | `API Build & Test`, `API E2E Smoke` |
-| `apps/web/**`, `.github/workflows/web.yml` | `Web Build & Test` |
-| `contracts/**` | **Both** API and Web CI (shared contract) |
-| Any other file (e.g. docs, ADRs) | `Repository Hygiene` only |
+`ci.yml` has no top-level path filter. It derives its routing decision from the
+actual diff. The same categories are reflected by the API and web workflows'
+path filters.
 
-### `contracts_changed` output contract
+|| Changed path category | API executor | Web executor | API deploy | Firebase deploy | Release Gate smoke evidence |
+||---|:---:|:---:|:---:|:---:|:---:|
+|| Docs/repository hygiene | No — explicit no-op | No — explicit no-op | No | No | Gate=no-candidate (all 12 skipped) |
+|| API-only | Yes | No — explicit no-op | Yes on successful `main` push | No | Backend only (checks 1–11); frontend skipped |
+|| Web-only | No — explicit no-op | Yes | No | Yes on successful `main` push | Frontend only (check 12); backend skipped |
+|| Shared contract / workflow-infra | Yes | Yes | Yes on successful `main` push | Yes on successful `main` push | Both surfaces: all 12 checks run |
+|| Unknown/unclassified path | Yes — fail closed | Yes — fail closed | Yes only if corresponding workflow ran | Yes only if corresponding workflow ran | Both surfaces (unknown is fail-closed) |
 
-The `detect-changes` job exposes `contracts_changed` as a boolean output.
+`workflow_dispatch` remains available to operators as an explicit force path.
 
-**`contracts_changed` is `true` only when a file under `contracts/` changes.**
-This is intentionally narrow — it represents only genuine API/Web contract or
-schema boundary changes, not merely any change to an API or Web surface file.
-This distinction matters because consumers of the CI output (dashboards, release
-notes, deployment pipelines) need to know whether a schema/API contract was
-touched, not just whether either surface happened to be edited.
+### Classification rules
 
-| Change type | `api_changed` | `web_changed` | `contracts_changed` |
-|------------|:---:|:---:|:---:|
-| API-only non-contract file | true | false | false |
-| Web-only non-contract file | false | true | false |
-| Mixed API + Web non-contract | true | true | false |
-| Any `contracts/` file | true | true | true |
-| `contracts/` + API + Web | true | true | true |
+- `contracts_changed` is `true` **only** for `contracts/**`. It causes both
+  surfaces to run.
+- Workflow/infra files are deliberately shared because they can change either
+  test/deploy surface.
+- The documented docs/hygiene set is the only known no-op class.
+- Any unknown path is fail-closed: both expensive suites run. This protects new
+  source roots from being accidentally excluded until their routing is documented.
+- Run the local deterministic harness after changing this policy:
 
-Locally reproduce this with:
+  ```bash
+  bash .github/scripts/test-change-detector.sh
+  ```
 
-```bash
-bash .github/scripts/test-change-detector.sh
-```
+---
+
+## Deployment and Release-Evidence Semantics
+
+`api.yml` and `web.yml` are independently path-filtered and deploy only for a
+successful push to `main` after their respective build/test chain completes.
+Each deploy job additionally verifies its workflow actually ran for the triggering
+SHA (defence against manual `workflow_dispatch` without matching changes).
+There is no deployment for docs-only changes.
+
+`release-gate.yml` is **not** a deploy selector. A completed upstream workflow
+becomes a release candidate only when its own matching deployment job succeeded
+for the same SHA:
+
+- `API CI` → `Deploy to Cloud Run (production)`;
+- `Web CI / CD` → `Deploy to Firebase Hosting`.
+
+API-only and web-only releases are valid, independently evidenced releases;
+Release Gate does not require both workflows for every SHA. Shared contract and
+workflow/infra changes can produce two scoped release-evidence runs—one for each
+successful deployment. A non-deploy, failed, cancelled, or docs-only upstream
+run exits the gate successfully as a **no-candidate** result, avoiding a
+secondary expected failure.
+
+**Release Gate smoke scope:** The gate tracks which upstream CI (`API CI`,
+`Web CI / CD`) actually ran for the SHA. Smoke jobs are gated accordingly:
+
+- Backend smoke (checks 1–11): runs only when `API CI` ran → `api_ci_ran=true`
+- Frontend smoke (check 12): runs only when `Web CI / CD` ran → `web_ci_ran=true`
+
+Consequences by change class:
+
+| Change class | Gate result | Backend smoke | Frontend smoke |
+|---|---|---|---|
+| Docs-only | no-candidate pass | skipped | skipped |
+| API-only | scoped pass | runs | skipped |
+| Web-only | scoped pass | skipped | runs |
+| Shared contract/infra | dual scoped pass | runs | runs |
+| Manual dispatch | full pass | runs | runs |
+
+This avoids false failures on single-surface commits while keeping the full
+12-check evidence for dual-surface deployments.
 
 ---
 
 ## Repository Hygiene Checks
 
-The `Repository Hygiene` job performs:
+`Repository Hygiene` always runs and performs:
 
-1. **No conflict markers** — Rejects any commit containing `<<<<<<<`, `=======`,
-   or `>>>>>>>` in tracked files (except `.git/MERGE_MSG`).
-
-2. **Workflow YAML validity** — Runs `yamllint --strict` on all
-   `.github/workflows/*.yml` files. Catches malformed YAML that would silently
-   disable a workflow.
-
-3. **No committed secrets** — Scans for:
-   - AWS access key pattern (`AKIA...`)
-   - Generic base64-encoded secrets (heuristic)
-   - Private key PEM blocks (`-----BEGIN ... PRIVATE KEY-----`)
-   - `password="..."` or `api_key="..."` literals
-   - Any committed `.env` file
-
-4. **No `.env` files** — Rejects any committed `.env` or `.env.*` file.
+1. conflict-marker detection;
+2. workflow YAML validation;
+3. committed-secret-pattern scanning; and
+4. committed `.env` rejection (except explicit template files).
 
 ---
 
-## API Build & Test
+## Test Suites
 
-- Python 3.11
-- `mypy` type checking
-- `pytest` with coverage (branch coverage required)
-- Forecast service tests (risk, demand)
-- Simulation KPI tests
-- Branch coverage threshold enforcement
-- Critical-path coverage policy enforcement
+### API Build & Test / API E2E Smoke
 
-**Coverage floor:** ≥ 85% line, ≥ 75% branch (enforced by `check_branch_threshold.py`).
+- Python 3.11, `mypy`, `pytest`, coverage, forecasting and simulation checks;
+- branch-coverage and critical-path policy enforcement; and
+- E2E smoke using `FakeLlmProvider` (no real LLM calls).
 
----
+### Web Build & Test
 
-## API E2E Smoke
-
-- Fast end-to-end smoke tests in `tests/e2e/`
-- Depends on successful `API Build & Test`
-- Uses `FakeLlmProvider` (no real LLM calls)
+- Node.js 20.17, TypeScript/Vite production build, Vitest and coverage; and
+- validation that `FIREBASE_API_BASE_URL` is set and not localhost.
 
 ---
 
-## Web Build & Test
+## Adding or Modifying Routed Paths
 
-- Node.js 20.17
-- TypeScript type checking (`tsc --noEmit`)
-- Vite production build
-- Vitest unit tests
-- Vitest coverage
-
-**Prerequisite:** `FIREBASE_API_BASE_URL` repository variable must be set and must
-not point to `localhost`.
-
----
-
-## Adding or Modifying Required Checks
-
-1. Update this document with the new check name and workflow.
-2. Update `ci.yml` (or the relevant workflow) with the new job.
-3. Update branch protection rules on GitHub to include the new required check.
-4. Commit with message referencing issue #142.
-
----
-
-## Deployments (Post-Merge Only)
-
-Deployments run in separate workflows (`api.yml` `deploy-cloudrun`, `web.yml`
-`deploy`) and **do not block merge**. They are gated on `github.ref ==
-'refs/heads/main'` and `github.event_name == 'push'` only.
-
----
+1. Update the classifier in `ci.yml` and the matching API/web workflow filters.
+2. Update `.github/scripts/test-change-detector.sh` with a representative case.
+3. Update this truth table and explain any deployment effect.
+4. Run the harness and workflow YAML validation.
+5. Do **not** remove or rename the required gate jobs without an explicit branch
+   protection migration.
 
 ## Troubleshooting
 
 ### "Required status check not found"
 
-Ensure the job name in the workflow matches exactly what is configured in branch
-protection. GitHub requires an **exact name match**.
+The required job names must exactly match the names in this document. The stable
+gate jobs in `ci.yml` deliberately preserve them for every PR.
 
-### "Workflow not running on my PR"
+### "Why did both suites run for a new file path?"
 
-Check that the changed files match the path filters in `api.yml` or `web.yml`.
-For shared contract changes (`contracts/**`), both API and Web CI should run.
+The path was unknown. This is the fail-closed default; classify it explicitly
+only after deciding whether it is docs-only, API-only, web-only, or shared.
 
-### "E2E smoke failed but I didn't change API code"
+### "Why did Release Gate not run smoke checks?"
 
-The E2E smoke suite may depend on deployment state. Ensure the base branch's
-API is deployed before running E2E smoke locally.
-
----
+The source run did not contain a successful matching deploy job. Inspect the
+source workflow; the Release Gate no-candidate result is intentional and does
+not mask deployment failures.
 
 [issue-142]: https://github.com/retailtwin/retailtwin-ai/issues/142
+
