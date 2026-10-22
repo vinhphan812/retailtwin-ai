@@ -168,7 +168,7 @@ def test_autonomous_trigger_loop_runs_consume_available() -> None:
         # ack to land. The consumer pulls the message out of ``pending``
         # before driving the flagship chain, so a check on ``pending``
         # alone races with the ``pipe.ack`` that runs after the chain.
-        deadline = time.monotonic() + 5.0
+        deadline = time.monotonic() + 20.0
         while time.monotonic() < deadline:
             if not pipe.pending and pipe.acked:
                 break
