@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MotionGlobalConfig } from "framer-motion";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { CandidatePanel } from "@/components/twin/CandidatePanel";
 import { demoCandidates } from "@/fixtures/demo/candidates";
 import { demoSimulation } from "@/fixtures/demo/simulation";
@@ -11,6 +12,8 @@ import { VIEW_MODE } from "@/enums/ui.enum";
 import { BASELINE_CANDIDATE_ID } from "@/enums/simulation.enum";
 
 vi.mock("@/core/notify", () => ({ notify: { info: vi.fn(), warning: vi.fn(), error: vi.fn(), success: vi.fn() } }));
+
+MotionGlobalConfig.skipAnimations = true;
 
 const live = demoStoreState();
 
@@ -26,6 +29,20 @@ function open() {
 }
 
 beforeEach(() => vi.clearAllMocks());
+
+/**
+ * HeroUI's Tooltip lazily loads framer-motion's animation features
+ * (`@heroui/dom-animation`) the first time it mounts. The import resolves
+ * asynchronously, and framer-motion then sets state on the LazyMotion
+ * component. If that lands after Vitest tears the jsdom environment down,
+ * React's update reads `window` and the run fails with
+ * "ReferenceError: window is not defined". Loading the module up front here
+ * ensures the import settles inside the test's lifetime, before teardown.
+ */
+beforeAll(async () => {
+  await import("@heroui/dom-animation");
+});
+
 afterEach(() => {
   cleanup();
   useUiStore.setState(useUiStore.getInitialState(), true);
@@ -38,7 +55,13 @@ const column = (plan: string) => screen.getByRole("button", { name: new RegExp(`
 const row = (label: string) =>
   Array.from(screen.getByRole("rowheader", { name: label }).parentElement!.querySelectorAll("td")).map((cell) => cell.textContent);
 
-describe("CandidatePanel", () => {
+/**
+ * The 60s budget is scoped to this file only: the suites below mount HeroUI
+ * Tooltip, whose lazy framer-motion import makes the first render slow on
+ * self-hosted runners. The project-wide `testTimeout` stays at its 20s
+ * default so no other suite's budget is widened.
+ */
+describe("CandidatePanel", { timeout: 60_000 }, () => {
   it("renders nothing when no simulation is open", () => {
     const { container } = render(<CandidatePanel />);
     expect(container.innerHTML).toBe("");
@@ -257,7 +280,7 @@ describe("CandidatePanel", () => {
   });
 });
 
-describe("candidate panel isolation from live state", () => {
+describe("candidate panel isolation from live state", { timeout: 60_000 }, () => {
   it("never writes to live state when switching candidates", () => {
     open();
     const liveBefore = structuredClone(useTwinStore.getState().live);
