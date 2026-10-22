@@ -55,7 +55,13 @@ const column = (plan: string) => screen.getByRole("button", { name: new RegExp(`
 const row = (label: string) =>
   Array.from(screen.getByRole("rowheader", { name: label }).parentElement!.querySelectorAll("td")).map((cell) => cell.textContent);
 
-describe("CandidatePanel", () => {
+/**
+ * The 60s budget is scoped to this file only: the suites below mount HeroUI
+ * Tooltip, whose lazy framer-motion import makes the first render slow on
+ * self-hosted runners. The project-wide `testTimeout` stays at its 20s
+ * default so no other suite's budget is widened.
+ */
+describe("CandidatePanel", { timeout: 60_000 }, () => {
   it("renders nothing when no simulation is open", () => {
     const { container } = render(<CandidatePanel />);
     expect(container.innerHTML).toBe("");
@@ -274,7 +280,7 @@ describe("CandidatePanel", () => {
   });
 });
 
-describe("candidate panel isolation from live state", () => {
+describe("candidate panel isolation from live state", { timeout: 60_000 }, () => {
   it("never writes to live state when switching candidates", () => {
     open();
     const liveBefore = structuredClone(useTwinStore.getState().live);
