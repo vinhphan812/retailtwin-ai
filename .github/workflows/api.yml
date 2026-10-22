@@ -216,6 +216,13 @@ jobs:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_DEPLOY_SA }}
 
+      - name: Set up Google Cloud CLI
+        # The self-hosted runner does not ship the Cloud SDK, and the deploy
+        # path needs it for `gcloud auth configure-docker` (gcr.io push auth).
+        # setup-gcloud provisions the SDK into the runner tool cache, so the
+        # job no longer depends on whatever happens to be installed on the box.
+        uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
+
       - name: Configure Docker for GCR
         run: gcloud auth configure-docker gcr.io --quiet
 
