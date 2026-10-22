@@ -295,7 +295,7 @@ jobs:
             --region="${CLOUD_RUN_REGION}" \
             --project="${GCP_PROJECT}" \
             --format=json)
-          ENV_MAP=$(echo "${SERVICE_JSON}" | jq -r '.spec.template.spec.containers[0].env // [] | map(select(.name != null)) | map("\(.name)=\(.value // "")") | .[]')
+          ENV_MAP=$(echo "${SERVICE_JSON}" | python3 -c "import json,sys;c=json.load(sys.stdin)['spec']['template']['spec']['containers'][0];print('\n'.join('%s=%s'%(e['name'],e.get('value','')) for e in (c.get('env') or []) if e.get('name')))")
           for REQUIRED in "AUTONOMY_ENABLED=true" "APP_BASE_URL=${API_BASE_URL}" "PUBSUB_PUSH_SERVICE_ACCOUNT=${PUBSUB_PUSH_SERVICE_ACCOUNT}"; do
             if ! echo "${ENV_MAP}" | grep -qx "${REQUIRED}"; then
               echo "::error::deployed service is missing ${REQUIRED}"
