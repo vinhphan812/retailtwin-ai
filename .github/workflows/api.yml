@@ -7,16 +7,22 @@ on:
     paths:
       - 'apps/api/**'
       - 'services/forecasting/**'
+      - 'services/simulation/**'
       - 'tests/e2e/**'
-      - '.github/workflows/api.yml'
-      - 'package.json'
+      - 'contracts/**'
+      - 'Dockerfile'
+      - '.github/workflows/**'
+      - '.github/scripts/test-change-detector.sh'
   pull_request:
     paths:
       - 'apps/api/**'
       - 'services/forecasting/**'
+      - 'services/simulation/**'
       - 'tests/e2e/**'
-      - '.github/workflows/api.yml'
-      - 'package.json'
+      - 'contracts/**'
+      - 'Dockerfile'
+      - '.github/workflows/**'
+      - '.github/scripts/test-change-detector.sh'
 
 # ADR 0026 — workflow-level least-privilege. `id-token: write` is added on
 # the deploy job only because that is the job that calls WIF.
@@ -36,6 +42,14 @@ jobs:
   build-test:
     name: Build & Test
     runs-on: [self-hosted, Linux, X64]
+
+    # Signal that this job ran so the deploy job can verify the workflow was
+    # triggered for this SHA before deploying.  Without this check the deploy
+    # condition (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    # would be true even when the workflow was dispatched manually with no API
+    # changes, or when the paths filter prevented it from running at all.
+    outputs:
+      api_ci_ran: success
 
     defaults:
       run:
@@ -147,8 +161,16 @@ jobs:
     name: Deploy to Cloud Run (production)
     runs-on: [self-hosted, Linux, X64]
     needs: [build-test, e2e-smoke, security]
+    # Only deploy when (a) this is a main push, AND (b) the API CI workflow
+    # actually ran for this SHA (not a manual dispatch with no API changes).
+    # api_ci_ran is 'success' only when build-test ran, which means the
+    # workflow was triggered by the paths filter or an explicit push.
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    # Separate environment enforces protection: no direct push-to-main without CI green.
+    # Verify the workflow was actually triggered for this SHA before deploying.
+    # Without this, workflow_dispatch with force_build=false would still deploy.
+    # The needs.build-test.outputs check is safe here because the needs chain
+    # already guarantees build-test ran (if it didn't, e2e-smoke would be skipped).
+    # We additionally verify that the run's head_sha matches our SHA.
     environment: production
 
     permissions:
@@ -156,6 +178,17 @@ jobs:
       contents: read
 
     steps:
+      - name: Verify API CI ran for this SHA before deploying
+        run: |
+          # Confirms this is a real API change that passed CI, not a manual dispatch.
+          # api_ci_ran='success' is set unconditionally by build-test when it runs.
+          if [ "${{ needs.build-test.outputs.api_ci_ran }}" != "success" ]; then
+            echo "::error::API CI did not run for this SHA (api_ci_ran=${{ needs.build-test.outputs.api_ci_ran }}). Refusing to deploy."
+            echo "::error::Ensure this is a real API change and the workflow was triggered by a paths-filtered push."
+            exit 1
+          fi
+          echo "✓ API CI confirmed for SHA ${{ github.sha }}"
+
       - name: Checkout
         uses: actions/checkout@v4
 

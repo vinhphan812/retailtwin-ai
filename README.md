@@ -20,14 +20,27 @@ RetailTwin AI closes those three gaps: it is autonomous (events drive the loop, 
 
 The autonomous control loop is a single deterministic state machine:
 
-```text
-OBSERVE → DETECT → INVESTIGATE → PLAN → SIMULATE → GUARD → ACT → VERIFY
+```mermaid
+flowchart LR
+  Observe["Observe"] --> Detect["Detect"]
+  Detect --> Investigate["Investigate"]
+  Investigate --> Plan["Plan"]
+  Plan --> Simulate["Simulate"]
+  Simulate --> Guard["Guard"]
+  Guard --> Act["Act"]
+  Act --> Verify["Verify"]
 ```
 
 In the competition story:
 
-```text
-EVENT → AI → INVESTIGATE → SIMULATE → GUARD → LIVE 3D ACTION → VERIFY
+```mermaid
+flowchart LR
+  Event["Event"] --> Ai["AI"]
+  Ai --> Investigate["Investigate"]
+  Investigate --> Simulate["Simulate"]
+  Simulate --> Guard["Guard"]
+  Guard --> Action["Live 3D action"]
+  Action --> Verify["Verify"]
 ```
 
 For each event the loop does the following:
@@ -47,8 +60,9 @@ The agent can therefore demonstrate a clean stale-context block followed by an a
 
 The full architecture, including the data flow, the LLM-provider-neutral contract, the DCG gate definitions, and the Live-vs-Simulation boundary, is in:
 
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — end-to-end component map, gate definitions, and security rules.
-- [docs/architecture/README.md](docs/architecture/README.md) — canonical autonomous control loop diagram (delivered in issue #46 in parallel; cross-referenced here once the diagram lands).
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — source-backed component map, deployment paths, guard definitions, and security rules.
+- [docs/ARCHITECTURE_DIAGRAM.md](docs/ARCHITECTURE_DIAGRAM.md) — extended architecture diagrams.
+- [docs/architecture/README.md](docs/architecture/README.md) — concise canonical autonomous control-loop diagram.
 - [docs/DOMAIN_AND_DATA_MODEL.md](docs/DOMAIN_AND_DATA_MODEL.md) — `Store → Zone → Shelf → Slot → Product` model, event envelope, EvidenceBundle, action contracts, and Live/Simulation isolation.
 - [docs/adr/](docs/adr/README.md) — the architecture decision log. Every record lists the issue and pull request that adopted it.
 
@@ -160,8 +174,9 @@ This repository does not currently declare a license file. Add the chosen licens
 - [docs/COMPETITION_README.md](docs/COMPETITION_README.md) — long-form technical brief with the deep-dive architecture, the 8-stage agent walkthrough, storage layout, and the gate evidence index.
 - [docs/DOCS_INDEX.md](docs/DOCS_INDEX.md) — every document in the repository, with status and audience.
 - [docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md) — the retail problem, product behaviour, scope, glossary.
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — components, data flow, DCG, security, and Live/Simulation boundaries.
-- [docs/architecture/README.md](docs/architecture/README.md) — canonical autonomous control loop diagram (issue #46, in progress).
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — source-backed components, data flow, deployment paths, DCG, security, and Live/Simulation boundaries.
+- [docs/ARCHITECTURE_DIAGRAM.md](docs/ARCHITECTURE_DIAGRAM.md) — extended architecture diagrams.
+- [docs/architecture/README.md](docs/architecture/README.md) — concise canonical autonomous control-loop diagram.
 - [docs/DOMAIN_AND_DATA_MODEL.md](docs/DOMAIN_AND_DATA_MODEL.md) — entities, schemas, events, evidence, tools, actions, KPIs.
 - [docs/IMPLEMENTATION_GUIDE.md](docs/IMPLEMENTATION_GUIDE.md) — role-by-role work and the build phases.
 - [docs/DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md) — issue → branch → PR → ADR workflow and merge-safety rules.

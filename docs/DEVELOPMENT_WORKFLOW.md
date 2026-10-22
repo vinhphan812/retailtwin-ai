@@ -64,13 +64,13 @@ Never describe target architecture as already deployed.
 
 Do not add Competition-100 work while the core path is unstable. Preserve:
 
-```text
-Autonomous Trigger
-→ Real Gemini Tool Use
-→ Simulation Before Live
-→ DCG / No-Stale-Commit
-→ Guarded Live 3D Action
-→ Verification
+```mermaid
+flowchart LR
+  Trigger["Autonomous trigger"] --> Gemini["Real Gemini tool use"]
+  Gemini --> Simulation["Simulation before Live"]
+  Simulation --> Guard["DCG and No-Stale-Commit"]
+  Guard --> Action["Guarded Live 3D action"]
+  Action --> Verification["Verification"]
 ```
 
 Optional sophistication must not weaken this path.

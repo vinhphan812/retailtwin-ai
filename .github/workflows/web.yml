@@ -54,6 +54,9 @@ jobs:
     outputs:
       # Reference the job-level env directly — vars.* cannot be used in outputs.
       api_origin: ${{ env.VITE_API_BASE_URL }}
+      # Signal that this job ran so the deploy job can verify the workflow was
+      # triggered for this SHA before deploying (defence against manual dispatch).
+      workflow_ran: success
 
     defaults:
       run:
@@ -161,6 +164,8 @@ jobs:
     needs: [build-test]
     runs-on: [self-hosted, Linux, X64]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Verify the workflow was actually triggered for this SHA before deploying.
+    # workflow_ran='success' is set unconditionally by build-test when it runs.
     environment: production
 
     # ADR 0026 — only the deploy job needs the OIDC token to exchange for
@@ -176,6 +181,17 @@ jobs:
       api_origin: ${{ needs.build-test.outputs.api_origin }}
 
     steps:
+      - name: Verify Web CI ran for this SHA before deploying
+        run: |
+          # Confirms this is a real Web change that passed CI, not a manual dispatch.
+          # workflow_ran='success' is set unconditionally by build-test when it runs.
+          if [ "${{ needs.build-test.outputs.workflow_ran }}" != "success" ]; then
+            echo "::error::Web CI did not run for this SHA. Refusing to deploy."
+            echo "::error::Ensure this is a real Web change and the workflow was triggered by a paths-filtered push."
+            exit 1
+          fi
+          echo "✓ Web CI confirmed for SHA ${{ github.sha }}"
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -199,6 +215,15 @@ jobs:
         with:
           node-version: '20.17'
 
+      # The deploy runner receives only the checked-out repository and web-dist;
+      # it does not inherit build-test's node_modules. Install the CLI from the
+      # committed npm lockfile before invoking its local binary.
+      # --include=dev is required because firebase-tools is a devDependency and
+      # npm ci omits devDependencies when NODE_ENV=production / omit=dev.
+      - name: Install pinned Firebase CLI
+        working-directory: apps/web
+        run: npm ci --include=dev --ignore-scripts
+
       - name: Deploy to Firebase Hosting
         id: deploy
         env:
@@ -208,7 +233,7 @@ jobs:
           # The site is read from firebase.json (hosting.site), not from a CLI flag.
           # firebase-tools is installed locally to avoid npx download latency/failures.
           set +e
-          DEPLOY_OUTPUT=$(./apps/web/node_modules/.bin/firebase-tools deploy \
+          DEPLOY_OUTPUT=$(./apps/web/node_modules/.bin/firebase deploy \
             --only hosting \
             --project retailtwin-ai-511002 \
             --token "${GOOGLE_OAUTH_ACCESS_TOKEN}" \

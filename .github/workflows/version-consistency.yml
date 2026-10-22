@@ -25,7 +25,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           # Tags are needed so the gate can read existing release tags and
           # verify a matching CHANGELOG section exists for them.

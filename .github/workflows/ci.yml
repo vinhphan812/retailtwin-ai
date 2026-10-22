@@ -221,15 +221,28 @@ jobs:
           fi
           echo "No committed .env files."
 
+  # Skip gate: API Build & Test (no-op when API surface not applicable)
+  # Preserves the stable required-check name for branch protection.
+  api-build-test-skip:
+    name: API Build & Test
+    runs-on: [self-hosted, Linux, X64]
+    needs: [detect-changes]
+    if: needs.detect-changes.outputs.api_changed != 'true'
+
+    steps:
+      - name: "No-op: API surface not changed"
+        run: |
+          echo "API Build & Test: SKIPPED — no API-relevant paths changed."
+          echo "See CI_CONTRACT.md for the applicable routing decision."
+
   # ── API Build & Test ─────────────────────────────────────────────────────────
   api-build-test:
     name: API Build & Test
     runs-on: [self-hosted, Linux, X64]
     needs: [detect-changes]
-    # Run when API paths changed or on push to main
-    if: |
-      github.event_name == 'push' ||
-      needs.detect-changes.outputs.api_changed == 'true'
+    # Run only when API paths changed (detect-changes is authoritative).
+    # Removed: github.event_name == 'push' || — was forcing both suites on every main push.
+    if: needs.detect-changes.outputs.api_changed == 'true'
 
     defaults:
       run:
@@ -306,15 +319,27 @@ jobs:
           pytest --cov=retailtwin_api --cov-report=term 2>&1 | tail -20 | tee -a $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
+  # Skip gate: API E2E Smoke (no-op when API surface not applicable)
+  api-e2e-smoke-skip:
+    name: API E2E Smoke
+    runs-on: [self-hosted, Linux, X64]
+    needs: [detect-changes, repository-hygiene, api-build-test-skip]
+    if: needs.detect-changes.outputs.api_changed != 'true'
+
+    steps:
+      - name: "No-op: API E2E Smoke not applicable"
+        run: |
+          echo "API E2E Smoke: SKIPPED — no API-relevant paths changed."
+          echo "See CI_CONTRACT.md for the applicable routing decision."
+
   # ── API E2E Smoke ──────────────────────────────────────────────────────────
   api-e2e-smoke:
     name: API E2E Smoke
     runs-on: [self-hosted, Linux, X64]
     needs: [detect-changes, repository-hygiene, api-build-test]
-    # Run when API paths changed or on push to main
-    if: |
-      github.event_name == 'push' ||
-      needs.detect-changes.outputs.api_changed == 'true'
+    # Run only when API paths changed (detect-changes is authoritative).
+    # Removed: github.event_name == 'push' || — was forcing both suites on every main push.
+    if: needs.detect-changes.outputs.api_changed == 'true'
 
     steps:
       - name: Checkout
@@ -336,15 +361,28 @@ jobs:
       - name: Run E2E smoke suite
         run: pytest tests/e2e/ -v --tb=short
 
+  # Skip gate: Web Build & Test (no-op when Web surface not applicable)
+  # Preserves the stable required-check name for branch protection.
+  web-build-test-skip:
+    name: Web Build & Test
+    runs-on: [self-hosted, Linux, X64]
+    needs: [detect-changes]
+    if: needs.detect-changes.outputs.web_changed != 'true'
+
+    steps:
+      - name: "No-op: Web surface not changed"
+        run: |
+          echo "Web Build & Test: SKIPPED — no Web-relevant paths changed."
+          echo "See CI_CONTRACT.md for the applicable routing decision."
+
   # ── Web Build & Test ─────────────────────────────────────────────────────────
   web-build-test:
     name: Web Build & Test
     runs-on: [self-hosted, Linux, X64]
     needs: [detect-changes]
-    # Run when Web paths changed or on push to main
-    if: |
-      github.event_name == 'push' ||
-      needs.detect-changes.outputs.web_changed == 'true'
+    # Run only when Web paths changed (detect-changes is authoritative).
+    # Removed: github.event_name == 'push' || — was forcing both suites on every main push.
+    if: needs.detect-changes.outputs.web_changed == 'true'
 
     defaults:
       run:
