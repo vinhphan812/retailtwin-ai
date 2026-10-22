@@ -141,9 +141,34 @@ jobs:
           echo "${API_RUNS}" > /tmp/api_run.json
           echo "${WEB_RUNS}" > /tmp/web_run.json
 
+          # The Web CI / CD workflow is path-filtered to web files, so a main
+          # push that only touches the API never produces a "Web CI / CD" run
+          # for that SHA. In that case the web leg is not applicable to the
+          # gate: the deployed frontend is unchanged, and smoke check 12 still
+          # proves the live frontend is serving. When the SHA *does* touch a
+          # web path the leg stays mandatory and fails closed.
+          echo "::group::Check whether the gate SHA touches web paths"
+          WEB_TOUCHED=$(gh api "repos/${{ github.repository }}/commits/${GATE_SHA}" \
+            --jq '.files[].filename' 2>/dev/null \
+            | grep -E '^(apps/web/|package\.json$|firebase\.json$|\.firebaserc$|\.github/workflows/web\.yml$)' \
+            | head -1 || true)
+          if [ -n "${WEB_TOUCHED}" ]; then
+            echo "web_paths_touched=true" > /tmp/web_touched.txt
+            echo "Web path touched by ${GATE_SHA}: ${WEB_TOUCHED}"
+          else
+            echo "web_paths_touched=false" > /tmp/web_touched.txt
+            echo "No web path touched by ${GATE_SHA} — the 'Web CI / CD' leg is not applicable to this SHA."
+          fi
+          echo "::endgroup::"
+
           python3 - "${GATE_SHA}" << 'PYEOF'
-          import json, sys
+          import json, os, sys
           errors = []
+          web_touched = False
+          try:
+              web_touched = open("/tmp/web_touched.txt").read().strip() == "true"
+          except OSError:
+              web_touched = False
           for label, path in [("API CI", "/tmp/api_run.json"), ("Web CI / CD", "/tmp/web_run.json")]:
               try:
                   run = json.load(open(path))
@@ -154,6 +179,9 @@ jobs:
               status   = run.get("status")   or ""
               conc     = run.get("conclusion") or ""
               if not head_sha:
+                  if label == "Web CI / CD" and not web_touched:
+                      print(f"::notice::{label}: no run for SHA {sys.argv[1]} and the SHA touches no web path — leg not applicable.")
+                      continue
                   errors.append(f"{label}: no run found for SHA {sys.argv[1]}")
               elif status in ("in_progress", "queued", "waiting"):
                   errors.append(f"{label}: run is {status} for SHA {sys.argv[1]}")
@@ -184,6 +212,12 @@ jobs:
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_DEPLOY_SA }}
+
+      - name: Set up Google Cloud CLI
+        # The self-hosted runner does not ship the Cloud SDK. setup-gcloud
+        # provisions it into the runner tool cache so every gcloud/bq call in
+        # this job resolves, independent of what the runner image ships.
+        uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
 
       - name: Verify deployed artifacts exist for the SHA
         if: github.event_name == 'workflow_dispatch'
@@ -302,6 +336,11 @@ jobs:
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_DEPLOY_SA }}
+      - name: Set up Google Cloud CLI
+        # The self-hosted runner does not ship the Cloud SDK. setup-gcloud
+        # provisions it into the runner tool cache so every gcloud/bq call in
+        # this job resolves, independent of what the runner image ships.
+        uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
       - name: Resolve backend URL
         id: backend
         run: |
@@ -555,6 +594,11 @@ jobs:
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_RUNTIME_SA }}
+      - name: Set up Google Cloud CLI
+        # The self-hosted runner does not ship the Cloud SDK. setup-gcloud
+        # provisions it into the runner tool cache so every gcloud/bq call in
+        # this job resolves, independent of what the runner image ships.
+        uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
       - name: Verify LIVE_TWIN_BACKEND contract on deployed Cloud Run
         id: backend_contract
         run: |
@@ -746,6 +790,11 @@ jobs:
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_RUNTIME_SA }}
+      - name: Set up Google Cloud CLI
+        # The self-hosted runner does not ship the Cloud SDK. setup-gcloud
+        # provisions it into the runner tool cache so every gcloud/bq call in
+        # this job resolves, independent of what the runner image ships.
+        uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
       - name: Verify sales_events table exists
         run: |
           set -e
@@ -796,6 +845,11 @@ jobs:
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_RUNTIME_SA }}
+      - name: Set up Google Cloud CLI
+        # The self-hosted runner does not ship the Cloud SDK. setup-gcloud
+        # provisions it into the runner tool cache so every gcloud/bq call in
+        # this job resolves, independent of what the runner image ships.
+        uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
       - name: Verify Pub/Sub topic exists
         run: |
           set -e
@@ -919,6 +973,11 @@ jobs:
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_RUNTIME_SA }}
+      - name: Set up Google Cloud CLI
+        # The self-hosted runner does not ship the Cloud SDK. setup-gcloud
+        # provisions it into the runner tool cache so every gcloud/bq call in
+        # this job resolves, independent of what the runner image ships.
+        uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
       - name: Live Vertex Gemini generateContent call
         run: |
           set -e
@@ -1022,6 +1081,11 @@ jobs:
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_RUNTIME_SA }}
+      - name: Set up Google Cloud CLI
+        # The self-hosted runner does not ship the Cloud SDK. setup-gcloud
+        # provisions it into the runner tool cache so every gcloud/bq call in
+        # this job resolves, independent of what the runner image ships.
+        uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
       - name: Scan every captured endpoint for credentials
         run: |
           set -e
@@ -1076,6 +1140,11 @@ jobs:
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_DEPLOY_SA }}
+      - name: Set up Google Cloud CLI
+        # The self-hosted runner does not ship the Cloud SDK. setup-gcloud
+        # provisions it into the runner tool cache so every gcloud/bq call in
+        # this job resolves, independent of what the runner image ships.
+        uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
       - name: Confirm Firebase Hosting has a live release
         run: |
           set -e
@@ -1411,6 +1480,11 @@ jobs:
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_DEPLOY_SA }}
+      - name: Set up Google Cloud CLI
+        # The self-hosted runner does not ship the Cloud SDK. setup-gcloud
+        # provisions it into the runner tool cache so every gcloud/bq call in
+        # this job resolves, independent of what the runner image ships.
+        uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
       - name: List the last five ready revisions
         run: |
           echo "::group::Last 5 revisions of ${{ env.CLOUD_RUN_SERVICE }}"

@@ -29,6 +29,18 @@ on:
 permissions:
   contents: read
 
+# Production topology. API_BASE_URL is the public origin of the Cloud Run
+# service: it is the OIDC audience of the Pub/Sub push token (ADR 0023), so
+# APP_BASE_URL on the service MUST equal the push endpoint URL, and it is
+# the origin the web client talks to.
+env:
+  API_BASE_URL: https://retailtwin-api-5rgtvr4gpa-uc.a.run.app
+  GCP_PROJECT: retailtwin-ai-511002
+  CLOUD_RUN_REGION: us-central1
+  CLOUD_RUN_SERVICE: retailtwin-api
+  PUBSUB_AGENT_SUBSCRIPTION: store-events-agent
+  PUBSUB_PUSH_SERVICE_ACCOUNT: service-537192856637@gcp-sa-pubsub.iam.gserviceaccount.com
+
 concurrency:
   group: api-ci-${{ github.ref }}
   cancel-in-progress: true
@@ -204,6 +216,13 @@ jobs:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_DEPLOY_SA }}
 
+      - name: Set up Google Cloud CLI
+        # The self-hosted runner does not ship the Cloud SDK, and the deploy
+        # path needs it for `gcloud auth configure-docker` (gcr.io push auth).
+        # setup-gcloud provisions the SDK into the runner tool cache, so the
+        # job no longer depends on whatever happens to be installed on the box.
+        uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
+
       - name: Configure Docker for GCR
         run: gcloud auth configure-docker gcr.io --quiet
 
@@ -253,9 +272,49 @@ jobs:
           # Merge the values explicitly managed above with the existing service
           # contract. The pre-deploy snapshot includes LLM_PROVIDER and LLM_MODEL,
           # which the release gate requires; explicitly include them to prevent stripping.
+          #
+          # AUTONOMY_ENABLED=true is what actually restores the autonomous runtime
+          # in production (issue #384): with the default `false` the API accepts
+          # `POST /events` but never starts an investigation, so
+          # `GET /agent/events` stays empty and the live loop never runs.
+          # APP_BASE_URL / PUBSUB_PUSH_SERVICE_ACCOUNT are required by the
+          # `POST /pubsub/agent-events` push endpoint in production (ADR 0023):
+          # without them the route fails closed with 503.
           env_vars_update_strategy: merge
-          env_vars: APP_ENV=production,LOG_LEVEL=INFO,LIVE_TWIN_BACKEND=firestore,LLM_PROVIDER=vertex_gemini,LLM_MODEL=gemini-2.5-flash
+          env_vars: APP_ENV=production,LOG_LEVEL=INFO,LIVE_TWIN_BACKEND=firestore,LLM_PROVIDER=vertex_gemini,LLM_MODEL=gemini-2.5-flash,AUTONOMY_ENABLED=true,APP_BASE_URL=${{ env.API_BASE_URL }},PUBSUB_PUSH_SERVICE_ACCOUNT=${{ env.PUBSUB_PUSH_SERVICE_ACCOUNT }}
           # secrets: STORE_FIXTURE_PATH=store-fixture:latest  # enable after Secret Manager setup
+
+      - name: Verify the autonomous runtime is live on the deployed service
+        run: |
+          set -euo pipefail
+          # The Pub/Sub push subscription wiring (one-time platform provisioning,
+          # idempotent script scripts/provision-pubsub-push.sh) is not repeated
+          # per deploy; this step only proves the deployed revision carries the
+          # autonomous-runtime contract.
+          SERVICE_JSON=$(gcloud run services describe "${CLOUD_RUN_SERVICE}" \
+            --region="${CLOUD_RUN_REGION}" \
+            --project="${GCP_PROJECT}" \
+            --format=json)
+          ENV_MAP=$(echo "${SERVICE_JSON}" | jq -r '.spec.template.spec.containers[0].env // [] | map(select(.name != null)) | map("\(.name)=\(.value // "")") | .[]')
+          for REQUIRED in "AUTONOMY_ENABLED=true" "APP_BASE_URL=${API_BASE_URL}" "PUBSUB_PUSH_SERVICE_ACCOUNT=${PUBSUB_PUSH_SERVICE_ACCOUNT}"; do
+            if ! echo "${ENV_MAP}" | grep -qx "${REQUIRED}"; then
+              echo "::error::deployed service is missing ${REQUIRED}"
+              echo "${ENV_MAP}" | sed 's/^/  /'
+              exit 1
+            fi
+            echo "✓ ${REQUIRED}"
+          done
+
+          {
+            echo "## Autonomous runtime (issue #384)"
+            echo ""
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| AUTONOMY_ENABLED | true |"
+            echo "| APP_BASE_URL | ${API_BASE_URL} |"
+            echo "| PUBSUB_PUSH_SERVICE_ACCOUNT | ${PUBSUB_PUSH_SERVICE_ACCOUNT} |"
+            echo "| Agent subscription push endpoint | ${API_BASE_URL}/pubsub/agent-events |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Verify production deployment
         run: |
