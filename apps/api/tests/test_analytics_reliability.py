@@ -137,6 +137,16 @@ class TestRevenueReliability:
 # ─── /promotions graceful degradation ─────────────────────────────────────────
 
 class TestPromotionsReliability:
+    def test_returns_empty_when_repo_unavailable(self, client_with_failures):
+        """Unavailable promotions repo returns empty list, not 503."""
+        response = client_with_failures.get("/promotions")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["promotions"] == []
+        assert data["revenue"] == 0.0
+        assert data["incremental_revenue"] == 0.0
+        assert data["discount_cost"] == 0.0
+
     def test_raises_503_on_analytics_error(self, settings):
         """Real AnalyticsError from failing repo is caught and mapped to 503."""
         from retailtwin_api.analytics_repository import (

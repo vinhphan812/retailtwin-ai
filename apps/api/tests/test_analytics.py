@@ -225,6 +225,14 @@ class TestRevenue:
         response = client.get("/revenue", params={"start": start, "end": end})
         assert response.status_code == 422
 
+    def test_invalid_period_parameter(self, client: TestClient):
+        """Invalid period value returns 422 with clear error message."""
+        response = client.get("/revenue", params={"period": "yearly"})
+        assert response.status_code == 422
+        data = response.json()
+        assert data["error"]["code"] == "validation_error"
+        assert "/revenue" in data["error"]["message"]
+        assert "period" in str(data["error"]["details"])
 
     def test_invalid_datetime_format(self, client: TestClient):
         """Malformed start/end datetime returns 422 with ISO-8601 hint."""
@@ -268,6 +276,23 @@ class TestRevenue:
         assert response.status_code == 200
         assert response.json()["period"] == "daily"
 
+    def test_422_response_includes_endpoint_path(self, client: TestClient):
+        """All 422 responses include the endpoint path and method for debugging."""
+        response = client.get("/revenue", params={"period": "invalid"})
+        assert response.status_code == 422
+        data = response.json()
+        assert data["error"]["path"] == "/revenue"
+        assert data["error"]["method"] == "GET"
+
+    def test_422_response_includes_error_type(self, client: TestClient):
+        """422 response details include the Pydantic error type."""
+        response = client.get("/revenue", params={"period": "invalid"})
+        assert response.status_code == 422
+        data = response.json()
+        details = data["error"]["details"]
+        assert len(details) > 0
+        # Each detail should have a "type" field
+        assert all("type" in d for d in details)
 
 
 # ─── /promotions tests ────────────────────────────────────────────────────────
