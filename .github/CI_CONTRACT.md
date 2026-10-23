@@ -123,7 +123,7 @@ This avoids false failures on single-surface commits while keeping the full
 
 ### Web Build & Test
 
-- Node.js 20.17, TypeScript/Vite production build, Vitest and coverage; and
+- Node.js 20.19, TypeScript/Vite production build, Vitest and coverage; and
 - validation that `FIREBASE_API_BASE_URL` is set and not localhost.
 
 ---
