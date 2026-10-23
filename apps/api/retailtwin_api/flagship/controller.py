@@ -404,9 +404,32 @@ class _StubInventoryReader(InventoryReader):
 # ---------------------------------------------------------------------------
 
 
+class ActivityPort(Protocol):
+    """Protocol for agent activity logging sinks."""
+
+    def record(
+        self,
+        stage: Any,
+        status: str,
+        correlation_id: str,
+        *,
+        run_id: str | None = None,
+        decision: str | None = None,
+        simulation_id: str | None = None,
+        sku: str | None = None,
+        shelf_id: str | None = None,
+        slot_id: str | None = None,
+        summary: str | None = None,
+        at: datetime | None = None,
+        acquired_at: datetime | None = None,
+        verdict: str | None = None,
+    ) -> Any:
+        ...
+
+
 @dataclass
 class FlagshipDependencies:
-    """External wiring injected at app startup. None of the fields are optional."""
+    """External wiring injected at app startup."""
 
     provider: LlmPort
     twin: LiveTwinRepository
@@ -414,6 +437,7 @@ class FlagshipDependencies:
     registry: ToolRegistry
     evaluator: CandidateEvaluator
     clock: Callable[[], datetime] = _now
+    activity: ActivityPort | None = None
 
 
 class FlagshipController:
@@ -1066,7 +1090,7 @@ def register_dependencies(
     registry: ToolRegistry,
     evaluator: CandidateEvaluator,
     clock: Callable[[], datetime] = _now,
-    activity: Any = None,
+    activity: ActivityPort | None = None,
 ) -> FlagshipController:
     """Wire the controller to the canonical services. Called once at startup."""
     deps = FlagshipDependencies(
@@ -1076,6 +1100,7 @@ def register_dependencies(
         registry=registry,
         evaluator=evaluator,
         clock=clock,
+        activity=activity,
     )
     controller = get_controller()
     controller.configure(deps)

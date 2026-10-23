@@ -26,8 +26,9 @@
 |---|---|---|---|
 | [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) | New developer, judge | Stable | The retail problem, product behaviour, scope, glossary. Read first. |
 | [CURRENT_STATUS.md](CURRENT_STATUS.md) | New developer, reviewer | Living | Authoritative current maturity, work in progress, and release-gate status. Update whenever a gate changes or a major subsystem lands. |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Reviewer, implementer | Stable (target) | Components, data flow, security, DCG, Live/Simulation boundary. Describes the target product; status is in CURRENT_STATUS.md. |
-| [architecture/README.md](architecture/README.md) | Everyone | In flight (#46) | Canonical autonomous control loop diagram. Cross-referenced in README.md and COMPETITION_README.md. |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Reviewer, implementer | Living | Source-backed components, API/web boundary, deployment paths, security, DCG, and Live/Simulation boundary. Remote status remains in CURRENT_STATUS.md. |
+| [ARCHITECTURE_DIAGRAM.md](ARCHITECTURE_DIAGRAM.md) | Reviewer, judge | Living | Extended Mermaid architecture diagrams; treat cloud-resource details as source configuration unless linked evidence states otherwise. |
+| [architecture/README.md](architecture/README.md) | Everyone | Stable | Concise canonical autonomous control-loop diagram. Cross-referenced in README.md and COMPETITION_README.md. |
 | [DOMAIN_AND_DATA_MODEL.md](DOMAIN_AND_DATA_MODEL.md) | Implementer | Stable | Store / Zone / Shelf / Slot / Product model, events, evidence, tools, actions, KPIs, Live/Simulation isolation. |
 | [IMPLEMENTATION_GUIDE.md](IMPLEMENTATION_GUIDE.md) | New developer, role owner | Stable | Role-by-role work and the build phases. Cuts Competition-100 features when the core path is unstable. |
 | [DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md) | Reviewer, implementer | Stable | Issue → branch → PR → ADR workflow, verification hierarchy, merge-safety rules, vocabulary for maturity. |

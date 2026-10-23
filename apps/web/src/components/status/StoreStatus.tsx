@@ -8,6 +8,7 @@ import { productRows } from "@/core/twin/productRows";
 import { format } from "@/core/utils/format";
 import { ENTITY_TYPE } from "@/enums/scene.enum";
 import { STOCK_STATE, type StockState } from "@/enums/stock.enum";
+import { errorMessage } from "@/core/notify";
 import type { RetailTwinClient } from "@/types/api.type";
 import { useStoreStatus } from "@/hooks/storeStatus.hook";
 import { selectedProductId, useUiStore } from "@/state/ui.store";
@@ -24,7 +25,7 @@ type StoreStatusProps = {
 
 export function StoreStatus({ client = isDemoMode() ? undefined : defaultClient }: StoreStatusProps) {
   const { t } = useTranslation();
-  const { health, store, loading, sku, setSku, inventory, lookupPending, onLookup } = useStoreStatus(client);
+  const { health, store, loading, sku, setSku, inventory, lookupError, lookupPending, onLookup } = useStoreStatus(client);
   const select = useUiStore((state) => state.select);
   const selected = useUiStore(selectedProductId);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -99,6 +100,11 @@ export function StoreStatus({ client = isDemoMode() ? undefined : defaultClient 
             onShelf: inventory.shelf_quantity,
             backroom: inventory.backroom_quantity,
           })}
+        </p>
+      ) : null}
+      {lookupError ? (
+        <p className="store-status-result store-status-error" role="alert">
+          {errorMessage(lookupError)}
         </p>
       ) : null}
 

@@ -83,7 +83,7 @@ Three boundaries are enforced by code, not policy:
 2. **Live and Simulation are isolated.** A simulation clones the live snapshot, applies candidate actions, scores the result, and never writes back. The Live Twin is mutated only after a guarded commit ([ADR 0013](adr/0013-score-candidate-plans-on-a-simulation-clone.md)).
 3. **Quantitative values come from code, not the LLM.** KPI scores, stockout risk, demand forecast, and feasibility are computed deterministically. Gemini explains; it does not invent numbers.
 
-The full target architecture is in [docs/ARCHITECTURE.md](ARCHITECTURE.md). The canonical autonomous control loop diagram is being delivered in parallel in [docs/architecture/README.md](architecture/README.md) (issue #46).
+The source-backed architecture map is in [ARCHITECTURE.md](ARCHITECTURE.md). See [ARCHITECTURE_DIAGRAM.md](ARCHITECTURE_DIAGRAM.md) for extended diagrams and [architecture/README.md](architecture/README.md) for the concise autonomous control loop.
 
 ### 2.1 Component responsibilities
 

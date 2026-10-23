@@ -557,10 +557,22 @@ def test_pubsub_route_in_production_with_empty_service_account_returns_503() -> 
     assert starter.starts == []
 
 
-def test_pubsub_route_in_production_with_unset_service_account_returns_503() -> None:
+def test_pubsub_route_in_production_with_unset_service_account_returns_503(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """A production build that omits ``PUBSUB_PUSH_SERVICE_ACCOUNT``
-    entirely (the default empty value) also fails closed with 503 (P0-2)."""
+    entirely (the default empty value) also fails closed with 503 (P0-2).
 
+    The variable must be absent from the *process environment* as well:
+    ``Settings`` is a ``pydantic-settings`` model, so it reads
+    ``os.environ`` regardless of ``_env_file``. An ambient
+    ``PUBSUB_PUSH_SERVICE_ACCOUNT`` — as exported by the self-hosted CI
+    runner — would otherwise populate the field, and the route would move
+    past the fail-closed misconfiguration check into OIDC verification
+    (401) instead of answering 503.
+    """
+
+    monkeypatch.delenv("PUBSUB_PUSH_SERVICE_ACCOUNT", raising=False)
     settings = Settings(
         _env_file=None,
         app_env="production",
@@ -568,6 +580,85 @@ def test_pubsub_route_in_production_with_unset_service_account_returns_503() -> 
         store_fixture_path=DEFAULT_FIXTURE,
         app_base_url="https://retailtwin-api-511002.run.app",
     )
+    # The branch under test is only reachable when the setting is empty.
+    assert settings.pubsub_push_service_account == ""
+    app = create_app(settings)
+    starter = _RecordingStarter()
+    with TestClient(app) as client:
+        app.state.observer_starter = starter  # type: ignore[assignment]
+        response = client.post(
+            "/pubsub/agent-events",
+            json=_envelope(_canonical_body()),
+            headers={"authorization": "Bearer fake.token.value"},
+        )
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "pubsub_auth_misconfigured"
+    assert starter.starts == []
+
+
+def test_pubsub_route_in_production_reads_service_account_from_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``PUBSUB_PUSH_SERVICE_ACCOUNT`` is still honoured when the process
+    environment supplies it (the production deployment path).
+
+    Companion to the fail-closed test above: the misconfiguration branch
+    must be reachable *and* the configured branch must keep working.
+    """
+
+    monkeypatch.setenv("PUBSUB_PUSH_SERVICE_ACCOUNT", _PUBSUB_PUSH_SA)
+    settings = Settings(
+        _env_file=None,
+        app_env="production",
+        store_id="store-001",
+        store_fixture_path=DEFAULT_FIXTURE,
+        app_base_url="https://retailtwin-api-511002.run.app",
+    )
+    assert settings.pubsub_push_service_account == _PUBSUB_PUSH_SA
+    app = create_app(settings)
+    starter = _RecordingStarter()
+
+    def fake_verify(_token: str, _request: object, audience: str | None = None) -> dict[str, object]:
+        return {
+            "iss": "https://accounts.google.com",
+            "aud": audience or "",
+            "email": _PUBSUB_PUSH_SA,
+            "email_verified": True,
+        }
+
+    monkeypatch.setattr(
+        "google.oauth2.id_token.verify_oauth2_token",
+        fake_verify,
+    )
+    with TestClient(app) as client:
+        app.state.observer_starter = starter  # type: ignore[assignment]
+        response = client.post(
+            "/pubsub/agent-events",
+            json=_envelope(_canonical_body()),
+            headers={"authorization": "Bearer fake.token.value"},
+        )
+    assert response.status_code == 200
+    assert response.json()["outcome"] == "started"
+
+
+def test_pubsub_route_in_production_without_app_base_url_returns_503(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Production without ``APP_BASE_URL`` fails closed with 503 (P0-2).
+
+    Sibling of the service-account misconfiguration branch: the audience
+    must also be configurable, otherwise the route cannot verify the token.
+    """
+
+    monkeypatch.delenv("APP_BASE_URL", raising=False)
+    settings = Settings(
+        _env_file=None,
+        app_env="production",
+        store_id="store-001",
+        store_fixture_path=DEFAULT_FIXTURE,
+        pubsub_push_service_account=_PUBSUB_PUSH_SA,
+    )
+    assert settings.app_base_url == ""
     app = create_app(settings)
     starter = _RecordingStarter()
     with TestClient(app) as client:

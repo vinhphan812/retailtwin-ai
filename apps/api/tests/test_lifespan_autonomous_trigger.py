@@ -18,6 +18,27 @@ from retailtwin_api.demand_surge import DemandSurgeScheduler
 from retailtwin_api.main import create_app
 from retailtwin_api.settings import DEFAULT_FIXTURE, Settings
 
+# ── Budget for "the autonomous trigger consumed AND acked the message" ──
+#
+# The observer acknowledges a message only AFTER the whole flagship chain
+# returns (``consumer.py`` calls ``pipe.ack`` after the starter returns), so
+# this test waits for the real ``MemoryPipe.ack`` call rather than for a
+# clock. The clock is still needed as a bound, and the bound is derived from
+# measurements, not guessed:
+#
+#   * CI run 39608897964 (job 119252475289, the red Required Check):
+#     ``app.startup`` at 13:45:30.297 and the ack at 13:45:36.545 — the
+#     chain needed ~6.2s, which is past the old 5.0s budget and produced
+#     exactly the observed flake (``assert [] = ... .acked``).
+#   * The same suite runs 504.66s on the CI runner versus ~51.7s locally
+#     (~10x slower, shared self-hosted box), and this file alone took 47s in
+#     CI versus 2.54s locally (~18x).
+#
+# 20s leaves roughly 3x headroom over the slowest ack ever measured on CI,
+# so a loaded runner cannot flake this test, while a genuinely missing ack
+# still fails within a bounded time instead of hanging the suite.
+_ACK_TIMEOUT_S = 20.0
+
 
 def _settings(**overrides: object) -> Settings:
     base: dict[str, object] = {
@@ -168,7 +189,7 @@ def test_autonomous_trigger_loop_runs_consume_available() -> None:
         # ack to land. The consumer pulls the message out of ``pending``
         # before driving the flagship chain, so a check on ``pending``
         # alone races with the ``pipe.ack`` that runs after the chain.
-        deadline = time.monotonic() + 5.0
+        deadline = time.monotonic() + _ACK_TIMEOUT_S
         while time.monotonic() < deadline:
             if not pipe.pending and pipe.acked:
                 break

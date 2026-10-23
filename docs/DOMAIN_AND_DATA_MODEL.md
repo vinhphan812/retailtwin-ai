@@ -151,36 +151,29 @@ Gemini does **not** call a generic live update.
 
 Expected flow:
 
-```text
-proposed_actions
-      ↓
-Simulation Twin
-      ↓
-Decision
-      ↓
-submit_action_for_commit(decision)
-      ↓
-DCG
-      ↓
-commit authorization
-      ↓
-Executor
-      ↓
-exact allowed live actions
+```mermaid
+flowchart TD
+  Proposed["Proposed actions"] --> Simulation["Simulation Twin"]
+  Simulation --> Decision["Decision"]
+  Decision --> Submit["submit_action_for_commit"]
+  Submit --> Guard["Decision Context Guard"]
+  Guard --> Authorisation["Commit authorisation"]
+  Authorisation --> Executor["Executor"]
+  Executor --> Live["Exact allowed live actions"]
 ```
 
 ## 10. Live Twin / Simulation Twin isolation
 
 ```mermaid
 flowchart LR
-  E[Event] --> R[Read Live Twin snapshot]
-  R --> S[Simulation Twin]
-  S --> K[KPI evaluation]
+  E[Event] --> R["Read Live Twin snapshot"]
+  R --> S["Simulation Twin"]
+  S --> K["KPI evaluation"]
   K --> D[Decision]
-  D --> G[DCG and authorization]
-  G --> X[Executor]
-  X --> L[Live Twin]
-  B[Browser / Gemini] -. no direct write .-> L
+  D --> G["DCG and authorization"]
+  G --> X["Executor"]
+  X --> L["Live Twin"]
+  B["Browser / Gemini"] -. no direct write .-> L
 ```
 
 Browser clients and Gemini may read approved views, propose plans, or invoke constrained tools. Neither may write Live Twin state directly; only the guarded Executor can apply an authorized action.
@@ -190,17 +183,17 @@ Browser clients and Gemini may read approved views, propose plans, or invoke con
 ```mermaid
 flowchart LR
   subgraph Simulation ["Simulation Twin (isolated branch)"]
-    R[Read Live Twin snapshot<br/>version N] --> SC[Clone to simulation state]
-    SC --> ACT[Apply candidate actions]
-    ACT --> KPI[KPI evaluation]
+    R["Read Live Twin snapshot<br/>version N"] --> SC["Clone to simulation state"]
+    SC --> ACT["Apply candidate actions"]
+    ACT --> KPI["KPI evaluation"]
     KPI --> D[Decision]
   end
 
-  D --> G[DCG and authorization]
-  G --> X[Executor]
+  D --> G["DCG and authorization"]
+  G --> X["Executor"]
 
   subgraph Live ["Live Twin (canonical truth)"]
-    X --> LT[Authorized live actions]
+    X --> LT["Authorized live actions"]
     LT --> VER[Verification]
   end
 
