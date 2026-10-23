@@ -6,6 +6,7 @@ import { discountOf } from "@/components/promotions/PromotionCard";
 import { stockState } from "@/core/twin/fixtureStock";
 import { format } from "@/core/utils/format";
 import { ENTITY_TYPE } from "@/enums/scene.enum";
+import { PROMOTION_KIND } from "@/enums/commerce.enum";
 import { STOCK_STATE, type StockState } from "@/enums/stock.enum";
 import { usePromotions } from "@/hooks/commerce.hook";
 import { useActiveState, useShownAnomalies } from "@/hooks/activeTwin.hook";
@@ -132,7 +133,9 @@ function ProductPromotions({ sku, onView }: { sku: string; onView: (promotionId:
                     {t(`promotions.status.${promotion.status}`)}
                   </span>
                   <span className="promotion-kind">
-                    {t(`promotions.kind.${promotion.kind}`, { value: discountOf(promotion) })}
+                    {promotion.kind === PROMOTION_KIND.Unknown
+                      ? t("promotions.kind.unknown")
+                      : t(`promotions.kind.${promotion.kind}`, { value: discountOf(promotion) })}
                   </span>
                 </span>
                 <span className="promotion-name">{promotion.name}</span>

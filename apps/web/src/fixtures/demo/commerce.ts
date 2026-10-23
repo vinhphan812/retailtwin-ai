@@ -259,7 +259,7 @@ export function demoPromotions(): PromotionsSummary {
     store_id: STORE_ID,
     revenue: sum((promotion) => promotion.revenue),
     incremental_revenue: sum((promotion) => promotion.incremental_revenue),
-    discount_cost: sum((promotion) => promotion.discount_cost),
+    discount_cost: sum((promotion) => promotion.discount_cost ?? 0),
     promotions,
   };
 }

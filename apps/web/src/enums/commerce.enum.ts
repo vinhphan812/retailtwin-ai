@@ -32,6 +32,7 @@ export const PROMOTION_KIND = {
   BuyXGetY: "buy_x_get_y",
   Bundle: "bundle",
   LoyaltyMultiplier: "loyalty_multiplier",
+  Unknown: "unknown",
 } as const;
 export type PromotionKind = (typeof PROMOTION_KIND)[keyof typeof PROMOTION_KIND];
 
