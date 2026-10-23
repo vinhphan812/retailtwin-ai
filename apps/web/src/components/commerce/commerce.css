@@ -636,8 +636,12 @@
   --status: var(--color-good);
 }
 
-.promotion-card[data-status="scheduled"] {
+.promotion-card[data-status="upcoming"] {
   --status: var(--color-accent);
+}
+
+.promotion-card[data-status="cancelled"] {
+  --status: var(--color-dim);
 }
 
 .promotion-card[data-status="pending_review"] {

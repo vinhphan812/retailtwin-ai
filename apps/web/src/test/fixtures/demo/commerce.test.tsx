@@ -58,7 +58,7 @@ describe("demo promotions", () => {
     const report = demoPromotions();
     expect(report.revenue).toBeCloseTo(sum(report.promotions.map((promotion) => promotion.revenue)), 2);
     expect(report.incremental_revenue).toBeCloseTo(sum(report.promotions.map((promotion) => promotion.incremental_revenue)), 2);
-    expect(report.discount_cost).toBeCloseTo(sum(report.promotions.map((promotion) => promotion.discount_cost)), 2);
+    expect(report.discount_cost).toBeCloseTo(sum(report.promotions.map((promotion) => promotion.discount_cost ?? 0)), 2);
     expect(new Set(report.promotions.map((promotion) => promotion.status))).toEqual(new Set(PROMOTION_STATUSES));
     for (const promotion of report.promotions) {
       expect(promotion.skus.every((sku) => stocked.has(sku))).toBe(true);

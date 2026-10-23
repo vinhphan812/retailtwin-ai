@@ -5,15 +5,15 @@ export type Promotion = {
   name: string;
   status: PromotionStatus;
   kind: PromotionKind;
-  /** Percent (0..1) for `percent_off`, money for `amount_off`, free units for `buy_x_get_y`. */
-  value: number;
+  /** Percent (0..1) for `percent_off`, money for `amount_off`, free units for `buy_x_get_y`, multiplier for `loyalty_multiplier`, or null if unavailable. */
+  value: number | null;
   starts_at: string;
   ends_at: string;
   skus: string[];
   revenue: number;
   /** Revenue above the baseline forecast while the promotion ran. */
   incremental_revenue: number;
-  discount_cost: number;
+  discount_cost: number | null;
 };
 
 /** Response of `GET /promotions`: the store's promotions and their totals. */
