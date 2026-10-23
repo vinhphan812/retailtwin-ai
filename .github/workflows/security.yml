@@ -99,7 +99,7 @@ jobs:
           # Tag the image with the run ID so it never conflicts with an existing tag.
           # Using a unique tag avoids the need to docker rmi or docker builder prune.
           # The tag is deterministic per CI run: the runner cleans up after itself.
-          docker build \
+          docker buildx build --builder default \
               --tag retailtwin-api:scan-"$GITHUB_RUN_ID" \
               --file Dockerfile \
               --load \
