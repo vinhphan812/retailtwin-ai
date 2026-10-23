@@ -3,13 +3,28 @@
 **Issue:** tracks completion of all pre-submission requirements for the AI Builder Google 2026 competition.
 **Status:** `OPEN — NOT READY`
 **Owner:** maintainers
-**Last updated:** 2026-10-22
+**Last updated:** 2026-10-23
 
 > **Current evidence boundary:** G03–G06 were executed offline at
 > `c20fb073e4ab919fdced85b7285751e38090cbe3` and retained under
 > `docs/evidence/submission-gates/2026-10-22T1556Z/`. They remain 🟡 until the
 > eventual final submission SHA is independently executed, has green CI, and is
 > deployed/verified where a deployment claim is required.
+
+> **Canonical evidence location:** the G03–G06 evidence is retained in exactly one
+> place — `docs/evidence/submission-gates/2026-10-22T1556Z/`. The duplicate
+> submissions under PR #398 (`docs/submission-evidence/2026-10-22-c20fb073/`) and
+> the stale PR #397 head are **superseded** and must not be cited. See that
+> directory's `README.md` for the reconciliation table and the exact
+> `sha256sum -c` verification procedure.
+
+> **The retained evidence is not deployment or final-SHA acceptance.** G03–G06
+> ran offline against a deterministic `FakeLlmProvider` and an in-process,
+> in-memory Live Twin at `c20fb073…`. That SHA is a historical baseline, not the
+> final submission SHA. A checksum match proves only that the committed
+> artifacts are byte-identical to the ones retained here — it proves nothing
+> about a deployed Cloud Run service, Vertex AI, or Firestore behaviour, and
+> nothing about CI at the final submission SHA.
 
 ---
 
@@ -234,7 +249,7 @@ A passing CI workflow at one SHA does **not** mean the code is reviewed. CI prov
 | CR09 | Demo video under required duration | *(static reference)* `docs/DEMO_VIDEO.md` — video artifact required | 🔴 NOT VERIFIED |
 | CR10 | Public repository | `github.com/vinhphan812/retailtwin-ai` | ✅ PUBLIC |
 | CR11 | No secrets/credentials in repo | *(run required)* CI C03 + C13 — run required at submission SHA | 🟡 UNKNOWN |
-| CR12 | License declared | MIT License at repository root (`LICENSE`); third-party provenance/permission remains a separate supply-chain review | 🟢 DECLARED |
+| CR12 | License declared | MIT License at repository root (`LICENSE`); third-party provenance recorded in `THIRD_PARTY_NOTICES.md` (bundled 3D asset packs are CC0 1.0, each retaining its upstream `License.txt`; no third-party software vendored) | 🟢 DECLARED |
 
 ---
 
