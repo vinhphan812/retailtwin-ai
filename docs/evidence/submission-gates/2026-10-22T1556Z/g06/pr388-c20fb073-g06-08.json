@@ -1,0 +1,3375 @@
+{
+  "gate": "G06",
+  "scenario": "weekend-demand-surge",
+  "issue": 53,
+  "mode": "happy",
+  "run_id": "pr388-c20fb073-g06-08",
+  "seed": 1,
+  "result": "PASS",
+  "started_at": "2026-10-22T15:57:31.903887+00:00",
+  "finished_at": "2026-10-22T15:57:32.241345+00:00",
+  "git_sha": "c20fb073e4ab919fdced85b7285751e38090cbe3",
+  "runtime": {
+    "environment": "in-memory preflight",
+    "provider_mode": "fake",
+    "live_twin_backend": "memory",
+    "cloud_run_revision": null,
+    "app_env": "e2e-smoke",
+    "scenario_fixture": "data/synthetic/weekend-demand-surge.json",
+    "store_id": "store-001",
+    "sku": "P017",
+    "app": "retailtwin_api.main.create_app with AutonomousInvestigations",
+    "provider": "FakeLlmProvider: scripted P017 tool calls and plan JSON",
+    "provider_calls": 13,
+    "p017_baseline": {
+      "shelf_id": "A02",
+      "slot_id": "A02-S03",
+      "facings": 2,
+      "shelf_quantity": 8,
+      "backroom_quantity": 54
+    },
+    "mode": "happy",
+    "verifier_verdict": "INCONCLUSIVE",
+    "actions": [
+      {
+        "action": {
+          "type": "replenish_shelf",
+          "sku": "P017",
+          "quantity": 1
+        },
+        "kind": "guarded_live_mutation"
+      }
+    ],
+    "dcg_audit": {
+      "events": [
+        {
+          "stage": "authorize",
+          "decision_id": "plan-run-weekend-demand-surge-1-P017-1",
+          "correlation_id": "run-weekend-demand-surge-1",
+          "verdict": "ALLOW",
+          "reason_code": "ALLOWED",
+          "failed_gate": null,
+          "entity_versions": {
+            "P017": "1"
+          },
+          "at": "2026-10-22T15:57:32.139450+00:00",
+          "gate_checks": [
+            {
+              "gate": "integrity",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "evidence",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "context",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "freshness",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "feasibility",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "policy",
+              "passed": true,
+              "detail": ""
+            }
+          ]
+        },
+        {
+          "stage": "commit",
+          "decision_id": "plan-run-weekend-demand-surge-1-P017-1",
+          "correlation_id": "run-weekend-demand-surge-1",
+          "verdict": "ALLOW",
+          "reason_code": "ALLOWED",
+          "failed_gate": null,
+          "entity_versions": {
+            "P017": "1"
+          },
+          "at": "2026-10-22T15:57:32.140298+00:00",
+          "gate_checks": [
+            {
+              "gate": "integrity",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "evidence",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "context",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "freshness",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "feasibility",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "policy",
+              "passed": true,
+              "detail": ""
+            }
+          ]
+        },
+        {
+          "stage": "authorize",
+          "decision_id": "plan-run-weekend-demand-surge-1-P017-1",
+          "correlation_id": "run-weekend-demand-surge-1",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "failed_gate": "context",
+          "entity_versions": {
+            "P017": "2"
+          },
+          "at": "2026-10-22T15:57:32.146504+00:00",
+          "gate_checks": [
+            {
+              "gate": "integrity",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "evidence",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "context",
+              "passed": false,
+              "detail": "P017 is at version 2; the decision read 1."
+            }
+          ]
+        },
+        {
+          "stage": "authorize",
+          "decision_id": "plan-run-weekend-demand-surge-1-P017-1",
+          "correlation_id": "run-weekend-demand-surge-1",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "failed_gate": "context",
+          "entity_versions": {
+            "P017": "2"
+          },
+          "at": "2026-10-22T15:57:32.152544+00:00",
+          "gate_checks": [
+            {
+              "gate": "integrity",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "evidence",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "context",
+              "passed": false,
+              "detail": "P017 is at version 2; the decision read 1."
+            }
+          ]
+        },
+        {
+          "stage": "authorize",
+          "decision_id": "plan-run-weekend-demand-surge-1-P017-1",
+          "correlation_id": "run-weekend-demand-surge-1",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "failed_gate": "context",
+          "entity_versions": {
+            "P017": "2"
+          },
+          "at": "2026-10-22T15:57:32.158514+00:00",
+          "gate_checks": [
+            {
+              "gate": "integrity",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "evidence",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "context",
+              "passed": false,
+              "detail": "P017 is at version 2; the decision read 1."
+            }
+          ]
+        },
+        {
+          "stage": "authorize",
+          "decision_id": "plan-run-weekend-demand-surge-1-P017-1",
+          "correlation_id": "run-weekend-demand-surge-1",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "failed_gate": "context",
+          "entity_versions": {
+            "P017": "2"
+          },
+          "at": "2026-10-22T15:57:32.163532+00:00",
+          "gate_checks": [
+            {
+              "gate": "integrity",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "evidence",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "context",
+              "passed": false,
+              "detail": "P017 is at version 2; the decision read 1."
+            }
+          ]
+        },
+        {
+          "stage": "authorize",
+          "decision_id": "plan-run-weekend-demand-surge-1-P017-1",
+          "correlation_id": "run-weekend-demand-surge-1",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "failed_gate": "context",
+          "entity_versions": {
+            "P017": "2"
+          },
+          "at": "2026-10-22T15:57:32.168158+00:00",
+          "gate_checks": [
+            {
+              "gate": "integrity",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "evidence",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "context",
+              "passed": false,
+              "detail": "P017 is at version 2; the decision read 1."
+            }
+          ]
+        },
+        {
+          "stage": "authorize",
+          "decision_id": "plan-run-weekend-demand-surge-1-P017-1",
+          "correlation_id": "run-weekend-demand-surge-1",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "failed_gate": "context",
+          "entity_versions": {
+            "P017": "2"
+          },
+          "at": "2026-10-22T15:57:32.174732+00:00",
+          "gate_checks": [
+            {
+              "gate": "integrity",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "evidence",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "context",
+              "passed": false,
+              "detail": "P017 is at version 2; the decision read 1."
+            }
+          ]
+        },
+        {
+          "stage": "authorize",
+          "decision_id": "plan-run-weekend-demand-surge-1-P017-1",
+          "correlation_id": "run-weekend-demand-surge-1",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "failed_gate": "context",
+          "entity_versions": {
+            "P017": "2"
+          },
+          "at": "2026-10-22T15:57:32.179805+00:00",
+          "gate_checks": [
+            {
+              "gate": "integrity",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "evidence",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "context",
+              "passed": false,
+              "detail": "P017 is at version 2; the decision read 1."
+            }
+          ]
+        },
+        {
+          "stage": "authorize",
+          "decision_id": "plan-run-weekend-demand-surge-1-P017-1",
+          "correlation_id": "run-weekend-demand-surge-1",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "failed_gate": "context",
+          "entity_versions": {
+            "P017": "2"
+          },
+          "at": "2026-10-22T15:57:32.185941+00:00",
+          "gate_checks": [
+            {
+              "gate": "integrity",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "evidence",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "context",
+              "passed": false,
+              "detail": "P017 is at version 2; the decision read 1."
+            }
+          ]
+        },
+        {
+          "stage": "authorize",
+          "decision_id": "plan-run-weekend-demand-surge-1-P017-1",
+          "correlation_id": "run-weekend-demand-surge-1",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "failed_gate": "context",
+          "entity_versions": {
+            "P017": "2"
+          },
+          "at": "2026-10-22T15:57:32.191142+00:00",
+          "gate_checks": [
+            {
+              "gate": "integrity",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "evidence",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "context",
+              "passed": false,
+              "detail": "P017 is at version 2; the decision read 1."
+            }
+          ]
+        },
+        {
+          "stage": "authorize",
+          "decision_id": "plan-run-weekend-demand-surge-1-P017-1",
+          "correlation_id": "run-weekend-demand-surge-1",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "failed_gate": "context",
+          "entity_versions": {
+            "P017": "2"
+          },
+          "at": "2026-10-22T15:57:32.195994+00:00",
+          "gate_checks": [
+            {
+              "gate": "integrity",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "evidence",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "context",
+              "passed": false,
+              "detail": "P017 is at version 2; the decision read 1."
+            }
+          ]
+        },
+        {
+          "stage": "authorize",
+          "decision_id": "plan-run-weekend-demand-surge-1-P017-1",
+          "correlation_id": "run-weekend-demand-surge-1",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "failed_gate": "context",
+          "entity_versions": {
+            "P017": "2"
+          },
+          "at": "2026-10-22T15:57:32.201761+00:00",
+          "gate_checks": [
+            {
+              "gate": "integrity",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "evidence",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "context",
+              "passed": false,
+              "detail": "P017 is at version 2; the decision read 1."
+            }
+          ]
+        },
+        {
+          "stage": "authorize",
+          "decision_id": "plan-run-weekend-demand-surge-1-P017-1",
+          "correlation_id": "run-weekend-demand-surge-1",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "failed_gate": "context",
+          "entity_versions": {
+            "P017": "2"
+          },
+          "at": "2026-10-22T15:57:32.207446+00:00",
+          "gate_checks": [
+            {
+              "gate": "integrity",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "evidence",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "context",
+              "passed": false,
+              "detail": "P017 is at version 2; the decision read 1."
+            }
+          ]
+        }
+      ],
+      "gate_breakdown": {
+        "none": {
+          "verdict": "ALLOW",
+          "reason_code": "ALLOWED",
+          "stage": "commit",
+          "occurrences": 2
+        },
+        "context": {
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "stage": "authorize",
+          "occurrences": 12
+        }
+      }
+    },
+    "correlation_id_round_trip": {
+      "expected": "pr388-c20fb073-g06-08",
+      "fixture_correlation_id": "run-weekend-demand-surge-1",
+      "observed_in_agent_events": [],
+      "observed_fixture_correlation_id_in_agent_events": [
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1",
+        "run-weekend-demand-surge-1"
+      ]
+    }
+  },
+  "checks": [
+    {
+      "check": "all_13_events_published",
+      "passed": true,
+      "detail": "13/13 events accepted by POST /events"
+    },
+    {
+      "check": "weekend_demand_surge_detected",
+      "passed": true,
+      "detail": "13 event ids match; baseline 12.5/h -> surge 18.25/h (+0.46)"
+    },
+    {
+      "check": "observer_accepted_every_sale",
+      "passed": true,
+      "detail": "investigation_ids=13/13"
+    },
+    {
+      "check": "every_investigation_completed_simulation",
+      "passed": true,
+      "detail": "13/13 investigations produced a simulation_id (recorded total: 14)"
+    },
+    {
+      "check": "guard_allowed_on_fresh_reads",
+      "passed": true,
+      "detail": "first ALLOW=sim-inv-evt-p017-base-0001; 1/13 approvals ALLOWED"
+    },
+    {
+      "check": "simulation_id_present",
+      "passed": true,
+      "detail": "committed_simulation_id=sim-inv-evt-p017-base-0001"
+    },
+    {
+      "check": "decision_id_present",
+      "passed": true,
+      "detail": "committed_decision_id=plan-run-weekend-demand-surge-1-P017-1"
+    },
+    {
+      "check": "p017_shelf_increased",
+      "passed": true,
+      "detail": "P017 shelf 9 -> 9 (commit_action={'type': 'replenish_shelf', 'sku': 'P017', 'quantity': 1})"
+    },
+    {
+      "check": "audit_trail_complete",
+      "passed": true,
+      "detail": "review_entries=1 guard_events=14; correlation_preserved=True (expected cid=run-weekend-demand-surge-1)"
+    }
+  ],
+  "steps": {
+    "fixture": {
+      "path": "D:\\competitions\\AI Builder Google 2026\\retailtwin-ai\\.worktrees\\t_a3332d8c\\data\\synthetic\\weekend-demand-surge.json",
+      "seed": 1,
+      "store_id": "store-001",
+      "sku": "P017",
+      "correlation_id": "run-weekend-demand-surge-1",
+      "baseline_units_per_hour": "12.5",
+      "surge_units_per_hour": "18.25",
+      "increase": "0.46",
+      "event_count": 13,
+      "event_ids": [
+        "evt-p017-base-0001",
+        "evt-p017-base-0002",
+        "evt-p017-base-0003",
+        "evt-p017-base-0004",
+        "evt-p017-base-0005",
+        "evt-p017-surge-0001",
+        "evt-p017-surge-0002",
+        "evt-p017-surge-0003",
+        "evt-p017-surge-0004",
+        "evt-p017-surge-0005",
+        "evt-p017-surge-0006",
+        "evt-p017-surge-0007",
+        "evt-p017-surge-0008"
+      ]
+    },
+    "drain": {
+      "background_runs": [],
+      "recorded_simulations": 14
+    },
+    "approvals": [
+      {
+        "simulation_id": "sim-inv-evt-p017-base-0001",
+        "response": {
+          "http_status": 200,
+          "simulation_id": "sim-inv-evt-p017-base-0001",
+          "decision": "approved",
+          "status": "committed",
+          "verdict": "ALLOW",
+          "reason_code": "APPROVED",
+          "live_context_version": "store-001:v2",
+          "detail_code": "COMMITTED",
+          "guard": {
+            "verdict": "ALLOW",
+            "reason_code": "ALLOWED",
+            "context_version": "store-001:v1",
+            "context_hash": "f4eb3afc81f7a23feb2a5a6b31d07e5ddd97f8966963aa843c185308ef597029",
+            "expiry": "2026-10-22T15:59:31.982490Z",
+            "policy_result": {
+              "failed_gate": null,
+              "checks": [
+                {
+                  "gate": "integrity",
+                  "passed": true,
+                  "detail": ""
+                },
+                {
+                  "gate": "evidence",
+                  "passed": true,
+                  "detail": ""
+                },
+                {
+                  "gate": "context",
+                  "passed": true,
+                  "detail": ""
+                },
+                {
+                  "gate": "freshness",
+                  "passed": true,
+                  "detail": ""
+                },
+                {
+                  "gate": "feasibility",
+                  "passed": true,
+                  "detail": ""
+                },
+                {
+                  "gate": "policy",
+                  "passed": true,
+                  "detail": ""
+                }
+              ],
+              "store_id": "store-001",
+              "correlation_id": "run-weekend-demand-surge-1",
+              "entity_versions": {
+                "P017": "1"
+              }
+            }
+          },
+          "binding_id": "f4eb3afc81f7a23feb2a5a6b31d07e5ddd97f8966963aa843c185308ef597029",
+          "expires_at": "2026-10-22T15:58:02.139843Z",
+          "action_hashes": [
+            "0dafaf1ecffda9b6b5a3607bc01afa935192c9eda78ebc185b5f64f18c182bd8"
+          ]
+        }
+      },
+      {
+        "simulation_id": "sim-inv-evt-p017-base-0002",
+        "response": {
+          "http_status": 200,
+          "simulation_id": "sim-inv-evt-p017-base-0002",
+          "decision": "approved",
+          "status": "pending",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "live_context_version": "store-001:v2",
+          "detail_code": "VERSION_STALE",
+          "guard": {
+            "verdict": "REFRESH_REQUIRED",
+            "reason_code": "VERSION_STALE",
+            "context_version": "store-001:v1",
+            "context_hash": "54ab6c6fa8fd703f98f4c071f786a2c8d1ae84acc7ccdb326e99ec0076519598",
+            "expiry": "2026-10-22T15:57:32.146128Z",
+            "policy_result": {
+              "failed_gate": "context",
+              "checks": [
+                {
+                  "gate": "integrity",
+                  "passed": true,
+                  "detail": ""
+                },
+                {
+                  "gate": "evidence",
+                  "passed": true,
+                  "detail": ""
+                },
+                {
+                  "gate": "context",
+                  "passed": false,
+                  "detail": "P017 is at version 2; the decision read 1."
+                }
+              ],
+              "store_id": "store-001",
+              "correlation_id": "run-weekend-demand-surge-1",
+              "entity_versions": {
+                "P017": "2"
+              }
+            }
+          },
+          "binding_id": null,
+          "expires_at": null,
+          "action_hashes": []
+        }
+      },
+      {
+        "simulation_id": "sim-inv-evt-p017-base-0003",
+        "response": {
+          "http_status": 200,
+          "simulation_id": "sim-inv-evt-p017-base-0003",
+          "decision": "approved",
+          "status": "pending",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "live_context_version": "store-001:v2",
+          "detail_code": "VERSION_STALE",
+          "guard": {
+            "verdict": "REFRESH_REQUIRED",
+            "reason_code": "VERSION_STALE",
+            "context_version": "store-001:v1",
+            "context_hash": "54ab6c6fa8fd703f98f4c071f786a2c8d1ae84acc7ccdb326e99ec0076519598",
+            "expiry": "2026-10-22T15:57:32.152241Z",
+            "policy_result": {
+              "failed_gate": "context",
+              "checks": [
+                {
+                  "gate": "integrity",
+                  "passed": true,
+                  "detail": ""
+                },
+                {
+                  "gate": "evidence",
+                  "passed": true,
+                  "detail": ""
+                },
+                {
+                  "gate": "context",
+                  "passed": false,
+                  "detail": "P017 is at version 2; the decision read 1."
+                }
+              ],
+              "store_id": "store-001",
+              "correlation_id": "run-weekend-demand-surge-1",
+              "entity_versions": {
+                "P017": "2"
+              }
+            }
+          },
+          "binding_id": null,
+          "expires_at": null,
+          "action_hashes": []
+        }
+      },
+      {
+        "simulation_id": "sim-inv-evt-p017-base-0004",
+        "response": {
+          "http_status": 200,
+          "simulation_id": "sim-inv-evt-p017-base-0004",
+          "decision": "approved",
+          "status": "pending",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "live_context_version": "store-001:v2",
+          "detail_code": "VERSION_STALE",
+          "guard": {
+            "verdict": "REFRESH_REQUIRED",
+            "reason_code": "VERSION_STALE",
+            "context_version": "store-001:v1",
+            "context_hash": "54ab6c6fa8fd703f98f4c071f786a2c8d1ae84acc7ccdb326e99ec0076519598",
+            "expiry": "2026-10-22T15:57:32.158225Z",
+            "policy_result": {
+              "failed_gate": "context",
+              "checks": [
+                {
+                  "gate": "integrity",
+                  "passed": true,
+                  "detail": ""
+                },
+                {
+                  "gate": "evidence",
+                  "passed": true,
+                  "detail": ""
+                },
+                {
+                  "gate": "context",
+                  "passed": false,
+                  "detail": "P017 is at version 2; the decision read 1."
+                }
+              ],
+              "store_id": "store-001",
+              "correlation_id": "run-weekend-demand-surge-1",
+              "entity_versions": {
+                "P017": "2"
+              }
+            }
+          },
+          "binding_id": null,
+          "expires_at": null,
+          "action_hashes": []
+        }
+      },
+      {
+        "simulation_id": "sim-inv-evt-p017-base-0005",
+        "response": {
+          "http_status": 200,
+          "simulation_id": "sim-inv-evt-p017-base-0005",
+          "decision": "approved",
+          "status": "pending",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "live_context_version": "store-001:v2",
+          "detail_code": "VERSION_STALE",
+          "guard": {
+            "verdict": "REFRESH_REQUIRED",
+            "reason_code": "VERSION_STALE",
+            "context_version": "store-001:v1",
+            "context_hash": "54ab6c6fa8fd703f98f4c071f786a2c8d1ae84acc7ccdb326e99ec0076519598",
+            "expiry": "2026-10-22T15:57:32.163214Z",
+            "policy_result": {
+              "failed_gate": "context",
+              "checks": [
+                {
+                  "gate": "integrity",
+                  "passed": true,
+                  "detail": ""
+                },
+                {
+                  "gate": "evidence",
+                  "passed": true,
+                  "detail": ""
+                },
+                {
+                  "gate": "context",
+                  "passed": false,
+                  "detail": "P017 is at version 2; the decision read 1."
+                }
+              ],
+              "store_id": "store-001",
+              "correlation_id": "run-weekend-demand-surge-1",
+              "entity_versions": {
+                "P017": "2"
+              }
+            }
+          },
+          "binding_id": null,
+          "expires_at": null,
+          "action_hashes": []
+        }
+      },
+      {
+        "simulation_id": "sim-inv-evt-p017-surge-0001",
+        "response": {
+          "http_status": 200,
+          "simulation_id": "sim-inv-evt-p017-surge-0001",
+          "decision": "approved",
+          "status": "pending",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "live_context_version": "store-001:v2",
+          "detail_code": "VERSION_STALE",
+          "guard": {
+            "verdict": "REFRESH_REQUIRED",
+            "reason_code": "VERSION_STALE",
+            "context_version": "store-001:v1",
+            "context_hash": "54ab6c6fa8fd703f98f4c071f786a2c8d1ae84acc7ccdb326e99ec0076519598",
+            "expiry": "2026-10-22T15:57:32.167892Z",
+            "policy_result": {
+              "failed_gate": "context",
+              "checks": [
+                {
+                  "gate": "integrity",
+                  "passed": true,
+                  "detail": ""
+                },
+                {
+                  "gate": "evidence",
+                  "passed": true,
+                  "detail": ""
+                },
+                {
+                  "gate": "context",
+                  "passed": false,
+                  "detail": "P017 is at version 2; the decision read 1."
+                }
+              ],
+              "store_id": "store-001",
+              "correlation_id": "run-weekend-demand-surge-1",
+              "entity_versions": {
+                "P017": "2"
+              }
+            }
+          },
+          "binding_id": null,
+          "expires_at": null,
+          "action_hashes": []
+        }
+      },
+      {
+        "simulation_id": "sim-inv-evt-p017-surge-0002",
+        "response": {
+          "http_status": 200,
+          "simulation_id": "sim-inv-evt-p017-surge-0002",
+          "decision": "approved",
+          "status": "pending",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "live_context_version": "store-001:v2",
+          "detail_code": "VERSION_STALE",
+          "guard": {
+            "verdict": "REFRESH_REQUIRED",
+            "reason_code": "VERSION_STALE",
+            "context_version": "store-001:v1",
+            "context_hash": "54ab6c6fa8fd703f98f4c071f786a2c8d1ae84acc7ccdb326e99ec0076519598",
+            "expiry": "2026-10-22T15:57:32.174461Z",
+            "policy_result": {
+              "failed_gate": "context",
+              "checks": [
+                {
+                  "gate": "integrity",
+                  "passed": true,
+                  "detail": ""
+                },
+                {
+                  "gate": "evidence",
+                  "passed": true,
+                  "detail": ""
+                },
+                {
+                  "gate": "context",
+                  "passed": false,
+                  "detail": "P017 is at version 2; the decision read 1."
+                }
+              ],
+              "store_id": "store-001",
+              "correlation_id": "run-weekend-demand-surge-1",
+              "entity_versions": {
+                "P017": "2"
+              }
+            }
+          },
+          "binding_id": null,
+          "expires_at": null,
+          "action_hashes": []
+        }
+      },
+      {
+        "simulation_id": "sim-inv-evt-p017-surge-0003",
+        "response": {
+          "http_status": 200,
+          "simulation_id": "sim-inv-evt-p017-surge-0003",
+          "decision": "approved",
+          "status": "pending",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "live_context_version": "store-001:v2",
+          "detail_code": "VERSION_STALE",
+          "guard": {
+            "verdict": "REFRESH_REQUIRED",
+            "reason_code": "VERSION_STALE",
+            "context_version": "store-001:v1",
+            "context_hash": "54ab6c6fa8fd703f98f4c071f786a2c8d1ae84acc7ccdb326e99ec0076519598",
+            "expiry": "2026-10-22T15:57:32.179539Z",
+            "policy_result": {
+              "failed_gate": "context",
+              "checks": [
+                {
+                  "gate": "integrity",
+                  "passed": true,
+                  "detail": ""
+                },
+                {
+                  "gate": "evidence",
+                  "passed": true,
+                  "detail": ""
+                },
+                {
+                  "gate": "context",
+                  "passed": false,
+                  "detail": "P017 is at version 2; the decision read 1."
+                }
+              ],
+              "store_id": "store-001",
+              "correlation_id": "run-weekend-demand-surge-1",
+              "entity_versions": {
+                "P017": "2"
+              }
+            }
+          },
+          "binding_id": null,
+          "expires_at": null,
+          "action_hashes": []
+        }
+      },
+      {
+        "simulation_id": "sim-inv-evt-p017-surge-0004",
+        "response": {
+          "http_status": 200,
+          "simulation_id": "sim-inv-evt-p017-surge-0004",
+          "decision": "approved",
+          "status": "pending",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "live_context_version": "store-001:v2",
+          "detail_code": "VERSION_STALE",
+          "guard": {
+            "verdict": "REFRESH_REQUIRED",
+            "reason_code": "VERSION_STALE",
+            "context_version": "store-001:v1",
+            "context_hash": "54ab6c6fa8fd703f98f4c071f786a2c8d1ae84acc7ccdb326e99ec0076519598",
+            "expiry": "2026-10-22T15:57:32.185658Z",
+            "policy_result": {
+              "failed_gate": "context",
+              "checks": [
+                {
+                  "gate": "integrity",
+                  "passed": true,
+                  "detail": ""
+                },
+                {
+                  "gate": "evidence",
+                  "passed": true,
+                  "detail": ""
+                },
+                {
+                  "gate": "context",
+                  "passed": false,
+                  "detail": "P017 is at version 2; the decision read 1."
+                }
+              ],
+              "store_id": "store-001",
+              "correlation_id": "run-weekend-demand-surge-1",
+              "entity_versions": {
+                "P017": "2"
+              }
+            }
+          },
+          "binding_id": null,
+          "expires_at": null,
+          "action_hashes": []
+        }
+      },
+      {
+        "simulation_id": "sim-inv-evt-p017-surge-0005",
+        "response": {
+          "http_status": 200,
+          "simulation_id": "sim-inv-evt-p017-surge-0005",
+          "decision": "approved",
+          "status": "pending",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "live_context_version": "store-001:v2",
+          "detail_code": "VERSION_STALE",
+          "guard": {
+            "verdict": "REFRESH_REQUIRED",
+            "reason_code": "VERSION_STALE",
+            "context_version": "store-001:v1",
+            "context_hash": "54ab6c6fa8fd703f98f4c071f786a2c8d1ae84acc7ccdb326e99ec0076519598",
+            "expiry": "2026-10-22T15:57:32.190879Z",
+            "policy_result": {
+              "failed_gate": "context",
+              "checks": [
+                {
+                  "gate": "integrity",
+                  "passed": true,
+                  "detail": ""
+                },
+                {
+                  "gate": "evidence",
+                  "passed": true,
+                  "detail": ""
+                },
+                {
+                  "gate": "context",
+                  "passed": false,
+                  "detail": "P017 is at version 2; the decision read 1."
+                }
+              ],
+              "store_id": "store-001",
+              "correlation_id": "run-weekend-demand-surge-1",
+              "entity_versions": {
+                "P017": "2"
+              }
+            }
+          },
+          "binding_id": null,
+          "expires_at": null,
+          "action_hashes": []
+        }
+      },
+      {
+        "simulation_id": "sim-inv-evt-p017-surge-0006",
+        "response": {
+          "http_status": 200,
+          "simulation_id": "sim-inv-evt-p017-surge-0006",
+          "decision": "approved",
+          "status": "pending",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "live_context_version": "store-001:v2",
+          "detail_code": "VERSION_STALE",
+          "guard": {
+            "verdict": "REFRESH_REQUIRED",
+            "reason_code": "VERSION_STALE",
+            "context_version": "store-001:v1",
+            "context_hash": "54ab6c6fa8fd703f98f4c071f786a2c8d1ae84acc7ccdb326e99ec0076519598",
+            "expiry": "2026-10-22T15:57:32.195734Z",
+            "policy_result": {
+              "failed_gate": "context",
+              "checks": [
+                {
+                  "gate": "integrity",
+                  "passed": true,
+                  "detail": ""
+                },
+                {
+                  "gate": "evidence",
+                  "passed": true,
+                  "detail": ""
+                },
+                {
+                  "gate": "context",
+                  "passed": false,
+                  "detail": "P017 is at version 2; the decision read 1."
+                }
+              ],
+              "store_id": "store-001",
+              "correlation_id": "run-weekend-demand-surge-1",
+              "entity_versions": {
+                "P017": "2"
+              }
+            }
+          },
+          "binding_id": null,
+          "expires_at": null,
+          "action_hashes": []
+        }
+      },
+      {
+        "simulation_id": "sim-inv-evt-p017-surge-0007",
+        "response": {
+          "http_status": 200,
+          "simulation_id": "sim-inv-evt-p017-surge-0007",
+          "decision": "approved",
+          "status": "pending",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "live_context_version": "store-001:v2",
+          "detail_code": "VERSION_STALE",
+          "guard": {
+            "verdict": "REFRESH_REQUIRED",
+            "reason_code": "VERSION_STALE",
+            "context_version": "store-001:v1",
+            "context_hash": "54ab6c6fa8fd703f98f4c071f786a2c8d1ae84acc7ccdb326e99ec0076519598",
+            "expiry": "2026-10-22T15:57:32.201488Z",
+            "policy_result": {
+              "failed_gate": "context",
+              "checks": [
+                {
+                  "gate": "integrity",
+                  "passed": true,
+                  "detail": ""
+                },
+                {
+                  "gate": "evidence",
+                  "passed": true,
+                  "detail": ""
+                },
+                {
+                  "gate": "context",
+                  "passed": false,
+                  "detail": "P017 is at version 2; the decision read 1."
+                }
+              ],
+              "store_id": "store-001",
+              "correlation_id": "run-weekend-demand-surge-1",
+              "entity_versions": {
+                "P017": "2"
+              }
+            }
+          },
+          "binding_id": null,
+          "expires_at": null,
+          "action_hashes": []
+        }
+      },
+      {
+        "simulation_id": "sim-inv-evt-p017-surge-0008",
+        "response": {
+          "http_status": 200,
+          "simulation_id": "sim-inv-evt-p017-surge-0008",
+          "decision": "approved",
+          "status": "pending",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "live_context_version": "store-001:v2",
+          "detail_code": "VERSION_STALE",
+          "guard": {
+            "verdict": "REFRESH_REQUIRED",
+            "reason_code": "VERSION_STALE",
+            "context_version": "store-001:v1",
+            "context_hash": "54ab6c6fa8fd703f98f4c071f786a2c8d1ae84acc7ccdb326e99ec0076519598",
+            "expiry": "2026-10-22T15:57:32.207157Z",
+            "policy_result": {
+              "failed_gate": "context",
+              "checks": [
+                {
+                  "gate": "integrity",
+                  "passed": true,
+                  "detail": ""
+                },
+                {
+                  "gate": "evidence",
+                  "passed": true,
+                  "detail": ""
+                },
+                {
+                  "gate": "context",
+                  "passed": false,
+                  "detail": "P017 is at version 2; the decision read 1."
+                }
+              ],
+              "store_id": "store-001",
+              "correlation_id": "run-weekend-demand-surge-1",
+              "entity_versions": {
+                "P017": "2"
+              }
+            }
+          },
+          "binding_id": null,
+          "expires_at": null,
+          "action_hashes": []
+        }
+      }
+    ],
+    "audit": {
+      "reviews": [
+        {
+          "simulation_id": "sim-inv-evt-p017-base-0001",
+          "decision": "approved",
+          "base_context_version": "store-001:v1",
+          "proposal_context_version": "sim-inv-evt-p017-base-0001:v1",
+          "live_context_version": "store-001:v2",
+          "verdict": "ALLOW",
+          "reason_code": "APPROVED",
+          "recorded_at": "2026-10-22T15:57:32.140740Z"
+        }
+      ],
+      "guard_events": [
+        {
+          "stage": "authorize",
+          "decision_id": "plan-run-weekend-demand-surge-1-P017-1",
+          "correlation_id": "run-weekend-demand-surge-1",
+          "store_id": "store-001",
+          "verdict": "ALLOW",
+          "reason_code": "ALLOWED",
+          "failed_gate": null,
+          "context_hash": "f4eb3afc81f7a23feb2a5a6b31d07e5ddd97f8966963aa843c185308ef597029",
+          "entity_versions": {
+            "P017": "1"
+          },
+          "at": "2026-10-22T15:57:32.139450Z",
+          "gate_checks": [
+            {
+              "gate": "integrity",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "evidence",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "context",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "freshness",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "feasibility",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "policy",
+              "passed": true,
+              "detail": ""
+            }
+          ]
+        },
+        {
+          "stage": "commit",
+          "decision_id": "plan-run-weekend-demand-surge-1-P017-1",
+          "correlation_id": "run-weekend-demand-surge-1",
+          "store_id": "store-001",
+          "verdict": "ALLOW",
+          "reason_code": "ALLOWED",
+          "failed_gate": null,
+          "context_hash": "f4eb3afc81f7a23feb2a5a6b31d07e5ddd97f8966963aa843c185308ef597029",
+          "entity_versions": {
+            "P017": "1"
+          },
+          "at": "2026-10-22T15:57:32.140298Z",
+          "gate_checks": [
+            {
+              "gate": "integrity",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "evidence",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "context",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "freshness",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "feasibility",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "policy",
+              "passed": true,
+              "detail": ""
+            }
+          ]
+        },
+        {
+          "stage": "authorize",
+          "decision_id": "plan-run-weekend-demand-surge-1-P017-1",
+          "correlation_id": "run-weekend-demand-surge-1",
+          "store_id": "store-001",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "failed_gate": "context",
+          "context_hash": "54ab6c6fa8fd703f98f4c071f786a2c8d1ae84acc7ccdb326e99ec0076519598",
+          "entity_versions": {
+            "P017": "2"
+          },
+          "at": "2026-10-22T15:57:32.146504Z",
+          "gate_checks": [
+            {
+              "gate": "integrity",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "evidence",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "context",
+              "passed": false,
+              "detail": "P017 is at version 2; the decision read 1."
+            }
+          ]
+        },
+        {
+          "stage": "authorize",
+          "decision_id": "plan-run-weekend-demand-surge-1-P017-1",
+          "correlation_id": "run-weekend-demand-surge-1",
+          "store_id": "store-001",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "failed_gate": "context",
+          "context_hash": "54ab6c6fa8fd703f98f4c071f786a2c8d1ae84acc7ccdb326e99ec0076519598",
+          "entity_versions": {
+            "P017": "2"
+          },
+          "at": "2026-10-22T15:57:32.152544Z",
+          "gate_checks": [
+            {
+              "gate": "integrity",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "evidence",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "context",
+              "passed": false,
+              "detail": "P017 is at version 2; the decision read 1."
+            }
+          ]
+        },
+        {
+          "stage": "authorize",
+          "decision_id": "plan-run-weekend-demand-surge-1-P017-1",
+          "correlation_id": "run-weekend-demand-surge-1",
+          "store_id": "store-001",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "failed_gate": "context",
+          "context_hash": "54ab6c6fa8fd703f98f4c071f786a2c8d1ae84acc7ccdb326e99ec0076519598",
+          "entity_versions": {
+            "P017": "2"
+          },
+          "at": "2026-10-22T15:57:32.158514Z",
+          "gate_checks": [
+            {
+              "gate": "integrity",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "evidence",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "context",
+              "passed": false,
+              "detail": "P017 is at version 2; the decision read 1."
+            }
+          ]
+        },
+        {
+          "stage": "authorize",
+          "decision_id": "plan-run-weekend-demand-surge-1-P017-1",
+          "correlation_id": "run-weekend-demand-surge-1",
+          "store_id": "store-001",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "failed_gate": "context",
+          "context_hash": "54ab6c6fa8fd703f98f4c071f786a2c8d1ae84acc7ccdb326e99ec0076519598",
+          "entity_versions": {
+            "P017": "2"
+          },
+          "at": "2026-10-22T15:57:32.163532Z",
+          "gate_checks": [
+            {
+              "gate": "integrity",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "evidence",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "context",
+              "passed": false,
+              "detail": "P017 is at version 2; the decision read 1."
+            }
+          ]
+        },
+        {
+          "stage": "authorize",
+          "decision_id": "plan-run-weekend-demand-surge-1-P017-1",
+          "correlation_id": "run-weekend-demand-surge-1",
+          "store_id": "store-001",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "failed_gate": "context",
+          "context_hash": "54ab6c6fa8fd703f98f4c071f786a2c8d1ae84acc7ccdb326e99ec0076519598",
+          "entity_versions": {
+            "P017": "2"
+          },
+          "at": "2026-10-22T15:57:32.168158Z",
+          "gate_checks": [
+            {
+              "gate": "integrity",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "evidence",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "context",
+              "passed": false,
+              "detail": "P017 is at version 2; the decision read 1."
+            }
+          ]
+        },
+        {
+          "stage": "authorize",
+          "decision_id": "plan-run-weekend-demand-surge-1-P017-1",
+          "correlation_id": "run-weekend-demand-surge-1",
+          "store_id": "store-001",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "failed_gate": "context",
+          "context_hash": "54ab6c6fa8fd703f98f4c071f786a2c8d1ae84acc7ccdb326e99ec0076519598",
+          "entity_versions": {
+            "P017": "2"
+          },
+          "at": "2026-10-22T15:57:32.174732Z",
+          "gate_checks": [
+            {
+              "gate": "integrity",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "evidence",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "context",
+              "passed": false,
+              "detail": "P017 is at version 2; the decision read 1."
+            }
+          ]
+        },
+        {
+          "stage": "authorize",
+          "decision_id": "plan-run-weekend-demand-surge-1-P017-1",
+          "correlation_id": "run-weekend-demand-surge-1",
+          "store_id": "store-001",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "failed_gate": "context",
+          "context_hash": "54ab6c6fa8fd703f98f4c071f786a2c8d1ae84acc7ccdb326e99ec0076519598",
+          "entity_versions": {
+            "P017": "2"
+          },
+          "at": "2026-10-22T15:57:32.179805Z",
+          "gate_checks": [
+            {
+              "gate": "integrity",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "evidence",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "context",
+              "passed": false,
+              "detail": "P017 is at version 2; the decision read 1."
+            }
+          ]
+        },
+        {
+          "stage": "authorize",
+          "decision_id": "plan-run-weekend-demand-surge-1-P017-1",
+          "correlation_id": "run-weekend-demand-surge-1",
+          "store_id": "store-001",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "failed_gate": "context",
+          "context_hash": "54ab6c6fa8fd703f98f4c071f786a2c8d1ae84acc7ccdb326e99ec0076519598",
+          "entity_versions": {
+            "P017": "2"
+          },
+          "at": "2026-10-22T15:57:32.185941Z",
+          "gate_checks": [
+            {
+              "gate": "integrity",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "evidence",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "context",
+              "passed": false,
+              "detail": "P017 is at version 2; the decision read 1."
+            }
+          ]
+        },
+        {
+          "stage": "authorize",
+          "decision_id": "plan-run-weekend-demand-surge-1-P017-1",
+          "correlation_id": "run-weekend-demand-surge-1",
+          "store_id": "store-001",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "failed_gate": "context",
+          "context_hash": "54ab6c6fa8fd703f98f4c071f786a2c8d1ae84acc7ccdb326e99ec0076519598",
+          "entity_versions": {
+            "P017": "2"
+          },
+          "at": "2026-10-22T15:57:32.191142Z",
+          "gate_checks": [
+            {
+              "gate": "integrity",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "evidence",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "context",
+              "passed": false,
+              "detail": "P017 is at version 2; the decision read 1."
+            }
+          ]
+        },
+        {
+          "stage": "authorize",
+          "decision_id": "plan-run-weekend-demand-surge-1-P017-1",
+          "correlation_id": "run-weekend-demand-surge-1",
+          "store_id": "store-001",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "failed_gate": "context",
+          "context_hash": "54ab6c6fa8fd703f98f4c071f786a2c8d1ae84acc7ccdb326e99ec0076519598",
+          "entity_versions": {
+            "P017": "2"
+          },
+          "at": "2026-10-22T15:57:32.195994Z",
+          "gate_checks": [
+            {
+              "gate": "integrity",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "evidence",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "context",
+              "passed": false,
+              "detail": "P017 is at version 2; the decision read 1."
+            }
+          ]
+        },
+        {
+          "stage": "authorize",
+          "decision_id": "plan-run-weekend-demand-surge-1-P017-1",
+          "correlation_id": "run-weekend-demand-surge-1",
+          "store_id": "store-001",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "failed_gate": "context",
+          "context_hash": "54ab6c6fa8fd703f98f4c071f786a2c8d1ae84acc7ccdb326e99ec0076519598",
+          "entity_versions": {
+            "P017": "2"
+          },
+          "at": "2026-10-22T15:57:32.201761Z",
+          "gate_checks": [
+            {
+              "gate": "integrity",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "evidence",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "context",
+              "passed": false,
+              "detail": "P017 is at version 2; the decision read 1."
+            }
+          ]
+        },
+        {
+          "stage": "authorize",
+          "decision_id": "plan-run-weekend-demand-surge-1-P017-1",
+          "correlation_id": "run-weekend-demand-surge-1",
+          "store_id": "store-001",
+          "verdict": "REFRESH_REQUIRED",
+          "reason_code": "VERSION_STALE",
+          "failed_gate": "context",
+          "context_hash": "54ab6c6fa8fd703f98f4c071f786a2c8d1ae84acc7ccdb326e99ec0076519598",
+          "entity_versions": {
+            "P017": "2"
+          },
+          "at": "2026-10-22T15:57:32.207446Z",
+          "gate_checks": [
+            {
+              "gate": "integrity",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "evidence",
+              "passed": true,
+              "detail": ""
+            },
+            {
+              "gate": "context",
+              "passed": false,
+              "detail": "P017 is at version 2; the decision read 1."
+            }
+          ]
+        }
+      ],
+      "activity_for_correlation": []
+    },
+    "live_after": {
+      "store_id": "store-001",
+      "sku": "P017",
+      "shelf_id": "A02",
+      "slot_id": "A02-S03",
+      "facings": 2,
+      "shelf_quantity": 9,
+      "backroom_quantity": 53,
+      "version": 2
+    },
+    "committed": {
+      "decision_id": "plan-run-weekend-demand-surge-1-P017-1",
+      "simulation_id": "sim-inv-evt-p017-base-0001",
+      "action": {
+        "type": "replenish_shelf",
+        "sku": "P017",
+        "quantity": 1
+      }
+    }
+  },
+  "logs": [
+    {
+      "ts": "2026-10-22T15:57:31.958+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:31.979+00:00",
+      "logger": "retailtwin_api.routes",
+      "level": "INFO",
+      "message": "event.accepted event_id=evt-p017-base-0001 duplicate=False store_id=store-001 correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:31.980+00:00",
+      "logger": "retailtwin_api.agents.observer.consumer",
+      "level": "INFO",
+      "message": "observer event_id=evt-p017-base-0001 correlation_id=run-weekend-demand-surge-1 outcome=started investigation_id=inv-evt-p017-base-0001 reason=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:31.981+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:31.983+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_inventory capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:31.984+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_shelf_state capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:31.984+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_sales_history capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:31.985+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=forecast_demand capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:31.985+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_promotions capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:31.986+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_planogram capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:31.987+00:00",
+      "logger": "retailtwin_api.agents.investigator.evidence",
+      "level": "INFO",
+      "message": "evidence collected correlation_id=run-weekend-demand-surge-1 sku=P017 is_sufficient=True missing="
+    },
+    {
+      "ts": "2026-10-22T15:57:31.987+00:00",
+      "logger": "retailtwin_api.agents.planner.plans",
+      "level": "INFO",
+      "message": "plans created (deterministic) correlation_id=run-weekend-demand-surge-1 sku=P017 decisions=1"
+    },
+    {
+      "ts": "2026-10-22T15:57:31.988+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.autonomy",
+      "level": "INFO",
+      "message": "autonomy finished correlation_id=run-weekend-demand-surge-1 investigation_id=inv-evt-p017-base-0001 status=completed reason="
+    },
+    {
+      "ts": "2026-10-22T15:57:31.990+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:31.991+00:00",
+      "logger": "retailtwin_api.routes",
+      "level": "INFO",
+      "message": "event.accepted event_id=evt-p017-base-0002 duplicate=False store_id=store-001 correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:31.992+00:00",
+      "logger": "retailtwin_api.agents.observer.consumer",
+      "level": "INFO",
+      "message": "observer event_id=evt-p017-base-0002 correlation_id=run-weekend-demand-surge-1 outcome=started investigation_id=inv-evt-p017-base-0002 reason=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:31.992+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:31.994+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_inventory capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:31.995+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_shelf_state capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:31.996+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_sales_history capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:31.996+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=forecast_demand capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:31.997+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_promotions capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:31.998+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_planogram capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:31.999+00:00",
+      "logger": "retailtwin_api.agents.investigator.evidence",
+      "level": "INFO",
+      "message": "evidence collected correlation_id=run-weekend-demand-surge-1 sku=P017 is_sufficient=True missing="
+    },
+    {
+      "ts": "2026-10-22T15:57:31.999+00:00",
+      "logger": "retailtwin_api.agents.planner.plans",
+      "level": "INFO",
+      "message": "plans created (deterministic) correlation_id=run-weekend-demand-surge-1 sku=P017 decisions=1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.000+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.autonomy",
+      "level": "INFO",
+      "message": "autonomy finished correlation_id=run-weekend-demand-surge-1 investigation_id=inv-evt-p017-base-0002 status=completed reason="
+    },
+    {
+      "ts": "2026-10-22T15:57:32.002+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.003+00:00",
+      "logger": "retailtwin_api.routes",
+      "level": "INFO",
+      "message": "event.accepted event_id=evt-p017-base-0003 duplicate=False store_id=store-001 correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.004+00:00",
+      "logger": "retailtwin_api.agents.observer.consumer",
+      "level": "INFO",
+      "message": "observer event_id=evt-p017-base-0003 correlation_id=run-weekend-demand-surge-1 outcome=started investigation_id=inv-evt-p017-base-0003 reason=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.004+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.006+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_inventory capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.007+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_shelf_state capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.008+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_sales_history capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.009+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=forecast_demand capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.010+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_promotions capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.010+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_planogram capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.011+00:00",
+      "logger": "retailtwin_api.agents.investigator.evidence",
+      "level": "INFO",
+      "message": "evidence collected correlation_id=run-weekend-demand-surge-1 sku=P017 is_sufficient=True missing="
+    },
+    {
+      "ts": "2026-10-22T15:57:32.011+00:00",
+      "logger": "retailtwin_api.agents.planner.plans",
+      "level": "INFO",
+      "message": "plans created (deterministic) correlation_id=run-weekend-demand-surge-1 sku=P017 decisions=1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.012+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.autonomy",
+      "level": "INFO",
+      "message": "autonomy finished correlation_id=run-weekend-demand-surge-1 investigation_id=inv-evt-p017-base-0003 status=completed reason="
+    },
+    {
+      "ts": "2026-10-22T15:57:32.016+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.018+00:00",
+      "logger": "retailtwin_api.routes",
+      "level": "INFO",
+      "message": "event.accepted event_id=evt-p017-base-0004 duplicate=False store_id=store-001 correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.018+00:00",
+      "logger": "retailtwin_api.agents.observer.consumer",
+      "level": "INFO",
+      "message": "observer event_id=evt-p017-base-0004 correlation_id=run-weekend-demand-surge-1 outcome=started investigation_id=inv-evt-p017-base-0004 reason=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.019+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.021+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_inventory capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.022+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_shelf_state capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.023+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_sales_history capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.023+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=forecast_demand capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.024+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_promotions capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.025+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_planogram capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.025+00:00",
+      "logger": "retailtwin_api.agents.investigator.evidence",
+      "level": "INFO",
+      "message": "evidence collected correlation_id=run-weekend-demand-surge-1 sku=P017 is_sufficient=True missing="
+    },
+    {
+      "ts": "2026-10-22T15:57:32.026+00:00",
+      "logger": "retailtwin_api.agents.planner.plans",
+      "level": "INFO",
+      "message": "plans created (deterministic) correlation_id=run-weekend-demand-surge-1 sku=P017 decisions=1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.026+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.autonomy",
+      "level": "INFO",
+      "message": "autonomy finished correlation_id=run-weekend-demand-surge-1 investigation_id=inv-evt-p017-base-0004 status=completed reason="
+    },
+    {
+      "ts": "2026-10-22T15:57:32.028+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.030+00:00",
+      "logger": "retailtwin_api.routes",
+      "level": "INFO",
+      "message": "event.accepted event_id=evt-p017-base-0005 duplicate=False store_id=store-001 correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.030+00:00",
+      "logger": "retailtwin_api.agents.observer.consumer",
+      "level": "INFO",
+      "message": "observer event_id=evt-p017-base-0005 correlation_id=run-weekend-demand-surge-1 outcome=started investigation_id=inv-evt-p017-base-0005 reason=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.031+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.033+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_inventory capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.034+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_shelf_state capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.034+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_sales_history capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.035+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=forecast_demand capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.036+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_promotions capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.036+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_planogram capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.037+00:00",
+      "logger": "retailtwin_api.agents.investigator.evidence",
+      "level": "INFO",
+      "message": "evidence collected correlation_id=run-weekend-demand-surge-1 sku=P017 is_sufficient=True missing="
+    },
+    {
+      "ts": "2026-10-22T15:57:32.037+00:00",
+      "logger": "retailtwin_api.agents.planner.plans",
+      "level": "INFO",
+      "message": "plans created (deterministic) correlation_id=run-weekend-demand-surge-1 sku=P017 decisions=1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.037+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.autonomy",
+      "level": "INFO",
+      "message": "autonomy finished correlation_id=run-weekend-demand-surge-1 investigation_id=inv-evt-p017-base-0005 status=completed reason="
+    },
+    {
+      "ts": "2026-10-22T15:57:32.039+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.041+00:00",
+      "logger": "retailtwin_api.routes",
+      "level": "INFO",
+      "message": "event.accepted event_id=evt-p017-surge-0001 duplicate=False store_id=store-001 correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.042+00:00",
+      "logger": "retailtwin_api.agents.observer.consumer",
+      "level": "INFO",
+      "message": "observer event_id=evt-p017-surge-0001 correlation_id=run-weekend-demand-surge-1 outcome=started investigation_id=inv-evt-p017-surge-0001 reason=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.043+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.045+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_inventory capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.046+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_shelf_state capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.046+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_sales_history capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.047+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=forecast_demand capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.048+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_promotions capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.049+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_planogram capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.049+00:00",
+      "logger": "retailtwin_api.agents.investigator.evidence",
+      "level": "INFO",
+      "message": "evidence collected correlation_id=run-weekend-demand-surge-1 sku=P017 is_sufficient=True missing="
+    },
+    {
+      "ts": "2026-10-22T15:57:32.049+00:00",
+      "logger": "retailtwin_api.agents.planner.plans",
+      "level": "INFO",
+      "message": "plans created (deterministic) correlation_id=run-weekend-demand-surge-1 sku=P017 decisions=1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.050+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.autonomy",
+      "level": "INFO",
+      "message": "autonomy finished correlation_id=run-weekend-demand-surge-1 investigation_id=inv-evt-p017-surge-0001 status=completed reason="
+    },
+    {
+      "ts": "2026-10-22T15:57:32.052+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.053+00:00",
+      "logger": "retailtwin_api.routes",
+      "level": "INFO",
+      "message": "event.accepted event_id=evt-p017-surge-0002 duplicate=False store_id=store-001 correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.054+00:00",
+      "logger": "retailtwin_api.agents.observer.consumer",
+      "level": "INFO",
+      "message": "observer event_id=evt-p017-surge-0002 correlation_id=run-weekend-demand-surge-1 outcome=started investigation_id=inv-evt-p017-surge-0002 reason=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.054+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.056+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_inventory capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.057+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_shelf_state capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.058+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_sales_history capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.059+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=forecast_demand capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.060+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_promotions capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.061+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_planogram capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.062+00:00",
+      "logger": "retailtwin_api.agents.investigator.evidence",
+      "level": "INFO",
+      "message": "evidence collected correlation_id=run-weekend-demand-surge-1 sku=P017 is_sufficient=True missing="
+    },
+    {
+      "ts": "2026-10-22T15:57:32.062+00:00",
+      "logger": "retailtwin_api.agents.planner.plans",
+      "level": "INFO",
+      "message": "plans created (deterministic) correlation_id=run-weekend-demand-surge-1 sku=P017 decisions=1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.063+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.autonomy",
+      "level": "INFO",
+      "message": "autonomy finished correlation_id=run-weekend-demand-surge-1 investigation_id=inv-evt-p017-surge-0002 status=completed reason="
+    },
+    {
+      "ts": "2026-10-22T15:57:32.065+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.067+00:00",
+      "logger": "retailtwin_api.routes",
+      "level": "INFO",
+      "message": "event.accepted event_id=evt-p017-surge-0003 duplicate=False store_id=store-001 correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.067+00:00",
+      "logger": "retailtwin_api.agents.observer.consumer",
+      "level": "INFO",
+      "message": "observer event_id=evt-p017-surge-0003 correlation_id=run-weekend-demand-surge-1 outcome=started investigation_id=inv-evt-p017-surge-0003 reason=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.068+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.069+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_inventory capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.070+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_shelf_state capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.071+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_sales_history capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.071+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=forecast_demand capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.072+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_promotions capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.073+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_planogram capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.073+00:00",
+      "logger": "retailtwin_api.agents.investigator.evidence",
+      "level": "INFO",
+      "message": "evidence collected correlation_id=run-weekend-demand-surge-1 sku=P017 is_sufficient=True missing="
+    },
+    {
+      "ts": "2026-10-22T15:57:32.073+00:00",
+      "logger": "retailtwin_api.agents.planner.plans",
+      "level": "INFO",
+      "message": "plans created (deterministic) correlation_id=run-weekend-demand-surge-1 sku=P017 decisions=1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.074+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.autonomy",
+      "level": "INFO",
+      "message": "autonomy finished correlation_id=run-weekend-demand-surge-1 investigation_id=inv-evt-p017-surge-0003 status=completed reason="
+    },
+    {
+      "ts": "2026-10-22T15:57:32.076+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.078+00:00",
+      "logger": "retailtwin_api.routes",
+      "level": "INFO",
+      "message": "event.accepted event_id=evt-p017-surge-0004 duplicate=False store_id=store-001 correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.078+00:00",
+      "logger": "retailtwin_api.agents.observer.consumer",
+      "level": "INFO",
+      "message": "observer event_id=evt-p017-surge-0004 correlation_id=run-weekend-demand-surge-1 outcome=started investigation_id=inv-evt-p017-surge-0004 reason=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.079+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.081+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_inventory capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.081+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_shelf_state capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.082+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_sales_history capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.083+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=forecast_demand capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.083+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_promotions capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.084+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_planogram capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.085+00:00",
+      "logger": "retailtwin_api.agents.investigator.evidence",
+      "level": "INFO",
+      "message": "evidence collected correlation_id=run-weekend-demand-surge-1 sku=P017 is_sufficient=True missing="
+    },
+    {
+      "ts": "2026-10-22T15:57:32.085+00:00",
+      "logger": "retailtwin_api.agents.planner.plans",
+      "level": "INFO",
+      "message": "plans created (deterministic) correlation_id=run-weekend-demand-surge-1 sku=P017 decisions=1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.085+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.autonomy",
+      "level": "INFO",
+      "message": "autonomy finished correlation_id=run-weekend-demand-surge-1 investigation_id=inv-evt-p017-surge-0004 status=completed reason="
+    },
+    {
+      "ts": "2026-10-22T15:57:32.088+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.089+00:00",
+      "logger": "retailtwin_api.routes",
+      "level": "INFO",
+      "message": "event.accepted event_id=evt-p017-surge-0005 duplicate=False store_id=store-001 correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.090+00:00",
+      "logger": "retailtwin_api.agents.observer.consumer",
+      "level": "INFO",
+      "message": "observer event_id=evt-p017-surge-0005 correlation_id=run-weekend-demand-surge-1 outcome=started investigation_id=inv-evt-p017-surge-0005 reason=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.091+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.093+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_inventory capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.094+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_shelf_state capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.094+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_sales_history capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.095+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=forecast_demand capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.096+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_promotions capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.096+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_planogram capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.097+00:00",
+      "logger": "retailtwin_api.agents.investigator.evidence",
+      "level": "INFO",
+      "message": "evidence collected correlation_id=run-weekend-demand-surge-1 sku=P017 is_sufficient=True missing="
+    },
+    {
+      "ts": "2026-10-22T15:57:32.097+00:00",
+      "logger": "retailtwin_api.agents.planner.plans",
+      "level": "INFO",
+      "message": "plans created (deterministic) correlation_id=run-weekend-demand-surge-1 sku=P017 decisions=1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.097+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.autonomy",
+      "level": "INFO",
+      "message": "autonomy finished correlation_id=run-weekend-demand-surge-1 investigation_id=inv-evt-p017-surge-0005 status=completed reason="
+    },
+    {
+      "ts": "2026-10-22T15:57:32.100+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.101+00:00",
+      "logger": "retailtwin_api.routes",
+      "level": "INFO",
+      "message": "event.accepted event_id=evt-p017-surge-0006 duplicate=False store_id=store-001 correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.102+00:00",
+      "logger": "retailtwin_api.agents.observer.consumer",
+      "level": "INFO",
+      "message": "observer event_id=evt-p017-surge-0006 correlation_id=run-weekend-demand-surge-1 outcome=started investigation_id=inv-evt-p017-surge-0006 reason=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.102+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.104+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_inventory capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.105+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_shelf_state capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.105+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_sales_history capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.106+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=forecast_demand capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.107+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_promotions capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.108+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_planogram capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.108+00:00",
+      "logger": "retailtwin_api.agents.investigator.evidence",
+      "level": "INFO",
+      "message": "evidence collected correlation_id=run-weekend-demand-surge-1 sku=P017 is_sufficient=True missing="
+    },
+    {
+      "ts": "2026-10-22T15:57:32.108+00:00",
+      "logger": "retailtwin_api.agents.planner.plans",
+      "level": "INFO",
+      "message": "plans created (deterministic) correlation_id=run-weekend-demand-surge-1 sku=P017 decisions=1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.109+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.autonomy",
+      "level": "INFO",
+      "message": "autonomy finished correlation_id=run-weekend-demand-surge-1 investigation_id=inv-evt-p017-surge-0006 status=completed reason="
+    },
+    {
+      "ts": "2026-10-22T15:57:32.111+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.112+00:00",
+      "logger": "retailtwin_api.routes",
+      "level": "INFO",
+      "message": "event.accepted event_id=evt-p017-surge-0007 duplicate=False store_id=store-001 correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.113+00:00",
+      "logger": "retailtwin_api.agents.observer.consumer",
+      "level": "INFO",
+      "message": "observer event_id=evt-p017-surge-0007 correlation_id=run-weekend-demand-surge-1 outcome=started investigation_id=inv-evt-p017-surge-0007 reason=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.114+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.115+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_inventory capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.116+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_shelf_state capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.117+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_sales_history capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.118+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=forecast_demand capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.118+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_promotions capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.119+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_planogram capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.120+00:00",
+      "logger": "retailtwin_api.agents.investigator.evidence",
+      "level": "INFO",
+      "message": "evidence collected correlation_id=run-weekend-demand-surge-1 sku=P017 is_sufficient=True missing="
+    },
+    {
+      "ts": "2026-10-22T15:57:32.120+00:00",
+      "logger": "retailtwin_api.agents.planner.plans",
+      "level": "INFO",
+      "message": "plans created (deterministic) correlation_id=run-weekend-demand-surge-1 sku=P017 decisions=1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.120+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.autonomy",
+      "level": "INFO",
+      "message": "autonomy finished correlation_id=run-weekend-demand-surge-1 investigation_id=inv-evt-p017-surge-0007 status=completed reason="
+    },
+    {
+      "ts": "2026-10-22T15:57:32.123+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.124+00:00",
+      "logger": "retailtwin_api.routes",
+      "level": "INFO",
+      "message": "event.accepted event_id=evt-p017-surge-0008 duplicate=False store_id=store-001 correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.124+00:00",
+      "logger": "retailtwin_api.agents.observer.consumer",
+      "level": "INFO",
+      "message": "observer event_id=evt-p017-surge-0008 correlation_id=run-weekend-demand-surge-1 outcome=started investigation_id=inv-evt-p017-surge-0008 reason=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.125+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=run-weekend-demand-surge-1",
+      "correlation_id": "run-weekend-demand-surge-1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.127+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_inventory capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.128+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_shelf_state capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.128+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_sales_history capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.129+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=forecast_demand capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.130+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_promotions capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.130+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.tool_registry",
+      "level": "INFO",
+      "message": "tool name=get_planogram capability=READ correlation_id=run-weekend-demand-surge-1 ok=True error_code=None"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.130+00:00",
+      "logger": "retailtwin_api.agents.investigator.evidence",
+      "level": "INFO",
+      "message": "evidence collected correlation_id=run-weekend-demand-surge-1 sku=P017 is_sufficient=True missing="
+    },
+    {
+      "ts": "2026-10-22T15:57:32.131+00:00",
+      "logger": "retailtwin_api.agents.planner.plans",
+      "level": "INFO",
+      "message": "plans created (deterministic) correlation_id=run-weekend-demand-surge-1 sku=P017 decisions=1"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.131+00:00",
+      "logger": "retailtwin_api.agents.orchestrator.autonomy",
+      "level": "INFO",
+      "message": "autonomy finished correlation_id=run-weekend-demand-surge-1 investigation_id=inv-evt-p017-surge-0008 status=completed reason="
+    },
+    {
+      "ts": "2026-10-22T15:57:32.134+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=pr388-c20fb073-g06-08",
+      "correlation_id": "pr388-c20fb073-g06-08"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.139+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.guard",
+      "level": "INFO",
+      "message": "dcg verdict decision_id=plan-run-weekend-demand-surge-1-P017-1 correlation_id=run-weekend-demand-surge-1 verdict=ALLOW"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.139+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.no_stale_commit",
+      "level": "INFO",
+      "message": "dcg authorize decision_id=plan-run-weekend-demand-surge-1-P017-1 correlation_id=run-weekend-demand-surge-1 verdict=ALLOW reason=ALLOWED"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.140+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.guard",
+      "level": "INFO",
+      "message": "dcg verdict decision_id=plan-run-weekend-demand-surge-1-P017-1 correlation_id=run-weekend-demand-surge-1 verdict=ALLOW"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.140+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.no_stale_commit",
+      "level": "INFO",
+      "message": "dcg commit decision_id=plan-run-weekend-demand-surge-1-P017-1 correlation_id=run-weekend-demand-surge-1 verdict=ALLOW reason=ALLOWED"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.140+00:00",
+      "logger": "retailtwin_api.agents.executor.executor",
+      "level": "INFO",
+      "message": "executor committed decision_id=plan-run-weekend-demand-surge-1-P017-1 skus=P017 store_version=v2"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.140+00:00",
+      "logger": "retailtwin_api.routes",
+      "level": "INFO",
+      "message": "simulation_review.approved",
+      "simulation_id": "sim-inv-evt-p017-base-0001",
+      "verdict": "ALLOW",
+      "reason_code": "APPROVED",
+      "detail_code": "COMMITTED",
+      "live_context_version": "store-001:v2"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.141+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=pr388-c20fb073-g06-08",
+      "correlation_id": "pr388-c20fb073-g06-08"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.143+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=pr388-c20fb073-g06-08",
+      "correlation_id": "pr388-c20fb073-g06-08"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.146+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.guard",
+      "level": "INFO",
+      "message": "dcg verdict decision_id=plan-run-weekend-demand-surge-1-P017-1 correlation_id=run-weekend-demand-surge-1 verdict=REFRESH_REQUIRED reason=VERSION_STALE gate=context"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.146+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.no_stale_commit",
+      "level": "INFO",
+      "message": "dcg authorize decision_id=plan-run-weekend-demand-surge-1-P017-1 correlation_id=run-weekend-demand-surge-1 verdict=REFRESH_REQUIRED reason=VERSION_STALE"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.146+00:00",
+      "logger": "retailtwin_api.routes",
+      "level": "INFO",
+      "message": "simulation_review.approved",
+      "simulation_id": "sim-inv-evt-p017-base-0002",
+      "verdict": "REFRESH_REQUIRED",
+      "reason_code": "VERSION_STALE",
+      "detail_code": "VERSION_STALE",
+      "live_context_version": "store-001:v2"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.147+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=pr388-c20fb073-g06-08",
+      "correlation_id": "pr388-c20fb073-g06-08"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.149+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=pr388-c20fb073-g06-08",
+      "correlation_id": "pr388-c20fb073-g06-08"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.152+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.guard",
+      "level": "INFO",
+      "message": "dcg verdict decision_id=plan-run-weekend-demand-surge-1-P017-1 correlation_id=run-weekend-demand-surge-1 verdict=REFRESH_REQUIRED reason=VERSION_STALE gate=context"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.152+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.no_stale_commit",
+      "level": "INFO",
+      "message": "dcg authorize decision_id=plan-run-weekend-demand-surge-1-P017-1 correlation_id=run-weekend-demand-surge-1 verdict=REFRESH_REQUIRED reason=VERSION_STALE"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.152+00:00",
+      "logger": "retailtwin_api.routes",
+      "level": "INFO",
+      "message": "simulation_review.approved",
+      "simulation_id": "sim-inv-evt-p017-base-0003",
+      "verdict": "REFRESH_REQUIRED",
+      "reason_code": "VERSION_STALE",
+      "detail_code": "VERSION_STALE",
+      "live_context_version": "store-001:v2"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.154+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=pr388-c20fb073-g06-08",
+      "correlation_id": "pr388-c20fb073-g06-08"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.155+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=pr388-c20fb073-g06-08",
+      "correlation_id": "pr388-c20fb073-g06-08"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.158+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.guard",
+      "level": "INFO",
+      "message": "dcg verdict decision_id=plan-run-weekend-demand-surge-1-P017-1 correlation_id=run-weekend-demand-surge-1 verdict=REFRESH_REQUIRED reason=VERSION_STALE gate=context"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.158+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.no_stale_commit",
+      "level": "INFO",
+      "message": "dcg authorize decision_id=plan-run-weekend-demand-surge-1-P017-1 correlation_id=run-weekend-demand-surge-1 verdict=REFRESH_REQUIRED reason=VERSION_STALE"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.158+00:00",
+      "logger": "retailtwin_api.routes",
+      "level": "INFO",
+      "message": "simulation_review.approved",
+      "simulation_id": "sim-inv-evt-p017-base-0004",
+      "verdict": "REFRESH_REQUIRED",
+      "reason_code": "VERSION_STALE",
+      "detail_code": "VERSION_STALE",
+      "live_context_version": "store-001:v2"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.159+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=pr388-c20fb073-g06-08",
+      "correlation_id": "pr388-c20fb073-g06-08"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.160+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=pr388-c20fb073-g06-08",
+      "correlation_id": "pr388-c20fb073-g06-08"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.163+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.guard",
+      "level": "INFO",
+      "message": "dcg verdict decision_id=plan-run-weekend-demand-surge-1-P017-1 correlation_id=run-weekend-demand-surge-1 verdict=REFRESH_REQUIRED reason=VERSION_STALE gate=context"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.163+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.no_stale_commit",
+      "level": "INFO",
+      "message": "dcg authorize decision_id=plan-run-weekend-demand-surge-1-P017-1 correlation_id=run-weekend-demand-surge-1 verdict=REFRESH_REQUIRED reason=VERSION_STALE"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.163+00:00",
+      "logger": "retailtwin_api.routes",
+      "level": "INFO",
+      "message": "simulation_review.approved",
+      "simulation_id": "sim-inv-evt-p017-base-0005",
+      "verdict": "REFRESH_REQUIRED",
+      "reason_code": "VERSION_STALE",
+      "detail_code": "VERSION_STALE",
+      "live_context_version": "store-001:v2"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.164+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=pr388-c20fb073-g06-08",
+      "correlation_id": "pr388-c20fb073-g06-08"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.165+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=pr388-c20fb073-g06-08",
+      "correlation_id": "pr388-c20fb073-g06-08"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.167+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.guard",
+      "level": "INFO",
+      "message": "dcg verdict decision_id=plan-run-weekend-demand-surge-1-P017-1 correlation_id=run-weekend-demand-surge-1 verdict=REFRESH_REQUIRED reason=VERSION_STALE gate=context"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.168+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.no_stale_commit",
+      "level": "INFO",
+      "message": "dcg authorize decision_id=plan-run-weekend-demand-surge-1-P017-1 correlation_id=run-weekend-demand-surge-1 verdict=REFRESH_REQUIRED reason=VERSION_STALE"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.168+00:00",
+      "logger": "retailtwin_api.routes",
+      "level": "INFO",
+      "message": "simulation_review.approved",
+      "simulation_id": "sim-inv-evt-p017-surge-0001",
+      "verdict": "REFRESH_REQUIRED",
+      "reason_code": "VERSION_STALE",
+      "detail_code": "VERSION_STALE",
+      "live_context_version": "store-001:v2"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.169+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=pr388-c20fb073-g06-08",
+      "correlation_id": "pr388-c20fb073-g06-08"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.171+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=pr388-c20fb073-g06-08",
+      "correlation_id": "pr388-c20fb073-g06-08"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.174+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.guard",
+      "level": "INFO",
+      "message": "dcg verdict decision_id=plan-run-weekend-demand-surge-1-P017-1 correlation_id=run-weekend-demand-surge-1 verdict=REFRESH_REQUIRED reason=VERSION_STALE gate=context"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.174+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.no_stale_commit",
+      "level": "INFO",
+      "message": "dcg authorize decision_id=plan-run-weekend-demand-surge-1-P017-1 correlation_id=run-weekend-demand-surge-1 verdict=REFRESH_REQUIRED reason=VERSION_STALE"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.174+00:00",
+      "logger": "retailtwin_api.routes",
+      "level": "INFO",
+      "message": "simulation_review.approved",
+      "simulation_id": "sim-inv-evt-p017-surge-0002",
+      "verdict": "REFRESH_REQUIRED",
+      "reason_code": "VERSION_STALE",
+      "detail_code": "VERSION_STALE",
+      "live_context_version": "store-001:v2"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.175+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=pr388-c20fb073-g06-08",
+      "correlation_id": "pr388-c20fb073-g06-08"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.177+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=pr388-c20fb073-g06-08",
+      "correlation_id": "pr388-c20fb073-g06-08"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.179+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.guard",
+      "level": "INFO",
+      "message": "dcg verdict decision_id=plan-run-weekend-demand-surge-1-P017-1 correlation_id=run-weekend-demand-surge-1 verdict=REFRESH_REQUIRED reason=VERSION_STALE gate=context"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.179+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.no_stale_commit",
+      "level": "INFO",
+      "message": "dcg authorize decision_id=plan-run-weekend-demand-surge-1-P017-1 correlation_id=run-weekend-demand-surge-1 verdict=REFRESH_REQUIRED reason=VERSION_STALE"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.180+00:00",
+      "logger": "retailtwin_api.routes",
+      "level": "INFO",
+      "message": "simulation_review.approved",
+      "simulation_id": "sim-inv-evt-p017-surge-0003",
+      "verdict": "REFRESH_REQUIRED",
+      "reason_code": "VERSION_STALE",
+      "detail_code": "VERSION_STALE",
+      "live_context_version": "store-001:v2"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.180+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=pr388-c20fb073-g06-08",
+      "correlation_id": "pr388-c20fb073-g06-08"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.182+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=pr388-c20fb073-g06-08",
+      "correlation_id": "pr388-c20fb073-g06-08"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.185+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.guard",
+      "level": "INFO",
+      "message": "dcg verdict decision_id=plan-run-weekend-demand-surge-1-P017-1 correlation_id=run-weekend-demand-surge-1 verdict=REFRESH_REQUIRED reason=VERSION_STALE gate=context"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.186+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.no_stale_commit",
+      "level": "INFO",
+      "message": "dcg authorize decision_id=plan-run-weekend-demand-surge-1-P017-1 correlation_id=run-weekend-demand-surge-1 verdict=REFRESH_REQUIRED reason=VERSION_STALE"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.186+00:00",
+      "logger": "retailtwin_api.routes",
+      "level": "INFO",
+      "message": "simulation_review.approved",
+      "simulation_id": "sim-inv-evt-p017-surge-0004",
+      "verdict": "REFRESH_REQUIRED",
+      "reason_code": "VERSION_STALE",
+      "detail_code": "VERSION_STALE",
+      "live_context_version": "store-001:v2"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.186+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=pr388-c20fb073-g06-08",
+      "correlation_id": "pr388-c20fb073-g06-08"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.188+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=pr388-c20fb073-g06-08",
+      "correlation_id": "pr388-c20fb073-g06-08"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.190+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.guard",
+      "level": "INFO",
+      "message": "dcg verdict decision_id=plan-run-weekend-demand-surge-1-P017-1 correlation_id=run-weekend-demand-surge-1 verdict=REFRESH_REQUIRED reason=VERSION_STALE gate=context"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.191+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.no_stale_commit",
+      "level": "INFO",
+      "message": "dcg authorize decision_id=plan-run-weekend-demand-surge-1-P017-1 correlation_id=run-weekend-demand-surge-1 verdict=REFRESH_REQUIRED reason=VERSION_STALE"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.191+00:00",
+      "logger": "retailtwin_api.routes",
+      "level": "INFO",
+      "message": "simulation_review.approved",
+      "simulation_id": "sim-inv-evt-p017-surge-0005",
+      "verdict": "REFRESH_REQUIRED",
+      "reason_code": "VERSION_STALE",
+      "detail_code": "VERSION_STALE",
+      "live_context_version": "store-001:v2"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.191+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=pr388-c20fb073-g06-08",
+      "correlation_id": "pr388-c20fb073-g06-08"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.193+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=pr388-c20fb073-g06-08",
+      "correlation_id": "pr388-c20fb073-g06-08"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.195+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.guard",
+      "level": "INFO",
+      "message": "dcg verdict decision_id=plan-run-weekend-demand-surge-1-P017-1 correlation_id=run-weekend-demand-surge-1 verdict=REFRESH_REQUIRED reason=VERSION_STALE gate=context"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.196+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.no_stale_commit",
+      "level": "INFO",
+      "message": "dcg authorize decision_id=plan-run-weekend-demand-surge-1-P017-1 correlation_id=run-weekend-demand-surge-1 verdict=REFRESH_REQUIRED reason=VERSION_STALE"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.196+00:00",
+      "logger": "retailtwin_api.routes",
+      "level": "INFO",
+      "message": "simulation_review.approved",
+      "simulation_id": "sim-inv-evt-p017-surge-0006",
+      "verdict": "REFRESH_REQUIRED",
+      "reason_code": "VERSION_STALE",
+      "detail_code": "VERSION_STALE",
+      "live_context_version": "store-001:v2"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.196+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=pr388-c20fb073-g06-08",
+      "correlation_id": "pr388-c20fb073-g06-08"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.198+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=pr388-c20fb073-g06-08",
+      "correlation_id": "pr388-c20fb073-g06-08"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.201+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.guard",
+      "level": "INFO",
+      "message": "dcg verdict decision_id=plan-run-weekend-demand-surge-1-P017-1 correlation_id=run-weekend-demand-surge-1 verdict=REFRESH_REQUIRED reason=VERSION_STALE gate=context"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.201+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.no_stale_commit",
+      "level": "INFO",
+      "message": "dcg authorize decision_id=plan-run-weekend-demand-surge-1-P017-1 correlation_id=run-weekend-demand-surge-1 verdict=REFRESH_REQUIRED reason=VERSION_STALE"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.201+00:00",
+      "logger": "retailtwin_api.routes",
+      "level": "INFO",
+      "message": "simulation_review.approved",
+      "simulation_id": "sim-inv-evt-p017-surge-0007",
+      "verdict": "REFRESH_REQUIRED",
+      "reason_code": "VERSION_STALE",
+      "detail_code": "VERSION_STALE",
+      "live_context_version": "store-001:v2"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.202+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=pr388-c20fb073-g06-08",
+      "correlation_id": "pr388-c20fb073-g06-08"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.204+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=pr388-c20fb073-g06-08",
+      "correlation_id": "pr388-c20fb073-g06-08"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.207+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.guard",
+      "level": "INFO",
+      "message": "dcg verdict decision_id=plan-run-weekend-demand-surge-1-P017-1 correlation_id=run-weekend-demand-surge-1 verdict=REFRESH_REQUIRED reason=VERSION_STALE gate=context"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.207+00:00",
+      "logger": "retailtwin_api.guard.decision_context_guard.no_stale_commit",
+      "level": "INFO",
+      "message": "dcg authorize decision_id=plan-run-weekend-demand-surge-1-P017-1 correlation_id=run-weekend-demand-surge-1 verdict=REFRESH_REQUIRED reason=VERSION_STALE"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.207+00:00",
+      "logger": "retailtwin_api.routes",
+      "level": "INFO",
+      "message": "simulation_review.approved",
+      "simulation_id": "sim-inv-evt-p017-surge-0008",
+      "verdict": "REFRESH_REQUIRED",
+      "reason_code": "VERSION_STALE",
+      "detail_code": "VERSION_STALE",
+      "live_context_version": "store-001:v2"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.208+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=pr388-c20fb073-g06-08",
+      "correlation_id": "pr388-c20fb073-g06-08"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.209+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=9f73e082-9cc5-4dc1-9b98-13eea73027bd",
+      "correlation_id": "9f73e082-9cc5-4dc1-9b98-13eea73027bd"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.211+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=9f73e082-9cc5-4dc1-9b98-13eea73027bd",
+      "correlation_id": "9f73e082-9cc5-4dc1-9b98-13eea73027bd"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.213+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=dac24be2-064f-42e0-af66-5b9e2cb85b0d",
+      "correlation_id": "dac24be2-064f-42e0-af66-5b9e2cb85b0d"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.215+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=dac24be2-064f-42e0-af66-5b9e2cb85b0d",
+      "correlation_id": "dac24be2-064f-42e0-af66-5b9e2cb85b0d"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.217+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.start correlation_id=78a47fe9-a5cb-44aa-b6be-f832d6fe493d",
+      "correlation_id": "78a47fe9-a5cb-44aa-b6be-f832d6fe493d"
+    },
+    {
+      "ts": "2026-10-22T15:57:32.222+00:00",
+      "logger": "retailtwin_api.middleware",
+      "level": "INFO",
+      "message": "request.end correlation_id=78a47fe9-a5cb-44aa-b6be-f832d6fe493d",
+      "correlation_id": "78a47fe9-a5cb-44aa-b6be-f832d6fe493d"
+    }
+  ]
+}
