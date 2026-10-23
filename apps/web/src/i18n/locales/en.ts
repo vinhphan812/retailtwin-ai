@@ -785,7 +785,7 @@ export const en = {
     kind: {
       percent_off: "{{value}} off",
       amount_off: "{{value}} off",
-      buy_one_get_one: "{{value}} free",
+      buy_x_get_y: "{{value}} free",
       bundle: "Bundle",
       loyalty_multiplier: "{{value}}x multiplier",
       unknown: "Unsupported promotion type",
