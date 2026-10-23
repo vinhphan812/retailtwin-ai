@@ -675,3 +675,25 @@ def test_start_for_event_disables_stale_block_even_when_enabled_in_request() -> 
 async def _run_with_reset(controller: FlagshipController):
     controller.reset(seed=CANONICAL_SEED)
     return await controller.start(FlagshipRequest(stale_block_enabled=True))
+
+
+def test_register_dependencies_propagates_activity() -> None:
+    from retailtwin_api.agent_activity import AgentActivityLog
+    from retailtwin_api.flagship.controller import register_dependencies
+
+    activity_log = AgentActivityLog()
+    provider = object()  # type: ignore
+    twin = object()  # type: ignore
+    registry = object()  # type: ignore
+    evaluator = object()  # type: ignore
+
+    controller = register_dependencies(
+        provider=provider,  # type: ignore
+        twin=twin,  # type: ignore
+        store_id="store-1",
+        registry=registry,  # type: ignore
+        evaluator=evaluator,  # type: ignore
+        activity=activity_log,
+    )
+    assert controller._deps is not None
+    assert controller._deps.activity is activity_log
