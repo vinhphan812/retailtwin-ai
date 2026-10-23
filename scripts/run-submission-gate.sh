@@ -21,7 +21,21 @@
 #   --evidence-dir <path> per-run evidence output dir (default: artifacts/submission-gate)
 #   --flagship <path>     path to run_flagship_scenario.py (default: tests/e2e/gates/run_flagship_scenario.py)
 #   --pythonpath <path>   PYTHONPATH for the runner (default: apps/api, services/simulation, services/forecasting)
+#   --python <path>       Python interpreter to use (default: auto-detect repo venv, python3, then python)
 #   --help                show this help text
+#
+# Interpreter resolution (in order):
+#   1. --python <path>            explicit flag
+#   2. $G06_PYTHON                gate-scoped environment override
+#   3. $PYTHON_BIN                generic environment override
+#   4. auto-detect: repo virtualenv, then python3, then python
+#
+# Hosts that only ship `python` (Windows/MSYS, CI sandboxes without the
+# python3 alias) used to abort with exit 127 because the runner hard-coded
+# `python3`. An explicitly requested interpreter that cannot be resolved or
+# executed is a hard failure (exit 2); auto-detection that finds nothing is
+# also a hard failure (exit 2). The runner never falls back to a different
+# interpreter than the one that was requested.
 #
 # Exit codes:
 #   0  every run PASS
@@ -38,10 +52,13 @@ EVIDENCE_DIR="artifacts/submission-gate"
 FLAGSHIP="tests/e2e/gates/run_flagship_scenario.py"
 
 usage() {
-    sed -n '2,30p' "$0"
+    # Print the header comment block (everything between the shebang and the
+    # first non-comment line), stripped of the leading "# ".
+    awk 'NR > 1 { if ($0 !~ /^#/) exit; sub(/^# ?/, ""); print }' "$0"
     exit 2
 }
 
+PYTHON_OVERRIDE=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --runs)
@@ -56,6 +73,8 @@ while [[ $# -gt 0 ]]; do
             FLAGSHIP="$2"; shift 2 ;;
         --pythonpath)
             PYTHONPATH_ARG="$2"; shift 2 ;;
+        --python)
+            PYTHON_OVERRIDE="$2"; shift 2 ;;
         --help|-h)
             usage ;;
         *)
@@ -78,6 +97,94 @@ if [[ ! -f "$FLAGSHIP" ]]; then
     exit 2
 fi
 
+# ── Resolve the Python interpreter ───────────────────────────────────────────
+# The runner used to hard-code `python3`, which aborts with exit 127 on hosts
+# that only ship `python` (Windows/MSYS, some CI sandboxes). Resolution order:
+#   1. --python <path>      (explicit request)
+#   2. $G06_PYTHON          (gate-scoped environment override)
+#   3. $PYTHON_BIN          (generic environment override)
+#   4. auto-detect: repo virtualenv, then python3, then python
+# An explicit request that cannot be resolved or executed is a hard failure
+# (exit 2) — the runner never silently falls back to a different interpreter.
+resolve_python_bin() {
+    local candidate resolved normalized
+    for candidate in "$@"; do
+        [[ -n "$candidate" ]] || continue
+        # Normalise Windows-style backslash paths so MSYS/Git-bash can stat them.
+        normalized="${candidate//\\//}"
+        # An explicit path to an executable file is accepted as-is.
+        if [[ "$normalized" == */* ]]; then
+            if [[ -f "$normalized" && -x "$normalized" ]]; then
+                printf '%s\n' "$normalized"
+                return 0
+            fi
+            continue
+        fi
+        if resolved="$(command -v -- "$candidate" 2>/dev/null)"; then
+            printf '%s\n' "$resolved"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# The repo-local virtualenv is preferred during auto-detection because it is
+# the only interpreter guaranteed to have the API dependencies installed.
+repo_venv_candidates() {
+    printf '%s\n' \
+        "$REPO_ROOT/apps/api/.venv/Scripts/python.exe" \
+        "$REPO_ROOT/apps/api/.venv/bin/python" \
+        "$REPO_ROOT/.venv/Scripts/python.exe" \
+        "$REPO_ROOT/.venv/bin/python"
+}
+
+if [[ -n "$PYTHON_OVERRIDE" ]]; then
+    REQUESTED_PYTHON="$PYTHON_OVERRIDE"
+    REQUEST_SOURCE="--python"
+elif [[ -n "${G06_PYTHON:-}" ]]; then
+    REQUESTED_PYTHON="$G06_PYTHON"
+    REQUEST_SOURCE="G06_PYTHON"
+elif [[ -n "${PYTHON_BIN:-}" ]]; then
+    REQUESTED_PYTHON="$PYTHON_BIN"
+    REQUEST_SOURCE="PYTHON_BIN"
+else
+    REQUESTED_PYTHON=""
+    REQUEST_SOURCE="auto-detect"
+fi
+
+if [[ -n "$REQUESTED_PYTHON" ]]; then
+    if ! PYTHON_BIN_RESOLVED="$(resolve_python_bin "$REQUESTED_PYTHON")"; then
+        echo "ERROR: requested Python interpreter not found: $REQUESTED_PYTHON (from $REQUEST_SOURCE)" >&2
+        exit 2
+    fi
+else
+    PYTHON_BIN_RESOLVED=""
+    while IFS= read -r venv_candidate; do
+        [[ -n "$venv_candidate" ]] || continue
+        if resolved_venv="$(resolve_python_bin "$venv_candidate")"; then
+            PYTHON_BIN_RESOLVED="$resolved_venv"
+            REQUEST_SOURCE="auto-detect:repo-venv"
+            break
+        fi
+    done < <(repo_venv_candidates)
+    if [[ -z "$PYTHON_BIN_RESOLVED" ]]; then
+        if ! PYTHON_BIN_RESOLVED="$(resolve_python_bin python3 python)"; then
+            echo "ERROR: no Python interpreter found (tried the repo virtualenv, then 'python3', then 'python')." >&2
+            echo "       Pass --python <path> or set G06_PYTHON/PYTHON_BIN." >&2
+            exit 2
+        fi
+        REQUEST_SOURCE="auto-detect:python3-or-python"
+    fi
+fi
+
+# Fail closed when the resolved interpreter cannot actually execute.
+if ! "$PYTHON_BIN_RESOLVED" -c "import sys" >/dev/null 2>&1; then
+    echo "ERROR: Python interpreter is not executable: $PYTHON_BIN_RESOLVED (from $REQUEST_SOURCE)" >&2
+    exit 2
+fi
+
+PYTHON_VERSION="$("$PYTHON_BIN_RESOLVED" -c 'import platform; print(platform.python_version())' 2>/dev/null || echo "unknown")"
+
 # Prepare output directories
 mkdir -p "$EVIDENCE_DIR"
 mkdir -p "$(dirname "$OUT")"
@@ -89,6 +196,7 @@ echo "  out        : $OUT"
 echo "  evidence   : $EVIDENCE_DIR"
 echo "  flagship   : $FLAGSHIP"
 echo "  PYTHONPATH  : $PYTHONPATH"
+echo "  interpreter : $PYTHON_BIN_RESOLVED (python $PYTHON_VERSION, via $REQUEST_SOURCE)"
 echo
 
 FAILED_RUNS=0
@@ -103,7 +211,7 @@ for i in $(seq 1 "$RUNS"); do
 
     echo "==> Run $i/$RUNS  run_id=${run_id}"
     set +e
-    python3 "$FLAGSHIP" --run-id "$run_id" --out "$evidence_path" 2>"${EVIDENCE_DIR}/${run_id}.stderr.log"
+    "$PYTHON_BIN_RESOLVED" "$FLAGSHIP" --run-id "$run_id" --out "$evidence_path" 2>"${EVIDENCE_DIR}/${run_id}.stderr.log"
     exit_code=$?
     set -e
     run_finished_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
@@ -113,7 +221,7 @@ for i in $(seq 1 "$RUNS"); do
         # Read the embedded result field if present
         result="PASS"
         if [[ -f "$evidence_path" ]]; then
-            embedded=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('result','PASS'))" "$evidence_path" 2>/dev/null || echo "PASS")
+            embedded=$("$PYTHON_BIN_RESOLVED" -c "import json,sys; print(json.load(open(sys.argv[1])).get('result','PASS'))" "$evidence_path" 2>/dev/null || echo "PASS")
             result="$embedded"
         fi
         echo "    PASS  evidence=${evidence_path}"
@@ -129,7 +237,7 @@ for i in $(seq 1 "$RUNS"); do
     fi
 
     # Append one record to the jsonl file
-    python3 - "$run_id" "$run_started_at" "$run_finished_at" "$exit_code" "$result" "$evidence_path" "$RUN_DETAILS_JSONL" <<'PY'
+    "$PYTHON_BIN_RESOLVED" - "$run_id" "$run_started_at" "$run_finished_at" "$exit_code" "$result" "$evidence_path" "$RUN_DETAILS_JSONL" <<'PY'
 import json, sys
 run_id, started, finished, exit_code, result, evidence_path, out_path = sys.argv[1:]
 record = {
@@ -146,11 +254,11 @@ PY
 done
 
 # Build the aggregate matrix
-python3 - "$RUNS" "$SEED" "$RUN_DETAILS_JSONL" "$OUT" <<'PY'
+"$PYTHON_BIN_RESOLVED" - "$RUNS" "$SEED" "$RUN_DETAILS_JSONL" "$OUT" "$PYTHON_BIN_RESOLVED" "$PYTHON_VERSION" "$REQUEST_SOURCE" <<'PY'
 import json, sys, hashlib
 from datetime import datetime, timezone
 
-runs_total, seed, jsonl_path, out_path = sys.argv[1:]
+runs_total, seed, jsonl_path, out_path, python_bin, python_version, python_source = sys.argv[1:]
 
 records = []
 with open(jsonl_path, encoding="utf-8") as f:
@@ -176,6 +284,11 @@ matrix = {
     "total_runs": int(runs_total),
     "passed": passed,
     "failed": failed,
+    "interpreter": {
+        "path": python_bin,
+        "version": python_version,
+        "resolved_from": python_source,
+    },
     "started_at": records[0]["started_at"] if records else datetime.now(timezone.utc).isoformat(),
     "finished_at": records[-1]["finished_at"] if records else datetime.now(timezone.utc).isoformat(),
     "runs": [

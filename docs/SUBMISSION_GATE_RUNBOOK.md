@@ -88,6 +88,7 @@ bash scripts/run-submission-gate.sh --runs 2 --seed smoke --out /tmp/g06-smoke.j
 | `--evidence-dir <path>` | `artifacts/submission-gate` | Per-run evidence output directory. |
 | `--flagship <path>` | `tests/e2e/gates/run_flagship_scenario.py` | Path to the flagship Python runner. |
 | `--pythonpath <path>` | `.` | `PYTHONPATH` for the Python process. |
+| `--python <path>` | auto-detected | Python interpreter to run the scenario with. Also settable via `G06_PYTHON` or `PYTHON_BIN`. When unset the runner auto-detects the repo virtualenv, then `python3`, then `python`. A requested interpreter that cannot be resolved or executed is a hard failure (exit 2). The resolved interpreter is recorded in `matrix.json` under `interpreter`. |
 
 ## Per-run evidence JSON
 
@@ -168,6 +169,11 @@ The required checks for PASS (happy mode):
   "total_runs": 20,
   "passed": 20,
   "failed": 0,
+  "interpreter": {
+    "path": "<absolute path to the interpreter that ran the scenario>",
+    "version": "<e.g. 3.11.9>",
+    "resolved_from": "--python" | "G06_PYTHON" | "PYTHON_BIN" | "auto-detect:repo-venv" | "auto-detect:python3-or-python"
+  },
   "started_at": "<first run start>",
   "finished_at": "<last run finish>",
   "runs": [
