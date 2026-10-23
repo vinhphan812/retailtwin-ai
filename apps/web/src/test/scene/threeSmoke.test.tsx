@@ -1,7 +1,6 @@
-import React from "react";
 import ReactThreeTestRenderer from "@react-three/test-renderer";
 import type { ThreeEvent } from "@react-three/fiber";
-import { Color, Mesh, MeshStandardMaterial, type Intersection } from "three";
+import type { Intersection } from "three";
 import { describe, expect, it, vi } from "vitest";
 import { stockedStoreState } from "@/test/stockedState";
 import { toSceneStore } from "@/scene/layout";
