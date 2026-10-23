@@ -1,0 +1,13 @@
+G04 run pr388-c20fb073-g04_guard: PASS
+  [x] d1_built_at_version_n: D1 read P001 at version 1; live was 1
+  [x] relevant_entity_moved_to_n_plus_1: P001 version 1 -> 2
+  [x] stale_decision_refused: verdict=REFRESH_REQUIRED reason=VERSION_STALE detail=VERSION_STALE
+  [x] guard_named_the_stale_entity: failed_gate=context live_versions={'P001': '2'}
+  [x] no_usable_authorization: guard audit stages for D1: authorize:REFRESH_REQUIRED (a token is issued only from the binding of an ALLOW authorize; the commit stage is the recheck that follows one)
+  [x] executor_wrote_nothing: P001 stayed at version 2; store stayed at store-001:v1
+  [x] audit_shows_the_rejection: review=[('REFRESH_REQUIRED', 'VERSION_STALE')] correlation=['pr388-c20fb073-g04_guard']
+  [x] replan_committed_a_new_decision: status=COMMITTED refreshes=1 D1=plan-pr388-c20fb073-g04_guard-P001-1 D2=plan-pr388-c20fb073-g04_guard-P001-1-r1
+  [x] new_decision_approved_through_the_route: verdict=ALLOW status=committed detail=COMMITTED
+  [x] live_twin_changed_only_by_the_new_decision: D2 replenishes 1 of P001; P001 shelf 7->8, backroom 42->41, version 2->3, store store-001:v1->store-001:v2
+  [x] stale_decision_never_committed: D1 guard events after the run: [('authorize', 'REFRESH_REQUIRED'), ('authorize', 'REFRESH_REQUIRED')]
+  [x] correlation_preserved: 6 guard audit events, all with correlation_id=pr388-c20fb073-g04_guard
