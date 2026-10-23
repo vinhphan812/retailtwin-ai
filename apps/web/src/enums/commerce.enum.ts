@@ -17,7 +17,8 @@ export type BucketSize = (typeof BUCKET_SIZE)[keyof typeof BUCKET_SIZE];
 /** Where a promotion is in its life cycle. Price changes go through human review first. */
 export const PROMOTION_STATUS = {
   Active: "active",
-  Scheduled: "scheduled",
+  Upcoming: "upcoming",
+  Cancelled: "cancelled",
   PendingReview: "pending_review",
   Draft: "draft",
   Ended: "ended",

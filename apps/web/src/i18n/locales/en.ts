@@ -777,7 +777,8 @@ export const en = {
     all: "All",
     status: {
       active: "Running",
-      scheduled: "Scheduled",
+      upcoming: "Upcoming",
+      cancelled: "Cancelled",
       pending_review: "In review",
       draft: "Draft",
       ended: "Ended",

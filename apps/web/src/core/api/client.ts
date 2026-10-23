@@ -156,12 +156,7 @@ export function createClient(baseUrl: string, fetchImpl?: typeof fetch): RetailT
     promotions: () =>
       request<PromotionsSummary>("/promotions").then((response) => {
         const rawPromotions = Array.isArray(response.promotions) ? response.promotions : [];
-        const promotions: Promotion[] = rawPromotions.map(
-          (p, index) =>
-            isObject(p) && "kind" in p && typeof p.kind === "string"
-              ? (p as Promotion)
-              : toPromotion(p, index),
-        );
+        const promotions: Promotion[] = rawPromotions.map((p, index) => toPromotion(p, index));
         return {
           store_id: response.store_id,
           revenue: promotions.reduce((sum, p) => sum + (p.revenue ?? 0), 0),
