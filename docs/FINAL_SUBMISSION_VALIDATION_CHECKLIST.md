@@ -3,7 +3,13 @@
 **Issue:** tracks completion of all pre-submission requirements for the AI Builder Google 2026 competition.
 **Status:** `OPEN — NOT READY`
 **Owner:** maintainers
-**Last updated:** 2026-10-20
+**Last updated:** 2026-10-22
+
+> **Current evidence boundary:** G03–G06 were executed offline at
+> `c20fb073e4ab919fdced85b7285751e38090cbe3` and retained under
+> `docs/evidence/submission-gates/2026-10-22T1556Z/`. They remain 🟡 until the
+> eventual final submission SHA is independently executed, has green CI, and is
+> deployed/verified where a deployment claim is required.
 
 ---
 
@@ -184,10 +190,10 @@ A passing CI workflow at one SHA does **not** mean the code is reviewed. CI prov
 |------|-------|--------|----------|
 | Day-0 Foundation | #10 | 🔴 NOT PASSED | *(static reference)* `scripts/verify-day0-gate.sh`; `docs/DAY0_GATE_RUNBOOK.md` — run required at submission SHA |
 | G02 Twin Control | #49 | 🟢 PASSED (closed #314) | *(run required)* agent tool changes Simulation Twin + 3D; Live unchanged — verified at gate run SHA |
-| G03 Autonomous | #50 | 🔴 NOT PASSED | *(run required)* `tests/e2e/gates/g03_autonomous_gate.py` — run required at submission SHA |
-| G04 Guard | #51 | 🔴 NOT PASSED | *(run required)* `tests/e2e/gates/g04_guard_gate.py` — run required at submission SHA |
-| G05 Live Commit | #52 | 🔴 NOT PASSED | *(run required)* `tests/e2e/gates/g05_live_commit_gate.py` — run required at submission SHA |
-| G06 Submission | #53 | 🔴 NOT PASSED | *(run required)* `scripts/run-submission-gate.sh` → 20-row `matrix.json` — run required at submission SHA |
+| G03 Autonomous | #50 | 🟡 OFFLINE PASS — final-SHA rerun required | `docs/evidence/submission-gates/2026-10-22T1556Z/g03_autonomous.json`: `result=PASS`; tested SHA `c20fb073e4ab919fdced85b7285751e38090cbe3`; command/timestamp/checksums in retained `README.md`/`SHA256SUMS.txt` |
+| G04 Guard | #51 | 🟡 OFFLINE PASS — final-SHA rerun required | `docs/evidence/submission-gates/2026-10-22T1556Z/g04_guard.json`: `result=PASS`; tested SHA `c20fb073e4ab919fdced85b7285751e38090cbe3`; command/timestamp/checksums in retained `README.md`/`SHA256SUMS.txt` |
+| G05 Live Commit | #52 | 🟡 OFFLINE PASS — final-SHA rerun required | `docs/evidence/submission-gates/2026-10-22T1556Z/g05_live_commit.json`: `result=PASS`; tested SHA `c20fb073e4ab919fdced85b7285751e38090cbe3`; command/timestamp/checksums in retained `README.md`/`SHA256SUMS.txt` |
+| G06 Submission | #53 | 🟡 OFFLINE PASS (20/20) — final-SHA rerun required | `docs/evidence/submission-gates/2026-10-22T1556Z/g06-matrix.json`: `passed=20`, `failed=0`; 20 per-run JSON artifacts bind SHA `c20fb073e4ab919fdced85b7285751e38090cbe3`; exact command/timestamp/checksums in retained `README.md`/`SHA256SUMS.txt` |
 | Production Data Audit | #216 | 🟡 LIVE PROOF DONE (reviewer acceptance pending) | *(live run)* `docs/PRODUCTION_DATA_AUDIT_RUN.md`: 8/8 PASS — verified at audit SHA, re-verify recommended at submission SHA |
 
 ---
@@ -228,7 +234,7 @@ A passing CI workflow at one SHA does **not** mean the code is reviewed. CI prov
 | CR09 | Demo video under required duration | *(static reference)* `docs/DEMO_VIDEO.md` — video artifact required | 🔴 NOT VERIFIED |
 | CR10 | Public repository | `github.com/vinhphan812/retailtwin-ai` | ✅ PUBLIC |
 | CR11 | No secrets/credentials in repo | *(run required)* CI C03 + C13 — run required at submission SHA | 🟡 UNKNOWN |
-| CR12 | License declared | README says "does not currently declare a license" | 🔴 MISSING |
+| CR12 | License declared | MIT License at repository root (`LICENSE`); third-party provenance/permission remains a separate supply-chain review | 🟢 DECLARED |
 
 ---
 
@@ -243,14 +249,14 @@ A passing CI workflow at one SHA does **not** mean the code is reviewed. CI prov
 
 ### Summary
 
-- **Features (F01–F12, S01–S05, G01–G10, U01–U06, P01–P06):** 0 / 37 verified  
-- **CI checks (C01–C15):** requires live run  
-- **Deployment (D01–D12, A01–A04, W01–W04):** 🟡 PARTIAL — cloud preflight and data audit passed  
-- **Release gates (G02–G06, #216):** G02 passed; G03–G06 NOT PASSED  
-- **Competition requirements (CR01–CR12):** 2 confirmed, 1 missing (license), rest 🟡/🔴  
+- **Features (F01–F12, S01–S05, G01–G10, U01–U06, P01–P06):** no final-submission-SHA verification recorded
+- **CI checks (C01–C15):** requires green live run at final submission SHA; `origin/main` CI at the recorded evidence SHA was red
+- **Deployment (D01–D12, A01–A04, W01–W04):** 🟡 PARTIAL — no deployment acceptance claim is made for this evidence set
+- **Release gates (G02–G06, #216):** G02 passed; G03–G06 offline PASS at `c20fb073…`, but final-SHA rerun remains required
+- **Competition requirements (CR01–CR12):** license declared; deployment-dependent requirements remain 🟡/🔴
 - **Documentation (D01–D14):** 14 documents present; currency not verified  
 
-> **Verdict:** Not ready for submission. The code is largely in place but no release gate evidence (G03–G06) has been recorded. Cloud preflight (G01) and production data audit (#216) are green. The first action is to run the G03–G06 submission gate harnesses and record the evidence matrices.
+> **Verdict:** Not ready for submission. Committed offline artifacts demonstrate G03–G06 passes at `c20fb073e4ab919fdced85b7285751e38090cbe3`, but that is not the final submission SHA and does not establish deployment acceptance. Before any green deployment/submission claim: repair the unrelated red CI on `main`, build a final submission SHA, run the relevant gates and CI at that SHA, deploy it, and independently verify the deployed revision.
 
 ---
 
