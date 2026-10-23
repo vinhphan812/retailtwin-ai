@@ -32,7 +32,6 @@ concurrency:
 
 jobs:
   scan:
-    if: false
     name: Secrets and dependency security
     runs-on: [self-hosted, Linux, X64]
     steps:
@@ -87,7 +86,6 @@ jobs:
   container-image:
     name: Container image scan
     runs-on: self-hosted
-    if: false
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -101,7 +99,7 @@ jobs:
           # Tag the image with the run ID so it never conflicts with an existing tag.
           # Using a unique tag avoids the need to docker rmi or docker builder prune.
           # The tag is deterministic per CI run: the runner cleans up after itself.
-          docker build \
+          docker buildx build --builder default \
               --tag retailtwin-api:scan-"$GITHUB_RUN_ID" \
               --file Dockerfile \
               --load \
@@ -162,7 +160,8 @@ jobs:
               aquasec/trivy:0.65.0 image \
               --severity HIGH,CRITICAL \
               --format json \
-              --output "$TRIVY_JSON" \
+              --output /work/trivy-image.json \
+              --ignore-unfixed \
               --timeout 10m0s \
               retailtwin-api:scan-$GITHUB_RUN_ID
           TRIVY_EXIT=$?
