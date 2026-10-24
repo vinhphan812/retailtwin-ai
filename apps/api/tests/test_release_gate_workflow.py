@@ -236,7 +236,7 @@ def test_vertex_gemini_smoke_makes_real_call(workflow: dict) -> None:
 def test_manifest_is_uploaded_as_artifact(workflow: dict) -> None:
     raw = WORKFLOW_PATH.read_text(encoding="utf-8")
     # The manifest is uploaded as both an artifact and the step summary.
-    assert "actions/upload-artifact@v4" in raw
+    assert "actions/upload-artifact@v7" in raw
     assert "release-manifest-" in raw
     # Smoke checks each push one line of JSON to their step summary so the
     # aggregator can decide PASS / FAIL. The actual literal is `\"stage\":\"${{ env.STAGE }}\"`
