@@ -218,10 +218,14 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
 
       - name: Authenticate to Google Cloud
+        id: google-auth
         uses: google-github-actions/auth@v2.1.7  # 6fc4af4b145ae7821d527454aa9bd537d1f2dc5f
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_DEPLOY_SA }}
+          # A short-lived WIF access token authenticates Trivy directly to GCR.
+          # Do not rely on docker-credential-gcloud being installed inside Trivy.
+          token_format: access_token
 
       - name: Set up Google Cloud CLI
         # The self-hosted runner does not ship the Cloud SDK, and the deploy
@@ -248,11 +252,45 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Scan release image for fixable critical/high vulnerabilities
+      - name: Verify pushed release image exists
         run: |
+          set -euo pipefail
+          IMAGE="gcr.io/retailtwin-ai-511002/retailtwin-api:${{ github.sha }}"
+          DIGEST=""
+          # `gcloud artifacts docker images describe` is the surface proven to work
+          # for gcr.io images on these runners (GCR is served from Artifact
+          # Registry). `gcloud container images describe` is kept as a fallback
+          # for runner images that ship an older gcloud. Either way we require a
+          # canonical sha256 manifest digest before the scan is allowed to run.
+          if DIGEST="$(gcloud artifacts docker images describe "$IMAGE" \
+            --project=retailtwin-ai-511002 \
+            --format='value(image_summary.fully_qualified_digest)' 2>/dev/null)"; then
+            :
+          fi
+          if ! printf '%s' "$DIGEST" | grep -qE 'sha256:[0-9a-f]{64}'; then
+            DIGEST="$(gcloud container images describe "$IMAGE" \
+              --project=retailtwin-ai-511002 \
+              --format='value(image_summary.digest)' 2>/dev/null || true)"
+          fi
+          if ! printf '%s' "$DIGEST" | grep -qE 'sha256:[0-9a-f]{64}'; then
+            echo "::error::Release image $IMAGE is not present in the registry; refusing to scan or deploy." >&2
+            exit 1
+          fi
+          echo "::notice::Release image present: $IMAGE@$DIGEST"
+
+      - name: Scan pushed release image for fixable critical/high vulnerabilities
+        env:
+          # The WIF token is an action output, not a repository secret. It is
+          # intentionally passed only to the scanner process and never echoed.
+          TRIVY_USERNAME: oauth2accesstoken
+          TRIVY_PASSWORD: ${{ steps.google-auth.outputs.access_token }}
+        run: |
+          set -euo pipefail
+          test -n "$TRIVY_PASSWORD" \
+            || { echo '::error::WIF access token is unavailable; refusing to scan or deploy.' >&2; exit 1; }
           docker run --rm \
-            -v "$HOME/.docker:/root/.docker:ro" \
-            -v /var/run/docker.sock:/var/run/docker.sock \
+            -e TRIVY_USERNAME \
+            -e TRIVY_PASSWORD \
             aquasec/trivy:0.65.0 image \
             --ignore-unfixed --severity HIGH,CRITICAL --exit-code 1 \
             "gcr.io/retailtwin-ai-511002/retailtwin-api:${{ github.sha }}"
