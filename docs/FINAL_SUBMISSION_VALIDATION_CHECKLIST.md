@@ -266,9 +266,12 @@ git ls-tree --name-only 920e166f | grep -iE '^(LICENSE|THIRD_PARTY_NOTICES|COPYI
 gh api repos/vinhphan812/retailtwin-ai/license
 ```
 
-At submission SHA `920e166f` both commands show **no licence** (the API returns HTTP 404 and
-GitHub's licence detector reports `licenseInfo: null`). README §License states "This repository
-does not currently declare a license file".
+The first command is SHA-exact and is the authoritative check. The second reads the repository's
+**default branch head** — currently `920e166f` — and returns HTTP 404 with no `licenseInfo`,
+which is GitHub's licence detector reporting that it finds no licence.
+
+At submission SHA `920e166f` both commands show **no licence**. README §License states "This
+repository does not currently declare a license file".
 
 #### The two states, and what each requires
 

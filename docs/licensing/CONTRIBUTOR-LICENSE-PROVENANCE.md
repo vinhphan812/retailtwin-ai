@@ -75,7 +75,7 @@ git ls-tree --name-only 920e166f3526947e66ced3644bed40e761a88133 \
 gh pr view 398 --repo vinhphan812/retailtwin-ai --json number,state,headRefOid,mergeable
 gh pr view 397 --repo vinhphan812/retailtwin-ai --json number,state,headRefOid,mergeable
 gh api repos/vinhphan812/retailtwin-ai/collaborators --jq '.[] | "\(.login) admin=\(.permissions.admin) push=\(.permissions.push)"'
-gh api repos/vinhphan812/retailtwin-ai/license        # 404 at the submission SHA
+gh api repos/vinhphan812/retailtwin-ai/license        # 404 at the default branch head (920e166f)
 ```
 
 Resolving a commit identity to a GitHub account (used throughout §4):
@@ -221,7 +221,7 @@ been performed, and none is assumed here.**
 | P4 | "Phan Thanh Vinh" is the owner's display name | `gh api users/vinhphan812` → `id=58102545`, `name="Phan Thanh Vinh"`; the noreply address `58102545+…` carries the same account id |
 | P5 | Owner is the sole admin | `gh api repos/…/collaborators` → `vinhphan812 admin=true`; all others `admin=false` |
 | P6 | No CLA / CONTRIBUTING / AUTHORS / COPYRIGHT / GOVERNANCE | `git ls-tree -r --name-only 920e166f \| grep -iE '(CLA\|CONTRIBUTING\|AUTHORS\|COPYRIGHT\|GOVERNANCE)'` → no matches |
-| P7 | No root licence or notice at the submission SHA | `git ls-tree --name-only 920e166f \| grep -iE '^(LICENSE\|THIRD_PARTY_NOTICES\|COPYING\|NOTICE)'` → no matches; `gh api repos/…/license` → HTTP 404 |
+| P7 | No root licence or notice at the submission SHA | `git ls-tree --name-only 920e166f \| grep -iE '^(LICENSE\|THIRD_PARTY_NOTICES\|COPYING\|NOTICE)'` → no matches; `gh api repos/…/license` → HTTP 404 at the default branch head, which is `920e166f` |
 | P8 | `Signed-off-by` present only from the owner and `dependabot` | `git log --format='%B' 920e166f \| grep -iE '^signed-off-by' \| sort \| uniq -c` — 21 owner, 8 dependabot, 2 `Hermes Coordinator <vinhphan812@gmail.com>` |
 | P9 | Licence blob identity and SHA-256 | `git rev-parse pr398:LICENSE pr397:LICENSE` → `45b8da20…` on both; `git show pr398:LICENSE \| sha256sum` → `1d1e0b4b…84f4c7`; 1083 bytes |
 | P10 | Both licence PRs still open | `gh pr view 397/398` → both `OPEN`, heads `4fae32de…` / `ebb70b64…` |
