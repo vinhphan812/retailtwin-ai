@@ -1,0 +1,11 @@
+{
+  "name": "projects/retailtwin-ai-511002/subscriptions/store-events-agent",
+  "topic": "projects/retailtwin-ai-511002/topics/store-events",
+  "pushConfig": {
+    "pushEndpoint": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events"
+  },
+  "ackDeadlineSeconds": 60,
+  "messageRetentionDuration": "604800s",
+  "expirationPolicy": {},
+  "state": "ACTIVE"
+}

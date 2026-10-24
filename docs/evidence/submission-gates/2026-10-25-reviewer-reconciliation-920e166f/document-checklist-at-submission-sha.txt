@@ -1,0 +1,16 @@
+PRESENT  README.md
+PRESENT  docs/COMPETITION_README.md
+PRESENT  docs/SUBMISSION_DECK.md
+PRESENT  docs/SUBMISSION_INDEX.md
+PRESENT  docs/ARCHITECTURE_DIAGRAM.md
+PRESENT  docs/ARCHITECTURE.md
+PRESENT  docs/DEMO_AND_ACCEPTANCE.md
+PRESENT  docs/CLOUD_RUNTIME_MATRIX.md
+PRESENT  docs/DOMAIN_AND_DATA_MODEL.md
+PRESENT  docs/CURRENT_STATUS.md
+PRESENT  docs/demo-video/shot-list.md
+PRESENT  docs/demo-video/production-checklist.md
+PRESENT  docs/demo-video/acceptance-criteria.md
+ABSENT   docs/licensing/CONTRIBUTOR-LICENSE-PROVENANCE.md
+PRESENT  docs/DEMO_VIDEO.md
+PRESENT  docs/demo/README.md

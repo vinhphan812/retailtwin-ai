@@ -1,0 +1,1 @@
+ERROR: (gcloud.iam.workload-identity-pools.providers.list) The value of ``--project'' flag was set to Project number.To use this command, set it to PROJECT ID instead.

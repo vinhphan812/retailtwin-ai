@@ -1,0 +1,2 @@
+roles/iam.serviceAccountUser -> ['serviceAccount:github-actions@retailtwin-ai-511002.iam.gserviceaccount.com', 'user:vinhphan812@gmail.com']
+roles/iam.workloadIdentityUser -> ['serviceAccount:retailtwin-api@retailtwin-ai-511002.iam.gserviceaccount.com']

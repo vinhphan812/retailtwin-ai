@@ -1,0 +1,44 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "role": "model",
+        "parts": [
+          {
+            "functionCall": {
+              "name": "get_inventory",
+              "args": {
+                "store_id": "store-001",
+                "sku": "P017"
+              }
+            },
+            "thoughtSignature": "AY89a1+FDa1GZUywu14nTIMCuN610meJJ7Uk6thQFMGOlnlElZqaZzRpz+rON5x58olAQQVgewYJhpf1feqbUt2pSVpMvJajfBt8NXAUAPSi91ZETfqMAz+1Er713xW36DOFzfE9/zYaQatt8pYjtVU77rtDFRQZlWE/pE7NrcMvDqSXQQTKhDRVSLiV/+3MKUIB5Q5wd1zey4nxyWPi5SwB/8vaY6MrRM5ZZWxbPNu9YuDC1AqysL8dXLdMs1BoWhhRbfjCy1lDdBmOZuySSadToNOZjM9MwLpANfO6qPoWpuX+GTsW2/gKafnOXPG7A7YgUJ31JHqXN8htCsGuSaogOp6W0VkLm/eopoToScAU5wJnAoJan4BK0UWPjRx7K2VVw4m38FhW71HIMJyHzvDHPV3zMe8BVo5QCGjTY4dYi67XdIGmo1+HagnIvX89hwts32O4epdRu8FzlAp/sI71CLfFirhwQsLhht3IgVsaRiClxiFasMUVgnqeweQcu285OiCCRZQadPgcQW4/yAR8rDvzEIod0qsGC1LgyuOPB9kbdC1FoD54j6z61FwzvcImbT0="
+          }
+        ]
+      },
+      "finishReason": "STOP"
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 48,
+    "candidatesTokenCount": 27,
+    "totalTokenCount": 169,
+    "trafficType": "ON_DEMAND",
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 48
+      }
+    ],
+    "candidatesTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 27
+      }
+    ],
+    "thoughtsTokenCount": 94
+  },
+  "modelVersion": "gemini-2.5-flash",
+  "createTime": "2026-10-24T22:15:40.981900Z",
+  "responseId": "DC7daoz3O8SvkNAP1uuzgQ4"
+}

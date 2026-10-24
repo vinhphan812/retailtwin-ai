@@ -1,0 +1,8 @@
+success	Detect Changed Files
+success	Repository Hygiene
+success	API Build & Test
+success	Web Build & Test
+skipped	Web Build & Test
+skipped	API Build & Test
+skipped	API E2E Smoke
+success	API E2E Smoke

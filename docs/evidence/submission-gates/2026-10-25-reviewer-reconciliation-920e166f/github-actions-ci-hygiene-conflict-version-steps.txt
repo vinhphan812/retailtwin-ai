@@ -1,0 +1,117 @@
+=== run 39894366821 ===
+JOB Detect Changed Files conclusion=success
+   success	Set up job
+JOB Detect Changed Files conclusion=success
+   success	Checkout
+JOB Detect Changed Files conclusion=success
+   success	Get changed files
+JOB Detect Changed Files conclusion=success
+   success	Post Checkout
+JOB Detect Changed Files conclusion=success
+   success	Complete job
+JOB Repository Hygiene conclusion=success
+   success	Set up job
+JOB Repository Hygiene conclusion=success
+   success	Checkout
+JOB Repository Hygiene conclusion=success
+   success	Check for merge-conflict markers
+JOB Repository Hygiene conclusion=success
+   success	Validate workflow YAML files
+JOB Repository Hygiene conclusion=success
+   success	Check for committed secrets / credential patterns
+JOB Repository Hygiene conclusion=success
+   success	Check for .env files committed to repo
+JOB Repository Hygiene conclusion=success
+   success	Post Checkout
+JOB Repository Hygiene conclusion=success
+   success	Complete job
+JOB API Build & Test conclusion=success
+   success	Set up job
+JOB API Build & Test conclusion=success
+   success	Checkout
+JOB API Build & Test conclusion=success
+   success	Set up Python
+JOB API Build & Test conclusion=success
+   success	Install dependencies
+JOB API Build & Test conclusion=success
+   success	Type-check
+JOB API Build & Test conclusion=success
+   success	Stockout risk tests
+JOB API Build & Test conclusion=success
+   success	Demand forecast tests
+JOB API Build & Test conclusion=success
+   success	Run tests with coverage
+JOB API Build & Test conclusion=success
+   success	Simulation KPI tests with coverage
+JOB API Build & Test conclusion=success
+   success	Check branch coverage threshold
+JOB API Build & Test conclusion=success
+   success	Enforce critical-path coverage policy
+JOB API Build & Test conclusion=success
+   success	Upload coverage report
+JOB API Build & Test conclusion=success
+   success	Coverage summary
+JOB API Build & Test conclusion=success
+   success	Post Set up Python
+JOB API Build & Test conclusion=success
+   success	Post Checkout
+JOB API Build & Test conclusion=success
+   success	Complete job
+JOB Web Build & Test conclusion=success
+   success	Set up job
+JOB Web Build & Test conclusion=success
+   success	No-op: Web surface not changed
+JOB Web Build & Test conclusion=success
+   success	Complete job
+JOB API E2E Smoke conclusion=success
+   success	Set up job
+JOB API E2E Smoke conclusion=success
+   success	Checkout
+JOB API E2E Smoke conclusion=success
+   success	Set up Python
+JOB API E2E Smoke conclusion=success
+   success	Install dependencies
+JOB API E2E Smoke conclusion=success
+   success	Run E2E smoke suite
+JOB API E2E Smoke conclusion=success
+   success	Post Set up Python
+JOB API E2E Smoke conclusion=success
+   success	Post Checkout
+JOB API E2E Smoke conclusion=success
+   success	Complete job
+=== run 39894366859 ===
+JOB No conflict markers conclusion=success
+   success	Set up job
+JOB No conflict markers conclusion=success
+   success	Checkout
+JOB No conflict markers conclusion=success
+   success	Reject merge-conflict markers
+JOB No conflict markers conclusion=success
+   success	Post Checkout
+JOB No conflict markers conclusion=success
+   success	Complete job
+=== run 39894367023 ===
+JOB Canonical Version Consistency conclusion=success
+   success	Set up job
+JOB Canonical Version Consistency conclusion=success
+   success	Checkout
+JOB Canonical Version Consistency conclusion=success
+   success	Set up Python
+JOB Canonical Version Consistency conclusion=success
+   success	Verify /VERSION is strict SemVer
+JOB Canonical Version Consistency conclusion=success
+   success	Install API package (read-only check)
+JOB Canonical Version Consistency conclusion=success
+   success	Verify API module reports the canonical SemVer
+JOB Canonical Version Consistency conclusion=success
+   success	Verify Web bundle would embed the canonical SemVer
+JOB Canonical Version Consistency conclusion=success
+   success	Verify CHANGELOG entry exists for any release tag
+JOB Canonical Version Consistency conclusion=success
+   success	Run consistency script (full audit)
+JOB Canonical Version Consistency conclusion=success
+   success	Post Set up Python
+JOB Canonical Version Consistency conclusion=success
+   success	Post Checkout
+JOB Canonical Version Consistency conclusion=success
+   success	Complete job

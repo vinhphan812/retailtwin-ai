@@ -1,0 +1,7 @@
+WIF pool      : projects/537192856637/locations/global/workloadIdentityPools/github-actions-pool (state ACTIVE)
+pool project  : 537192856637 (numeric project id of retailtwin-ai-511002)
+providers:
+  - projects/537192856637/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions-provider
+    state            : ACTIVE
+    attributeMapping : {'attribute.repository_owner': 'assertion.repository_owner', 'google.subject': 'assertion.sub', 'attribute.repository': 'assertion.repository'}
+    issuer           : None

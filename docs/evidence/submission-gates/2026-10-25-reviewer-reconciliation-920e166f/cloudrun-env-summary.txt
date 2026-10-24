@@ -1,0 +1,11 @@
+APP_ENV=production
+LIVE_TWIN_BACKEND=firestore
+GOOGLE_CLOUD_PROJECT=retailtwin-ai-511002
+CORS_ORIGINS=https://retailtwin-ai-511002.web.app
+LLM_PROVIDER=vertex_gemini
+AUTONOMY_ENABLED=true
+APP_BASE_URL=https://retailtwin-api-5rgtvr4gpa-uc.a.run.app
+PUBSUB_PUSH_SERVICE_ACCOUNT=service-537192856637@gcp-sa-pubsub.iam.gserviceaccount.com
+GIT_SHA=920e166f3526947e66ced3644bed40e761a88133
+serviceUrl : https://retailtwin-api-5rgtvr4gpa-uc.a.run.app
+latestReady: projects/retailtwin-ai-511002/locations/us-central1/services/retailtwin-api/revisions/retailtwin-api-00053-6k7

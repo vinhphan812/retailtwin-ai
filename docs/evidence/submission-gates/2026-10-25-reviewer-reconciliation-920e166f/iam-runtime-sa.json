@@ -1,0 +1,19 @@
+{
+  "bindings": [
+    {
+      "members": [
+        "serviceAccount:github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+        "user:vinhphan812@gmail.com"
+      ],
+      "role": "roles/iam.serviceAccountUser"
+    },
+    {
+      "members": [
+        "serviceAccount:retailtwin-api@retailtwin-ai-511002.iam.gserviceaccount.com"
+      ],
+      "role": "roles/iam.workloadIdentityUser"
+    }
+  ],
+  "etag": "BwZd0AsRBpE=",
+  "version": 1
+}

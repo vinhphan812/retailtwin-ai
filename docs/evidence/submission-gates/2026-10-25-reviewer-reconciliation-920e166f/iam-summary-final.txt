@@ -1,0 +1,20 @@
+=== project-level IAM bindings mentioning our service accounts ===
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+  File "C:\Users\Admin\AppData\Local\hermes\tools\python-3.14.9+20261021-win32-x64\Lib\json\__init__.py", line 298, in load
+    return loads(fp.read(),
+        cls=cls, object_hook=object_hook,
+        parse_float=parse_float, parse_int=parse_int,
+        parse_constant=parse_constant, object_pairs_hook=object_pairs_hook, **kw)
+  File "C:\Users\Admin\AppData\Local\hermes\tools\python-3.14.9+20261021-win32-x64\Lib\json\__init__.py", line 352, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "C:\Users\Admin\AppData\Local\hermes\tools\python-3.14.9+20261021-win32-x64\Lib\json\decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Local\hermes\tools\python-3.14.9+20261021-win32-x64\Lib\json\decoder.py", line 363, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+=== dataset-level IAM (retailtwin dataset) ===
+  dataset: {'datasetId': 'retailtwin', 'projectId': 'retailtwin-ai-511002'}
+  access: [('WRITER', 'projectWriters'), ('OWNER', 'projectOwners'), ('OWNER', 'j.dangkhoa.118@gmail.com'), ('READER', 'projectReaders')]

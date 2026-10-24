@@ -1,0 +1,5 @@
+entries returned: 100
+http status distribution: {401: 100}
+user agents: {'APIs-Google; (+https://developers.google.com/webmasters/APIs': 100}
+newest: 2026-10-24T22:09:40.875845Z
+oldest in page: 2026-10-24T22:06:47.611522Z

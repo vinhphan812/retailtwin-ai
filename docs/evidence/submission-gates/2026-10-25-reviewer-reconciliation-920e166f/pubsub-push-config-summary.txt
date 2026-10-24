@@ -1,0 +1,9 @@
+subscription      : projects/retailtwin-ai-511002/subscriptions/store-events-agent
+topic             : projects/retailtwin-ai-511002/topics/store-events
+pushEndpoint      : https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events
+oidcToken present : False
+oidcToken value   : None
+ackDeadlineSeconds: 60
+expirationPolicy  : {}
+deadLetterPolicy  : None
+retryPolicy       : None

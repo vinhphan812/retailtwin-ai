@@ -1,0 +1,86 @@
+JOB Build & Test conclusion=success
+   success	Set up job
+JOB Build & Test conclusion=success
+   success	Checkout
+JOB Build & Test conclusion=success
+   success	Set up Python
+JOB Build & Test conclusion=success
+   success	Install dependencies
+JOB Build & Test conclusion=success
+   success	Type-check
+JOB Build & Test conclusion=success
+   success	Stockout risk tests
+JOB Build & Test conclusion=success
+   success	Demand forecast tests
+JOB Build & Test conclusion=success
+   success	Run tests with coverage
+JOB Build & Test conclusion=success
+   success	Simulation KPI tests with coverage
+JOB Build & Test conclusion=success
+   success	Check branch coverage threshold
+JOB Build & Test conclusion=success
+   success	Enforce critical-path coverage policy
+JOB Build & Test conclusion=success
+   success	Upload coverage report
+JOB Build & Test conclusion=success
+   success	Coverage summary
+JOB Build & Test conclusion=success
+   success	Post Set up Python
+JOB Build & Test conclusion=success
+   success	Post Checkout
+JOB Build & Test conclusion=success
+   success	Complete job
+JOB E2E Smoke conclusion=success
+   success	Set up job
+JOB E2E Smoke conclusion=success
+   success	Checkout
+JOB E2E Smoke conclusion=success
+   success	Set up Python
+JOB E2E Smoke conclusion=success
+   success	Install dependencies
+JOB E2E Smoke conclusion=success
+   success	Run E2E smoke suite
+JOB E2E Smoke conclusion=success
+   success	Post Set up Python
+JOB E2E Smoke conclusion=success
+   success	Post Checkout
+JOB E2E Smoke conclusion=success
+   success	Complete job
+JOB Deploy to Cloud Run (production) conclusion=failure
+   success	Set up job
+JOB Deploy to Cloud Run (production) conclusion=failure
+   success	Record ADR-0026 security gate outcome
+JOB Deploy to Cloud Run (production) conclusion=failure
+   success	Verify API CI ran for this SHA before deploying
+JOB Deploy to Cloud Run (production) conclusion=failure
+   success	Checkout
+JOB Deploy to Cloud Run (production) conclusion=failure
+   success	Set up Google Cloud CLI
+JOB Deploy to Cloud Run (production) conclusion=failure
+   success	Authenticate to Google Cloud
+JOB Deploy to Cloud Run (production) conclusion=failure
+   success	Set up Google Cloud CLI
+JOB Deploy to Cloud Run (production) conclusion=failure
+   success	Configure Docker for GCR
+JOB Deploy to Cloud Run (production) conclusion=failure
+   success	Set up Docker Buildx
+JOB Deploy to Cloud Run (production) conclusion=failure
+   success	Build and push container image
+JOB Deploy to Cloud Run (production) conclusion=failure
+   failure	Scan release image for fixable critical/high vulnerabilities
+JOB Deploy to Cloud Run (production) conclusion=failure
+   skipped	Deploy to Cloud Run
+JOB Deploy to Cloud Run (production) conclusion=failure
+   skipped	Verify the autonomous runtime is live on the deployed service
+JOB Deploy to Cloud Run (production) conclusion=failure
+   skipped	Verify production deployment
+JOB Deploy to Cloud Run (production) conclusion=failure
+   success	Post Build and push container image
+JOB Deploy to Cloud Run (production) conclusion=failure
+   success	Post Set up Docker Buildx
+JOB Deploy to Cloud Run (production) conclusion=failure
+   success	Post Authenticate to Google Cloud
+JOB Deploy to Cloud Run (production) conclusion=failure
+   success	Post Checkout
+JOB Deploy to Cloud Run (production) conclusion=failure
+   success	Complete job

@@ -1,0 +1,2 @@
+ERROR: (gcloud.iam.workload-identity-pools.list) INVALID_ARGUMENT: The parent resource contains invalid characters or is formatted incorrectly.
+[]

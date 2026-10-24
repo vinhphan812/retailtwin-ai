@@ -1,0 +1,1305 @@
+{
+  "releases": [
+    {
+      "name": "projects/537192856637/sites/retailtwin-ai-511002/releases/1792654200390000",
+      "version": {
+        "name": "projects/537192856637/sites/retailtwin-ai-511002/versions/b05e4bc67cb74774",
+        "status": "FINALIZED",
+        "config": {
+          "headers": [
+            {
+              "headers": {
+                "Cache-Control": "public,max-age=31536000,immutable"
+              },
+              "glob": "**/*.@(js|css|woff2|png|jpg|jpeg|svg|webp)"
+            },
+            {
+              "headers": {
+                "Cache-Control": "no-cache"
+              },
+              "glob": "index.html"
+            }
+          ],
+          "rewrites": [
+            {
+              "glob": "**",
+              "path": "/index.html"
+            }
+          ],
+          "cleanUrls": true,
+          "trailingSlashBehavior": "REMOVE"
+        },
+        "labels": {
+          "deployment-tool": "cli-firebase"
+        },
+        "createTime": "2026-10-22T07:29:55.005625Z",
+        "createUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "finalizeTime": "2026-10-22T07:30:00.030185Z",
+        "finalizeUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "fileCount": "114",
+        "versionBytes": "1670775"
+      },
+      "type": "DEPLOY",
+      "releaseTime": "2026-10-22T07:30:00.390Z",
+      "releaseUser": {
+        "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+        "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+      }
+    },
+    {
+      "name": "projects/537192856637/sites/retailtwin-ai-511002/releases/1792651934176000",
+      "version": {
+        "name": "projects/537192856637/sites/retailtwin-ai-511002/versions/13c10611820e2082",
+        "status": "FINALIZED",
+        "config": {
+          "headers": [
+            {
+              "headers": {
+                "Cache-Control": "public,max-age=31536000,immutable"
+              },
+              "glob": "**/*.@(js|css|woff2|png|jpg|jpeg|svg|webp)"
+            },
+            {
+              "headers": {
+                "Cache-Control": "no-cache"
+              },
+              "glob": "index.html"
+            }
+          ],
+          "rewrites": [
+            {
+              "glob": "**",
+              "path": "/index.html"
+            }
+          ],
+          "cleanUrls": true,
+          "trailingSlashBehavior": "REMOVE"
+        },
+        "labels": {
+          "deployment-tool": "cli-firebase"
+        },
+        "createTime": "2026-10-22T06:52:07.729278Z",
+        "createUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "finalizeTime": "2026-10-22T06:52:13.864774Z",
+        "finalizeUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "fileCount": "114",
+        "versionBytes": "1670718"
+      },
+      "type": "DEPLOY",
+      "releaseTime": "2026-10-22T06:52:14.176Z",
+      "releaseUser": {
+        "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+        "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+      }
+    },
+    {
+      "name": "projects/537192856637/sites/retailtwin-ai-511002/releases/1792556375879000",
+      "version": {
+        "name": "projects/537192856637/sites/retailtwin-ai-511002/versions/f8eeb42a793ac02b",
+        "status": "FINALIZED",
+        "config": {
+          "headers": [
+            {
+              "headers": {
+                "Cache-Control": "public,max-age=31536000,immutable"
+              },
+              "glob": "**/*.@(js|css|woff2|png|jpg|jpeg|svg|webp)"
+            },
+            {
+              "headers": {
+                "Cache-Control": "no-cache"
+              },
+              "glob": "index.html"
+            }
+          ],
+          "rewrites": [
+            {
+              "glob": "**",
+              "path": "/index.html"
+            }
+          ],
+          "cleanUrls": true,
+          "trailingSlashBehavior": "REMOVE"
+        },
+        "labels": {
+          "deployment-tool": "cli-firebase"
+        },
+        "createTime": "2026-10-21T04:19:29.289621Z",
+        "createUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "finalizeTime": "2026-10-21T04:19:35.538196Z",
+        "finalizeUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "fileCount": "114",
+        "versionBytes": "1670718"
+      },
+      "type": "DEPLOY",
+      "releaseTime": "2026-10-21T04:19:35.879Z",
+      "releaseUser": {
+        "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+        "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+      }
+    },
+    {
+      "name": "projects/537192856637/sites/retailtwin-ai-511002/releases/1792555407067000",
+      "version": {
+        "name": "projects/537192856637/sites/retailtwin-ai-511002/versions/fd58f6697aa23100",
+        "status": "FINALIZED",
+        "config": {
+          "headers": [
+            {
+              "headers": {
+                "Cache-Control": "public,max-age=31536000,immutable"
+              },
+              "glob": "**/*.@(js|css|woff2|png|jpg|jpeg|svg|webp)"
+            },
+            {
+              "headers": {
+                "Cache-Control": "no-cache"
+              },
+              "glob": "index.html"
+            }
+          ],
+          "rewrites": [
+            {
+              "glob": "**",
+              "path": "/index.html"
+            }
+          ],
+          "cleanUrls": true,
+          "trailingSlashBehavior": "REMOVE"
+        },
+        "labels": {
+          "deployment-tool": "cli-firebase"
+        },
+        "createTime": "2026-10-21T04:03:21.814737Z",
+        "createUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "finalizeTime": "2026-10-21T04:03:26.737566Z",
+        "finalizeUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "fileCount": "114",
+        "versionBytes": "1670279"
+      },
+      "type": "DEPLOY",
+      "releaseTime": "2026-10-21T04:03:27.067Z",
+      "releaseUser": {
+        "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+        "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+      }
+    },
+    {
+      "name": "projects/537192856637/sites/retailtwin-ai-511002/releases/1792413333428000",
+      "version": {
+        "name": "projects/537192856637/sites/retailtwin-ai-511002/versions/e4382652015bca7d",
+        "status": "FINALIZED",
+        "config": {
+          "headers": [
+            {
+              "headers": {
+                "Cache-Control": "public,max-age=31536000,immutable"
+              },
+              "glob": "**/*.@(js|css|woff2|png|jpg|jpeg|svg|webp)"
+            },
+            {
+              "headers": {
+                "Cache-Control": "no-cache"
+              },
+              "glob": "index.html"
+            }
+          ],
+          "rewrites": [
+            {
+              "glob": "**",
+              "path": "/index.html"
+            }
+          ],
+          "cleanUrls": true,
+          "trailingSlashBehavior": "REMOVE"
+        },
+        "labels": {
+          "deployment-tool": "cli-firebase"
+        },
+        "createTime": "2026-10-19T12:35:28.522317Z",
+        "createUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "finalizeTime": "2026-10-19T12:35:33.226409Z",
+        "finalizeUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "fileCount": "114",
+        "versionBytes": "1660476"
+      },
+      "type": "DEPLOY",
+      "releaseTime": "2026-10-19T12:35:33.428Z",
+      "releaseUser": {
+        "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+        "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+      }
+    },
+    {
+      "name": "projects/537192856637/sites/retailtwin-ai-511002/releases/1792412636801000",
+      "version": {
+        "name": "projects/537192856637/sites/retailtwin-ai-511002/versions/2c57f9001a6d71b1",
+        "status": "FINALIZED",
+        "config": {
+          "headers": [
+            {
+              "headers": {
+                "Cache-Control": "public,max-age=31536000,immutable"
+              },
+              "glob": "**/*.@(js|css|woff2|png|jpg|jpeg|svg|webp)"
+            },
+            {
+              "headers": {
+                "Cache-Control": "no-cache"
+              },
+              "glob": "index.html"
+            }
+          ],
+          "rewrites": [
+            {
+              "glob": "**",
+              "path": "/index.html"
+            }
+          ],
+          "cleanUrls": true,
+          "trailingSlashBehavior": "REMOVE"
+        },
+        "labels": {
+          "deployment-tool": "cli-firebase"
+        },
+        "createTime": "2026-10-19T12:23:49.554942Z",
+        "createUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "finalizeTime": "2026-10-19T12:23:56.577948Z",
+        "finalizeUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "fileCount": "114",
+        "versionBytes": "1660478"
+      },
+      "type": "DEPLOY",
+      "releaseTime": "2026-10-19T12:23:56.801Z",
+      "releaseUser": {
+        "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+        "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+      }
+    },
+    {
+      "name": "projects/537192856637/sites/retailtwin-ai-511002/releases/1792411638463000",
+      "version": {
+        "name": "projects/537192856637/sites/retailtwin-ai-511002/versions/1f85318f506ea1b6",
+        "status": "FINALIZED",
+        "config": {
+          "headers": [
+            {
+              "headers": {
+                "Cache-Control": "public,max-age=31536000,immutable"
+              },
+              "glob": "**/*.@(js|css|woff2|png|jpg|jpeg|svg|webp)"
+            },
+            {
+              "headers": {
+                "Cache-Control": "no-cache"
+              },
+              "glob": "index.html"
+            }
+          ],
+          "rewrites": [
+            {
+              "glob": "**",
+              "path": "/index.html"
+            }
+          ],
+          "cleanUrls": true,
+          "trailingSlashBehavior": "REMOVE"
+        },
+        "labels": {
+          "deployment-tool": "cli-firebase"
+        },
+        "createTime": "2026-10-19T12:07:13.874270Z",
+        "createUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "finalizeTime": "2026-10-19T12:07:18.229600Z",
+        "finalizeUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "fileCount": "114",
+        "versionBytes": "1660474"
+      },
+      "type": "DEPLOY",
+      "releaseTime": "2026-10-19T12:07:18.463Z",
+      "releaseUser": {
+        "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+        "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+      }
+    },
+    {
+      "name": "projects/537192856637/sites/retailtwin-ai-511002/releases/1792402268168000",
+      "version": {
+        "name": "projects/537192856637/sites/retailtwin-ai-511002/versions/6efb0f0d00602d51",
+        "status": "FINALIZED",
+        "config": {
+          "headers": [
+            {
+              "headers": {
+                "Cache-Control": "public,max-age=31536000,immutable"
+              },
+              "glob": "**/*.@(js|css|woff2|png|jpg|jpeg|svg|webp)"
+            },
+            {
+              "headers": {
+                "Cache-Control": "no-cache"
+              },
+              "glob": "index.html"
+            }
+          ],
+          "rewrites": [
+            {
+              "glob": "**",
+              "path": "/index.html"
+            }
+          ],
+          "cleanUrls": true,
+          "trailingSlashBehavior": "REMOVE"
+        },
+        "labels": {
+          "deployment-tool": "cli-firebase"
+        },
+        "createTime": "2026-10-19T09:31:02.789656Z",
+        "createUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "finalizeTime": "2026-10-19T09:31:07.938452Z",
+        "finalizeUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "fileCount": "114",
+        "versionBytes": "1660476"
+      },
+      "type": "DEPLOY",
+      "releaseTime": "2026-10-19T09:31:08.168Z",
+      "releaseUser": {
+        "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+        "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+      }
+    },
+    {
+      "name": "projects/537192856637/sites/retailtwin-ai-511002/releases/1792401217067000",
+      "version": {
+        "name": "projects/537192856637/sites/retailtwin-ai-511002/versions/1813446b1cb6154c",
+        "status": "FINALIZED",
+        "config": {
+          "headers": [
+            {
+              "headers": {
+                "Cache-Control": "public,max-age=31536000,immutable"
+              },
+              "glob": "**/*.@(js|css|woff2|png|jpg|jpeg|svg|webp)"
+            },
+            {
+              "headers": {
+                "Cache-Control": "no-cache"
+              },
+              "glob": "index.html"
+            }
+          ],
+          "rewrites": [
+            {
+              "glob": "**",
+              "path": "/index.html"
+            }
+          ],
+          "cleanUrls": true,
+          "trailingSlashBehavior": "REMOVE"
+        },
+        "labels": {
+          "deployment-tool": "cli-firebase"
+        },
+        "createTime": "2026-10-19T09:13:31.141864Z",
+        "createUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "finalizeTime": "2026-10-19T09:13:36.819328Z",
+        "finalizeUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "fileCount": "114",
+        "versionBytes": "1660478"
+      },
+      "type": "DEPLOY",
+      "releaseTime": "2026-10-19T09:13:37.067Z",
+      "releaseUser": {
+        "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+        "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+      }
+    },
+    {
+      "name": "projects/537192856637/sites/retailtwin-ai-511002/releases/1792375075170000",
+      "version": {
+        "name": "projects/537192856637/sites/retailtwin-ai-511002/versions/6e9cb0f526acb115",
+        "status": "FINALIZED",
+        "config": {
+          "headers": [
+            {
+              "headers": {
+                "Cache-Control": "public,max-age=31536000,immutable"
+              },
+              "glob": "**/*.@(js|css|woff2|png|jpg|jpeg|svg|webp)"
+            },
+            {
+              "headers": {
+                "Cache-Control": "no-cache"
+              },
+              "glob": "index.html"
+            }
+          ],
+          "rewrites": [
+            {
+              "glob": "**",
+              "path": "/index.html"
+            }
+          ],
+          "cleanUrls": true,
+          "trailingSlashBehavior": "REMOVE"
+        },
+        "labels": {
+          "deployment-tool": "cli-firebase"
+        },
+        "createTime": "2026-10-19T01:57:49.592651Z",
+        "createUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "finalizeTime": "2026-10-19T01:57:54.866343Z",
+        "finalizeUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "fileCount": "114",
+        "versionBytes": "1660325"
+      },
+      "type": "DEPLOY",
+      "releaseTime": "2026-10-19T01:57:55.170Z",
+      "releaseUser": {
+        "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+        "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+      }
+    },
+    {
+      "name": "projects/537192856637/sites/retailtwin-ai-511002/releases/1792354832850000",
+      "version": {
+        "name": "projects/537192856637/sites/retailtwin-ai-511002/versions/b2a1b9a86a32ab89",
+        "status": "FINALIZED",
+        "config": {
+          "headers": [
+            {
+              "headers": {
+                "Cache-Control": "public,max-age=31536000,immutable"
+              },
+              "glob": "**/*.@(js|css|woff2|png|jpg|jpeg|svg|webp)"
+            },
+            {
+              "headers": {
+                "Cache-Control": "no-cache"
+              },
+              "glob": "index.html"
+            }
+          ],
+          "rewrites": [
+            {
+              "glob": "**",
+              "path": "/index.html"
+            }
+          ],
+          "cleanUrls": true,
+          "trailingSlashBehavior": "REMOVE"
+        },
+        "labels": {
+          "deployment-tool": "cli-firebase"
+        },
+        "createTime": "2026-10-18T20:20:25.989587Z",
+        "createUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "finalizeTime": "2026-10-18T20:20:32.634332Z",
+        "finalizeUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "fileCount": "114",
+        "versionBytes": "1660329"
+      },
+      "type": "DEPLOY",
+      "releaseTime": "2026-10-18T20:20:32.850Z",
+      "releaseUser": {
+        "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+        "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+      }
+    },
+    {
+      "name": "projects/537192856637/sites/retailtwin-ai-511002/releases/1792344830801000",
+      "version": {
+        "name": "projects/537192856637/sites/retailtwin-ai-511002/versions/d8805000628c768c",
+        "status": "FINALIZED",
+        "config": {
+          "headers": [
+            {
+              "headers": {
+                "Cache-Control": "public,max-age=31536000,immutable"
+              },
+              "glob": "**/*.@(js|css|woff2|png|jpg|jpeg|svg|webp)"
+            },
+            {
+              "headers": {
+                "Cache-Control": "no-cache"
+              },
+              "glob": "index.html"
+            }
+          ],
+          "rewrites": [
+            {
+              "glob": "**",
+              "path": "/index.html"
+            }
+          ],
+          "cleanUrls": true,
+          "trailingSlashBehavior": "REMOVE"
+        },
+        "labels": {
+          "deployment-tool": "cli-firebase"
+        },
+        "createTime": "2026-10-18T17:14:21.730032Z",
+        "createUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "finalizeTime": "2026-10-18T17:14:31.692009Z",
+        "finalizeUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "fileCount": "114",
+        "versionBytes": "1660329"
+      },
+      "type": "ROLLBACK",
+      "releaseTime": "2026-10-18T17:33:50.801Z",
+      "releaseUser": {
+        "email": "vinhphan812@gmail.com",
+        "imageUrl": "https://lh3.googleusercontent.com/a/ACg8ocJ8Z9bbD1Eb83-oaeyz8vSNaEhkg9WmtCsIf_Sr5ZGRqcDJwOSj"
+      }
+    },
+    {
+      "name": "projects/537192856637/sites/retailtwin-ai-511002/releases/1792344813813000",
+      "version": {
+        "name": "projects/537192856637/sites/retailtwin-ai-511002/versions/98dae432f31ef974",
+        "status": "FINALIZED",
+        "config": {
+          "headers": [
+            {
+              "headers": {
+                "Cache-Control": "public,max-age=31536000,immutable"
+              },
+              "glob": "**/*.@(js|css|woff2|png|jpg|jpeg|svg|webp)"
+            },
+            {
+              "headers": {
+                "Cache-Control": "no-cache"
+              },
+              "glob": "index.html"
+            }
+          ],
+          "rewrites": [
+            {
+              "glob": "**",
+              "path": "/index.html"
+            }
+          ],
+          "cleanUrls": true,
+          "trailingSlashBehavior": "REMOVE"
+        },
+        "labels": {
+          "deployment-tool": "cli-firebase"
+        },
+        "createTime": "2026-10-15T16:05:30.070570Z",
+        "createUser": {
+          "email": "j.dangkhoa.1108@gmail.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjXBDUdd2Uv8OiECtum8bhVtoDkf-88RlpKb0RqpaRWyWAUmow"
+        },
+        "finalizeTime": "2026-10-15T16:05:32.690300Z",
+        "finalizeUser": {
+          "email": "j.dangkhoa.1108@gmail.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjXBDUdd2Uv8OiECtum8bhVtoDkf-88RlpKb0RqpaRWyWAUmow"
+        },
+        "fileCount": "110",
+        "versionBytes": "1599528"
+      },
+      "type": "ROLLBACK",
+      "releaseTime": "2026-10-18T17:33:33.813Z",
+      "releaseUser": {
+        "email": "vinhphan812@gmail.com",
+        "imageUrl": "https://lh3.googleusercontent.com/a/ACg8ocJ8Z9bbD1Eb83-oaeyz8vSNaEhkg9WmtCsIf_Sr5ZGRqcDJwOSj"
+      }
+    },
+    {
+      "name": "projects/537192856637/sites/retailtwin-ai-511002/releases/1792343672194000",
+      "version": {
+        "name": "projects/537192856637/sites/retailtwin-ai-511002/versions/d8805000628c768c",
+        "status": "FINALIZED",
+        "config": {
+          "headers": [
+            {
+              "headers": {
+                "Cache-Control": "public,max-age=31536000,immutable"
+              },
+              "glob": "**/*.@(js|css|woff2|png|jpg|jpeg|svg|webp)"
+            },
+            {
+              "headers": {
+                "Cache-Control": "no-cache"
+              },
+              "glob": "index.html"
+            }
+          ],
+          "rewrites": [
+            {
+              "glob": "**",
+              "path": "/index.html"
+            }
+          ],
+          "cleanUrls": true,
+          "trailingSlashBehavior": "REMOVE"
+        },
+        "labels": {
+          "deployment-tool": "cli-firebase"
+        },
+        "createTime": "2026-10-18T17:14:21.730032Z",
+        "createUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "finalizeTime": "2026-10-18T17:14:31.692009Z",
+        "finalizeUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "fileCount": "114",
+        "versionBytes": "1660329"
+      },
+      "type": "DEPLOY",
+      "releaseTime": "2026-10-18T17:14:32.194Z",
+      "releaseUser": {
+        "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+        "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+      }
+    },
+    {
+      "name": "projects/537192856637/sites/retailtwin-ai-511002/releases/1792342560834000",
+      "version": {
+        "name": "projects/537192856637/sites/retailtwin-ai-511002/versions/70b61c54a575c820",
+        "status": "FINALIZED",
+        "config": {
+          "headers": [
+            {
+              "headers": {
+                "Cache-Control": "public,max-age=31536000,immutable"
+              },
+              "glob": "**/*.@(js|css|woff2|png|jpg|jpeg|svg|webp)"
+            },
+            {
+              "headers": {
+                "Cache-Control": "no-cache"
+              },
+              "glob": "index.html"
+            }
+          ],
+          "rewrites": [
+            {
+              "glob": "**",
+              "path": "/index.html"
+            }
+          ],
+          "cleanUrls": true,
+          "trailingSlashBehavior": "REMOVE"
+        },
+        "labels": {
+          "deployment-tool": "cli-firebase"
+        },
+        "createTime": "2026-10-18T16:55:55.681166Z",
+        "createUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "finalizeTime": "2026-10-18T16:56:00.648962Z",
+        "finalizeUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "fileCount": "114",
+        "versionBytes": "1660327"
+      },
+      "type": "DEPLOY",
+      "releaseTime": "2026-10-18T16:56:00.834Z",
+      "releaseUser": {
+        "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+        "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+      }
+    },
+    {
+      "name": "projects/537192856637/sites/retailtwin-ai-511002/releases/1792342143309000",
+      "version": {
+        "name": "projects/537192856637/sites/retailtwin-ai-511002/versions/6f6968eadb8c3b12",
+        "status": "FINALIZED",
+        "config": {
+          "headers": [
+            {
+              "headers": {
+                "Cache-Control": "public,max-age=31536000,immutable"
+              },
+              "glob": "**/*.@(js|css|woff2|png|jpg|jpeg|svg|webp)"
+            },
+            {
+              "headers": {
+                "Cache-Control": "no-cache"
+              },
+              "glob": "index.html"
+            }
+          ],
+          "rewrites": [
+            {
+              "glob": "**",
+              "path": "/index.html"
+            }
+          ],
+          "cleanUrls": true,
+          "trailingSlashBehavior": "REMOVE"
+        },
+        "labels": {
+          "deployment-tool": "cli-firebase"
+        },
+        "createTime": "2026-10-18T16:48:57.480908Z",
+        "createUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "finalizeTime": "2026-10-18T16:49:02.943180Z",
+        "finalizeUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "fileCount": "114",
+        "versionBytes": "1660325"
+      },
+      "type": "DEPLOY",
+      "releaseTime": "2026-10-18T16:49:03.309Z",
+      "releaseUser": {
+        "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+        "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+      }
+    },
+    {
+      "name": "projects/537192856637/sites/retailtwin-ai-511002/releases/1792341372138000",
+      "version": {
+        "name": "projects/537192856637/sites/retailtwin-ai-511002/versions/b1e4501df29563f4",
+        "status": "FINALIZED",
+        "config": {
+          "headers": [
+            {
+              "headers": {
+                "Cache-Control": "public,max-age=31536000,immutable"
+              },
+              "glob": "**/*.@(js|css|woff2|png|jpg|jpeg|svg|webp)"
+            },
+            {
+              "headers": {
+                "Cache-Control": "no-cache"
+              },
+              "glob": "index.html"
+            }
+          ],
+          "rewrites": [
+            {
+              "glob": "**",
+              "path": "/index.html"
+            }
+          ],
+          "cleanUrls": true,
+          "trailingSlashBehavior": "REMOVE"
+        },
+        "labels": {
+          "deployment-tool": "cli-firebase"
+        },
+        "createTime": "2026-10-18T16:36:06.548407Z",
+        "createUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "finalizeTime": "2026-10-18T16:36:11.898773Z",
+        "finalizeUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "fileCount": "114",
+        "versionBytes": "1660328"
+      },
+      "type": "DEPLOY",
+      "releaseTime": "2026-10-18T16:36:12.138Z",
+      "releaseUser": {
+        "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+        "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+      }
+    },
+    {
+      "name": "projects/537192856637/sites/retailtwin-ai-511002/releases/1792338959687000",
+      "version": {
+        "name": "projects/537192856637/sites/retailtwin-ai-511002/versions/e4555f278fd78c21",
+        "status": "FINALIZED",
+        "config": {
+          "headers": [
+            {
+              "headers": {
+                "Cache-Control": "public,max-age=31536000,immutable"
+              },
+              "glob": "**/*.@(js|css|woff2|png|jpg|jpeg|svg|webp)"
+            },
+            {
+              "headers": {
+                "Cache-Control": "no-cache"
+              },
+              "glob": "index.html"
+            }
+          ],
+          "rewrites": [
+            {
+              "glob": "**",
+              "path": "/index.html"
+            }
+          ],
+          "cleanUrls": true,
+          "trailingSlashBehavior": "REMOVE"
+        },
+        "labels": {
+          "deployment-tool": "cli-firebase"
+        },
+        "createTime": "2026-10-18T15:55:55.039975Z",
+        "createUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "finalizeTime": "2026-10-18T15:55:59.539245Z",
+        "finalizeUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "fileCount": "114",
+        "versionBytes": "1660330"
+      },
+      "type": "DEPLOY",
+      "releaseTime": "2026-10-18T15:55:59.687Z",
+      "releaseUser": {
+        "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+        "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+      }
+    },
+    {
+      "name": "projects/537192856637/sites/retailtwin-ai-511002/releases/1792337706917000",
+      "version": {
+        "name": "projects/537192856637/sites/retailtwin-ai-511002/versions/704a3fc3622823f2",
+        "status": "FINALIZED",
+        "config": {
+          "headers": [
+            {
+              "headers": {
+                "Cache-Control": "public,max-age=31536000,immutable"
+              },
+              "glob": "**/*.@(js|css|woff2|png|jpg|jpeg|svg|webp)"
+            },
+            {
+              "headers": {
+                "Cache-Control": "no-cache"
+              },
+              "glob": "index.html"
+            }
+          ],
+          "rewrites": [
+            {
+              "glob": "**",
+              "path": "/index.html"
+            }
+          ],
+          "cleanUrls": true,
+          "trailingSlashBehavior": "REMOVE"
+        },
+        "labels": {
+          "deployment-tool": "cli-firebase"
+        },
+        "createTime": "2026-10-18T15:35:00.326890Z",
+        "createUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "finalizeTime": "2026-10-18T15:35:06.719312Z",
+        "finalizeUser": {
+          "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+        },
+        "fileCount": "114",
+        "versionBytes": "1660329"
+      },
+      "type": "DEPLOY",
+      "releaseTime": "2026-10-18T15:35:06.917Z",
+      "releaseUser": {
+        "email": "github-actions@retailtwin-ai-511002.iam.gserviceaccount.com",
+        "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjV5O5OwO6_tDoV0W4Boany-PKz3XDeZgQ6LOaoUVDkLAVO8ZiQ"
+      }
+    },
+    {
+      "name": "projects/537192856637/sites/retailtwin-ai-511002/releases/1792080332987000",
+      "version": {
+        "name": "projects/537192856637/sites/retailtwin-ai-511002/versions/98dae432f31ef974",
+        "status": "FINALIZED",
+        "config": {
+          "headers": [
+            {
+              "headers": {
+                "Cache-Control": "public,max-age=31536000,immutable"
+              },
+              "glob": "**/*.@(js|css|woff2|png|jpg|jpeg|svg|webp)"
+            },
+            {
+              "headers": {
+                "Cache-Control": "no-cache"
+              },
+              "glob": "index.html"
+            }
+          ],
+          "rewrites": [
+            {
+              "glob": "**",
+              "path": "/index.html"
+            }
+          ],
+          "cleanUrls": true,
+          "trailingSlashBehavior": "REMOVE"
+        },
+        "labels": {
+          "deployment-tool": "cli-firebase"
+        },
+        "createTime": "2026-10-15T16:05:30.070570Z",
+        "createUser": {
+          "email": "j.dangkhoa.1108@gmail.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjXBDUdd2Uv8OiECtum8bhVtoDkf-88RlpKb0RqpaRWyWAUmow"
+        },
+        "finalizeTime": "2026-10-15T16:05:32.690300Z",
+        "finalizeUser": {
+          "email": "j.dangkhoa.1108@gmail.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjXBDUdd2Uv8OiECtum8bhVtoDkf-88RlpKb0RqpaRWyWAUmow"
+        },
+        "fileCount": "110",
+        "versionBytes": "1599528"
+      },
+      "type": "DEPLOY",
+      "releaseTime": "2026-10-15T16:05:32.987Z",
+      "releaseUser": {
+        "email": "j.dangkhoa.1108@gmail.com",
+        "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjXBDUdd2Uv8OiECtum8bhVtoDkf-88RlpKb0RqpaRWyWAUmow"
+      }
+    },
+    {
+      "name": "projects/537192856637/sites/retailtwin-ai-511002/releases/1792080316668000",
+      "version": {
+        "name": "projects/537192856637/sites/retailtwin-ai-511002/versions/6353e2192a3ef4f8",
+        "status": "FINALIZED",
+        "config": {
+          "headers": [
+            {
+              "headers": {
+                "Cache-Control": "public,max-age=31536000,immutable"
+              },
+              "glob": "**/*.@(js|css|woff2|png|jpg|jpeg|svg|webp)"
+            },
+            {
+              "headers": {
+                "Cache-Control": "no-cache"
+              },
+              "glob": "index.html"
+            }
+          ],
+          "rewrites": [
+            {
+              "glob": "**",
+              "path": "/index.html"
+            }
+          ],
+          "cleanUrls": true,
+          "trailingSlashBehavior": "REMOVE"
+        },
+        "labels": {
+          "deployment-tool": "cli-firebase"
+        },
+        "createTime": "2026-10-15T16:05:14.063491Z",
+        "createUser": {
+          "email": "j.dangkhoa.1108@gmail.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjXBDUdd2Uv8OiECtum8bhVtoDkf-88RlpKb0RqpaRWyWAUmow"
+        },
+        "finalizeTime": "2026-10-15T16:05:16.385116Z",
+        "finalizeUser": {
+          "email": "j.dangkhoa.1108@gmail.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjXBDUdd2Uv8OiECtum8bhVtoDkf-88RlpKb0RqpaRWyWAUmow"
+        },
+        "fileCount": "110",
+        "versionBytes": "1599528"
+      },
+      "type": "DEPLOY",
+      "releaseTime": "2026-10-15T16:05:16.668Z",
+      "releaseUser": {
+        "email": "j.dangkhoa.1108@gmail.com",
+        "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjXBDUdd2Uv8OiECtum8bhVtoDkf-88RlpKb0RqpaRWyWAUmow"
+      }
+    },
+    {
+      "name": "projects/537192856637/sites/retailtwin-ai-511002/releases/1792080273039000",
+      "version": {
+        "name": "projects/537192856637/sites/retailtwin-ai-511002/versions/919bfc66461d26a3",
+        "status": "FINALIZED",
+        "config": {
+          "headers": [
+            {
+              "headers": {
+                "Cache-Control": "public,max-age=31536000,immutable"
+              },
+              "glob": "**/*.@(js|css|woff2|png|jpg|jpeg|svg|webp)"
+            },
+            {
+              "headers": {
+                "Cache-Control": "no-cache"
+              },
+              "glob": "index.html"
+            }
+          ],
+          "rewrites": [
+            {
+              "glob": "**",
+              "path": "/index.html"
+            }
+          ],
+          "cleanUrls": true,
+          "trailingSlashBehavior": "REMOVE"
+        },
+        "labels": {
+          "deployment-tool": "cli-firebase"
+        },
+        "createTime": "2026-10-15T16:04:29.944706Z",
+        "createUser": {
+          "email": "j.dangkhoa.1108@gmail.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjXBDUdd2Uv8OiECtum8bhVtoDkf-88RlpKb0RqpaRWyWAUmow"
+        },
+        "finalizeTime": "2026-10-15T16:04:32.808026Z",
+        "finalizeUser": {
+          "email": "j.dangkhoa.1108@gmail.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjXBDUdd2Uv8OiECtum8bhVtoDkf-88RlpKb0RqpaRWyWAUmow"
+        },
+        "fileCount": "110",
+        "versionBytes": "1599528"
+      },
+      "type": "DEPLOY",
+      "releaseTime": "2026-10-15T16:04:33.039Z",
+      "releaseUser": {
+        "email": "j.dangkhoa.1108@gmail.com",
+        "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjXBDUdd2Uv8OiECtum8bhVtoDkf-88RlpKb0RqpaRWyWAUmow"
+      }
+    },
+    {
+      "name": "projects/537192856637/sites/retailtwin-ai-511002/releases/1792079123709000",
+      "version": {
+        "name": "projects/537192856637/sites/retailtwin-ai-511002/versions/22b55791eabad1e3",
+        "status": "FINALIZED",
+        "config": {
+          "headers": [
+            {
+              "headers": {
+                "Cache-Control": "public,max-age=31536000,immutable"
+              },
+              "glob": "**/*.@(js|css|woff2|png|jpg|jpeg|svg|webp)"
+            },
+            {
+              "headers": {
+                "Cache-Control": "no-cache"
+              },
+              "glob": "index.html"
+            }
+          ],
+          "rewrites": [
+            {
+              "glob": "**",
+              "path": "/index.html"
+            }
+          ],
+          "cleanUrls": true,
+          "trailingSlashBehavior": "REMOVE"
+        },
+        "labels": {
+          "deployment-tool": "cli-firebase"
+        },
+        "createTime": "2026-10-15T15:45:14.937385Z",
+        "createUser": {
+          "email": "j.dangkhoa.1108@gmail.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjXBDUdd2Uv8OiECtum8bhVtoDkf-88RlpKb0RqpaRWyWAUmow"
+        },
+        "finalizeTime": "2026-10-15T15:45:23.481298Z",
+        "finalizeUser": {
+          "email": "j.dangkhoa.1108@gmail.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjXBDUdd2Uv8OiECtum8bhVtoDkf-88RlpKb0RqpaRWyWAUmow"
+        },
+        "fileCount": "110",
+        "versionBytes": "1599528"
+      },
+      "type": "DEPLOY",
+      "releaseTime": "2026-10-15T15:45:23.709Z",
+      "releaseUser": {
+        "email": "j.dangkhoa.1108@gmail.com",
+        "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjXBDUdd2Uv8OiECtum8bhVtoDkf-88RlpKb0RqpaRWyWAUmow"
+      }
+    },
+    {
+      "name": "projects/537192856637/sites/retailtwin-ai-511002/releases/1792078938858000",
+      "version": {
+        "name": "projects/537192856637/sites/retailtwin-ai-511002/versions/87b796649201852a",
+        "status": "FINALIZED",
+        "config": {
+          "headers": [
+            {
+              "headers": {
+                "Cache-Control": "public,max-age=31536000,immutable"
+              },
+              "glob": "**/*.@(js|css|woff2|png|jpg|jpeg|svg|webp)"
+            },
+            {
+              "headers": {
+                "Cache-Control": "no-cache"
+              },
+              "glob": "index.html"
+            }
+          ],
+          "rewrites": [
+            {
+              "glob": "**",
+              "path": "/index.html"
+            }
+          ],
+          "cleanUrls": true,
+          "trailingSlashBehavior": "REMOVE"
+        },
+        "labels": {
+          "deployment-tool": "cli-firebase"
+        },
+        "createTime": "2026-10-15T15:42:12.582298Z",
+        "createUser": {
+          "email": "j.dangkhoa.1108@gmail.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjXBDUdd2Uv8OiECtum8bhVtoDkf-88RlpKb0RqpaRWyWAUmow"
+        },
+        "finalizeTime": "2026-10-15T15:42:18.647620Z",
+        "finalizeUser": {
+          "email": "j.dangkhoa.1108@gmail.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjXBDUdd2Uv8OiECtum8bhVtoDkf-88RlpKb0RqpaRWyWAUmow"
+        },
+        "fileCount": "110",
+        "versionBytes": "1597902"
+      },
+      "type": "DEPLOY",
+      "releaseTime": "2026-10-15T15:42:18.858Z",
+      "releaseUser": {
+        "email": "j.dangkhoa.1108@gmail.com",
+        "imageUrl": "https://lh3.googleusercontent.com/a-/ALV-UjXBDUdd2Uv8OiECtum8bhVtoDkf-88RlpKb0RqpaRWyWAUmow"
+      }
+    },
+    {
+      "name": "projects/537192856637/sites/retailtwin-ai-511002/releases/1791945783802000",
+      "version": {
+        "name": "projects/537192856637/sites/retailtwin-ai-511002/versions/2cf4a96e8e4211e6",
+        "status": "FINALIZED",
+        "config": {
+          "headers": [
+            {
+              "headers": {
+                "Cache-Control": "public,max-age=31536000,immutable"
+              },
+              "glob": "**/*.@(js|css|woff2|png|jpg|jpeg|svg|webp)"
+            },
+            {
+              "headers": {
+                "Cache-Control": "no-cache"
+              },
+              "glob": "index.html"
+            }
+          ],
+          "rewrites": [
+            {
+              "glob": "**",
+              "path": "/index.html"
+            }
+          ],
+          "cleanUrls": true,
+          "trailingSlashBehavior": "REMOVE"
+        },
+        "labels": {
+          "deployment-tool": "cli-firebase"
+        },
+        "createTime": "2026-10-14T02:42:59.738768Z",
+        "createUser": {
+          "email": "vinhphan812@gmail.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a/ACg8ocJ8Z9bbD1Eb83-oaeyz8vSNaEhkg9WmtCsIf_Sr5ZGRqcDJwOSj"
+        },
+        "finalizeTime": "2026-10-14T02:43:03.629837Z",
+        "finalizeUser": {
+          "email": "vinhphan812@gmail.com",
+          "imageUrl": "https://lh3.googleusercontent.com/a/ACg8ocJ8Z9bbD1Eb83-oaeyz8vSNaEhkg9WmtCsIf_Sr5ZGRqcDJwOSj"
+        },
+        "fileCount": "11",
+        "versionBytes": "578811"
+      },
+      "type": "DEPLOY",
+      "releaseTime": "2026-10-14T02:43:03.802Z",
+      "releaseUser": {
+        "email": "vinhphan812@gmail.com",
+        "imageUrl": "https://lh3.googleusercontent.com/a/ACg8ocJ8Z9bbD1Eb83-oaeyz8vSNaEhkg9WmtCsIf_Sr5ZGRqcDJwOSj"
+      }
+    }
+  ],
+  "nextPageToken": "ChRyZXRhaWx0d2luLWFpLTUxMTAwMhCQ8ZmfvriXAw"
+}

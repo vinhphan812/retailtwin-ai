@@ -1,0 +1,42 @@
+{
+  "kind": "bigquery#queryResponse",
+  "schema": {
+    "fields": [
+      {
+        "name": "n",
+        "type": "INTEGER",
+        "mode": "NULLABLE"
+      }
+    ]
+  },
+  "jobReference": {
+    "projectId": "retailtwin-ai-511002",
+    "jobId": "job_1NXD2jUg-e9EoaOyEsWuFARz3tRt",
+    "location": "us-central1"
+  },
+  "totalRows": "1",
+  "rows": [
+    {
+      "f": [
+        {
+          "v": "0"
+        }
+      ]
+    }
+  ],
+  "totalBytesProcessed": "0",
+  "jobComplete": true,
+  "cacheHit": false,
+  "queryId": "job_1NXD2jUg-e9EoaOyEsWuFARz3tRt",
+  "jobCreationReason": {
+    "code": "REQUESTED"
+  },
+  "totalBytesBilled": "0",
+  "totalSlotMs": "2",
+  "location": "us-central1",
+  "creationTime": "1792880505282",
+  "startTime": "1792880505376",
+  "endTime": "1792880505556",
+  "pageRowCount": "1",
+  "statementType": "SELECT"
+}

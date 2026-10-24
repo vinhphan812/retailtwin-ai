@@ -1,0 +1,189 @@
+{
+  "version": 1,
+  "etag": "BwZeKgjlWnE=",
+  "bindings": [
+    {
+      "role": "roles/aiplatform.serviceAgent",
+      "members": [
+        "serviceAccount:service-537192856637@gcp-sa-aiplatform.iam.gserviceaccount.com"
+      ]
+    },
+    {
+      "role": "roles/aiplatform.user",
+      "members": [
+        "serviceAccount:retailtwin-agent@retailtwin-ai-511002.iam.gserviceaccount.com",
+        "serviceAccount:retailtwin-api@retailtwin-ai-511002.iam.gserviceaccount.com"
+      ]
+    },
+    {
+      "role": "roles/artifactregistry.reader",
+      "members": [
+        "serviceAccount:retailtwin-runtime@retailtwin-ai-511002.iam.gserviceaccount.com"
+      ]
+    },
+    {
+      "role": "roles/artifactregistry.serviceAgent",
+      "members": [
+        "serviceAccount:service-537192856637@gcp-sa-artifactregistry.iam.gserviceaccount.com"
+      ]
+    },
+    {
+      "role": "roles/artifactregistry.writer",
+      "members": [
+        "serviceAccount:537192856637-compute@developer.gserviceaccount.com",
+        "serviceAccount:github-actions@retailtwin-ai-511002.iam.gserviceaccount.com"
+      ]
+    },
+    {
+      "role": "roles/bigquery.dataEditor",
+      "members": [
+        "serviceAccount:retailtwin-agent@retailtwin-ai-511002.iam.gserviceaccount.com"
+      ]
+    },
+    {
+      "role": "roles/cloudbuild.builds.builder",
+      "members": [
+        "serviceAccount:537192856637@cloudbuild.gserviceaccount.com"
+      ]
+    },
+    {
+      "role": "roles/cloudbuild.serviceAgent",
+      "members": [
+        "serviceAccount:service-537192856637@gcp-sa-cloudbuild.iam.gserviceaccount.com"
+      ]
+    },
+    {
+      "role": "roles/compute.instanceGroupManagerServiceAgent",
+      "members": [
+        "serviceAccount:537192856637@cloudservices.gserviceaccount.com"
+      ]
+    },
+    {
+      "role": "roles/compute.serviceAgent",
+      "members": [
+        "serviceAccount:service-537192856637@compute-system.iam.gserviceaccount.com"
+      ]
+    },
+    {
+      "role": "roles/containerregistry.ServiceAgent",
+      "members": [
+        "serviceAccount:service-537192856637@containerregistry.iam.gserviceaccount.com"
+      ]
+    },
+    {
+      "role": "roles/datastore.user",
+      "members": [
+        "serviceAccount:537192856637-compute@developer.gserviceaccount.com",
+        "serviceAccount:537192856637@cloudservices.gserviceaccount.com",
+        "serviceAccount:retailtwin-api@retailtwin-ai-511002.iam.gserviceaccount.com",
+        "user:vinhphan812@gmail.com"
+      ]
+    },
+    {
+      "role": "roles/firebase.managementServiceAgent",
+      "members": [
+        "serviceAccount:service-537192856637@gcp-sa-firebase.iam.gserviceaccount.com"
+      ]
+    },
+    {
+      "role": "roles/firebase.sdkAdminServiceAgent",
+      "members": [
+        "serviceAccount:firebase-adminsdk-fbsvc@retailtwin-ai-511002.iam.gserviceaccount.com"
+      ]
+    },
+    {
+      "role": "roles/firebasehosting.admin",
+      "members": [
+        "serviceAccount:github-actions@retailtwin-ai-511002.iam.gserviceaccount.com"
+      ]
+    },
+    {
+      "role": "roles/firebaserules.system",
+      "members": [
+        "serviceAccount:service-537192856637@firebase-rules.iam.gserviceaccount.com"
+      ]
+    },
+    {
+      "role": "roles/firestore.serviceAgent",
+      "members": [
+        "serviceAccount:service-537192856637@gcp-sa-firestore.iam.gserviceaccount.com"
+      ]
+    },
+    {
+      "role": "roles/iam.serviceAccountTokenCreator",
+      "members": [
+        "serviceAccount:firebase-adminsdk-fbsvc@retailtwin-ai-511002.iam.gserviceaccount.com"
+      ]
+    },
+    {
+      "role": "roles/logging.logWriter",
+      "members": [
+        "serviceAccount:retailtwin-api@retailtwin-ai-511002.iam.gserviceaccount.com"
+      ]
+    },
+    {
+      "role": "roles/notebooks.serviceAgent",
+      "members": [
+        "serviceAccount:service-537192856637@gcp-sa-notebooks.iam.gserviceaccount.com"
+      ]
+    },
+    {
+      "role": "roles/owner",
+      "members": [
+        "user:j.dangkhoa.1108@gmail.com",
+        "user:j.dangkhoa.118@gmail.com",
+        "user:longtran.jimmy@gmail.com",
+        "user:ngocanh310301@gmail.com",
+        "user:vinhphan812@gmail.com"
+      ]
+    },
+    {
+      "role": "roles/pubsub.publisher",
+      "members": [
+        "serviceAccount:retailtwin-api@retailtwin-ai-511002.iam.gserviceaccount.com"
+      ]
+    },
+    {
+      "role": "roles/pubsub.serviceAgent",
+      "members": [
+        "serviceAccount:service-537192856637@gcp-sa-pubsub.iam.gserviceaccount.com"
+      ]
+    },
+    {
+      "role": "roles/run.admin",
+      "members": [
+        "serviceAccount:github-actions@retailtwin-ai-511002.iam.gserviceaccount.com"
+      ]
+    },
+    {
+      "role": "roles/run.invoker",
+      "members": [
+        "serviceAccount:retailtwin-runtime@retailtwin-ai-511002.iam.gserviceaccount.com"
+      ]
+    },
+    {
+      "role": "roles/run.serviceAgent",
+      "members": [
+        "serviceAccount:service-537192856637@serverless-robot-prod.iam.gserviceaccount.com"
+      ]
+    },
+    {
+      "role": "roles/secretmanager.secretAccessor",
+      "members": [
+        "serviceAccount:github-actions@retailtwin-ai-511002.iam.gserviceaccount.com"
+      ]
+    },
+    {
+      "role": "roles/storage.objectViewer",
+      "members": [
+        "serviceAccount:537192856637-compute@developer.gserviceaccount.com"
+      ]
+    },
+    {
+      "role": "roles/viewer",
+      "members": [
+        "serviceAccount:retailtwin-api@retailtwin-ai-511002.iam.gserviceaccount.com"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,79 @@
+{
+  "kind": "bigquery#tableList",
+  "etag": "O9e1p8ROqI184q1tz4kv7g==",
+  "tables": [
+    {
+      "kind": "bigquery#table",
+      "id": "retailtwin-ai-511002:retailtwin.agent_actions",
+      "tableReference": {
+        "projectId": "retailtwin-ai-511002",
+        "datasetId": "retailtwin",
+        "tableId": "agent_actions"
+      },
+      "type": "TABLE",
+      "timePartitioning": {
+        "type": "DAY",
+        "field": "occurred_at"
+      },
+      "labels": {
+        "app": "retailtwin"
+      },
+      "creationTime": "1791451241379",
+      "clustering": {
+        "fields": [
+          "store_id",
+          "sku"
+        ]
+      }
+    },
+    {
+      "kind": "bigquery#table",
+      "id": "retailtwin-ai-511002:retailtwin.inventory_events",
+      "tableReference": {
+        "projectId": "retailtwin-ai-511002",
+        "datasetId": "retailtwin",
+        "tableId": "inventory_events"
+      },
+      "type": "TABLE",
+      "timePartitioning": {
+        "type": "DAY",
+        "field": "occurred_at"
+      },
+      "labels": {
+        "app": "retailtwin"
+      },
+      "creationTime": "1791451237520",
+      "clustering": {
+        "fields": [
+          "store_id",
+          "sku"
+        ]
+      }
+    },
+    {
+      "kind": "bigquery#table",
+      "id": "retailtwin-ai-511002:retailtwin.sales_events",
+      "tableReference": {
+        "projectId": "retailtwin-ai-511002",
+        "datasetId": "retailtwin",
+        "tableId": "sales_events"
+      },
+      "type": "TABLE",
+      "timePartitioning": {
+        "type": "DAY",
+        "field": "occurred_at"
+      },
+      "labels": {
+        "app": "retailtwin"
+      },
+      "creationTime": "1791451233671",
+      "clustering": {
+        "fields": [
+          "store_id",
+          "sku"
+        ]
+      }
+    }
+  ],
+  "totalItems": 3
+}

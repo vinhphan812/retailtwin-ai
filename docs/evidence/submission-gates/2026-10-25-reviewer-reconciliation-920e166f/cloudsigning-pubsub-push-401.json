@@ -1,0 +1,3619 @@
+{
+  "entries": [
+    {
+      "insertId": "6add2ca4000d84d569413adf",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.98.143.192",
+        "serverIp": "34.143.74.2",
+        "latency": "0.006876850s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "project_id": "retailtwin-ai-511002",
+          "location": "us-central1",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "service_name": "retailtwin-api",
+          "configuration_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:09:40.875845Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/7d14df202527c58bb478c581d419860b",
+      "receiveTimestamp": "2026-10-24T22:09:41.112678982Z",
+      "spanId": "0335b29b856dd8c1"
+    },
+    {
+      "insertId": "6add2ca40002c8685f51bff8",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1044",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.98.143.74",
+        "serverIp": "34.143.76.2",
+        "latency": "0.006800023s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "revision_name": "retailtwin-api-00053-6k7",
+          "project_id": "retailtwin-ai-511002",
+          "location": "us-central1",
+          "service_name": "retailtwin-api",
+          "configuration_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:09:40.171941Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/c8268e28b1613354f291a326151d51cd",
+      "receiveTimestamp": "2026-10-24T22:09:40.448455132Z",
+      "spanId": "5e1ab70009eaa611"
+    },
+    {
+      "insertId": "6add2ca3000751ada4b7bd2b",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "35.187.132.10",
+        "serverIp": "34.143.76.2",
+        "latency": "0.007730177s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "location": "us-central1",
+          "service_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "configuration_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002"
+        }
+      },
+      "timestamp": "2026-10-24T22:09:39.468297Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/5bcae72c99418ded8a4a5f1d2a35ddb1",
+      "receiveTimestamp": "2026-10-24T22:09:39.786398235Z",
+      "spanId": "fa1fdf32357a8fa9"
+    },
+    {
+      "insertId": "6add2ca100013e50b6ad199a",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "35.187.132.65",
+        "serverIp": "34.143.74.2",
+        "latency": "0.006137545s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "configuration_name": "retailtwin-api",
+          "location": "us-central1",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "service_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002"
+        }
+      },
+      "timestamp": "2026-10-24T22:09:37.072060Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/c15abf1d034ccf073413fbd49167af1f",
+      "receiveTimestamp": "2026-10-24T22:09:37.117930480Z",
+      "spanId": "11f41e107cf3e44d"
+    },
+    {
+      "insertId": "6add2c9f0002e46c09e5024a",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "74.125.215.168",
+        "serverIp": "34.143.76.2",
+        "latency": "0.006809370s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "project_id": "retailtwin-ai-511002",
+          "configuration_name": "retailtwin-api",
+          "location": "us-central1",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "service_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:09:35.178887Z",
+      "severity": "WARNING",
+      "labels": {
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/86e69c56863820bd52ef16b6b8c0c82a",
+      "receiveTimestamp": "2026-10-24T22:09:35.452204872Z",
+      "spanId": "80e47f2d2f18bc3e"
+    },
+    {
+      "insertId": "6add2c9b000741ebac3ba380",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.98.143.142",
+        "serverIp": "34.143.76.2",
+        "latency": "0.010984203s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "service_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002",
+          "location": "us-central1",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "configuration_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:09:31.461682Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/810680ce34e00df64ac67f920ac1391b",
+      "receiveTimestamp": "2026-10-24T22:09:31.786252194Z",
+      "spanId": "2181fb679ccbabb4",
+      "traceSampled": true
+    },
+    {
+      "insertId": "6add2c94000eadeba6082f91",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.98.143.229",
+        "serverIp": "34.143.75.2",
+        "latency": "0.013077894s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "revision_name": "retailtwin-api-00053-6k7",
+          "configuration_name": "retailtwin-api",
+          "service_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002",
+          "location": "us-central1"
+        }
+      },
+      "timestamp": "2026-10-24T22:09:24.945357Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/96fc5e73ce78d97efcb92f7e00a42960",
+      "receiveTimestamp": "2026-10-24T22:09:25.130076001Z",
+      "spanId": "c9540ada0860f346"
+    },
+    {
+      "insertId": "6add2c9400041846b7b32a2a",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "74.125.215.130",
+        "serverIp": "34.143.79.2",
+        "latency": "0.006579462s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "configuration_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002",
+          "location": "us-central1",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "service_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:09:24.259148Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/06ea2218f1fd01fb1528f7836d7d11b5",
+      "receiveTimestamp": "2026-10-24T22:09:24.464285779Z",
+      "spanId": "80aff936f1f9f468"
+    },
+    {
+      "insertId": "6add2c930005669fa1c8ec04",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.127.136.230",
+        "serverIp": "34.143.74.2",
+        "latency": "0.007518436s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "configuration_name": "retailtwin-api",
+          "service_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "project_id": "retailtwin-ai-511002",
+          "location": "us-central1"
+        }
+      },
+      "timestamp": "2026-10-24T22:09:23.342108Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/3d9a0c3332dd3f91913df17e0b5cfa1b",
+      "receiveTimestamp": "2026-10-24T22:09:23.464110974Z",
+      "spanId": "002f6c42dc8de4de"
+    },
+    {
+      "insertId": "6add2c920003d79884f7b8e1",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1044",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.98.143.12",
+        "serverIp": "34.143.75.2",
+        "latency": "0.006665266s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "service_name": "retailtwin-api",
+          "configuration_name": "retailtwin-api",
+          "location": "us-central1",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "project_id": "retailtwin-ai-511002"
+        }
+      },
+      "timestamp": "2026-10-24T22:09:22.241343Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/d645db3cd46ac459fffb29596d55144b",
+      "receiveTimestamp": "2026-10-24T22:09:22.463824036Z",
+      "spanId": "d7d30bdfedb4bf6d"
+    },
+    {
+      "insertId": "6add2c8f0000c9c05f21a9a5",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "74.125.212.196",
+        "serverIp": "34.143.75.2",
+        "latency": "0.009834953s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "service_name": "retailtwin-api",
+          "configuration_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "location": "us-central1"
+        }
+      },
+      "timestamp": "2026-10-24T22:09:19.038503Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/3199d093dd21a2a41be3b5c5ec1de03d",
+      "receiveTimestamp": "2026-10-24T22:09:19.133285644Z",
+      "spanId": "f80932396ab332ba"
+    },
+    {
+      "insertId": "6add2c8b0009b66deb4755d3",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.127.136.167",
+        "serverIp": "34.143.77.2",
+        "latency": "0.006176681s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "location": "us-central1",
+          "service_name": "retailtwin-api",
+          "configuration_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "project_id": "retailtwin-ai-511002"
+        }
+      },
+      "timestamp": "2026-10-24T22:09:15.626727Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/eae48d5775ec25a22accb05c556f887d",
+      "receiveTimestamp": "2026-10-24T22:09:15.803207435Z",
+      "spanId": "940a35dd9446d138",
+      "traceSampled": true
+    },
+    {
+      "insertId": "6add2c86000c82b71eb2aa0e",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "35.187.132.129",
+        "serverIp": "34.143.74.2",
+        "latency": "0.006833727s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "revision_name": "retailtwin-api-00053-6k7",
+          "location": "us-central1",
+          "configuration_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002",
+          "service_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:09:10.809419Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/e410559f09763a2b2716a5e50f92027e",
+      "receiveTimestamp": "2026-10-24T22:09:11.142175410Z",
+      "spanId": "74737e6a33eadfdd"
+    },
+    {
+      "insertId": "6add2c800009613ac3315df1",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "64.233.172.99",
+        "serverIp": "34.143.75.2",
+        "latency": "0.006407020s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "location": "us-central1",
+          "project_id": "retailtwin-ai-511002",
+          "configuration_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "service_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:09:04.604886Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/9b4bc175f9145df5c809244f82feaf08",
+      "receiveTimestamp": "2026-10-24T22:09:04.814641133Z",
+      "spanId": "07e6e55186c479bd"
+    },
+    {
+      "insertId": "6add2c80000076eeb96903bc",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.98.143.64",
+        "serverIp": "34.143.74.2",
+        "latency": "0.021339390s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "configuration_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "project_id": "retailtwin-ai-511002",
+          "service_name": "retailtwin-api",
+          "location": "us-central1"
+        }
+      },
+      "timestamp": "2026-10-24T22:09:04.002505Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/6c8d8db39980d2bd82b2eac1b99b2b73",
+      "receiveTimestamp": "2026-10-24T22:09:04.145995500Z",
+      "spanId": "9c259e8e54ee796f"
+    },
+    {
+      "insertId": "6add2c7d00062654d8b40213",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.116.39.6",
+        "serverIp": "34.143.74.2",
+        "latency": "0.006325824s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "project_id": "retailtwin-ai-511002",
+          "location": "us-central1",
+          "service_name": "retailtwin-api",
+          "configuration_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7"
+        }
+      },
+      "timestamp": "2026-10-24T22:09:01.393712Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/e77ec999541fd1cb611d1e75c31db986",
+      "receiveTimestamp": "2026-10-24T22:09:01.481971645Z",
+      "spanId": "ed6aa3c6d7253f54",
+      "traceSampled": true
+    },
+    {
+      "insertId": "6add2c7a000ddc7e3f9348b5",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.98.143.167",
+        "serverIp": "34.143.72.2",
+        "latency": "0.009154502s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "location": "us-central1",
+          "configuration_name": "retailtwin-api",
+          "service_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "project_id": "retailtwin-ai-511002"
+        }
+      },
+      "timestamp": "2026-10-24T22:08:58.895791Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/aada916e1a87792d580c5e962242f5cc",
+      "receiveTimestamp": "2026-10-24T22:08:59.151644004Z",
+      "spanId": "cfd29aeb1ea860d6"
+    },
+    {
+      "insertId": "6add2c7a0004adbca6f1d312",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.98.143.64",
+        "serverIp": "34.143.79.2",
+        "latency": "0.007662705s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "revision_name": "retailtwin-api-00053-6k7",
+          "location": "us-central1",
+          "configuration_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002",
+          "service_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:08:58.296297Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/db9deb45e8169903340fe3a34d322d38",
+      "receiveTimestamp": "2026-10-24T22:08:58.485352372Z",
+      "spanId": "3c8a14de147f5eb1"
+    },
+    {
+      "insertId": "6add2c790007c3642b6153a7",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "35.187.132.166",
+        "serverIp": "34.143.76.2",
+        "latency": "0.006500659s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "project_id": "retailtwin-ai-511002",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "configuration_name": "retailtwin-api",
+          "location": "us-central1",
+          "service_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:08:57.498953Z",
+      "severity": "WARNING",
+      "labels": {
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/1f3a915cc0329e6e1c63b9abd67657d5",
+      "receiveTimestamp": "2026-10-24T22:08:57.818085025Z",
+      "spanId": "dbed6b6b94724ca1"
+    },
+    {
+      "insertId": "6add2c78000dbad137dfcf47",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "74.125.215.6",
+        "serverIp": "34.143.72.2",
+        "latency": "0.005261545s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "configuration_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "project_id": "retailtwin-ai-511002",
+          "location": "us-central1",
+          "service_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:08:56.891964Z",
+      "severity": "WARNING",
+      "labels": {
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/04fdaa7ce42eab4affdd4e78f3266ef4",
+      "receiveTimestamp": "2026-10-24T22:08:57.152900011Z",
+      "spanId": "033684ef0daaa6d5"
+    },
+    {
+      "insertId": "6add2c770002f248dfc7f69a",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "66.102.6.231",
+        "serverIp": "34.143.76.2",
+        "latency": "0.006517878s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "revision_name": "retailtwin-api-00053-6k7",
+          "service_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002",
+          "configuration_name": "retailtwin-api",
+          "location": "us-central1"
+        }
+      },
+      "timestamp": "2026-10-24T22:08:55.183387Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/6b694d3c4cd610df5d8dd4ec87014a24",
+      "receiveTimestamp": "2026-10-24T22:08:55.484459177Z",
+      "spanId": "36f3a9e6b5bfb3c1"
+    },
+    {
+      "insertId": "6add2c7600091ea48f29d0e0",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "74.125.215.96",
+        "serverIp": "34.143.78.2",
+        "latency": "0.006139322s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "configuration_name": "retailtwin-api",
+          "location": "us-central1",
+          "service_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "project_id": "retailtwin-ai-511002"
+        }
+      },
+      "timestamp": "2026-10-24T22:08:54.588540Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/636c0c1d73a93f8e9129d432eda6363e",
+      "receiveTimestamp": "2026-10-24T22:08:54.819212886Z",
+      "spanId": "36fdfb7f144e7402"
+    },
+    {
+      "insertId": "6add2c7500078fdc312f0034",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "35.187.132.204",
+        "serverIp": "34.143.78.2",
+        "latency": "0.006107397s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "project_id": "retailtwin-ai-511002",
+          "configuration_name": "retailtwin-api",
+          "service_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "location": "us-central1"
+        }
+      },
+      "timestamp": "2026-10-24T22:08:53.486301Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/3c14a6216d0bdea9c4e15d9a4a889bba",
+      "receiveTimestamp": "2026-10-24T22:08:53.822516184Z",
+      "spanId": "2fc9833073c926e6"
+    },
+    {
+      "insertId": "6add2c71000c06586424324f",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.127.136.164",
+        "serverIp": "34.143.75.2",
+        "latency": "0.007640800s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "revision_name": "retailtwin-api-00053-6k7",
+          "configuration_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002",
+          "service_name": "retailtwin-api",
+          "location": "us-central1"
+        }
+      },
+      "timestamp": "2026-10-24T22:08:49.776490Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/dd4c04c71e531aa108d033c827bc828c",
+      "receiveTimestamp": "2026-10-24T22:08:49.826539017Z",
+      "spanId": "caeb7d70a44bd947",
+      "traceSampled": true
+    },
+    {
+      "insertId": "6add2c6b0002c10c807299bf",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "74.125.215.1",
+        "serverIp": "34.143.73.2",
+        "latency": "0.008102758s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "location": "us-central1",
+          "project_id": "retailtwin-ai-511002",
+          "service_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "configuration_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:08:43.168398Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/0aef918cf31b179709ca0106a104a721",
+      "receiveTimestamp": "2026-10-24T22:08:43.499480930Z",
+      "spanId": "7e9ab39fec761483"
+    },
+    {
+      "insertId": "6add2c660003f52a2ee557be",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.127.136.69",
+        "serverIp": "34.143.74.2",
+        "latency": "0.007290033s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "service_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002",
+          "configuration_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "location": "us-central1"
+        }
+      },
+      "timestamp": "2026-10-24T22:08:38.249289Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/7480608d002e35e1a4eec43c285b0cc5",
+      "receiveTimestamp": "2026-10-24T22:08:38.499566887Z",
+      "spanId": "d78735a1cd062e70",
+      "traceSampled": true
+    },
+    {
+      "insertId": "6add2c640005c272c07b9fdb",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "35.243.23.169",
+        "serverIp": "34.143.74.2",
+        "latency": "0.008071152s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "service_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002",
+          "location": "us-central1",
+          "configuration_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7"
+        }
+      },
+      "timestamp": "2026-10-24T22:08:36.366541Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/8137c2fa0b49298a26c5695946f97d9f",
+      "receiveTimestamp": "2026-10-24T22:08:36.504159823Z",
+      "spanId": "9f5007e2645f6ee6"
+    },
+    {
+      "insertId": "6add2c60000a7299b3da3455",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1043",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "35.187.132.1",
+        "serverIp": "34.143.77.2",
+        "latency": "0.007205999s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "project_id": "retailtwin-ai-511002",
+          "location": "us-central1",
+          "service_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "configuration_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:08:32.672881Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/da3f9e07f103535c52555aaa654908ed",
+      "receiveTimestamp": "2026-10-24T22:08:32.838699562Z",
+      "spanId": "9543b79f650739d8"
+    },
+    {
+      "insertId": "6add2c60000119fce14dd3c4",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "107.178.194.66",
+        "serverIp": "34.143.72.2",
+        "latency": "0.006331923s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "project_id": "retailtwin-ai-511002",
+          "location": "us-central1",
+          "configuration_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "service_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:08:32.062583Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/3679694a23143c4976406a48154693ca",
+      "receiveTimestamp": "2026-10-24T22:08:32.173202705Z",
+      "spanId": "23cd7d336717f4c2"
+    },
+    {
+      "insertId": "6add2c5d0000c48fbeaabc4e",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "64.233.172.198",
+        "serverIp": "34.143.75.2",
+        "latency": "0.009099267s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "location": "us-central1",
+          "project_id": "retailtwin-ai-511002",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "configuration_name": "retailtwin-api",
+          "service_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:08:29.037945Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/c2c54b6e3b9195c4e632f163b26cc794",
+      "receiveTimestamp": "2026-10-24T22:08:29.171378422Z",
+      "spanId": "06efb46e239aecaf"
+    },
+    {
+      "insertId": "6add2c5c000268ed2f54df70",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "35.187.132.166",
+        "serverIp": "34.143.73.2",
+        "latency": "0.008342957s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "revision_name": "retailtwin-api-00053-6k7",
+          "location": "us-central1",
+          "service_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002",
+          "configuration_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:08:28.145471Z",
+      "severity": "WARNING",
+      "labels": {
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/53892439381a1b9e94db3e7c2de84d66",
+      "receiveTimestamp": "2026-10-24T22:08:28.174978526Z",
+      "spanId": "bdc9ac38fce600f8",
+      "traceSampled": true
+    },
+    {
+      "insertId": "6add2c590006bdc19c627b4c",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "107.178.194.35",
+        "serverIp": "34.143.76.2",
+        "latency": "0.006255292s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "location": "us-central1",
+          "configuration_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "service_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:08:25.431839Z",
+      "severity": "WARNING",
+      "labels": {
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/f334886078443ce9324fa3e8ce0573b3",
+      "receiveTimestamp": "2026-10-24T22:08:25.510891716Z",
+      "spanId": "7407dc02f2c714bd"
+    },
+    {
+      "insertId": "6add2c56000cfea895a7c659",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "66.102.6.73",
+        "serverIp": "34.143.78.2",
+        "latency": "0.006770357s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "location": "us-central1",
+          "project_id": "retailtwin-ai-511002",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "service_name": "retailtwin-api",
+          "configuration_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:08:22.840630Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/481bd416899135f21b8eb0d5a26be89b",
+      "receiveTimestamp": "2026-10-24T22:08:23.180808288Z",
+      "spanId": "4044d46b591adc3d"
+    },
+    {
+      "insertId": "6add2c53000cda9e203ef160",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.98.143.2",
+        "serverIp": "34.143.79.2",
+        "latency": "0.007301650s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "revision_name": "retailtwin-api-00053-6k7",
+          "location": "us-central1",
+          "service_name": "retailtwin-api",
+          "configuration_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002"
+        }
+      },
+      "timestamp": "2026-10-24T22:08:19.831767Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/c77006463ea88445bc4053f71623ed0f",
+      "receiveTimestamp": "2026-10-24T22:08:20.182213983Z",
+      "spanId": "5b16197953693e2d"
+    },
+    {
+      "insertId": "6add2c510002171ca2c3f946",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.116.39.64",
+        "serverIp": "34.143.74.2",
+        "latency": "0.013504922s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "location": "us-central1",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "project_id": "retailtwin-ai-511002",
+          "configuration_name": "retailtwin-api",
+          "service_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:08:17.120774Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/0fbc2396fa1d220126b8bf5bcdd33123",
+      "receiveTimestamp": "2026-10-24T22:08:17.186048540Z",
+      "spanId": "9d3b3de2a741da45",
+      "traceSampled": true
+    },
+    {
+      "insertId": "6add2c4f000372de07f3b520",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "107.178.194.32",
+        "serverIp": "34.143.76.2",
+        "latency": "0.009466439s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "configuration_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "project_id": "retailtwin-ai-511002",
+          "service_name": "retailtwin-api",
+          "location": "us-central1"
+        }
+      },
+      "timestamp": "2026-10-24T22:08:15.213548Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/5870fe58d10e53f34c1e2fe569cca897",
+      "receiveTimestamp": "2026-10-24T22:08:15.523502696Z",
+      "spanId": "0d8548ac04db71f9"
+    },
+    {
+      "insertId": "6add2c4e0009d3049d83561b",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.116.39.227",
+        "serverIp": "34.143.72.2",
+        "latency": "0.012819571s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "service_name": "retailtwin-api",
+          "location": "us-central1",
+          "configuration_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002",
+          "revision_name": "retailtwin-api-00053-6k7"
+        }
+      },
+      "timestamp": "2026-10-24T22:08:14.627505Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/d202a7d67bb15c15f825c53f43fe3457",
+      "receiveTimestamp": "2026-10-24T22:08:14.853816817Z",
+      "spanId": "f368925555b22a45"
+    },
+    {
+      "insertId": "6add2c4c00099a4258a720e0",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "66.102.6.194",
+        "serverIp": "34.143.78.2",
+        "latency": "0.009709085s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "service_name": "retailtwin-api",
+          "location": "us-central1",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "configuration_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002"
+        }
+      },
+      "timestamp": "2026-10-24T22:08:12.616200Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/2af019eb979a870f6be43ea4a95dffee",
+      "receiveTimestamp": "2026-10-24T22:08:12.854142625Z",
+      "spanId": "e26273a32035d15a"
+    },
+    {
+      "insertId": "6add2c4c00006938b0d3112f",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "192.178.15.200",
+        "serverIp": "34.143.73.2",
+        "latency": "0.010040458s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "configuration_name": "retailtwin-api",
+          "location": "us-central1",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "service_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002"
+        }
+      },
+      "timestamp": "2026-10-24T22:08:12.012455Z",
+      "severity": "WARNING",
+      "labels": {
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/7255efc1d7c4fe96fe87d1854985ede7",
+      "receiveTimestamp": "2026-10-24T22:08:12.191579574Z",
+      "spanId": "1931353b91a09da8"
+    },
+    {
+      "insertId": "6add2c4b000349e6c15cbffc",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.127.136.131",
+        "serverIp": "34.143.72.2",
+        "latency": "0.010751352s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "project_id": "retailtwin-ai-511002",
+          "service_name": "retailtwin-api",
+          "location": "us-central1",
+          "configuration_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7"
+        }
+      },
+      "timestamp": "2026-10-24T22:08:11.200746Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/48d527606e0c2648860feefa78bbcd9c",
+      "receiveTimestamp": "2026-10-24T22:08:11.522601078Z",
+      "spanId": "95ffdd5c85e033d0"
+    },
+    {
+      "insertId": "6add2c46000dffbebc20c724",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "107.178.194.227",
+        "serverIp": "34.143.75.2",
+        "latency": "0.011000201s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "service_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "location": "us-central1",
+          "project_id": "retailtwin-ai-511002",
+          "configuration_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:08:06.902631Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/c08e335ad73a0959a90c20a5623ecf91",
+      "receiveTimestamp": "2026-10-24T22:08:07.194367808Z",
+      "spanId": "727e5d3e6cf045c0"
+    },
+    {
+      "insertId": "6add2c4600037e124cb2658c",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.116.39.3",
+        "serverIp": "34.143.74.2",
+        "latency": "0.009723003s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "service_name": "retailtwin-api",
+          "configuration_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "location": "us-central1",
+          "project_id": "retailtwin-ai-511002"
+        }
+      },
+      "timestamp": "2026-10-24T22:08:06.216557Z",
+      "severity": "WARNING",
+      "labels": {
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/d877682c4c652f7853a3327143787b26",
+      "receiveTimestamp": "2026-10-24T22:08:06.527833767Z",
+      "spanId": "55b22e7218f7d9ef"
+    },
+    {
+      "insertId": "6add2c450007ccfae2f8983b",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "64.233.172.199",
+        "serverIp": "34.143.78.2",
+        "latency": "0.009821458s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "revision_name": "retailtwin-api-00053-6k7",
+          "location": "us-central1",
+          "configuration_name": "retailtwin-api",
+          "service_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002"
+        }
+      },
+      "timestamp": "2026-10-24T22:08:05.496830Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/8672bf1eb0887c041470912a365ca544",
+      "receiveTimestamp": "2026-10-24T22:08:05.531051410Z",
+      "spanId": "26d0a705a9f97c84",
+      "traceSampled": true
+    },
+    {
+      "insertId": "6add2c3e000007b058561a2c",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.116.39.197",
+        "serverIp": "34.143.76.2",
+        "latency": "0.009746373s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "service_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "location": "us-central1",
+          "project_id": "retailtwin-ai-511002",
+          "configuration_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:57.989270Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/47d24dced06b84bac913365f95048c92",
+      "receiveTimestamp": "2026-10-24T22:07:58.201816495Z",
+      "spanId": "6ed5585173261d9b"
+    },
+    {
+      "insertId": "6add2c3b0002f0dd6954dee2",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.127.136.40",
+        "serverIp": "34.143.74.2",
+        "latency": "0.006183690s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "location": "us-central1",
+          "project_id": "retailtwin-ai-511002",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "service_name": "retailtwin-api",
+          "configuration_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:55.183607Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/899cabb8162a55e55a5f3e25bb87438f",
+      "receiveTimestamp": "2026-10-24T22:07:55.203060443Z",
+      "spanId": "08a52c65f010c89a"
+    },
+    {
+      "insertId": "6add2c3900016d8ef729243a",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1071",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.98.143.137",
+        "serverIp": "34.143.74.2",
+        "latency": "0.010736367s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "project_id": "retailtwin-ai-511002",
+          "service_name": "retailtwin-api",
+          "location": "us-central1",
+          "configuration_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:53.079650Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/2a7cfc111e1156388c4ee15e60484f48",
+      "receiveTimestamp": "2026-10-24T22:07:53.207670105Z",
+      "spanId": "3bb799a887b9208f"
+    },
+    {
+      "insertId": "6add2c380007a71a11454f34",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.127.136.228",
+        "serverIp": "34.143.75.2",
+        "latency": "0.009292700s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "location": "us-central1",
+          "service_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "configuration_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:52.488307Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/df3056c0acdca44688cb99806020faea",
+      "receiveTimestamp": "2026-10-24T22:07:52.539106510Z",
+      "spanId": "9c67234d8107ae53",
+      "traceSampled": true
+    },
+    {
+      "insertId": "6add2c37000d9430c2126cdc",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "107.178.194.170",
+        "serverIp": "34.143.74.2",
+        "latency": "0.006689646s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "location": "us-central1",
+          "service_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "configuration_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:51.880354Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/f0accb00b6ccad17b6ae8a79c049a7ed",
+      "receiveTimestamp": "2026-10-24T22:07:52.207399572Z",
+      "spanId": "e2e53f6f5eebcea1"
+    },
+    {
+      "insertId": "6add2c3700046e5567bd9bbd",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.116.39.134",
+        "serverIp": "34.143.74.2",
+        "latency": "0.010601871s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "project_id": "retailtwin-ai-511002",
+          "location": "us-central1",
+          "configuration_name": "retailtwin-api",
+          "service_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:51.274741Z",
+      "severity": "WARNING",
+      "labels": {
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/d23d8a545c0e5037e2a0b8ffc7573ba7",
+      "receiveTimestamp": "2026-10-24T22:07:51.541484375Z",
+      "spanId": "6a35f59f99dbb896"
+    },
+    {
+      "insertId": "6add2c340005e885aeefec4e",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "74.125.215.39",
+        "serverIp": "34.143.79.2",
+        "latency": "0.011554798s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "configuration_name": "retailtwin-api",
+          "location": "us-central1",
+          "service_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "project_id": "retailtwin-ai-511002"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:48.371443Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/b5e2d11f1ae88208e1a577c20ece68c8",
+      "receiveTimestamp": "2026-10-24T22:07:48.543625592Z",
+      "spanId": "e8dabde5c1f30d6d"
+    },
+    {
+      "insertId": "6add2c3200076012b777d06d",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "107.178.194.99",
+        "serverIp": "34.143.75.2",
+        "latency": "0.011796577s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "revision_name": "retailtwin-api-00053-6k7",
+          "configuration_name": "retailtwin-api",
+          "service_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002",
+          "location": "us-central1"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:46.467491Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/23400dd4c8523f43933927ff8291285f",
+      "receiveTimestamp": "2026-10-24T22:07:46.543758863Z",
+      "spanId": "6919882cbfbdc0aa"
+    },
+    {
+      "insertId": "6add2c2f00042b422d59dbff",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.116.39.235",
+        "serverIp": "34.143.76.2",
+        "latency": "0.008579258s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "configuration_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002",
+          "service_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "location": "us-central1"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:43.261511Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/55c929afcd62c3a6034bc1b5bb35ab9f",
+      "receiveTimestamp": "2026-10-24T22:07:43.548711752Z",
+      "spanId": "8a0d10d1c90734b5"
+    },
+    {
+      "insertId": "6add2c2e000a5ce3e126c8ce",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "35.187.132.163",
+        "serverIp": "34.143.72.2",
+        "latency": "0.015305876s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "service_name": "retailtwin-api",
+          "configuration_name": "retailtwin-api",
+          "location": "us-central1",
+          "project_id": "retailtwin-ai-511002",
+          "revision_name": "retailtwin-api-00053-6k7"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:42.659328Z",
+      "severity": "WARNING",
+      "labels": {
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/d0a9dd0f4f9d2d0325ecc0c07c65e280",
+      "receiveTimestamp": "2026-10-24T22:07:42.881653783Z",
+      "spanId": "a6d6c577da19664c"
+    },
+    {
+      "insertId": "6add2c2e00012e85eea37e1f",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.116.39.72",
+        "serverIp": "34.143.72.2",
+        "latency": "0.008324652s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "location": "us-central1",
+          "project_id": "retailtwin-ai-511002",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "configuration_name": "retailtwin-api",
+          "service_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:42.061899Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/ab905dd412f88146086dbcfe9841e3ff",
+      "receiveTimestamp": "2026-10-24T22:07:42.213151700Z",
+      "spanId": "765dbff7351d5535",
+      "traceSampled": true
+    },
+    {
+      "insertId": "6add2c2b000415cdcaca1dea",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "35.187.132.74",
+        "serverIp": "34.143.75.2",
+        "latency": "0.006718948s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "location": "us-central1",
+          "project_id": "retailtwin-ai-511002",
+          "service_name": "retailtwin-api",
+          "configuration_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:39.257485Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/8fec34ab0c316300e13812ccd5e19a5e",
+      "receiveTimestamp": "2026-10-24T22:07:39.550475304Z",
+      "spanId": "a0bf31e4a0442f06"
+    },
+    {
+      "insertId": "6add2c28000a11636d77e282",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.116.39.5",
+        "serverIp": "34.143.74.2",
+        "latency": "0.007494257s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "service_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002",
+          "location": "us-central1",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "configuration_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:36.649385Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/f3b101a9a00885b00284ebac2985bbe6",
+      "receiveTimestamp": "2026-10-24T22:07:36.885806321Z",
+      "spanId": "eb8526ab0fc06ba7"
+    },
+    {
+      "insertId": "6add2c2600041030807748a2",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "35.243.23.199",
+        "serverIp": "34.143.75.2",
+        "latency": "0.010434786s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "service_name": "retailtwin-api",
+          "location": "us-central1",
+          "project_id": "retailtwin-ai-511002",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "configuration_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:34.248285Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/b5a14c4f00fff1f5bc4e3333e21f2517",
+      "receiveTimestamp": "2026-10-24T22:07:34.555114827Z",
+      "spanId": "18d4f61d6d9b5685"
+    },
+    {
+      "insertId": "6add2c25000a097db04b5b67",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.127.136.131",
+        "serverIp": "34.143.72.2",
+        "latency": "0.010185680s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "service_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "configuration_name": "retailtwin-api",
+          "location": "us-central1"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:33.645136Z",
+      "severity": "WARNING",
+      "labels": {
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/4124eec4133f5d18860feefa78bbc57f",
+      "receiveTimestamp": "2026-10-24T22:07:33.886714883Z",
+      "spanId": "3741507e9efbe985"
+    },
+    {
+      "insertId": "6add2c24000eda270bd3a3ed",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "74.125.215.99",
+        "serverIp": "34.143.73.2",
+        "latency": "0.014678220s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "location": "us-central1",
+          "project_id": "retailtwin-ai-511002",
+          "configuration_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "service_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:32.951627Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/2b52cd0e7e62461e19ed0a605d250b11",
+      "receiveTimestamp": "2026-10-24T22:07:33.219442719Z",
+      "spanId": "1245c27c1f8b4db0"
+    },
+    {
+      "insertId": "6add2c23000eb86b1cab7aef",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.116.39.103",
+        "serverIp": "34.143.74.2",
+        "latency": "0.012475272s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "revision_name": "retailtwin-api-00053-6k7",
+          "location": "us-central1",
+          "service_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002",
+          "configuration_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:31.943428Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/d1f1a7590df28f2bc5d10a267d5c7678",
+      "receiveTimestamp": "2026-10-24T22:07:32.223186039Z",
+      "spanId": "1043db74ef7d642b"
+    },
+    {
+      "insertId": "6add2c2300058b5e67afb3b0",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "35.187.132.196",
+        "serverIp": "34.143.74.2",
+        "latency": "0.015499187s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "project_id": "retailtwin-ai-511002",
+          "service_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "configuration_name": "retailtwin-api",
+          "location": "us-central1"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:31.341242Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/ba4711ae3793236f044c947819a0d9d4",
+      "receiveTimestamp": "2026-10-24T22:07:31.554968953Z",
+      "spanId": "563f3c0b3ae29659"
+    },
+    {
+      "insertId": "6add2c2200071cfe2d913743",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "35.243.23.229",
+        "serverIp": "34.143.74.2",
+        "latency": "0.018380877s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "location": "us-central1",
+          "project_id": "retailtwin-ai-511002",
+          "service_name": "retailtwin-api",
+          "configuration_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:30.438303Z",
+      "severity": "WARNING",
+      "labels": {
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/820048a98e9304807bf23f26e840eaa5",
+      "receiveTimestamp": "2026-10-24T22:07:30.555132511Z",
+      "spanId": "5d583d64fb43b2cb"
+    },
+    {
+      "insertId": "6add2c21000d19a64f1c40e0",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "35.187.132.11",
+        "serverIp": "34.143.76.2",
+        "latency": "0.006253103s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "service_name": "retailtwin-api",
+          "location": "us-central1",
+          "configuration_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "project_id": "retailtwin-ai-511002"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:29.849165Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/0da81836859bd43a36b3411475b403f8",
+      "receiveTimestamp": "2026-10-24T22:07:29.891771518Z",
+      "spanId": "0bd6e9d3cb9e4e9c",
+      "traceSampled": true
+    },
+    {
+      "insertId": "6add2c210000d0d07095f550",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "35.187.132.227",
+        "serverIp": "34.143.75.2",
+        "latency": "0.014657928s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "configuration_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "location": "us-central1",
+          "service_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:29.035841Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/28d15304728152742f1ca15762e670ff",
+      "receiveTimestamp": "2026-10-24T22:07:29.224270462Z",
+      "spanId": "1b708d9ae10ba93e"
+    },
+    {
+      "insertId": "6add2c2000072128b7bcd25e",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "107.178.194.166",
+        "serverIp": "34.143.76.2",
+        "latency": "0.018162887s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "configuration_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "service_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002",
+          "location": "us-central1"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:28.442075Z",
+      "severity": "WARNING",
+      "labels": {
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/cb79ba4fad93d686bcff7a0418ca22c3",
+      "receiveTimestamp": "2026-10-24T22:07:28.560797366Z",
+      "spanId": "a741de6475ec29c8"
+    },
+    {
+      "insertId": "6add2c1f0006b45be9068938",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "35.187.132.33",
+        "serverIp": "34.143.75.2",
+        "latency": "0.008830731s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "revision_name": "retailtwin-api-00053-6k7",
+          "service_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002",
+          "configuration_name": "retailtwin-api",
+          "location": "us-central1"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:27.427425Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/040b72d9910fea21a6406872da11cfeb",
+      "receiveTimestamp": "2026-10-24T22:07:27.557121043Z",
+      "spanId": "4052aff1e30751db"
+    },
+    {
+      "insertId": "6add2c1e00083b462f060b59",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "107.178.194.230",
+        "serverIp": "34.143.74.2",
+        "latency": "0.009912473s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "service_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "project_id": "retailtwin-ai-511002",
+          "configuration_name": "retailtwin-api",
+          "location": "us-central1"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:26.526096Z",
+      "severity": "WARNING",
+      "labels": {
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/b2d9338cb2dcc416dd241db6d7adc5e7",
+      "receiveTimestamp": "2026-10-24T22:07:26.558336384Z",
+      "spanId": "96db5ec5dbd0a9ef"
+    },
+    {
+      "insertId": "6add2c1d0009f798c2f032d6",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.127.136.35",
+        "serverIp": "34.143.74.2",
+        "latency": "0.016594258s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "revision_name": "retailtwin-api-00053-6k7",
+          "project_id": "retailtwin-ai-511002",
+          "service_name": "retailtwin-api",
+          "configuration_name": "retailtwin-api",
+          "location": "us-central1"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:25.630356Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/d8edc7f7c22d1ac85ba16106bc6f46ad",
+      "receiveTimestamp": "2026-10-24T22:07:25.891016035Z",
+      "spanId": "5927937164a49049"
+    },
+    {
+      "insertId": "6add2c1d000095543cf147d1",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "107.178.194.161",
+        "serverIp": "34.143.72.2",
+        "latency": "0.009113266s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "project_id": "retailtwin-ai-511002",
+          "service_name": "retailtwin-api",
+          "location": "us-central1",
+          "configuration_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:25.025408Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/f1520d701795899dd27dc2ef884c7b94",
+      "receiveTimestamp": "2026-10-24T22:07:25.227375299Z",
+      "spanId": "23c6ab7d73c3db67"
+    },
+    {
+      "insertId": "6add2c1c0006ddedff99d7df",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.98.143.97",
+        "serverIp": "34.143.75.2",
+        "latency": "0.016693497s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "location": "us-central1",
+          "project_id": "retailtwin-ai-511002",
+          "service_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "configuration_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:24.422983Z",
+      "severity": "WARNING",
+      "labels": {
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/18beff29b971e1df2e68614d4acc956a",
+      "receiveTimestamp": "2026-10-24T22:07:24.558009196Z",
+      "spanId": "d34a4957ac56367f"
+    },
+    {
+      "insertId": "6add2c1b000cda667e277c2f",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "74.125.212.133",
+        "serverIp": "34.143.78.2",
+        "latency": "0.008243449s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "revision_name": "retailtwin-api-00053-6k7",
+          "project_id": "retailtwin-ai-511002",
+          "service_name": "retailtwin-api",
+          "configuration_name": "retailtwin-api",
+          "location": "us-central1"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:23.828586Z",
+      "severity": "WARNING",
+      "labels": {
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/ee7b91585f27f0f6911a12dbfcf4f941",
+      "receiveTimestamp": "2026-10-24T22:07:23.900841690Z",
+      "spanId": "143c60052c782105"
+    },
+    {
+      "insertId": "6add2c1b0004316527f9be67",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "74.125.215.231",
+        "serverIp": "34.143.78.2",
+        "latency": "0.022115605s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "revision_name": "retailtwin-api-00053-6k7",
+          "project_id": "retailtwin-ai-511002",
+          "configuration_name": "retailtwin-api",
+          "service_name": "retailtwin-api",
+          "location": "us-central1"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:23.243861Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/2534581b57e914e00372669b786b67d3",
+      "receiveTimestamp": "2026-10-24T22:07:23.560113476Z",
+      "spanId": "3b9f7d20720b012c"
+    },
+    {
+      "insertId": "6add2c1a000a5df60ca92e8f",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "35.243.23.38",
+        "serverIp": "34.143.75.2",
+        "latency": "0.024745037s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "location": "us-central1",
+          "project_id": "retailtwin-ai-511002",
+          "configuration_name": "retailtwin-api",
+          "service_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:22.621783Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/30933ceb30f27f43975962e62ce87f5a",
+      "receiveTimestamp": "2026-10-24T22:07:22.895330554Z",
+      "spanId": "b7a0176a752f8b5d"
+    },
+    {
+      "insertId": "6add2c19000e2d3cae48e45f",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "35.243.23.67",
+        "serverIp": "34.143.74.2",
+        "latency": "0.006517824s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "revision_name": "retailtwin-api-00053-6k7",
+          "location": "us-central1",
+          "configuration_name": "retailtwin-api",
+          "service_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:21.920033Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/ea65739fe05e147e40295204419d6fea",
+      "receiveTimestamp": "2026-10-24T22:07:22.230412048Z",
+      "spanId": "eacb1f0ecd263169"
+    },
+    {
+      "insertId": "6add2c1900039e5a559bd7ce",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "35.187.132.163",
+        "serverIp": "34.143.76.2",
+        "latency": "0.006648604s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "service_name": "retailtwin-api",
+          "location": "us-central1",
+          "project_id": "retailtwin-ai-511002",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "configuration_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:21.226421Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/59b07555de7d2e62a3b1c3f03a70c5b3",
+      "receiveTimestamp": "2026-10-24T22:07:21.564375897Z",
+      "spanId": "207cdb71a11e69ee"
+    },
+    {
+      "insertId": "6add2c170001e8f4658638b8",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.116.39.38",
+        "serverIp": "34.143.72.2",
+        "latency": "0.006775479s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "configuration_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "location": "us-central1",
+          "project_id": "retailtwin-ai-511002",
+          "service_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:19.115228Z",
+      "severity": "WARNING",
+      "labels": {
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/18ec729e56145384a11472f246e7e471",
+      "receiveTimestamp": "2026-10-24T22:07:19.228837762Z",
+      "spanId": "339f3d7aef90a4f7",
+      "traceSampled": true
+    },
+    {
+      "insertId": "6add2c150006ee35e9f2f6ce",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "35.187.132.226",
+        "serverIp": "34.143.74.2",
+        "latency": "0.009027536s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "revision_name": "retailtwin-api-00053-6k7",
+          "project_id": "retailtwin-ai-511002",
+          "configuration_name": "retailtwin-api",
+          "service_name": "retailtwin-api",
+          "location": "us-central1"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:17.442057Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/e807c389d0468d76b388fa8dbb10e586",
+      "receiveTimestamp": "2026-10-24T22:07:17.566108611Z",
+      "spanId": "873311ecb46a89d8"
+    },
+    {
+      "insertId": "6add2c14000af7a8c0b29e88",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.116.39.166",
+        "serverIp": "34.143.74.2",
+        "latency": "0.009311135s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "location": "us-central1",
+          "project_id": "retailtwin-ai-511002",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "configuration_name": "retailtwin-api",
+          "service_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:16.705401Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/62f1c898aecee70fe044e924242a1ee7",
+      "receiveTimestamp": "2026-10-24T22:07:16.896974677Z",
+      "spanId": "946724a436182383"
+    },
+    {
+      "insertId": "6add2c11000032a9261df1d6",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "35.243.23.66",
+        "serverIp": "34.143.76.2",
+        "latency": "0.012181822s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "location": "us-central1",
+          "configuration_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "service_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:12.997566Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/ef1d41adea3cfa0c964c4ff562e68263",
+      "receiveTimestamp": "2026-10-24T22:07:13.233042474Z",
+      "spanId": "fb90e2361b664eb4"
+    },
+    {
+      "insertId": "6add2c1000037c86ed9c2728",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "66.102.6.193",
+        "serverIp": "34.143.78.2",
+        "latency": "0.014754869s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "location": "us-central1",
+          "service_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002",
+          "configuration_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:12.210495Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/ce67bd72990fe9c2ae7a929938d4516d",
+      "receiveTimestamp": "2026-10-24T22:07:12.567060804Z",
+      "spanId": "a8b41aa1122c7c4b"
+    },
+    {
+      "insertId": "6add2c0f000972e76477d734",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "35.243.23.160",
+        "serverIp": "34.143.75.2",
+        "latency": "0.010001487s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "project_id": "retailtwin-ai-511002",
+          "service_name": "retailtwin-api",
+          "location": "us-central1",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "configuration_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:11.606302Z",
+      "severity": "WARNING",
+      "labels": {
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/53960ff14b57c552c5b1c59879dd675c",
+      "receiveTimestamp": "2026-10-24T22:07:11.902683619Z",
+      "spanId": "06ae84ac209bcf55"
+    },
+    {
+      "insertId": "6add2c0f00003d410fcdb4be",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.127.136.226",
+        "serverIp": "34.143.72.2",
+        "latency": "0.012426256s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "project_id": "retailtwin-ai-511002",
+          "configuration_name": "retailtwin-api",
+          "location": "us-central1",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "service_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:10.999091Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/371f7655cd11cf8a8816d1fe960be39d",
+      "receiveTimestamp": "2026-10-24T22:07:11.235631454Z",
+      "spanId": "c354e6329cc65853"
+    },
+    {
+      "insertId": "6add2c0d0003446f5ec44e44",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1044",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "66.102.6.75",
+        "serverIp": "34.143.75.2",
+        "latency": "0.008046035s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "configuration_name": "retailtwin-api",
+          "location": "us-central1",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "service_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:09.202674Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/164f7732452b5a628bb405761c67e9aa",
+      "receiveTimestamp": "2026-10-24T22:07:09.239945247Z",
+      "spanId": "d1503232fde4e73d"
+    },
+    {
+      "insertId": "6add2c0c00093c2cb3bcdb7d",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "107.178.194.37",
+        "serverIp": "34.143.76.2",
+        "latency": "0.012347337s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "service_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "location": "us-central1",
+          "configuration_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:08.588067Z",
+      "severity": "WARNING",
+      "labels": {
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/e8276694fba7c598af29cc06a3e5ffa7",
+      "receiveTimestamp": "2026-10-24T22:07:08.905595600Z",
+      "spanId": "b7f0caed1ac1eec7",
+      "traceSampled": true
+    },
+    {
+      "insertId": "6add2c08000f05e3ba56e8f5",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.127.136.225",
+        "serverIp": "34.143.72.2",
+        "latency": "0.006885020s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "revision_name": "retailtwin-api-00053-6k7",
+          "configuration_name": "retailtwin-api",
+          "location": "us-central1",
+          "project_id": "retailtwin-ai-511002",
+          "service_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:04.972213Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/af885aeddc8e482e2d6ff13607646f11",
+      "receiveTimestamp": "2026-10-24T22:07:05.238694038Z",
+      "spanId": "b39025bd80a64817"
+    },
+    {
+      "insertId": "6add2c060002a06b558710d8",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "107.178.194.11",
+        "serverIp": "34.143.76.2",
+        "latency": "0.008284639s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "configuration_name": "retailtwin-api",
+          "location": "us-central1",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "service_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:02.160738Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/d187ad4808bb9927cc971b3fa4ec5e87",
+      "receiveTimestamp": "2026-10-24T22:07:02.244877199Z",
+      "spanId": "5c3e506cd8278d44"
+    },
+    {
+      "insertId": "6add2c050008cf37e27c6300",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "192.178.15.68",
+        "serverIp": "34.143.75.2",
+        "latency": "0.007113800s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "location": "us-central1",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "configuration_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002",
+          "service_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:07:01.566619Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/c43a952ba8795224ae7deddc6b8051f8",
+      "receiveTimestamp": "2026-10-24T22:07:01.909265828Z",
+      "spanId": "c5586751f0322e16"
+    },
+    {
+      "insertId": "6add2c0300070a053b9bf004",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "107.178.194.100",
+        "serverIp": "34.143.74.2",
+        "latency": "0.011911412s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "location": "us-central1",
+          "project_id": "retailtwin-ai-511002",
+          "service_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "configuration_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:06:59.445908Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/19a2d3052114992e088488dc56b68664",
+      "receiveTimestamp": "2026-10-24T22:06:59.580930616Z",
+      "spanId": "d49384320ab4de14"
+    },
+    {
+      "insertId": "6add2c010006bee961b0a542",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.127.136.101",
+        "serverIp": "34.143.76.2",
+        "latency": "0.005695202s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "project_id": "retailtwin-ai-511002",
+          "configuration_name": "retailtwin-api",
+          "service_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "location": "us-central1"
+        }
+      },
+      "timestamp": "2026-10-24T22:06:57.433472Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/57dfe819e1103d5229796fc3b329f4cb",
+      "receiveTimestamp": "2026-10-24T22:06:57.583643382Z",
+      "spanId": "9cce3bb6c8e6ef31",
+      "traceSampled": true
+    },
+    {
+      "insertId": "6add2bff000cdfe5431cb984",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.98.143.1",
+        "serverIp": "34.143.76.2",
+        "latency": "0.007946505s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "project_id": "retailtwin-ai-511002",
+          "service_name": "retailtwin-api",
+          "location": "us-central1",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "configuration_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:06:55.832753Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/d822da4bd75dff31a57f548ad443dddc",
+      "receiveTimestamp": "2026-10-24T22:06:55.917084903Z",
+      "spanId": "c485e3b702176639"
+    },
+    {
+      "insertId": "6add2bff0003cf4e9043c56f",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "35.243.23.206",
+        "serverIp": "34.143.74.2",
+        "latency": "0.007537922s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "location": "us-central1",
+          "service_name": "retailtwin-api",
+          "configuration_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "project_id": "retailtwin-ai-511002"
+        }
+      },
+      "timestamp": "2026-10-24T22:06:55.238812Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/83f637cbe1cffff1a2f870bff7cf9b0e",
+      "receiveTimestamp": "2026-10-24T22:06:55.589387640Z",
+      "spanId": "a2a2a97835ab863e"
+    },
+    {
+      "insertId": "6add2bfe00008e5af40deda4",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.98.143.200",
+        "serverIp": "34.143.72.2",
+        "latency": "0.006052837s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "service_name": "retailtwin-api",
+          "configuration_name": "retailtwin-api",
+          "location": "us-central1",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "project_id": "retailtwin-ai-511002"
+        }
+      },
+      "timestamp": "2026-10-24T22:06:54.027679Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/9c7530e0ff9ea4ed409f635badd34186",
+      "receiveTimestamp": "2026-10-24T22:06:54.248489483Z",
+      "spanId": "317da108890c491c"
+    },
+    {
+      "insertId": "6add2bfc000e417546b7a010",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.127.136.232",
+        "serverIp": "34.143.74.2",
+        "latency": "0.005354619s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "service_name": "retailtwin-api",
+          "configuration_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "location": "us-central1",
+          "project_id": "retailtwin-ai-511002"
+        }
+      },
+      "timestamp": "2026-10-24T22:06:52.926199Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/f981984f086e8ba489c094d7a20843e2",
+      "receiveTimestamp": "2026-10-24T22:06:53.249489331Z",
+      "spanId": "e405214065622212"
+    },
+    {
+      "insertId": "6add2bfb000e5ca3a55a5279",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.98.143.227",
+        "serverIp": "34.143.74.2",
+        "latency": "0.006880729s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "configuration_name": "retailtwin-api",
+          "service_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "location": "us-central1",
+          "project_id": "retailtwin-ai-511002"
+        }
+      },
+      "timestamp": "2026-10-24T22:06:51.931421Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/ca5d578d0512d343e7b91eaadddf5c80",
+      "receiveTimestamp": "2026-10-24T22:06:52.253037237Z",
+      "spanId": "fa009f4fd01a702e"
+    },
+    {
+      "insertId": "6add2bfb00051ce9e1701263",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.127.136.38",
+        "serverIp": "34.143.75.2",
+        "latency": "0.006553072s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "location": "us-central1",
+          "service_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "project_id": "retailtwin-ai-511002",
+          "configuration_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:06:51.325674Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/d02032e012445b200437031253e881f6",
+      "receiveTimestamp": "2026-10-24T22:06:51.585788729Z",
+      "spanId": "2eeaecf5aaf41861"
+    },
+    {
+      "insertId": "6add2bfa000b34f872f4d53f",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "35.243.23.166",
+        "serverIp": "34.143.74.2",
+        "latency": "0.005209809s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "project_id": "retailtwin-ai-511002",
+          "configuration_name": "retailtwin-api",
+          "service_name": "retailtwin-api",
+          "location": "us-central1",
+          "revision_name": "retailtwin-api-00053-6k7"
+        }
+      },
+      "timestamp": "2026-10-24T22:06:50.725891Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/620e3bd22650d5911e36de74bd1b6184",
+      "receiveTimestamp": "2026-10-24T22:06:50.918302067Z",
+      "spanId": "cf3f8d2ac99ee1d2"
+    },
+    {
+      "insertId": "6add2bfa0001e4804a68ca88",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.116.39.195",
+        "serverIp": "34.143.72.2",
+        "latency": "0.005332362s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "location": "us-central1",
+          "service_name": "retailtwin-api",
+          "configuration_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002",
+          "revision_name": "retailtwin-api-00053-6k7"
+        }
+      },
+      "timestamp": "2026-10-24T22:06:50.114848Z",
+      "severity": "WARNING",
+      "labels": {
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/fb94514f2a39bdef91e760e3d7986e88",
+      "receiveTimestamp": "2026-10-24T22:06:50.253393134Z",
+      "spanId": "fdb80b843f949535"
+    },
+    {
+      "insertId": "6add2bf9000375f78578de3b",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "35.243.23.40",
+        "serverIp": "34.143.72.2",
+        "latency": "0.008032462s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "service_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "configuration_name": "retailtwin-api",
+          "location": "us-central1"
+        }
+      },
+      "timestamp": "2026-10-24T22:06:49.216032Z",
+      "severity": "WARNING",
+      "labels": {
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/124bec124ce752a760ca4145e16bd3b7",
+      "receiveTimestamp": "2026-10-24T22:06:49.252766299Z",
+      "spanId": "8fc6fbd25606bd63"
+    },
+    {
+      "insertId": "6add2bf800068ab81b0c72bf",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1046",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.116.39.6",
+        "serverIp": "34.143.74.2",
+        "latency": "0.013151399s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "project_id": "retailtwin-ai-511002",
+          "configuration_name": "retailtwin-api",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "location": "us-central1",
+          "service_name": "retailtwin-api"
+        }
+      },
+      "timestamp": "2026-10-24T22:06:48.412081Z",
+      "severity": "WARNING",
+      "labels": {
+        "managed-by": "github-actions",
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/5b4d6cdbfa08d2d80fd27ad6aea04c25",
+      "receiveTimestamp": "2026-10-24T22:06:48.589159478Z",
+      "spanId": "fbe1460d72ad14be"
+    },
+    {
+      "insertId": "6add2bf7000997f64eafc39e",
+      "httpRequest": {
+        "requestMethod": "POST",
+        "requestUrl": "https://retailtwin-api-5rgtvr4gpa-uc.a.run.app/pubsub/agent-events",
+        "requestSize": "1045",
+        "status": 401,
+        "responseSize": "339",
+        "userAgent": "APIs-Google; (+https://developers.google.com/webmasters/APIs-Google.html)",
+        "remoteIp": "34.116.39.68",
+        "serverIp": "34.143.76.2",
+        "latency": "0.013268619s",
+        "protocol": "HTTP/1.1"
+      },
+      "resource": {
+        "type": "cloud_run_revision",
+        "labels": {
+          "configuration_name": "retailtwin-api",
+          "project_id": "retailtwin-ai-511002",
+          "revision_name": "retailtwin-api-00053-6k7",
+          "service_name": "retailtwin-api",
+          "location": "us-central1"
+        }
+      },
+      "timestamp": "2026-10-24T22:06:47.611522Z",
+      "severity": "WARNING",
+      "labels": {
+        "commit-sha": "920e166f3526947e66ced3644bed40e761a88133",
+        "instanceId": "0010dd86075dd32519bfd68e920ea2e55a2d268316de5efc534e073f63654e812c3c52da614ebd5acf5f0a0330b7b14b219a18c4d493d839a450228e2d4b2cd134257355498cb5db03e5ba24b0a8a2f72feae9b28357b3",
+        "managed-by": "github-actions"
+      },
+      "logName": "projects/retailtwin-ai-511002/logs/run.googleapis.com%2Frequests",
+      "trace": "projects/retailtwin-ai-511002/traces/33d22f3e8a28bc999c0fbd33f14f69e8",
+      "receiveTimestamp": "2026-10-24T22:06:47.922283145Z",
+      "spanId": "54ed1fa09dfef0d5"
+    }
+  ],
+  "nextPageToken": "essHCsYHAdjKCLpXXv8IDkGIRoahJ8tit7W8OHLdHu_XdKAcLxLTZtY82ECKk3-K3Te1_aTviXn9aR0ol9aXw_yXqObJ_QIwMlYr5_E-WL4p4vi5e2xRG4U6lsNUiJ-2HvYSVubm1JmpFsoxBqx8cAKQJRx0L6CQ_atDL7HN6ZlY6pMZXt4uTm8h7FU_Fwjpv8uLn5ORA-0qaSOrgsQLkvj38NRDckUzvPjNzkDGUUdXPJ22_Nu7tk6SnqC-qeWRjdV77DK1rd4CzuPUXJxjUqNuF0tRTXKuV0CjgXE5FlGuBLb-on40kGm0rpWUk0ys89M30zBJAgesk_M45ZZwtvDlMVZNLqXywQGR5LS7V6NXvFEIOzAXTJlRJlgz5oBRrBjgC-LMbildWMLx-Lw14pTvZLAzIY5xciAVBhFK4oopq_MB-oBTEJ4sob5fxPGNtsr1AnnmhkKQ-NDV6S7T17Xne4_NTHyKOR6wwXMcuLkZ3v5of5lYp4-zRMZhsKCziF6WVRIjMz89wIjDSOleJs2Q76CJ8XOFpsRajZvdc_VyRBIfonHnMiBuA1jl6eAgnQzPkZIX7BGWb3U3i8gFuKn0blak5QbKKWKu9CLQ9JM1J_MUxgW-w7m8Hr4yx64Nl8QZyRwZvLpoEpkp_tukq52MIAj5D7vEXkIJFJ8Ocv-A-XBQzT0KPYSxm17e2HPfpmgU4BhItpcQ6gKmTli-0nwDHIbFVx-ZW51bLJNFcMxGGxD2YDJVs54rl02Yq2oIFTZd7F2kJS5CNGae98L3ooPDj1JNLY2NOg8QNiyPtdgoJRIdt8UwTaEgYz6IuJ1a_UAqmT6M2UX9fIVcNP7Zba_NLFo_fSf7F5F6S0chOBf8tidEvfa1cBYZM7bF1qcSQmw9RPu2hJD09WxTiuSsZdBBZT3kImiT3LamWez-5X7yKpYrBkT6Fb34mSibllUPhmPqpzQ3LKZUvlzMSceEJmp438kZpSq0KjpBHEiNpw1lsu5Fwwc72X0Q6uL2u5jqmsZcdSxjAvPOjJWObAe07fJWqrD1Ntix6elzfQauShXhtIzttwnoyHA8eT0r5Ui7bbkf7CZ8_uUWS4BxFS8DhlMv-9KdE2mP1OCPDUNxOFJD1K5mAIVNzgo5H1ti-j5yzj-r6mtKSNh0-qe3ffgt5LmPp6QAsK6H6Lg2SVKjJFd1VkXeVu-LzqXdTaJtBqxFbzqR6wj6EUPeF2fNhuf1L0UaCM6E0wo5MLA7XhocUnHvr7zw3-pm8KVvH4LOIuJRXM05h0SkWfBFfZSdEAE"
+}
