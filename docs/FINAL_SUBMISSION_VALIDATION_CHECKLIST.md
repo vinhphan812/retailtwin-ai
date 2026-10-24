@@ -270,8 +270,10 @@ The first command is SHA-exact and is the authoritative check. The second reads 
 **default branch head** — currently `920e166f` — and returns HTTP 404 with no `licenseInfo`,
 which is GitHub's licence detector reporting that it finds no licence.
 
-At submission SHA `920e166f` both commands show **no licence**. README §License states "This
-repository does not currently declare a license file".
+At submission SHA `920e166f` both commands show **no licence**. The first is expected to print
+nothing and exit non-zero (`grep` reporting "no match") — that empty result *is* the finding, not
+a command error. README §License states "This repository does not currently declare a license
+file".
 
 #### The two states, and what each requires
 

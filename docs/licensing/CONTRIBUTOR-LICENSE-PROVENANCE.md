@@ -78,6 +78,13 @@ gh api repos/vinhphan812/retailtwin-ai/collaborators --jq '.[] | "\(.login) admi
 gh api repos/vinhphan812/retailtwin-ai/license        # 404 at the default branch head (920e166f)
 ```
 
+> **Reading the output.** The two `git ls-tree … | grep …` commands are expected to print
+> **nothing** and exit **non-zero** at `920e166f` — that is `grep` reporting "no match", which is
+> the documented finding (no `CLA`/`CONTRIBUTING`/`AUTHORS`/`COPYRIGHT`/`GOVERNANCE`, and no root
+> licence or notice). `gh api repos/…/license` is likewise expected to fail with HTTP 404. A
+> reviewer should treat **empty output plus a non-zero exit** as the pass condition for these
+> three, not as a command error.
+
 Resolving a commit identity to a GitHub account (used throughout §4):
 
 ```bash
