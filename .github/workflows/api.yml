@@ -255,11 +255,27 @@ jobs:
       - name: Verify pushed release image exists
         run: |
           set -euo pipefail
-          gcloud container images describe \
-            "gcr.io/retailtwin-ai-511002/retailtwin-api:${{ github.sha }}" \
+          IMAGE="gcr.io/retailtwin-ai-511002/retailtwin-api:${{ github.sha }}"
+          DIGEST=""
+          # `gcloud container images` is the GCR-native command; fall back to the
+          # Artifact Registry surface if the runner ships a gcloud build where
+          # the GCR alias is unavailable. Both must yield a sha256 digest.
+          if DIGEST="$(gcloud container images describe "$IMAGE" \
             --project=retailtwin-ai-511002 \
-            --format='value(image_summary.digest)' \
-            | grep -q '^sha256:'
+            --format='value(image_summary.digest)' 2>/dev/null)"; then
+            :
+          elif DIGEST="$(gcloud artifacts docker images describe "$IMAGE" \
+            --project=retailtwin-ai-511002 \
+            --format='value(image_summary.digest)' 2>/dev/null)"; then
+            :
+          fi
+          case "$DIGEST" in
+            sha256:*)
+              echo "::notice::Release image present: $IMAGE@$DIGEST" ;;
+            *)
+              echo "::error::Release image $IMAGE is not present in the registry; refusing to scan or deploy." >&2
+              exit 1 ;;
+          esac
 
       - name: Scan pushed release image for fixable critical/high vulnerabilities
         env:

@@ -36,7 +36,9 @@ def test_release_image_is_pushed_verified_scanned_then_deployed() -> None:
 
     assert build < verify < scan < deploy
     assert "push: true" in workflow[build:verify]
-    assert 'gcloud container images describe \\' in workflow[verify:scan]
+    assert "gcloud container images describe" in workflow[verify:scan]
+    assert "gcloud artifacts docker images describe" in workflow[verify:scan]
+    assert "refusing to scan or deploy" in workflow[verify:scan]
     assert "--ignore-unfixed --severity HIGH,CRITICAL --exit-code 1" in workflow[scan:deploy]
     assert "set -euo pipefail" in workflow[verify:scan]
     assert "set -euo pipefail" in workflow[scan:deploy]
