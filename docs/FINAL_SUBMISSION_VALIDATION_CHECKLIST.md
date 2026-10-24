@@ -223,6 +223,8 @@ A passing CI workflow at one SHA does **not** mean the code is reviewed. CI prov
 | D13 | `docs/demo-video/production-checklist.md` | ✅ | 🟡 EXISTS — verify currency at submission SHA |
 | D14 | `docs/demo-video/acceptance-criteria.md` | ✅ | 🟡 EXISTS — verify currency at submission SHA |
 | D15 | `docs/licensing/CONTRIBUTOR-LICENSE-PROVENANCE.md` | ✅ | 🟡 EXISTS — contributor-authority record for the MIT grant; states the open owner actions (CR12, see §6.1) |
+| D16 | `CLA.md` (repository root) | ✅ | 🟡 EXISTS — Individual Contributor Licence Agreement, owner-signed; the three non-owner acceptance rows are **not yet accepted** (CR12, see §6.1) |
+| D17 | `CONTRIBUTING.md` (repository root) | ✅ | 🟡 EXISTS — contributor guide; states the CLA acceptance requirement before a contribution is merged |
 
 ---
 
@@ -241,7 +243,7 @@ A passing CI workflow at one SHA does **not** mean the code is reviewed. CI prov
 | CR09 | Demo video under required duration | *(static reference)* `docs/DEMO_VIDEO.md` — video artifact required | 🔴 NOT VERIFIED |
 | CR10 | Public repository | `github.com/vinhphan812/retailtwin-ai` | ✅ PUBLIC |
 | CR11 | No secrets/credentials in repo | *(run required)* CI C03 + C13 — run required at submission SHA | 🟡 UNKNOWN |
-| CR12 | License declared | *(static reference)* MIT licence text and third-party notice exist **only on open PRs #398 (`ebb70b64`) / #397 (`4fae32de`)** — byte-identical blobs; **no root `LICENSE` at submission SHA `920e166f`**. See §6.1 | 🔴 MISSING at `920e166f` → 🟡 DECLARED (post-merge) → 🟢 VERIFIED (provenance confirmed) — see §6.1 |
+| CR12 | License declared | *(static reference)* MIT licence text and third-party notice exist **only on open PRs #398 (`ebb70b64`) / #397 (`4fae32de`)** — byte-identical blobs; **no root `LICENSE` at submission SHA `920e166f`**. Contributor-authority artefact `CLA.md` now exists at the root (owner-signed; three non-owner acceptances outstanding). See §6.1 | 🔴 MISSING at `920e166f` → 🟡 DECLARED (post-merge) → 🟢 VERIFIED (provenance confirmed) — see §6.1 |
 
 > **Requirement label.** The second column reproduces the competition requirement wording
 > verbatim ("License declared", per Issue #367). The prose of this document uses the UK
@@ -280,12 +282,22 @@ file".
 | State | Meaning | Preconditions | True today? |
 |---|---|---|---|
 | 🟡 **DECLARED** | A licence file exists at the repository root and the README references it. Proves the project *states* a licence. Proves nothing about who had the authority to grant it. | Exactly one of PR #397 / #398 merged, and a **new submission SHA** cut from that merge. | **No** — both PRs are open; neither licence file is in the tree. |
-| 🟢 **VERIFIED** | Provenance/authority evidence exists for the MIT grant — a CLA, or written confirmation from each non-owner human contributor, recorded in-repo. | DECLARED **and** the contributor-authority record closed. | **No** — no CLA, no `CONTRIBUTING`, no copyright-holder statement, no governance document exists in the tree. |
+| 🟢 **VERIFIED** | Provenance/authority evidence exists for the MIT grant — a CLA, or written confirmation from each non-owner human contributor, recorded in-repo. | DECLARED **and** the contributor-authority record closed. | **No** — the CLA artefact `CLA.md` now exists at the repository root and the owner has signed its acceptance register, but **none of the three non-owner contributors has accepted**: acceptance requests #408, #409 and #410 are open with no response. |
 
 **CR12 cannot read 🟢 VERIFIED on the strength of the licence text alone.** The MIT text asserts
-`Copyright (c) 2026 RetailTwin AI Contributors`, but the repository holds no record that every
+`Copyright (c) 2026 RetailTwin AI Contributors`, but the repository held no record that every
 contributor authorised that grant. `THIRD_PARTY_NOTICES.md` covers *third-party* provenance only
 and does **not** close this gap.
+
+**Progress on the contributor-authority gap (A2).** The mechanism is now in place: `CLA.md` at the
+repository root is an inbound Individual Contributor Licence Agreement with an acceptance register
+at §5, adopted and owner-signed on 2026-10-25. Acceptance requests are open for the three
+non-owner human contributors as issues [#408](https://github.com/vinhphan812/retailtwin-ai/issues/408)
+(`anh-nguyen-3103`), [#409](https://github.com/vinhphan812/retailtwin-ai/issues/409) (`k-pham08`)
+and [#410](https://github.com/vinhphan812/retailtwin-ai/issues/410) (`longshaww`). **No acceptance
+has been received.** A request is not a confirmation: the three rows stay `NOT EVIDENCED` in
+`docs/licensing/CONTRIBUTOR-LICENSE-PROVENANCE.md` §5 until each acceptance is actually received
+and recorded. **CR12 therefore remains blocked at 🟡/🔴 and cannot read 🟢 VERIFIED.**
 
 #### Authoritative files and the SHA they bind to
 
@@ -294,6 +306,7 @@ and does **not** close this gap.
 | Licence text | `LICENSE` (repository root) | `45b8da20817cb3ae9926b65c8d831ed88db9d23f` | `1d1e0b4b81b98b360932a440d6857c5f182e8392b18a8058ed4862a0e778f4c7` | 1083 B | **PR #398** head `ebb70b646f48365bfbb724df71170a09e85442cf` (OPEN) — byte-identical on **PR #397** head `4fae32dea25c43d4af2fd49d86da11f03fb1e172` (OPEN). **Absent at `920e166f`.** |
 | Third-party notice | `THIRD_PARTY_NOTICES.md` (repository root) | `29dfe959868e3724094fdaf1bd20052199dc2e48` | — | 5466 B | As above — same two open PR heads. **Absent at `920e166f`.** |
 | Contributor-authority record | `docs/licensing/CONTRIBUTOR-LICENSE-PROVENANCE.md` | *this branch* | — | — | Present from this commit onwards; states the open items explicitly. |
+| Contributor licence agreement | `CLA.md` (repository root) | *this branch* | — | — | Inbound Individual Contributor Licence Agreement, adopted and owner-signed 2026-10-25; acceptance register at §5. **Absent at `920e166f`.** The three non-owner rows read *not yet accepted* — requests #408 / #409 / #410 open, no response. |
 
 > ⚠️ **Do not cite a pre-merge SHA as if the licence existed at it.** The licence is bound to the
 > **merge commit** of whichever licence PR is merged, not to that PR's head. The submission SHA
@@ -304,7 +317,7 @@ and does **not** close this gap.
 | # | Action | Status |
 |---|---|---|
 | A1 | Choose **exactly one** of PR #397 / PR #398 to merge as the canonical licence delivery; close the other (identical licence blobs and overlapping gate-evidence trees). | ⛔ Owner decision — outstanding |
-| A2 | Record contributor-authority confirmation for the MIT grant (CLA, or written confirmation from `anh-nguyen-3103`, `k-pham08`, `longshaww`). Tracked in `docs/licensing/CONTRIBUTOR-LICENSE-PROVENANCE.md` §7. | ⛔ Owner action — outstanding |
+| A2 | Record contributor-authority confirmation for the MIT grant (CLA, or written confirmation from `anh-nguyen-3103`, `k-pham08`, `longshaww`). Tracked in `docs/licensing/CONTRIBUTOR-LICENSE-PROVENANCE.md` §7. | 🟡 **In progress** — `CLA.md` adopted and owner-signed 2026-10-25; acceptance requests #408 / #409 / #410 open with **no response received** |
 | A3 | Re-cut the submission SHA from the merge, then re-evaluate CR12 at that SHA. | ⛔ Blocked by A1, A2 |
 | A4 | Re-deploy Cloud Run and the web artefact at the new SHA; confirm the MIT notice travels with the distributed artefacts. | ⛔ Blocked by A3 — card `t_f34e7fb6` |
 
@@ -328,8 +341,8 @@ the re-runnable commands behind every claim above.
 - **CI checks (C01–C15):** requires live run  
 - **Deployment (D01–D12, A01–A04, W01–W04):** 🟡 PARTIAL — cloud preflight and data audit passed  
 - **Release gates (G02–G06, #216):** G02 passed; G03–G06 NOT PASSED  
-- **Competition requirements (CR01–CR12):** 2 confirmed, 1 missing (CR12 licence — 🔴 MISSING at submission SHA `920e166f`; reaches 🟡 DECLARED only once one licence PR is merged and a new SHA is cut, and 🟢 VERIFIED only with contributor-authority evidence — see §6.1), rest 🟡/🔴  
-- **Documentation (D01–D15):** 15 documents present; currency not verified  
+- **Competition requirements (CR01–CR12):** 2 confirmed, 1 missing (CR12 licence — 🔴 MISSING at submission SHA `920e166f`; reaches 🟡 DECLARED only once one licence PR is merged and a new SHA is cut, and 🟢 VERIFIED only with contributor-authority evidence — the `CLA.md` artefact exists and is owner-signed, but the three non-owner acceptances are still outstanding — see §6.1), rest 🟡/🔴  
+- **Documentation (D01–D17):** 17 documents present; currency not verified  
 
 > **Verdict:** Not ready for submission. The code is largely in place but no release gate evidence (G03–G06) has been recorded. Cloud preflight (G01) and production data audit (#216) are green. The first action is to run the G03–G06 submission gate harnesses and record the evidence matrices.
 
