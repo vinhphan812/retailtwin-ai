@@ -141,9 +141,34 @@ jobs:
           echo "${API_RUNS}" > /tmp/api_run.json
           echo "${WEB_RUNS}" > /tmp/web_run.json
 
+          # The Web CI / CD workflow is path-filtered to web files, so a main
+          # push that only touches the API never produces a "Web CI / CD" run
+          # for that SHA. In that case the web leg is not applicable to the
+          # gate: the deployed frontend is unchanged, and smoke check 12 still
+          # proves the live frontend is serving. When the SHA *does* touch a
+          # web path the leg stays mandatory and fails closed.
+          echo "::group::Check whether the gate SHA touches web paths"
+          WEB_TOUCHED=$(gh api "repos/${{ github.repository }}/commits/${GATE_SHA}" \
+            --jq '.files[].filename' 2>/dev/null \
+            | grep -E '^(apps/web/|package\.json$|firebase\.json$|\.firebaserc$|\.github/workflows/web\.yml$)' \
+            | head -1 || true)
+          if [ -n "${WEB_TOUCHED}" ]; then
+            echo "web_paths_touched=true" > /tmp/web_touched.txt
+            echo "Web path touched by ${GATE_SHA}: ${WEB_TOUCHED}"
+          else
+            echo "web_paths_touched=false" > /tmp/web_touched.txt
+            echo "No web path touched by ${GATE_SHA} — the 'Web CI / CD' leg is not applicable to this SHA."
+          fi
+          echo "::endgroup::"
+
           python3 - "${GATE_SHA}" << 'PYEOF'
-          import json, sys
+          import json, os, sys
           errors = []
+          web_touched = False
+          try:
+              web_touched = open("/tmp/web_touched.txt").read().strip() == "true"
+          except OSError:
+              web_touched = False
           for label, path in [("API CI", "/tmp/api_run.json"), ("Web CI / CD", "/tmp/web_run.json")]:
               try:
                   run = json.load(open(path))
@@ -154,6 +179,9 @@ jobs:
               status   = run.get("status")   or ""
               conc     = run.get("conclusion") or ""
               if not head_sha:
+                  if label == "Web CI / CD" and not web_touched:
+                      print(f"::notice::{label}: no run for SHA {sys.argv[1]} and the SHA touches no web path — leg not applicable.")
+                      continue
                   errors.append(f"{label}: no run found for SHA {sys.argv[1]}")
               elif status in ("in_progress", "queued", "waiting"):
                   errors.append(f"{label}: run is {status} for SHA {sys.argv[1]}")
@@ -184,6 +212,12 @@ jobs:
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_DEPLOY_SA }}
+
+      - name: Set up Google Cloud CLI
+        # The self-hosted runner does not ship the Cloud SDK. setup-gcloud
+        # provisions it into the runner tool cache so every gcloud/bq call in
+        # this job resolves, independent of what the runner image ships.
+        uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
 
       - name: Verify deployed artifacts exist for the SHA
         if: github.event_name == 'workflow_dispatch'
@@ -242,6 +276,7 @@ jobs:
   metadata:
     name: Gather Release Metadata
     runs-on: self-hosted
+    needs: [gate]
     if: always()
     outputs:
       backend_url: ${{ steps.backend.outputs.url }}
@@ -264,7 +299,7 @@ jobs:
       is_manual: ${{ github.event_name == 'workflow_dispatch' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Set smoke run ID + canonical event id
         id: run_id
         run: |
@@ -301,6 +336,11 @@ jobs:
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_DEPLOY_SA }}
+      - name: Set up Google Cloud CLI
+        # The self-hosted runner does not ship the Cloud SDK. setup-gcloud
+        # provisions it into the runner tool cache so every gcloud/bq call in
+        # this job resolves, independent of what the runner image ships.
+        uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
       - name: Resolve backend URL
         id: backend
         run: |
@@ -317,7 +357,7 @@ jobs:
             fi
             echo "url=${URL}" >> $GITHUB_OUTPUT
           fi
-          echo "Backend URL: ${{ steps.backend.outputs.url }}"
+          echo "Backend URL: ${URL}"
       - name: Resolve frontend URL + Firebase Hosting release / version
         id: frontend
         run: |
@@ -356,7 +396,7 @@ jobs:
             echo "version=" >> $GITHUB_OUTPUT
           fi
           echo "::endgroup::"
-          echo "Frontend URL: ${{ steps.frontend.outputs.url }}"
+          echo "Frontend URL: ${URL}"
       - name: Get Cloud Run revision
         id: revision
         run: |
@@ -544,9 +584,9 @@ jobs:
       BACKEND_URL: ${{ needs.metadata.outputs.backend_url }}
       SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
       STORE_ID: store-001
-      GCP_PROJECT: ${{ env.GCP_PROJECT }}
-      CLOUD_RUN_SERVICE: ${{ env.CLOUD_RUN_SERVICE }}
-      GCP_REGION: ${{ env.GCP_REGION }}
+    # REMOVED: env context not allowed in job-level env: GCP_PROJECT: ${{ env.GCP_PROJECT }}
+    # REMOVED: env context not allowed in job-level env: CLOUD_RUN_SERVICE: ${{ env.CLOUD_RUN_SERVICE }}
+    # REMOVED: env context not allowed in job-level env: GCP_REGION: ${{ env.GCP_REGION }}
       STAGE: smoke-firestore-store
     steps:
       - name: Authenticate to Google Cloud
@@ -554,6 +594,11 @@ jobs:
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_RUNTIME_SA }}
+      - name: Set up Google Cloud CLI
+        # The self-hosted runner does not ship the Cloud SDK. setup-gcloud
+        # provisions it into the runner tool cache so every gcloud/bq call in
+        # this job resolves, independent of what the runner image ships.
+        uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
       - name: Verify LIVE_TWIN_BACKEND contract on deployed Cloud Run
         id: backend_contract
         run: |
@@ -644,7 +689,7 @@ jobs:
     env:
       BACKEND_URL: ${{ needs.metadata.outputs.backend_url }}
       SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
-      SKU: ${{ env.FIXTURE_P001 }}
+    # REMOVED: env context not allowed in job-level env: SKU: ${{ env.FIXTURE_P001 }}
       STAGE: smoke-p001-inventory
     steps:
       - name: Read P001 inventory
@@ -693,7 +738,7 @@ jobs:
     env:
       BACKEND_URL: ${{ needs.metadata.outputs.backend_url }}
       SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
-      SKU: ${{ env.FIXTURE_P017 }}
+    # REMOVED: env context not allowed in job-level env: SKU: ${{ env.FIXTURE_P017 }}
       STAGE: smoke-p017-inventory
     steps:
       - name: Read P017 inventory (mandatory)
@@ -736,8 +781,8 @@ jobs:
     needs: [metadata, gate, smoke-p017-inventory]
     if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true'
     env:
-      GCP_PROJECT: ${{ env.GCP_PROJECT }}
-      BIGQUERY_DATASET: ${{ env.BIGQUERY_DATASET }}
+    # REMOVED: env context not allowed in job-level env: GCP_PROJECT: ${{ env.GCP_PROJECT }}
+    # REMOVED: env context not allowed in job-level env: BIGQUERY_DATASET: ${{ env.BIGQUERY_DATASET }}
       STAGE: smoke-bigquery-analytics
     steps:
       - name: Authenticate to Google Cloud
@@ -745,6 +790,11 @@ jobs:
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_RUNTIME_SA }}
+      - name: Set up Google Cloud CLI
+        # The self-hosted runner does not ship the Cloud SDK. setup-gcloud
+        # provisions it into the runner tool cache so every gcloud/bq call in
+        # this job resolves, independent of what the runner image ships.
+        uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
       - name: Verify sales_events table exists
         run: |
           set -e
@@ -783,8 +833,8 @@ jobs:
     needs: [metadata, gate, smoke-bigquery-analytics]
     if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true'
     env:
-      GCP_PROJECT: ${{ env.GCP_PROJECT }}
-      PUBSUB_TOPIC: ${{ env.PUBSUB_TOPIC }}
+    # REMOVED: env context not allowed in job-level env: GCP_PROJECT: ${{ env.GCP_PROJECT }}
+    # REMOVED: env context not allowed in job-level env: PUBSUB_TOPIC: ${{ env.PUBSUB_TOPIC }}
       SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
       GIT_SHA: ${{ needs.metadata.outputs.git_sha }}
       EVENT_ID: ${{ needs.metadata.outputs.event_id }}
@@ -795,6 +845,11 @@ jobs:
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_RUNTIME_SA }}
+      - name: Set up Google Cloud CLI
+        # The self-hosted runner does not ship the Cloud SDK. setup-gcloud
+        # provisions it into the runner tool cache so every gcloud/bq call in
+        # this job resolves, independent of what the runner image ships.
+        uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
       - name: Verify Pub/Sub topic exists
         run: |
           set -e
@@ -843,7 +898,7 @@ jobs:
     env:
       BACKEND_URL: ${{ needs.metadata.outputs.backend_url }}
       SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
-      GCP_PROJECT: ${{ env.GCP_PROJECT }}
+    # REMOVED: env context not allowed in job-level env: GCP_PROJECT: ${{ env.GCP_PROJECT }}
       STAGE: smoke-agent-activity
     steps:
       - name: Check /agent/events endpoint
@@ -908,8 +963,8 @@ jobs:
     needs: [metadata, gate, smoke-agent-activity]
     if: always() && needs.metadata.result != 'failure' && needs.gate.outputs.gate_passed == 'true'
     env:
-      GCP_PROJECT: ${{ env.GCP_PROJECT }}
-      GCP_REGION: ${{ env.GCP_REGION }}
+    # REMOVED: env context not allowed in job-level env: GCP_PROJECT: ${{ env.GCP_PROJECT }}
+    # REMOVED: env context not allowed in job-level env: GCP_REGION: ${{ env.GCP_REGION }}
       VERTEX_MODEL: ${{ needs.metadata.outputs.llm_model }}
       STAGE: smoke-vertex-gemini
     steps:
@@ -918,6 +973,11 @@ jobs:
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_RUNTIME_SA }}
+      - name: Set up Google Cloud CLI
+        # The self-hosted runner does not ship the Cloud SDK. setup-gcloud
+        # provisions it into the runner tool cache so every gcloud/bq call in
+        # this job resolves, independent of what the runner image ships.
+        uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
       - name: Live Vertex Gemini generateContent call
         run: |
           set -e
@@ -1021,6 +1081,11 @@ jobs:
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_RUNTIME_SA }}
+      - name: Set up Google Cloud CLI
+        # The self-hosted runner does not ship the Cloud SDK. setup-gcloud
+        # provisions it into the runner tool cache so every gcloud/bq call in
+        # this job resolves, independent of what the runner image ships.
+        uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
       - name: Scan every captured endpoint for credentials
         run: |
           set -e
@@ -1066,8 +1131,8 @@ jobs:
     env:
       FRONTEND_URL: ${{ needs.metadata.outputs.frontend_url }}
       SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
-      FIREBASE_SITE: ${{ env.FIREBASE_SITE }}
-      GCP_PROJECT: ${{ env.GCP_PROJECT }}
+    # REMOVED: env context not allowed in job-level env: FIREBASE_SITE: ${{ env.FIREBASE_SITE }}
+    # REMOVED: env context not allowed in job-level env: GCP_PROJECT: ${{ env.GCP_PROJECT }}
       STAGE: smoke-frontend-availability
     steps:
       - name: Authenticate to Google Cloud
@@ -1075,6 +1140,11 @@ jobs:
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_DEPLOY_SA }}
+      - name: Set up Google Cloud CLI
+        # The self-hosted runner does not ship the Cloud SDK. setup-gcloud
+        # provisions it into the runner tool cache so every gcloud/bq call in
+        # this job resolves, independent of what the runner image ships.
+        uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
       - name: Confirm Firebase Hosting has a live release
         run: |
           set -e
@@ -1300,9 +1370,9 @@ jobs:
     needs: [metadata, gate, release-decision]
     if: failure() && needs.metadata.result != 'failure'
     env:
-      GCP_PROJECT: ${{ env.GCP_PROJECT }}
-      GCP_REGION: ${{ env.GCP_REGION }}
-      CLOUD_RUN_SERVICE: ${{ env.CLOUD_RUN_SERVICE }}
+    # REMOVED: env context not allowed in job-level env: GCP_PROJECT: ${{ env.GCP_PROJECT }}
+    # REMOVED: env context not allowed in job-level env: GCP_REGION: ${{ env.GCP_REGION }}
+    # REMOVED: env context not allowed in job-level env: CLOUD_RUN_SERVICE: ${{ env.CLOUD_RUN_SERVICE }}
       SMOKE_RUN_ID: ${{ needs.metadata.outputs.smoke_run_id }}
       GIT_SHA: ${{ needs.metadata.outputs.git_sha }}
     steps:
@@ -1400,16 +1470,21 @@ jobs:
     name: Manual Rollback (workflow_dispatch only)
     runs-on: self-hosted
     if: github.event_name == 'workflow_dispatch' && inputs.action == 'rollback'
-    env:
-      GCP_PROJECT: ${{ env.GCP_PROJECT }}
-      GCP_REGION: ${{ env.GCP_REGION }}
-      CLOUD_RUN_SERVICE: ${{ env.CLOUD_RUN_SERVICE }}
+    # env: removed (empty)
+    # REMOVED: env context not allowed in job-level env: GCP_PROJECT: ${{ env.GCP_PROJECT }}
+    # REMOVED: env context not allowed in job-level env: GCP_REGION: ${{ env.GCP_REGION }}
+    # REMOVED: env context not allowed in job-level env: CLOUD_RUN_SERVICE: ${{ env.CLOUD_RUN_SERVICE }}
     steps:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2  # c200f3691d83b41bf9bbd8638997a462592937ed
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_DEPLOY_SA }}
+      - name: Set up Google Cloud CLI
+        # The self-hosted runner does not ship the Cloud SDK. setup-gcloud
+        # provisions it into the runner tool cache so every gcloud/bq call in
+        # this job resolves, independent of what the runner image ships.
+        uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
       - name: List the last five ready revisions
         run: |
           echo "::group::Last 5 revisions of ${{ env.CLOUD_RUN_SERVICE }}"
