@@ -6,6 +6,7 @@ from pathlib import Path
 
 
 WORKFLOW = Path(__file__).resolve().parents[3] / ".github/workflows/api.yml"
+RELEASE_GATE = Path(__file__).resolve().parents[3] / ".github/workflows/release-gate.yml"
 
 
 def section(text: str, start: str, end: str) -> str:
@@ -43,3 +44,22 @@ def test_release_image_is_pushed_verified_scanned_then_deployed() -> None:
     assert "set -euo pipefail" in workflow[verify:scan]
     assert "set -euo pipefail" in workflow[scan:deploy]
     assert "test -n \"$TRIVY_PASSWORD\"" in workflow[scan:deploy]
+
+
+def test_release_gate_compares_canonical_digest_not_registry_qualified_string() -> None:
+    """The gate must compare the sha256 digest, not the registry-qualified string.
+
+    Artifact Registry reports the same image as
+    ``us-docker.pkg.dev/<project>/gcr.io/<image>@sha256:...`` while Cloud Run
+    reports ``gcr.io/<project>/<image>@sha256:...``. A raw string comparison
+    reports a false mismatch for the image that was just deployed.
+    """
+    gate = RELEASE_GATE.read_text(encoding="utf-8")
+    comparison = section(gate, "      - name: Get container image digest", "      - name: Resolve demo data version")
+
+    assert 'grep -oE \'sha256:[0-9a-f]{64}\'' in comparison
+    assert 'DEPLOYED_SHA" != "$DIGEST_SHA' in comparison
+    assert 'if [ "${DEPLOYED_IMAGE_DIGEST}" != "${DIGEST}" ]; then' not in comparison
+    # Still fail-closed: a missing or unparsable digest blocks the release.
+    assert "refusing to release" in comparison
+    assert "exit 1" in comparison

@@ -257,25 +257,26 @@ jobs:
           set -euo pipefail
           IMAGE="gcr.io/retailtwin-ai-511002/retailtwin-api:${{ github.sha }}"
           DIGEST=""
-          # `gcloud container images` is the GCR-native command; fall back to the
-          # Artifact Registry surface if the runner ships a gcloud build where
-          # the GCR alias is unavailable. Both must yield a sha256 digest.
-          if DIGEST="$(gcloud container images describe "$IMAGE" \
+          # `gcloud artifacts docker images describe` is the surface proven to work
+          # for gcr.io images on these runners (GCR is served from Artifact
+          # Registry). `gcloud container images describe` is kept as a fallback
+          # for runner images that ship an older gcloud. Either way we require a
+          # canonical sha256 manifest digest before the scan is allowed to run.
+          if DIGEST="$(gcloud artifacts docker images describe "$IMAGE" \
             --project=retailtwin-ai-511002 \
-            --format='value(image_summary.digest)' 2>/dev/null)"; then
-            :
-          elif DIGEST="$(gcloud artifacts docker images describe "$IMAGE" \
-            --project=retailtwin-ai-511002 \
-            --format='value(image_summary.digest)' 2>/dev/null)"; then
+            --format='value(image_summary.fully_qualified_digest)' 2>/dev/null)"; then
             :
           fi
-          case "$DIGEST" in
-            sha256:*)
-              echo "::notice::Release image present: $IMAGE@$DIGEST" ;;
-            *)
-              echo "::error::Release image $IMAGE is not present in the registry; refusing to scan or deploy." >&2
-              exit 1 ;;
-          esac
+          if ! printf '%s' "$DIGEST" | grep -qE 'sha256:[0-9a-f]{64}'; then
+            DIGEST="$(gcloud container images describe "$IMAGE" \
+              --project=retailtwin-ai-511002 \
+              --format='value(image_summary.digest)' 2>/dev/null || true)"
+          fi
+          if ! printf '%s' "$DIGEST" | grep -qE 'sha256:[0-9a-f]{64}'; then
+            echo "::error::Release image $IMAGE is not present in the registry; refusing to scan or deploy." >&2
+            exit 1
+          fi
+          echo "::notice::Release image present: $IMAGE@$DIGEST"
 
       - name: Scan pushed release image for fixable critical/high vulnerabilities
         env:

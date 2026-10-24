@@ -436,7 +436,19 @@ jobs:
             --region=${{ env.GCP_REGION }} \
             --project=${{ env.GCP_PROJECT }} \
             --format="value(status.imageDigest)" 2>/dev/null || echo "")
-          if [ "${DEPLOYED_IMAGE_DIGEST}" != "${DIGEST}" ]; then
+          # Compare the canonical sha256 manifest digests, not the full
+          # "registry/repo@sha256:..." strings: the same image is reported
+          # under different registry hosts by Artifact Registry
+          # (us-docker.pkg.dev/<project>/gcr.io/...) and by Cloud Run
+          # (gcr.io/<project>/...), so a string comparison falsely reports a
+          # mismatch for the very image that was just deployed.
+          DIGEST_SHA="$(printf '%s' "$DIGEST" | grep -oE 'sha256:[0-9a-f]{64}' || true)"
+          DEPLOYED_SHA="$(printf '%s' "$DEPLOYED_IMAGE_DIGEST" | grep -oE 'sha256:[0-9a-f]{64}' || true)"
+          if [ -z "$DIGEST_SHA" ] || [ -z "$DEPLOYED_SHA" ]; then
+            echo "::error::could not resolve a canonical sha256 digest for gate SHA ${SHA} (gate='${DIGEST:-<empty>}', deployed='${DEPLOYED_IMAGE_DIGEST:-<empty>}'); refusing to release." >&2
+            exit 1
+          fi
+          if [ "$DEPLOYED_SHA" != "$DIGEST_SHA" ]; then
             echo "::error::deployed Cloud Run revision ${DEPLOYED_IMAGE} is serving digest ${DEPLOYED_IMAGE_DIGEST:-<empty>}, but gate SHA ${SHA} requires digest ${DIGEST}. refusing to release against a stale revision."
             exit 1
           fi
