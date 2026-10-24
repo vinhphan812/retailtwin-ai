@@ -3,7 +3,7 @@
 **Issue:** tracks completion of all pre-submission requirements for the AI Builder Google 2026 competition.
 **Status:** `OPEN — NOT READY`
 **Owner:** maintainers
-**Last updated:** 2026-10-20
+**Last updated:** 2026-10-25
 
 ---
 
@@ -32,6 +32,18 @@ Every **Evidence Required** entry is one of:
 | 🟡 | Pending — static reference exists; live execution or human review has not confirmed it for the submission SHA. |
 | 🔴 | Missing or failed — no evidence exists, or a live run has failed. |
 | ⚫ | Does not apply. |
+
+### CR12 licence states — DECLARED vs VERIFIED
+
+CR12 uses two additional states, defined in §6.1 and used **only** for the licence requirement:
+
+| State | Meaning |
+|-------|---------|
+| 🟡 **DECLARED** | A licence file exists at the repository root and the README references it. The project *states* a licence; nothing is asserted about the authority to grant it. |
+| 🟢 **VERIFIED** | Provenance and authority evidence exists for the grant — a CLA, or written confirmation from each non-owner human contributor, recorded in the repository. |
+
+These are **not** interchangeable. A licence file on its own is never sufficient for 🟢 VERIFIED,
+and a pre-merge pull-request head must never be cited as though the licence existed at that SHA.
 
 ### CI status is not reviewed status
 
@@ -210,6 +222,7 @@ A passing CI workflow at one SHA does **not** mean the code is reviewed. CI prov
 | D12 | `docs/demo-video/shot-list.md` | ✅ | 🟡 EXISTS — verify currency at submission SHA |
 | D13 | `docs/demo-video/production-checklist.md` | ✅ | 🟡 EXISTS — verify currency at submission SHA |
 | D14 | `docs/demo-video/acceptance-criteria.md` | ✅ | 🟡 EXISTS — verify currency at submission SHA |
+| D15 | `docs/licensing/CONTRIBUTOR-LICENSE-PROVENANCE.md` | ✅ | 🟡 EXISTS — contributor-authority record for the MIT grant; states the open owner actions (CR12, see §6.1) |
 
 ---
 
@@ -228,7 +241,70 @@ A passing CI workflow at one SHA does **not** mean the code is reviewed. CI prov
 | CR09 | Demo video under required duration | *(static reference)* `docs/DEMO_VIDEO.md` — video artifact required | 🔴 NOT VERIFIED |
 | CR10 | Public repository | `github.com/vinhphan812/retailtwin-ai` | ✅ PUBLIC |
 | CR11 | No secrets/credentials in repo | *(run required)* CI C03 + C13 — run required at submission SHA | 🟡 UNKNOWN |
-| CR12 | License declared | README says "does not currently declare a license" | 🔴 MISSING |
+| CR12 | License declared | *(static reference)* MIT licence text and third-party notice exist **only on open PRs #398 (`ebb70b64`) / #397 (`4fae32de`)** — byte-identical blobs; **no root `LICENSE` at submission SHA `920e166f`**. See §6.1 | 🔴 MISSING at `920e166f` → 🟡 DECLARED (post-merge) → 🟢 VERIFIED (provenance confirmed) — see §6.1 |
+
+> **Requirement label.** The second column reproduces the competition requirement wording
+> verbatim ("License declared", per Issue #367). The prose of this document uses the UK
+> spelling *licence* for the noun, and the repository's own file and heading names — `LICENSE`,
+> `THIRD_PARTY_NOTICES.md`, `License.txt`, README `## License` — are quoted exactly as they
+> appear on disk.
+
+> ⚠️ **Merge-conflict note.** PR #398 and PR #397 both amend the CR12 row and the
+> CR-summary line of this file. If either licence PR is merged before this change, the CR12 row
+> and the CR-summary line will conflict and must be resolved **in favour of this wording**
+> (which states the SHA-bound distinction) — not in favour of a bare `🟢 DECLARED` with no
+> SHA-bound evidence and no DECLARED/VERIFIED distinction. The licence material itself
+> (`LICENSE`, `THIRD_PARTY_NOTICES.md`) is identical on both PRs, so there is nothing to
+> reconcile there.
+
+### 6.1 CR12 — licence evidence
+
+**Reproduce in one step** (from the repository root):
+
+```bash
+git ls-tree --name-only 920e166f | grep -iE '^(LICENSE|THIRD_PARTY_NOTICES|COPYING|NOTICE)'
+gh api repos/vinhphan812/retailtwin-ai/license
+```
+
+At submission SHA `920e166f` both commands show **no licence** (the API returns HTTP 404 and
+GitHub's licence detector reports `licenseInfo: null`). README §License states "This repository
+does not currently declare a license file".
+
+#### The two states, and what each requires
+
+| State | Meaning | Preconditions | True today? |
+|---|---|---|---|
+| 🟡 **DECLARED** | A licence file exists at the repository root and the README references it. Proves the project *states* a licence. Proves nothing about who had the authority to grant it. | Exactly one of PR #397 / #398 merged, and a **new submission SHA** cut from that merge. | **No** — both PRs are open; neither licence file is in the tree. |
+| 🟢 **VERIFIED** | Provenance/authority evidence exists for the MIT grant — a CLA, or written confirmation from each non-owner human contributor, recorded in-repo. | DECLARED **and** the contributor-authority record closed. | **No** — no CLA, no `CONTRIBUTING`, no copyright-holder statement, no governance document exists in the tree. |
+
+**CR12 cannot read 🟢 VERIFIED on the strength of the licence text alone.** The MIT text asserts
+`Copyright (c) 2026 RetailTwin AI Contributors`, but the repository holds no record that every
+contributor authorised that grant. `THIRD_PARTY_NOTICES.md` covers *third-party* provenance only
+and does **not** close this gap.
+
+#### Authoritative files and the SHA they bind to
+
+| File | Path | Git blob SHA | SHA-256 | Size | Bound to |
+|---|---|---|---|---|---|
+| Licence text | `LICENSE` (repository root) | `45b8da20817cb3ae9926b65c8d831ed88db9d23f` | `1d1e0b4b81b98b360932a440d6857c5f182e8392b18a8058ed4862a0e778f4c7` | 1083 B | **PR #398** head `ebb70b646f48365bfbb724df71170a09e85442cf` (OPEN) — byte-identical on **PR #397** head `4fae32dea25c43d4af2fd49d86da11f03fb1e172` (OPEN). **Absent at `920e166f`.** |
+| Third-party notice | `THIRD_PARTY_NOTICES.md` (repository root) | `29dfe959868e3724094fdaf1bd20052199dc2e48` | — | 5466 B | As above — same two open PR heads. **Absent at `920e166f`.** |
+| Contributor-authority record | `docs/licensing/CONTRIBUTOR-LICENSE-PROVENANCE.md` | *this branch* | — | — | Present from this commit onwards; states the open items explicitly. |
+
+> ⚠️ **Do not cite a pre-merge SHA as if the licence existed at it.** The licence is bound to the
+> **merge commit** of whichever licence PR is merged, not to that PR's head. The submission SHA
+> changes on merge, and the deployment must be re-cut at the new SHA before CR12 can be signed off.
+
+#### Outstanding owner actions (not resolved by this checklist)
+
+| # | Action | Status |
+|---|---|---|
+| A1 | Choose **exactly one** of PR #397 / PR #398 to merge as the canonical licence delivery; close the other (identical licence blobs and overlapping gate-evidence trees). | ⛔ Owner decision — outstanding |
+| A2 | Record contributor-authority confirmation for the MIT grant (CLA, or written confirmation from `anh-nguyen-3103`, `k-pham08`, `longshaww`). Tracked in `docs/licensing/CONTRIBUTOR-LICENSE-PROVENANCE.md` §7. | ⛔ Owner action — outstanding |
+| A3 | Re-cut the submission SHA from the merge, then re-evaluate CR12 at that SHA. | ⛔ Blocked by A1, A2 |
+| A4 | Re-deploy Cloud Run and the web artefact at the new SHA; confirm the MIT notice travels with the distributed artefacts. | ⛔ Blocked by A3 — card `t_f34e7fb6` |
+
+See `docs/licensing/CONTRIBUTOR-LICENSE-PROVENANCE.md` for the per-contributor evidence index and
+the re-runnable commands behind every claim above.
 
 ---
 
@@ -247,8 +323,8 @@ A passing CI workflow at one SHA does **not** mean the code is reviewed. CI prov
 - **CI checks (C01–C15):** requires live run  
 - **Deployment (D01–D12, A01–A04, W01–W04):** 🟡 PARTIAL — cloud preflight and data audit passed  
 - **Release gates (G02–G06, #216):** G02 passed; G03–G06 NOT PASSED  
-- **Competition requirements (CR01–CR12):** 2 confirmed, 1 missing (license), rest 🟡/🔴  
-- **Documentation (D01–D14):** 14 documents present; currency not verified  
+- **Competition requirements (CR01–CR12):** 2 confirmed, 1 missing (CR12 licence — 🔴 MISSING at submission SHA `920e166f`; reaches 🟡 DECLARED only once one licence PR is merged and a new SHA is cut, and 🟢 VERIFIED only with contributor-authority evidence — see §6.1), rest 🟡/🔴  
+- **Documentation (D01–D15):** 15 documents present; currency not verified  
 
 > **Verdict:** Not ready for submission. The code is largely in place but no release gate evidence (G03–G06) has been recorded. Cloud preflight (G01) and production data audit (#216) are green. The first action is to run the G03–G06 submission gate harnesses and record the evidence matrices.
 

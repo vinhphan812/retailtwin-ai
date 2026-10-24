@@ -40,6 +40,12 @@
 | [deploy-web.md](deploy-web.md) | Operator | Stable | Web deploy guide. |
 | [DOCS_INDEX.md](DOCS_INDEX.md) | Everyone | Living | This file. |
 
+## Licensing
+
+| File | Audience | Status | Purpose |
+|---|---|---|---|
+| [licensing/CONTRIBUTOR-LICENSE-PROVENANCE.md](licensing/CONTRIBUTOR-LICENSE-PROVENANCE.md) | Owner, reviewer | Living | Per-contributor authority record for the MIT grant behind CR12. Names the evidence that exists in git history, the evidence that does not, and the outstanding owner actions. |
+
 ## Demo and video
 
 | File | Purpose |
