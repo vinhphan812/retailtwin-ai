@@ -30,6 +30,14 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
+      // Scope the coverage report to application source. `scripts/` holds build
+      // tooling (the licence asset copy plugin, the demo-route smoke runner)
+      // that is exercised by its own dedicated tests and by the production
+      // build, not by the jsdom component suite, so counting it against the
+      // global thresholds would only penalise files the unit suite never
+      // imports. This mirrors the `include` already declared in vite.config.ts.
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: ["src/**/*.d.ts", "src/**/types.ts"],
       thresholds: {
         lines: 80,
         functions: 75,

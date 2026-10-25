@@ -5,6 +5,7 @@ import { dirname, resolve } from "node:path";
 import { defineConfig } from "vitest/config";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
+import { licenseAssetsPlugin } from "./scripts/copy-license-assets";
 
 // ADR 0025: the canonical SemVer lives in /VERSION at the repo root. The Web
 // build reads it once at config time so the bundle embeds the same SemVer
@@ -43,7 +44,7 @@ export default defineConfig({
     "import.meta.env.VITE_APP_VERSION": JSON.stringify(readCanonicalVersion()),
     "import.meta.env.VITE_GIT_SHA": JSON.stringify(resolveGitSha()),
   },
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), licenseAssetsPlugin({ repoRoot: REPO_ROOT })],
   resolve: {
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
   },
