@@ -49,6 +49,13 @@ jobs:
       - name: Check licence material is present, consistent and distributed
         run: python scripts/check_license_material.py
 
+      - name: Set up Node.js for the web bundle build
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.17'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
       - name: Verify the built web bundle carries the legal material
         run: |
           # Vite copies apps/web/public/ verbatim into dist/. Assert the two
