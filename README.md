@@ -166,7 +166,7 @@ The README describes the system as designed and what is implemented on `main` to
 
 ## License
 
-This repository does not currently declare a license file. Add the chosen license at the repository root before public release.
+This repository is licensed under the [MIT License](LICENSE).
 
 ## Documentation index
 

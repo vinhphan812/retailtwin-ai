@@ -1,0 +1,13 @@
+G05 run pr388-c20fb073-g05_live_commit: PASS
+  [x] candidate_was_simulated: 1 candidates scored by simulation-kpi-v1; chose plan-pr388-c20fb073-g05_live_commit-P001-1 (kpi_score=0.5) on sim-pr388-c20fb073-g05_live_commit
+  [x] simulation_left_live_unchanged: P001 still at version 1 after scoring
+  [x] guard_allowed_on_fresh_reads: gates: integrity=pass,evidence=pass,context=pass,freshness=pass,feasibility=pass,policy=pass
+  [x] authorization_redeemed_for_these_actions: guard audit: authorize:ALLOW,commit:ALLOW; the commit-stage recheck runs only after the Executor redeems a token bound to the decision's ordered action hashes; context_hash=fc69d867dc30…
+  [x] live_twin_shows_exactly_the_authorized_transition: expected shelf_quantity 8->9, backroom_quantity 42->41, version 1->2; observed shelf_quantity 8->9, backroom_quantity 42->41, version 1->2
+  [x] live_version_incremented: P001 version 1->2; store store-001:v1->store-001:v2
+  [x] live_view_source_reflects_the_commit: GET /store (read by the 3D Live view) carries the committed row
+  [x] audit_written: review=[('ALLOW', 'APPROVED')]; guard events carry correlation_id=pr388-c20fb073-g05_live_commit
+  [x] verifier_confirmed_the_live_state: re-read P001=VERIFIED; report status=INCONCLUSIVE reason=KPI_UNOBSERVED
+  [x] committed_simulation_cannot_commit_again: second approve: verdict=DENY reason=SIMULATION_NOT_OPEN; Live unchanged
+  [x] infeasible_decision_changes_nothing: replenish 42 with 41 in the backroom: verdict=DENY detail=INFEASIBLE_ACTION; Live unchanged
+  [x] correlation_preserved: 3 guard audit events, all with correlation_id=pr388-c20fb073-g05_live_commit
