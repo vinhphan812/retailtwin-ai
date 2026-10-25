@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 import type { Promotion } from "@/types/promotion.type";
 import { PROMOTION_KIND, PROMOTION_STATUS } from "@/enums/commerce.enum";
 import { ENTITY_TYPE } from "@/enums/scene.enum";
@@ -11,11 +12,18 @@ import { selectedProductId, useUiStore } from "@/state/ui.store";
 
 /** The promotion's discount value, formatted for its kind: "15%", "$1", or "1". */
 export function discountOf(promotion: Promotion) {
+  if (promotion.value === null || promotion.value === undefined) {
+    return i18n.t("promotions.termsUnavailable");
+  }
   return promotion.kind === PROMOTION_KIND.PercentOff
     ? f.percent(promotion.value)
     : promotion.kind === PROMOTION_KIND.AmountOff
       ? f.money(promotion.value)
-      : f.count(promotion.value);
+      : promotion.kind === PROMOTION_KIND.LoyaltyMultiplier
+        ? `${promotion.value}x`
+        : promotion.kind === PROMOTION_KIND.Bundle
+          ? ""
+          : f.count(promotion.value);
 }
 
 /** Share of a promotion's run that has passed, 0..1. */
@@ -94,7 +102,11 @@ export function PromotionCard({ promotion, focused = false }: { promotion: Promo
           <span className="promotion-status-dot" aria-hidden />
           {t(`promotions.status.${promotion.status}`)}
         </span>
-        <span className="promotion-kind">{t(`promotions.kind.${promotion.kind}`, { value: discount })}</span>
+        <span className="promotion-kind">
+          {promotion.kind === PROMOTION_KIND.Unknown
+            ? t("promotions.kind.unknown")
+            : t(`promotions.kind.${promotion.kind}`, { value: discount })}
+        </span>
       </header>
       <h3 className="promotion-name">{promotion.name}</h3>
       <p className="promotion-meta">
@@ -118,7 +130,7 @@ export function PromotionCard({ promotion, focused = false }: { promotion: Promo
         </div>
         <div>
           <dt>{t("promotions.discountCost")}</dt>
-          <dd>{f.money(promotion.discount_cost)}</dd>
+          <dd>{promotion.discount_cost !== null && promotion.discount_cost !== undefined ? f.money(promotion.discount_cost) : t("promotions.unavailable")}</dd>
         </div>
       </dl>
     </article>

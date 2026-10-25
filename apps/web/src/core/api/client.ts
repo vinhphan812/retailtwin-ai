@@ -1,7 +1,8 @@
 import i18n from "@/i18n";
 import { isDemoMode } from "@/core/twin/demoMode";
 import type { AgentEventsResponse, FlagshipStatusResponse, HealthResponse, RetailTwinClient } from "@/types/api.type";
-import { PROMOTION_KIND, REVENUE_PERIOD } from "@/enums/commerce.enum";
+import { PROMOTION_KIND, PROMOTION_STATUSES, REVENUE_PERIOD } from "@/enums/commerce.enum";
+import { ContractError } from "@/core/commerce/revenueContract";
 import type { ProductInventory, StoreResponse } from "@/types/twin.type";
 import type { Promotion, PromotionsSummary } from "@/types/promotion.type";
 import type { RevenueSummary } from "@/types/revenue.type";
@@ -53,41 +54,51 @@ export function createClient(baseUrl: string, fetchImpl?: typeof fetch): RetailT
     discount_percent: PROMOTION_KIND.PercentOff,
     discount_absolute: PROMOTION_KIND.AmountOff,
     buy_one_get_one: PROMOTION_KIND.BuyXGetY,
+    buy_x_get_y: PROMOTION_KIND.BuyXGetY,
     bundle: PROMOTION_KIND.Bundle,
-    loyalty_multiplier: PROMOTION_KIND.PercentOff, // closest approximation
+    loyalty_multiplier: PROMOTION_KIND.LoyaltyMultiplier,
   };
+
+  const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
+  const isText = (value: unknown): value is string => typeof value === "string" && value.trim() !== "";
+  const isInstant = (value: unknown): value is string => isText(value) && !Number.isNaN(Date.parse(value));
 
   /**
    * Transform a BE `Promotion` (from `PromotionsResponse.promotions`) to the FE `Promotion` type.
-   * Handles field name differences (`promotion_type` → `kind`) and type enum translation.
+   * Validates required fields and throws ContractError if malformed.
    */
-  function toPromotion(raw: {
-    promotion_id: string;
-    name: string;
-    promotion_type: string;
-    status: string;
-    store_id: string;
-    sku: string | null;
-    category: string | null;
-    discount_value: number | null;
-    conditions: string | null;
-    start_time: string;
-    end_time: string;
-    redemption_count: number;
-    metadata?: Record<string, string>;
-  }): Promotion {
+  function toPromotion(raw: unknown, index = 0): Promotion {
+    if (!isObject(raw)) throw new ContractError(`promotions[${index}]`);
+    const rawId = raw.promotion_id ?? raw.id;
+    if (!isText(rawId)) throw new ContractError(`promotions[${index}].id`);
+    const rawName = raw.name;
+    if (!isText(rawName)) throw new ContractError(`promotions[${index}].name`);
+    const rawStatus = raw.status;
+    if (!isText(rawStatus) || !PROMOTION_STATUSES.includes(rawStatus as never)) {
+      throw new ContractError(`promotions[${index}].status`);
+    }
+    const rawStart = raw.start_time ?? raw.starts_at;
+    if (!isInstant(rawStart)) throw new ContractError(`promotions[${index}].starts_at`);
+    const rawEnd = raw.end_time ?? raw.ends_at;
+    if (!isInstant(rawEnd)) throw new ContractError(`promotions[${index}].ends_at`);
+
+    const rawKind = (raw.promotion_type ?? raw.kind ?? "") as string;
+    const kind = PROMOTION_TYPE_TO_KIND[rawKind] ?? PROMOTION_KIND.Unknown;
+    const value = raw.discount_value !== undefined ? raw.discount_value : raw.value !== undefined ? raw.value : null;
+    const discountCost = raw.discount_cost !== undefined ? raw.discount_cost : null;
+
     return {
-      id: raw.promotion_id,
-      name: raw.name,
-      kind: PROMOTION_TYPE_TO_KIND[raw.promotion_type] ?? PROMOTION_KIND.PercentOff,
-      status: raw.status as Promotion["status"],
-      value: raw.discount_value ?? 0,
-      starts_at: raw.start_time,
-      ends_at: raw.end_time,
-      skus: raw.sku ? [raw.sku] : [],
-      revenue: 0,
-      incremental_revenue: 0,
-      discount_cost: 0,
+      id: rawId,
+      name: rawName,
+      kind,
+      status: rawStatus as Promotion["status"],
+      value: typeof value === "number" && Number.isFinite(value) ? value : null,
+      starts_at: rawStart,
+      ends_at: rawEnd,
+      skus: Array.isArray(raw.skus) ? (raw.skus as string[]) : (isText(raw.sku) ? [raw.sku] : []),
+      revenue: typeof raw.revenue === "number" && Number.isFinite(raw.revenue) ? raw.revenue : 0,
+      incremental_revenue: typeof raw.incremental_revenue === "number" && Number.isFinite(raw.incremental_revenue) ? raw.incremental_revenue : 0,
+      discount_cost: typeof discountCost === "number" && Number.isFinite(discountCost) ? discountCost : null,
     };
   }
 
@@ -144,12 +155,8 @@ export function createClient(baseUrl: string, fetchImpl?: typeof fetch): RetailT
     },
     promotions: () =>
       request<PromotionsSummary>("/promotions").then((response) => {
-        const promotions: Promotion[] = ((response.promotions ?? []) as Promotion[]).map(
-          (p) =>
-            "kind" in p
-              ? p // already transformed (demo client path)
-              : toPromotion(p as Parameters<typeof toPromotion>[0]),
-        );
+        const rawPromotions = Array.isArray(response.promotions) ? response.promotions : [];
+        const promotions: Promotion[] = rawPromotions.map((p, index) => toPromotion(p, index));
         return {
           store_id: response.store_id,
           revenue: promotions.reduce((sum, p) => sum + (p.revenue ?? 0), 0),

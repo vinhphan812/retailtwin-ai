@@ -42,7 +42,7 @@ describe("promotion cards", () => {
   const promotion: Promotion = {
     id: "promo-1",
     name: "Pasta night bundle",
-    status: PROMOTION_STATUS.Scheduled,
+    status: PROMOTION_STATUS.Upcoming,
     kind: PROMOTION_KIND.Bundle,
     value: 0,
     starts_at: "2026-10-12T00:00:00Z",

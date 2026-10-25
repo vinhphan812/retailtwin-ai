@@ -200,7 +200,7 @@ const PROMOTIONS: Promotion[] = [
   {
     id: "PRM-103",
     name: "Pasta night bundle",
-    status: PROMOTION_STATUS.Scheduled,
+    status: PROMOTION_STATUS.Upcoming,
     kind: PROMOTION_KIND.Bundle,
     value: 3.99,
     starts_at: "2026-10-12T00:00:00Z",
@@ -249,6 +249,19 @@ const PROMOTIONS: Promotion[] = [
     incremental_revenue: 205.4,
     discount_cost: 172.0,
   },
+  {
+    id: "PRM-106",
+    name: "Cancelled flash sale",
+    status: PROMOTION_STATUS.Cancelled,
+    kind: PROMOTION_KIND.AmountOff,
+    value: 2,
+    starts_at: "2026-09-15T00:00:00Z",
+    ends_at: "2026-09-18T23:59:59Z",
+    skus: ["P001"],
+    revenue: 0,
+    incremental_revenue: 0,
+    discount_cost: 0,
+  },
 ];
 
 /** `GET /promotions` for the demo store: totals add up the promotions. */
@@ -259,7 +272,7 @@ export function demoPromotions(): PromotionsSummary {
     store_id: STORE_ID,
     revenue: sum((promotion) => promotion.revenue),
     incremental_revenue: sum((promotion) => promotion.incremental_revenue),
-    discount_cost: sum((promotion) => promotion.discount_cost),
+    discount_cost: sum((promotion) => promotion.discount_cost ?? 0),
     promotions,
   };
 }
