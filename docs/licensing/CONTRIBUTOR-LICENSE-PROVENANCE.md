@@ -7,6 +7,12 @@ MIT licence grant asserted in the root `LICENSE` file.
 The record below states what is evidenced in the repository and what is not. No confirmation is
 asserted that the repository does not hold.
 
+**Update 2026-10-25 (task `t_85565f08`):** an inbound Individual Contributor Licence Agreement,
+`CLA.md`, has been added at the repository root and the acceptance requests have been opened for
+the three non-owner human contributors (issues #408, #409, #410). **No acceptance has been
+received as at this date**, so the three rows below remain `NOT EVIDENCED` — with the request
+recorded against each row. The gap is now *open and requested*, not *unaddressed*.
+
 **Submission SHA referenced throughout:** `920e166f3526947e66ced3644bed40e761a88133`
 (`origin/main` HEAD at the time of writing — 386 commits, 29 merges, first commit
 `76fbf91ee8c5d69ea589381aa32bdfff081b7641` dated 2026-10-07).
@@ -14,6 +20,8 @@ asserted that the repository does not hold.
 **Related records:**
 
 - `docs/FINAL_SUBMISSION_VALIDATION_CHECKLIST.md` — §6.1 "Licence evidence (CR12)" and row CR12.
+- `CLA.md` (repository root) — the inbound Individual Contributor Licence Agreement adopted on
+  2026-10-25, and its acceptance register at §5.
 - `THIRD_PARTY_NOTICES.md` — third-party provenance only. **It does not address contributor
   authority** and must not be read as doing so.
 - Audit `t_57fcdbdf`, report `LICENSE-EVIDENCE-AUDIT-2026-10-25.md` — §2, §3, §5.2, §7.
@@ -27,8 +35,13 @@ contributor's contributions are covered by the MIT grant.
 
 **It is not** a confirmation. Where the repository holds no evidence that a contributor
 authorised the MIT grant over their contributions, this record says so and leaves the item
-open for the repository owner. No contributor has been asked, and no answer has been
+open for the repository owner. No contributor had been asked, and no answer had been
 fabricated, assumed, or inferred on their behalf.
+
+**Update (2026-10-25, task `t_85565f08`).** The three non-owner contributors **have now been
+asked** — the acceptance requests are open as issues #408, #409 and #410, and the mechanism is
+recorded at `CLA.md`. No answer has been received, and none has been fabricated, assumed or
+inferred. The statements above stand, with the addition of the request itself.
 
 **It does not change the licence itself.** The licence text lives in the root `LICENSE` file and
 is owned by the open licence pull requests (see §2). This record neither authors nor alters it.
@@ -72,6 +85,12 @@ git ls-tree -r --name-only 920e166f3526947e66ced3644bed40e761a88133 \
 git ls-tree --name-only 920e166f3526947e66ced3644bed40e761a88133 \
   | grep -iE '^(LICENSE|THIRD_PARTY_NOTICES|COPYING|NOTICE)'
 
+# contributor-authority artefacts, at the branch head (they are absent at 920e166f):
+git ls-tree --name-only HEAD | grep -xE 'CLA\.md|CONTRIBUTING\.md'
+gh issue view 408 --repo vinhphan812/retailtwin-ai --json number,state,comments
+gh issue view 409 --repo vinhphan812/retailtwin-ai --json number,state,comments
+gh issue view 410 --repo vinhphan812/retailtwin-ai --json number,state,comments
+
 gh pr view 398 --repo vinhphan812/retailtwin-ai --json number,state,headRefOid,mergeable
 gh pr view 397 --repo vinhphan812/retailtwin-ai --json number,state,headRefOid,mergeable
 gh api repos/vinhphan812/retailtwin-ai/collaborators --jq '.[] | "\(.login) admin=\(.permissions.admin) push=\(.permissions.push)"'
@@ -81,9 +100,15 @@ gh api repos/vinhphan812/retailtwin-ai/license        # 404 at the default branc
 > **Reading the output.** The two `git ls-tree … | grep …` commands are expected to print
 > **nothing** and exit **non-zero** at `920e166f` — that is `grep` reporting "no match", which is
 > the documented finding (no `CLA`/`CONTRIBUTING`/`AUTHORS`/`COPYRIGHT`/`GOVERNANCE`, and no root
-> licence or notice). `gh api repos/…/license` is likewise expected to fail with HTTP 404. A
-> reviewer should treat **empty output plus a non-zero exit** as the pass condition for these
-> three, not as a command error.
+> licence or notice) **at that SHA**. `gh api repos/…/license` is likewise expected to fail with
+> HTTP 404. A reviewer should treat **empty output plus a non-zero exit** as the pass condition
+> for these three, not as a command error.
+>
+> The `CLA.md`/`CONTRIBUTING.md` lookup and the three `gh issue view` commands are the
+> **complementary** check at the branch head: they print the authority artefacts that exist *now*
+> and the live state of the three acceptance requests. The `gh issue view` commands are expected
+> to report `state: OPEN` with an empty `comments` array until a contributor responds — that empty
+> array is the evidence that no acceptance has been received, not a command error.
 
 Resolving a commit identity to a GitHub account (used throughout §4):
 
@@ -156,10 +181,33 @@ licensed by the repository owner on their behalf.
 
 | Identity / account | Authority basis evidenced in-repo | Status |
 |---|---|---|
-| `vinhphan812` — Phan Thanh Vinh / Vinh Phan (owner) | Repository owner and sole `admin`; author of all 23 "Merge pull request" merge commits at the submission SHA (the remaining 6 merges are branch synchronisations, not pull-request landings); author of the MIT text and the third-party notice on both open licence PRs; sole author of the human `Signed-off-by` trailers in the history. | **EVIDENCED** for the owner's own contributions (the owner holds copyright in them and grants them). **NOT EVIDENCED** for the authority to grant MIT over the *other* contributors' contributions — see §7. |
-| `anh-nguyen-3103` — Anh Nguyen | 55 commits authored under the identity, landing on `main` via pull requests merged by the owner; account holds `push` on the repository; named once as a `Co-authored-by`. | **NOT EVIDENCED.** No CLA, no `CONTRIBUTING`, no `Signed-off-by`, no copyright-holder statement, no governance document. The repository holds no record of this contributor having authorised the MIT grant. |
-| `k-pham08` — Khoa Pham | 59 commits across two identities, landing on `main` via pull requests merged by the owner; account holds `push`; named in 9 `Co-authored-by` trailers. | **NOT EVIDENCED** — same absence as above. |
-| `longshaww` — Trần Thanh Long | 7 commits authored under the identity, landing on `main` via pull requests merged by the owner; account holds `push`; named in 6 `Co-authored-by` trailers under a second email (`thanhlong.tran@giantgroup.com`). | **NOT EVIDENCED** — same absence as above. |
+| `vinhphan812` — Phan Thanh Vinh / Vinh Phan (owner) | Repository owner and sole `admin`; author of all 23 "Merge pull request" merge commits at the submission SHA (the remaining 6 merges are branch synchronisations, not pull-request landings); author of the MIT text and the third-party notice on both open licence PRs; sole author of the human `Signed-off-by` trailers in the history; **signature of the `CLA.md` acceptance register at §5.1, dated 2026-10-25**. | **EVIDENCED** for the owner's own contributions (the owner holds copyright in them and grants them, and has signed the `CLA.md` register). **NOT EVIDENCED** for the authority to grant MIT over the *other* contributors' contributions — see §7. |
+| `anh-nguyen-3103` — Anh Nguyen | 55 commits authored under the identity, landing on `main` via pull requests merged by the owner; account holds `push` on the repository; named once as a `Co-authored-by`. | **NOT EVIDENCED.** No CLA signature, no `Signed-off-by`, no copyright-holder statement, no governance document. The `CLA.md` acceptance register (§5) carries the row as **not yet accepted**; the written-confirmation request is open as issue [#408](https://github.com/vinhphan812/retailtwin-ai/issues/408) and no response has been received. |
+| `k-pham08` — Khoa Pham | 59 commits across two identities, landing on `main` via pull requests merged by the owner; account holds `push`; named in 9 `Co-authored-by` trailers. | **NOT EVIDENCED** — same absence as above. The `CLA.md` acceptance register (§5) carries the row as **not yet accepted**; the written-confirmation request is open as issue [#409](https://github.com/vinhphan812/retailtwin-ai/issues/409) and no response has been received. |
+| `longshaww` — Trần Thanh Long | 7 commits authored under the identity, landing on `main` via pull requests merged by the owner; account holds `push`; named in 6 `Co-authored-by` trailers under a second email (`thanhlong.tran@giantgroup.com`). | **NOT EVIDENCED** — same absence as above. The `CLA.md` acceptance register (§5) carries the row as **not yet accepted**; the written-confirmation request is open as issue [#410](https://github.com/vinhphan812/retailtwin-ai/issues/410) and no response has been received. |
+
+### 5.0 The authority artefact — `CLA.md`
+
+The mechanism adopted by the repository owner to close this gap is an **inbound Individual
+Contributor Licence Agreement**, recorded at the repository root as `CLA.md` (added 2026-10-25,
+task `t_85565f08`). It is a MIT-style inbound grant: each contributor grants the project a
+perpetual, worldwide, non-exclusive, royalty-free, irrevocable copyright licence to reproduce,
+prepare derivative works of, publicly display, publicly perform, sublicense and distribute their
+contributions **under the MIT Licence**, with the MIT notice retained.
+
+`CLA.md` §4 defines the two admissible forms of acceptance — a signature line in the register at
+`CLA.md` §5, or a written confirmation posted in the acceptance-request issue — and requires each
+acceptance to be attributed to its actual source. `CLA.md` §5 is the acceptance register; it
+records the owner's own signature and marks the three non-owner rows as **not yet accepted**,
+each against its open request issue.
+
+| Artefact | Path | Bound to |
+|---|---|---|
+| Individual Contributor Licence Agreement | `CLA.md` (repository root) | Present from the commit that introduces it — task `t_85565f08`; **not present at submission SHA `920e166f`** |
+| Acceptance register | `CLA.md` §5 | As above; entries added only on receipt of an actual acceptance |
+| Acceptance request — `anh-nguyen-3103` | issue [#408](https://github.com/vinhphan812/retailtwin-ai/issues/408) | Opened 2026-10-25; open, no response |
+| Acceptance request — `k-pham08` | issue [#409](https://github.com/vinhphan812/retailtwin-ai/issues/409) | Opened 2026-10-25; open, no response |
+| Acceptance request — `longshaww` | issue [#410](https://github.com/vinhphan812/retailtwin-ai/issues/410) | Opened 2026-10-25; open, no response |
 
 ### 5.1 What the "NOT EVIDENCED" rows mean
 
@@ -171,13 +219,25 @@ For the three non-owner human contributors the repository establishes three thin
 
 Merging a pull request is strong practical evidence that the repository owner accepted those
 contributions into a repository it intended to license under MIT, and it is the normal basis on
-which an inbound-contribution MIT grant operates. It is **not** a record that the contributor
-agreed to the grant, and it is not a record of the terms on which they agreed. The repository
-holds no CLA, no `CONTRIBUTING` guide, no `Signed-off-by` from these contributors, no
+on which an inbound-contribution MIT grant operates. It is **not** a record that the contributor
+agreed to the grant, and it is not a record of the terms on which they agreed. At `920e166f` the
+repository held no CLA, no `CONTRIBUTING` guide, no `Signed-off-by` from these contributors, no
 copyright-holder statement and no governance document that would supply the missing record.
+
+That is now partly remedied. `CLA.md` and `CONTRIBUTING.md` have been added (2026-10-25, task
+`t_85565f08`), supplying the *mechanism* and the *form* of the record. **The record itself is
+still missing for all three contributors**: none of them has signed the register and no written
+confirmation has been received. The request has been made; the answer has not.
 
 Accordingly, this record does **not** assert that the MIT grant covers those contributions, and
 does **not** assert that it does not. It records that the question is open.
+
+**What has changed since the first version of this record.** The mechanism is no longer
+hypothetical: `CLA.md` now exists at the repository root, the owner has signed its acceptance
+register, and the three non-owner contributors each have an open acceptance request
+(#408, #409, #410). What is still missing is the **response**. Until each contributor's
+acceptance is actually received and recorded in `CLA.md` §5, their row stays `NOT EVIDENCED`
+however long the request has been open. A request is not a confirmation.
 
 ### 5.2 Scope of the MIT text as written
 
@@ -210,7 +270,7 @@ been performed, and none is assumed here.**
 | # | Action | Owner | Status | Evidence that would close it |
 |---|---|---|---|---|
 | A1 | Choose **exactly one** of PR #397 / PR #398 to merge as the canonical licence delivery, and close the other to avoid a duplicate licence and duplicate gate-evidence tree. | Repository owner | ⛔ Outstanding — owner decision | The merged PR's SHA recorded here, with the other PR closed |
-| A2 | Record contributor-authority confirmation for the MIT grant covering the contributions of the three non-owner human contributors (`anh-nguyen-3103`, `k-pham08`, `longshaww`) — either a CLA adopted and signed, or a written confirmation from each contributor recorded in-repo. | Repository owner | ⛔ Outstanding — owner action | A `CLA` / `CONTRIBUTING` file in the repository carrying the contributors' acceptance, or an equivalent in-repo record, referenced from this document |
+| A2 | Record contributor-authority confirmation for the MIT grant covering the contributions of the three non-owner human contributors (`anh-nguyen-3103`, `k-pham08`, `longshaww`) — either a CLA adopted and signed, or a written confirmation from each contributor recorded in-repo. | Repository owner | 🟡 **In progress** — the CLA artefact exists (`CLA.md`, adopted and owner-signed 2026-10-25) and the three acceptance requests are open (#408, #409, #410). **No acceptance received yet.** | An entry in the `CLA.md` §5 acceptance register for each of the three contributors, attributed to the signature commit or the issue comment that carried it |
 | A3 | After A1 and A2, re-cut the submission SHA and re-run CR12 at that SHA; the licence is bound to the *merged* commit, not to a pre-merge head. | Repository owner + reviewer | ⛔ Blocked by A1, A2 | The post-merge SHA recorded in §2 and in `docs/FINAL_SUBMISSION_VALIDATION_CHECKLIST.md` §6.1 |
 | A4 | Redploy the Cloud Run service and re-publish the web artefact at the new SHA, and confirm the MIT notice travels with the distributed artefacts. | Dev-ops | ⛔ Blocked by A3 | A live revision serving the new SHA with the licence notice present. Tracked separately on card `t_f34e7fb6`. |
 
@@ -234,6 +294,10 @@ been performed, and none is assumed here.**
 | P10 | Both licence PRs still open | `gh pr view 397/398` → both `OPEN`, heads `4fae32de…` / `ebb70b64…` |
 | P11 | Owner authored all 23 pull-request landings | `git log --merges --format='%an\|%s' 920e166f \| grep 'Merge pull request'` → 23 rows, all `Phan Thanh Vinh`; the other 6 merges are branch synchronisations authored by `Vinh Phan`, `Anh Nguyen`, `Khoa Pham` |
 | P12 | Licence and notice authored by the owner on both PRs | `git log pr398 --format='%an <%ae> \| %s' -- LICENSE` and `-- THIRD_PARTY_NOTICES.md` → both `Vinh Phan <vinhphan812@gmail.com>` |
+| P13 | `CLA.md` exists at the repository root from the commit that introduces it | `git ls-tree --name-only HEAD \| grep -xE 'CLA\.md\|CONTRIBUTING\.md'` → `CLA.md`, `CONTRIBUTING.md`; absent at `920e166f` (P6) |
+| P14 | The owner signed the `CLA.md` acceptance register | `CLA.md` §5.1 — signature block dated 2026-10-25, account `vinhphan812` |
+| P15 | Acceptance requests are open for the three non-owner contributors, with no response | `gh issue view 408/409/410 --json number,state,comments` → all `OPEN`, `comments` empty at 2026-10-25 |
+| P16 | No acceptance exists for the three non-owner contributors | `CLA.md` §5 register — all three rows read **not yet accepted**; no `Signed-off-by` from any of them in history (P8); no issue comment carrying a confirmation (P15) |
 
 ---
 
@@ -244,6 +308,9 @@ been performed, and none is assumed here.**
   §3.
 - It does **not** make a legal judgement on whether the MIT grant is enforceable against the
   three non-owner contributors. It records the evidence, and names the evidence that is missing.
+- It does **not** assert that an acceptance request has been answered. As at 2026-10-25 issues
+  #408, #409 and #410 carry no response, and the `CLA.md` §5 register records the three
+  non-owner rows as not yet accepted.
 - It makes **no** claim about deployment, release-gate acceptance, or the live service.
 - The commit counts are as at `920e166f`. Re-run §3 after any merge to refresh them.
 
@@ -252,3 +319,6 @@ been performed, and none is assumed here.**
 *Prepared by task `t_86107ed9` (dev-qa) against `origin/main` @ `920e166f3526947e66ced3644bed40e761a88133`,
 PR #397 @ `4fae32dea25c43d4af2fd49d86da11f03fb1e172`, PR #398 @ `ebb70b646f48365bfbb724df71170a09e85442cf`.
 All GitHub API probes taken 2026-10-25.*
+
+*Updated by task `t_85565f08` (coordinator) on 2026-10-25 — `CLA.md` adopted, acceptance requests
+opened as issues #408 / #409 / #410, no acceptance received.*

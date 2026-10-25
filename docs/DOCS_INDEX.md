@@ -45,6 +45,8 @@
 | File | Audience | Status | Purpose |
 |---|---|---|---|
 | [licensing/CONTRIBUTOR-LICENSE-PROVENANCE.md](licensing/CONTRIBUTOR-LICENSE-PROVENANCE.md) | Owner, reviewer | Living | Per-contributor authority record for the MIT grant behind CR12. Names the evidence that exists in git history, the evidence that does not, and the outstanding owner actions. |
+| [../CLA.md](../CLA.md) | Owner, contributor, reviewer | Living | Individual Contributor Licence Agreement for the MIT inbound grant, with the acceptance register at §5. The record of who has authorised the licence grant. |
+| [../CONTRIBUTING.md](../CONTRIBUTING.md) | Contributor | Living | How to contribute, and how to accept the CLA before a contribution is merged. |
 
 ## Demo and video
 
