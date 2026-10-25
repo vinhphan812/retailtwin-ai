@@ -1,6 +1,6 @@
 # Individual Contributor Licence Agreement
 
-**Version:** 1.0
+**Version:** 1.1
 **Adopted:** 2026-10-25
 **Status:** In force. Acceptance is per-contributor and is tracked in the register at
 [§5](#5-acceptance-register).
