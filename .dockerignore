@@ -3,13 +3,16 @@
 .gitignore
 .gitattributes
 
-# Docs & config at repo root (not needed in container)
+# Docs & config at repo root (not needed in container).
+# Legal material is an explicit exception: LICENSE and THIRD_PARTY_NOTICES.md
+# must stay in the build context so the runtime image can ship them (MIT
+# requires the notice to accompany every copy of the software).
 README.md
-LICENSE
 CONTRIBUTING.md
 .env
 .env.*
 *.md
+!THIRD_PARTY_NOTICES.md
 docs/
 
 # Test & CI tooling

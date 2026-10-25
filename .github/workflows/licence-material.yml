@@ -1,0 +1,99 @@
+name: Licence Material
+
+# Distribution-obligation gate (issue #367 / audit task t_57fcdbdf).
+#
+# The repository's own legal material must travel with every artefact that is
+# actually distributed:
+#   * the container image built from ./Dockerfile, and
+#   * the hosted web bundle served from apps/web/dist.
+#
+# Before this workflow existed no CI check mentioned "licen" anywhere under
+# .github/, which is how the submission SHA 920e166f shipped without a root
+# LICENSE or THIRD_PARTY_NOTICES.md and the live image shipped first-party
+# MIT-licensed source with no MIT notice.
+#
+# This workflow does NOT declare the licence. It only asserts that whatever
+# licence material the repository carries is present, consistent, and actually
+# delivered to users.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+# ADR 0026 — least-privilege. This workflow only reads the repository.
+permissions:
+  contents: read
+
+concurrency:
+  group: licence-material-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  licence-material:
+    name: Licence Material
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+
+      - name: Check licence material is present, consistent and distributed
+        run: python scripts/check_license_material.py
+
+      - name: Set up Node.js for the web bundle build
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.17'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Verify the built web bundle carries the legal material
+        run: |
+          # Vite copies apps/web/public/ verbatim into dist/. Assert the two
+          # legal files survive the build and are byte-identical to the
+          # repository-root originals, so the hosted bundle serves the same
+          # text that the repository publishes.
+          set -euo pipefail
+          cd apps/web
+          npm ci --ignore-scripts
+          npm run build
+          cd ../..
+
+          for name in LICENSE THIRD_PARTY_NOTICES.md; do
+            if [ ! -f "apps/web/dist/${name}" ]; then
+              echo "::error::apps/web/dist/${name} is missing from the built web bundle."
+              exit 1
+            fi
+            if ! cmp -s "${name}" "apps/web/dist/${name}"; then
+              echo "::error::apps/web/dist/${name} differs from the repository-root ${name}."
+              exit 1
+            fi
+            echo "PASS: apps/web/dist/${name} is byte-identical to ${name}"
+          done
+
+      - name: Summarise the licence material in the job summary
+        run: |
+          {
+            echo "### Licence material"
+            echo ""
+            echo "| File | Bytes | SHA-256 |"
+            echo "|---|---|---|"
+            for name in LICENSE THIRD_PARTY_NOTICES.md; do
+              bytes=$(wc -c < "${name}" | tr -d ' ')
+              sha=$(sha256sum "${name}" | cut -d' ' -f1)
+              echo "| \`${name}\` | ${bytes} | \`${sha}\` |"
+            done
+            echo ""
+            echo "This gate does not declare the licence; it asserts that the"
+            echo "licence material already in the repository is delivered with"
+            echo "the container image and the hosted web bundle."
+          } >> $GITHUB_STEP_SUMMARY

@@ -66,6 +66,18 @@ COPY --from=builder --chown=appuser:appgroup /app/services/ services/
 # container raises InvalidVersion before uvicorn can bind the port.
 COPY VERSION VERSION
 
+# Legal material travels with the image. The MIT licence requires the
+# copyright and permission notice to accompany all copies of the software, so
+# the repository's own LICENSE and THIRD_PARTY_NOTICES.md are copied into
+# /app. A third copy named NOTICE is added so that conventional
+# "find / -iname 'NOTICE*'" and SPDX-style scanners resolve the notice file
+# directly; it is byte-identical to THIRD_PARTY_NOTICES.md. The build context
+# keeps these files (see .dockerignore). No Python source is added or changed,
+# so the image's source-provenance set is unaffected.
+COPY --chown=appuser:appgroup LICENSE /app/LICENSE
+COPY --chown=appuser:appgroup THIRD_PARTY_NOTICES.md /app/THIRD_PARTY_NOTICES.md
+COPY --chown=appuser:appgroup THIRD_PARTY_NOTICES.md /app/NOTICE
+
 # Make the venv Python/uvicorn available on PATH (base Python is outside the venv)
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PORT=8080
