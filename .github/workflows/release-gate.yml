@@ -208,7 +208,7 @@ jobs:
 
       - name: Authenticate to Google Cloud (deployed-artifact verification)
         if: github.event_name == 'workflow_dispatch'
-        uses: google-github-actions/auth@v3  # 7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3.0.0
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_DEPLOY_SA }}
@@ -332,7 +332,7 @@ jobs:
           echo "sha=${GATE_SHA}" >> $GITHUB_OUTPUT
           echo "Git SHA: ${GATE_SHA}"
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v3  # 7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3.0.0
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_DEPLOY_SA }}
@@ -590,7 +590,7 @@ jobs:
       STAGE: smoke-firestore-store
     steps:
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v3  # 7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3.0.0
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_RUNTIME_SA }}
@@ -786,7 +786,7 @@ jobs:
       STAGE: smoke-bigquery-analytics
     steps:
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v3  # 7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3.0.0
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_RUNTIME_SA }}
@@ -841,7 +841,7 @@ jobs:
       STAGE: smoke-pubsub-event
     steps:
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v3  # 7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3.0.0
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_RUNTIME_SA }}
@@ -969,7 +969,7 @@ jobs:
       STAGE: smoke-vertex-gemini
     steps:
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v3  # 7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3.0.0
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_RUNTIME_SA }}
@@ -1077,7 +1077,7 @@ jobs:
       STAGE: smoke-secret-scan
     steps:
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v3  # 7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3.0.0
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_RUNTIME_SA }}
@@ -1136,7 +1136,7 @@ jobs:
       STAGE: smoke-frontend-availability
     steps:
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v3  # 7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3.0.0
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_DEPLOY_SA }}
@@ -1476,7 +1476,7 @@ jobs:
     # REMOVED: env context not allowed in job-level env: CLOUD_RUN_SERVICE: ${{ env.CLOUD_RUN_SERVICE }}
     steps:
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v3  # 7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3.0.0
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_DEPLOY_SA }}

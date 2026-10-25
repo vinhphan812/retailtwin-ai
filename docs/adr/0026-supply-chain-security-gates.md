@@ -83,7 +83,7 @@ Dependabot opens an update, the SHA comment is refreshed by the same PR.
 
 | Action | Pin |
 | --- | --- |
-| `google-github-actions/auth` | `v2.1.7` (`6fc4af4b145ae7821d527454aa9bd537d1f2dc5f`) |
+| `google-github-actions/auth` | `v3.0.0` (`7c6bc770dae815cd3e89ee6cdf493a5fab2cc093`) |
 | `docker/setup-buildx-action` | `v3.10.0` (`b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2`) |
 | `docker/build-push-action` | `v6.18.0` (`263435318d21b8e681c14492fe198d362a7d2c83`) |
 | `google-github-actions/deploy-cloudrun` | `v2.7.6` (`251330ba9a8a34bfbc1622895f42e1d53fd14522`) |
