@@ -182,9 +182,9 @@ licensed by the repository owner on their behalf.
 | Identity / account | Authority basis evidenced in-repo | Status |
 |---|---|---|
 | `vinhphan812` — Phan Thanh Vinh / Vinh Phan (owner) | Repository owner and sole `admin`; author of all 23 "Merge pull request" merge commits at the submission SHA (the remaining 6 merges are branch synchronisations, not pull-request landings); author of the MIT text and the third-party notice on both open licence PRs; sole author of the human `Signed-off-by` trailers in the history; **signature of the `CLA.md` acceptance register at §5.1, dated 2026-10-25**. | **EVIDENCED** for the owner's own contributions (the owner holds copyright in them and grants them, and has signed the `CLA.md` register). **NOT EVIDENCED** for the authority to grant MIT over the *other* contributors' contributions — see §7. |
-| `anh-nguyen-3103` — Anh Nguyen | 55 commits authored under the identity, landing on `main` via pull requests merged by the owner; account holds `push` on the repository; named once as a `Co-authored-by`. | **NOT EVIDENCED.** No CLA signature, no `Signed-off-by`, no copyright-holder statement, no governance document. The `CLA.md` acceptance register (§5) carries the row as **not yet accepted**; the written-confirmation request is open as issue [#408](https://github.com/vinhphan812/retailtwin-ai/issues/408) and no response has been received. |
-| `k-pham08` — Khoa Pham | 59 commits across two identities, landing on `main` via pull requests merged by the owner; account holds `push`; named in 9 `Co-authored-by` trailers. | **NOT EVIDENCED** — same absence as above. The `CLA.md` acceptance register (§5) carries the row as **not yet accepted**; the written-confirmation request is open as issue [#409](https://github.com/vinhphan812/retailtwin-ai/issues/409) and no response has been received. |
-| `longshaww` — Trần Thanh Long | 7 commits authored under the identity, landing on `main` via pull requests merged by the owner; account holds `push`; named in 6 `Co-authored-by` trailers under a second email (`thanhlong.tran@giantgroup.com`). | **NOT EVIDENCED** — same absence as above. The `CLA.md` acceptance register (§5) carries the row as **not yet accepted**; the written-confirmation request is open as issue [#410](https://github.com/vinhphan812/retailtwin-ai/issues/410) and no response has been received. |
+| `anh-nguyen-3103` — Anh Nguyen | 55 commits authored under the identity, landing on `main` via pull requests merged by the owner; account holds `push` on the repository; named once as a `Co-authored-by`. | **NOT EVIDENCED.** No CLA signature, no `Signed-off-by`, no copyright-holder statement, no governance document. The `CLA.md` acceptance register (§5) carries the row as **not yet accepted**; the acceptance request is open as issue [#408](https://github.com/vinhphan812/retailtwin-ai/issues/408) and **no response has been received** (re-verified 2026-10-25, P17). Neither §4.1 route nor §4.2 route has produced an acceptance (P18). |
+| `k-pham08` — Khoa Pham | 59 commits across two identities, landing on `main` via pull requests merged by the owner; account holds `push`; named in 9 `Co-authored-by` trailers. | **NOT EVIDENCED** — same absence as above. The `CLA.md` acceptance register (§5) carries the row as **not yet accepted**; the acceptance request is open as issue [#409](https://github.com/vinhphan812/retailtwin-ai/issues/409) and **no response has been received** (re-verified 2026-10-25, P17). Neither §4.1 route nor §4.2 route has produced an acceptance (P18). |
+| `longshaww` — Trần Thanh Long | 7 commits authored under the identity, landing on `main` via pull requests merged by the owner; account holds `push`; named in 6 `Co-authored-by` trailers under a second email (`thanhlong.tran@giantgroup.com`). | **NOT EVIDENCED** — same absence as above. The `CLA.md` acceptance register (§5) carries the row as **not yet accepted**; the acceptance request is open as issue [#410](https://github.com/vinhphan812/retailtwin-ai/issues/410) and **no response has been received** (re-verified 2026-10-25, P17). Neither §4.1 route nor §4.2 route has produced an acceptance (P18). |
 
 ### 5.0 The authority artefact — `CLA.md`
 
@@ -205,9 +205,9 @@ each against its open request issue.
 |---|---|---|
 | Individual Contributor Licence Agreement | `CLA.md` (repository root) | Present from the commit that introduces it — task `t_85565f08`; **not present at submission SHA `920e166f`** |
 | Acceptance register | `CLA.md` §5 | As above; entries added only on receipt of an actual acceptance |
-| Acceptance request — `anh-nguyen-3103` | issue [#408](https://github.com/vinhphan812/retailtwin-ai/issues/408) | Opened 2026-10-25; open, no response |
-| Acceptance request — `k-pham08` | issue [#409](https://github.com/vinhphan812/retailtwin-ai/issues/409) | Opened 2026-10-25; open, no response |
-| Acceptance request — `longshaww` | issue [#410](https://github.com/vinhphan812/retailtwin-ai/issues/410) | Opened 2026-10-25; open, no response |
+| Acceptance request — `anh-nguyen-3103` | issue [#408](https://github.com/vinhphan812/retailtwin-ai/issues/408) | Opened 2026-10-25; open, no response (re-verified 2026-10-25) |
+| Acceptance request — `k-pham08` | issue [#409](https://github.com/vinhphan812/retailtwin-ai/issues/409) | Opened 2026-10-25; open, no response (re-verified 2026-10-25) |
+| Acceptance request — `longshaww` | issue [#410](https://github.com/vinhphan812/retailtwin-ai/issues/410) | Opened 2026-10-25; open, no response (re-verified 2026-10-25) |
 
 ### 5.1 What the "NOT EVIDENCED" rows mean
 
@@ -239,6 +239,17 @@ register, and the three non-owner contributors each have an open acceptance requ
 acceptance is actually received and recorded in `CLA.md` §5, their row stays `NOT EVIDENCED`
 however long the request has been open. A request is not a confirmation.
 
+**Re-verification, 2026-10-25 (task `t_c8767337`).** Both acceptance routes permitted by
+`CLA.md` §4 were searched again for each of the three contributors, and both are still empty:
+no §4.1 signature line exists in the register on any branch, and no §4.2 confirmation comment
+has been posted on any of the three request issues (P17, P18). The three register rows
+accordingly remain **not yet accepted**, and this record continues to state the position
+plainly rather than infer it from repository activity, push access or commit authorship
+(`CLA.md` §4.3). One inaccuracy in the register was corrected at the same time: the
+"Acceptance form" column named only §4.2 for the three outstanding rows, whereas the CLA admits
+**either** §4.1 (a signature line) or §4.2 (a written confirmation), and both routes are offered
+in each request issue. The column now names both.
+
 ### 5.2 Scope of the MIT text as written
 
 `THIRD_PARTY_NOTICES.md` states that the root `LICENSE` applies to first-party code only. It
@@ -255,10 +266,18 @@ and must not be cited as if it did.
 | `Hermes Agent <agent@hermes>` | 12 | Local agent identity operated under the repository owner's direction. No separate copyright holder is asserted; the operator (owner) is accountable for the output. |
 | `Hermes Agent <hermes@nousresearch.com>` | 10 | As above. |
 | `RetailTwin Subagent <subagent@retailtwin.local>` | 5 | As above. |
-| `Claude Opus 5.5` and other AI-tool `Co-authored-by` trailers | 137 | Tool attribution in trailers, not authorship of a distinct copyright holder. The human author of the commit is the copyright holder of that commit's content. |
+| `Claude Opus 5.5` and other AI-tool `Co-authored-by` trailers (commits carrying at least one) | 74 | Tool attribution in trailers, not authorship of a distinct copyright holder. The human author of the commit is the copyright holder of that commit's content. These trailers appear on **163 trailer lines** across those 74 commits — 141 Anthropic, 14 Hermes, 4 `RetailTwin Subagent`, 4 other agents (§4.2). |
 
 Agent and bot identities therefore introduce no separate contributor-authority gap; the
 accountable party is the repository owner.
+
+> **Correction (2026-10-25, task `t_c8767337`).** This row previously read `137`. That figure was
+> the count of Anthropic-only `Co-authored-by` trailer *lines* measured at the earlier commit
+> `e21c966e`, and it was carried into a column whose unit is **commits**. It is wrong on both
+> counts: the row's label covers all AI-tool trailers, not Anthropic alone, and the column counts
+> commits, not trailer lines. At `920e166f` the correct commit count is **74**, and the correct
+> trailer-line count is **163** — which is the figure §4.2 already states. See P20 for the
+> re-runnable commands.
 
 ---
 
@@ -270,7 +289,7 @@ been performed, and none is assumed here.**
 | # | Action | Owner | Status | Evidence that would close it |
 |---|---|---|---|---|
 | A1 | Choose **exactly one** of PR #397 / PR #398 to merge as the canonical licence delivery, and close the other to avoid a duplicate licence and duplicate gate-evidence tree. | Repository owner | ⛔ Outstanding — owner decision | The merged PR's SHA recorded here, with the other PR closed |
-| A2 | Record contributor-authority confirmation for the MIT grant covering the contributions of the three non-owner human contributors (`anh-nguyen-3103`, `k-pham08`, `longshaww`) — either a CLA adopted and signed, or a written confirmation from each contributor recorded in-repo. | Repository owner | 🟡 **In progress** — the CLA artefact exists (`CLA.md`, adopted and owner-signed 2026-10-25) and the three acceptance requests are open (#408, #409, #410). **No acceptance received yet.** | An entry in the `CLA.md` §5 acceptance register for each of the three contributors, attributed to the signature commit or the issue comment that carried it |
+| A2 | Record contributor-authority confirmation for the MIT grant covering the contributions of the three non-owner human contributors (`anh-nguyen-3103`, `k-pham08`, `longshaww`) — either a CLA adopted and signed, or a written confirmation from each contributor recorded in-repo. | Repository owner | 🟡 **In progress** — the CLA artefact exists (`CLA.md`, adopted and owner-signed 2026-10-25) and the three acceptance requests are open (#408, #409, #410). **No acceptance received** — re-verified 2026-10-25 against both §4.1 and §4.2 routes (P17, P18). **Not closed.** | An entry in the `CLA.md` §5 acceptance register for each of the three contributors, attributed to the signature commit or the issue comment that carried it |
 | A3 | After A1 and A2, re-cut the submission SHA and re-run CR12 at that SHA; the licence is bound to the *merged* commit, not to a pre-merge head. | Repository owner + reviewer | ⛔ Blocked by A1, A2 | The post-merge SHA recorded in §2 and in `docs/FINAL_SUBMISSION_VALIDATION_CHECKLIST.md` §6.1 |
 | A4 | Redploy the Cloud Run service and re-publish the web artefact at the new SHA, and confirm the MIT notice travels with the distributed artefacts. | Dev-ops | ⛔ Blocked by A3 | A live revision serving the new SHA with the licence notice present. Tracked separately on card `t_f34e7fb6`. |
 
@@ -298,6 +317,10 @@ been performed, and none is assumed here.**
 | P14 | The owner signed the `CLA.md` acceptance register | `CLA.md` §5.1 — signature block dated 2026-10-25, account `vinhphan812` |
 | P15 | Acceptance requests are open for the three non-owner contributors, with no response | `gh issue view 408/409/410 --json number,state,comments` → all `OPEN`, `comments` empty at 2026-10-25 |
 | P16 | No acceptance exists for the three non-owner contributors | `CLA.md` §5 register — all three rows read **not yet accepted**; no `Signed-off-by` from any of them in history (P8); no issue comment carrying a confirmation (P15) |
+| P17 | The three acceptance requests remain open and unanswered, and no comment by the three accounts carries an acceptance (re-verified 2026-10-25) | `gh issue view 408 --json number,state,comments; gh issue view 409 --json number,state,comments; gh issue view 410 --json number,state,comments` → each returns `state` `OPEN` and `comments` `[]`. The three accounts have commented elsewhere in the repository — 162 issue comments (`51` `anh-nguyen-3103`, `95` `k-pham08`, `16` `longshaww`) and 4 pull-request review comments (all `k-pham08`) — but **none of those comments carries an acceptance**: scanning every issue comment and every pull-request review comment for acceptance wording (`i accept`, `accept the cla`/`individual`/`contributor`, `mit licen…`, `contributor licen…`, `individual contributor licen…`, `cla.md`) returns **0** hits for the three accounts — `gh api --paginate "repos/vinhphan812/retailtwin-ai/issues/comments?per_page=100" --jq '.[] \| select(.user.login=="anh-nguyen-3103" or .user.login=="k-pham08" or .user.login=="longshaww") \| select(.body \| ascii_downcase \| (contains("i accept") or contains("accept the cla") or contains("accept the individual") or contains("accept the contributor") or contains("mit licen") or contains("contributor licen") or contains("individual contributor licen") or contains("cla.md"))) \| .html_url'` → no output, and the same query against `repos/vinhphan812/retailtwin-ai/pulls/comments` → no output. The scan is exhaustive rather than sampled: `--paginate` with `per_page=100` walks every page of the repository's comments (1110 issue comments and 17 pull-request review comments as at 2026-10-25; both totals grow with repository activity, so re-run and expect a larger number), and the three accounts' share of it is `gh api --paginate "repos/vinhphan812/retailtwin-ai/issues/comments?per_page=100" --jq '.[] \| select(.user.login=="anh-nguyen-3103" or .user.login=="k-pham08" or .user.login=="longshaww") \| .id' \| wc -l` → `162` (substituting a single account for the `or` chain gives `51`, `95`, `16` respectively). Repository discussions: `gh api graphql -f query='{repository(owner:"vinhphan812",name:"retailtwin-ai"){discussions(first:100){totalCount}}}'` → `0`, so no acceptance is recorded there either. |
+| P18 | Neither §4.1 nor §4.2 has produced an acceptance for any of the three | **§4.1 — register signature:** `git log --all --format='%an <%ae>' -- CLA.md` → every line reads `Vinh Phan <vinhphan812@gmail.com>`, so the owner is the only person who has ever authored `CLA.md` and no contributor has amended the register; `git grep -c -e 'anh-nguyen-3103.*Not yet accepted' -e 'k-pham08.*Not yet accepted' -e 'longshaww.*Not yet accepted' 79998bc8 -- CLA.md` → `79998bc8:CLA.md:3` (all three rows still outstanding), while `git grep -c '✅ Accepted' 79998bc8 -- CLA.md` → `79998bc8:CLA.md:1` (the owner's row only). `gh pr list --state all --author anh-nguyen-3103 --json number,files --jq '[.[] \| select([.files[].path] \| index("CLA.md"))] \| length'` → `0`, and the same command with `--author k-pham08` → `0` and with `--author longshaww` → `0`: no pull request authored by any of the three lists `CLA.md` among its files. **§4.2 — written confirmation:** P17 — the three request issues carry no comment at all, and no comment by the three accounts anywhere in the repository carries an acceptance. |
+| P19 | The `CLA.md` link in the three acceptance-request issues is broken on `main` | `curl -s -o /dev/null -w '%{http_code}' https://github.com/vinhphan812/retailtwin-ai/blob/main/CLA.md` → `404`, because `CLA.md` exists only on the unmerged licence branches. The commit-pinned form `https://github.com/vinhphan812/retailtwin-ai/blob/79998bc8abb02bc11fbfd6fdf0cd7e24924df7a8/CLA.md` → `200`. The link in the request bodies is therefore repaired to the commit-pinned form, and the requests stay open and unanswered |
+| P20 | AI-tool `Co-authored-by` attribution at `920e166f` — corrects the `137` previously recorded in §6 | **Trailer lines:** `git log --format='%B' 920e166f \| grep -cE '^[Cc]o-[Aa]uthored-[Bb]y:.*(anthropic\|hermes\|retailtwin\|grok\|recovery)'` → `163`. **Commits carrying at least one such trailer:** `git rev-list 920e166f \| while read c; do git show -s --format=%B "$c" \| grep -qiE '^co-authored-by:.*(anthropic\|hermes\|retailtwin\|grok\|recovery)' && echo "$c"; done \| wc -l` → `74`. **Where `137` came from:** `git log --format='%B' e21c966e \| grep -cE '^[Cc]o-[Aa]uthored-[Bb]y:.*noreply@anthropic\.com'` → `137` — an Anthropic-only trailer-line count taken at the older commit `e21c966e` and placed in a column whose unit is commits |
 
 ---
 
@@ -309,8 +332,14 @@ been performed, and none is assumed here.**
 - It does **not** make a legal judgement on whether the MIT grant is enforceable against the
   three non-owner contributors. It records the evidence, and names the evidence that is missing.
 - It does **not** assert that an acceptance request has been answered. As at 2026-10-25 issues
-  #408, #409 and #410 carry no response, and the `CLA.md` §5 register records the three
-  non-owner rows as not yet accepted.
+  #408, #409 and #410 carry no response — re-verified on that date against both `CLA.md` §4
+  routes (P17, P18) — and the `CLA.md` §5 register records the three non-owner rows as not yet
+  accepted. A request is not a confirmation, and no acceptance is inferred from repository
+  activity, push access or commit authorship (`CLA.md` §4.3).
+- The `CLA.md` link supplied in the three request issues originally pointed at `blob/main/CLA.md`,
+  which returns HTTP 404 because `CLA.md` is not on `main` while the licence PRs remain open. The
+  link has been repaired to the commit-pinned form (P19); the requests themselves are unchanged in
+  substance and remain unanswered.
 - It makes **no** claim about deployment, release-gate acceptance, or the live service.
 - The commit counts are as at `920e166f`. Re-run §3 after any merge to refresh them.
 
@@ -322,3 +351,7 @@ All GitHub API probes taken 2026-10-25.*
 
 *Updated by task `t_85565f08` (coordinator) on 2026-10-25 — `CLA.md` adopted, acceptance requests
 opened as issues #408 / #409 / #410, no acceptance received.*
+
+*Re-verified by task `t_c8767337` (dev-qa) on 2026-10-25 against PR #411 head
+`79998bc8abb02bc11fbfd6fdf0cd7e24924df7a8` — no acceptance received on either `CLA.md` §4 route
+(P17, P18); §6 AI-tool attribution count corrected (P20); acceptance-request link repaired (P19).*
