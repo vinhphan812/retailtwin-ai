@@ -141,10 +141,10 @@ $ pytest tests/test_simulations_adc_metadata_reproduction.py tests/test_adc_head
 | --- | --- |
 | Branch | `fix/simulations-adc-token-header-case` |
 | Base | `origin/main` @ `920e166f3526947e66ced3644bed40e761a88133` |
-| Head SHA | `deb0665dff717d233dd699bd40cf3dc4c6d0a3a0` |
+| PR head | `fix/simulations-adc-token-header-case` — the head SHA is the PR's current head; the three commit SHAs below are stable and identify the content |
 | Fix commit | `5d98f4bb` (content byte-identical to `6be263b9229af40e0033965e03cb5b404b481004`, the head of PR #414) |
 | Test commit | `7814a3e9` — endpoint-level reproduction test |
-| Docs commit | `deb0665d` — verification record |
+| Docs commits | `deb0665d` (verification record), plus a follow-up that refreshes the head SHA and CI timings inside it |
 | PR | https://github.com/vinhphan812/retailtwin-ai/pull/415 (OPEN, MERGEABLE) |
 | Supersedes | PR #414 (same fix on a `wt/...` branch); #414 has been commented with the pointer to #415 |
 | Diff | 6 files, +900 / −2 |
@@ -170,7 +170,10 @@ The four-file fix diff is byte-identical to PR #414 (verified with
 `git diff 6be263b9229af40e0033965e03cb5b404b481004 5d98f4bb --stat`, which is empty); the two
 additions are the endpoint-level regression test and this verification record.
 
-## 5. CI evidence at head `deb0665d`
+## 5. CI evidence
+
+CI was run on the code content (`5d98f4bb` + `7814a3e9`), which is unchanged by the
+documentation-only commits that follow it. All checks are green:
 
 ```
 API Build & Test              pass  11m38s
