@@ -141,12 +141,13 @@ $ pytest tests/test_simulations_adc_metadata_reproduction.py tests/test_adc_head
 | --- | --- |
 | Branch | `fix/simulations-adc-token-header-case` |
 | Base | `origin/main` @ `920e166f3526947e66ced3644bed40e761a88133` |
-| Head SHA | `7814a3e9af22f504d961e8c01f343f3879690770` |
+| Head SHA | `deb0665dff717d233dd699bd40cf3dc4c6d0a3a0` |
 | Fix commit | `5d98f4bb` (content byte-identical to `6be263b9229af40e0033965e03cb5b404b481004`, the head of PR #414) |
 | Test commit | `7814a3e9` — endpoint-level reproduction test |
+| Docs commit | `deb0665d` — verification record |
 | PR | https://github.com/vinhphan812/retailtwin-ai/pull/415 (OPEN, MERGEABLE) |
 | Supersedes | PR #414 (same fix on a `wt/...` branch); #414 has been commented with the pointer to #415 |
-| Diff | 5 files, +676 / −2 |
+| Diff | 6 files, +900 / −2 |
 | IAM changes | none |
 
 Base-branch note: the delivery policy names `master` as the target, but this repository has **no
@@ -156,26 +157,31 @@ required-check workflows. PR #415 therefore targets `main`, the repository's act
 ### Changed files
 
 ```
+ SIMULATIONS-500-ADC-HEADER-CASE-VERIFICATION-2026-10-25.md | 224 ++++++++++++++++++
  apps/api/retailtwin_api/firestore_decisions.py     |   9 +-
  apps/api/retailtwin_api/firestore_twin.py          |   8 +-
- apps/api/retailtwin_api/http_headers.py            |  61 +++++
+ apps/api/retailtwin_api/http_headers.py            |  61 ++++
  apps/api/tests/test_adc_header_case_insensitive.py | 245 +++++++++++++++++++++
  apps/api/tests/test_simulations_adc_metadata_reproduction.py | 355 +++++++++++++++++++++
- 5 files changed, 676 insertions(+), 2 deletions(-)
+ 6 files changed, 900 insertions(+), 2 deletions(-)
 ```
 
-## 5. CI evidence at head `7814a3e9`
+The four-file fix diff is byte-identical to PR #414 (verified with
+`git diff 6be263b9229af40e0033965e03cb5b404b481004 5d98f4bb --stat`, which is empty); the two
+additions are the endpoint-level regression test and this verification record.
+
+## 5. CI evidence at head `deb0665d`
 
 ```
-API Build & Test              pass  9m17s
-API E2E Smoke                 pass  1m27s
-Build & Test                  pass  11m2s
-Canonical Version Consistency pass  36s
-Web Build & Test              pass  18s
-Detect Changed Files          pass  19s
-E2E Smoke                     pass  36s
-Repository Hygiene            pass  20s
-No conflict markers           pass  15s
+API Build & Test              pass  11m38s
+API E2E Smoke                 pass  38s
+Build & Test                  pass  11m48s
+Canonical Version Consistency pass  23s
+Detect Changed Files          pass  25s
+E2E Smoke                     pass  35s
+No conflict markers           pass  19s
+Repository Hygiene            pass  18s
+Web Build & Test              pass  10s
 ```
 
 `Type-check`, `Check branch coverage threshold` and `Enforce critical-path coverage policy` steps
@@ -186,7 +192,7 @@ The authoritative test step (`Run tests with coverage`) reports:
 ```
 apps/api/tests/test_adc_header_case_insensitive.py ............          [  2%]
 apps/api/tests/test_simulations_adc_metadata_reproduction.py ..          [ 87%]
-============ 1391 passed, 20 skipped, 3 warnings in 250.35s (0:04:10) ============
+============ 1391 passed, 20 skipped, 3 warnings in 292.07s (0:04:52) ============
 ```
 
 The later `Coverage summary` step re-runs `pytest` with the coverage plugin and reports
