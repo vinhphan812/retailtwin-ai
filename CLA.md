@@ -91,9 +91,9 @@ covered by this agreement. It is maintained by the Project owner.
 | GitHub account | Display name | Contributions covered | Acceptance form | Accepted on | Source of acceptance | Status |
 |---|---|---|---|---|---|---|
 | `vinhphan812` | Phan Thanh Vinh / Vinh Phan | Project owner's own Contributions | §4.1 — signature below | 2026-10-25 | Signature in this register (Project owner and sole repository administrator) | ✅ Accepted |
-| `anh-nguyen-3103` | Anh Nguyen | Contributions authored under this account | §4.2 — written confirmation requested | — | Acceptance request [#408](https://github.com/vinhphan812/retailtwin-ai/issues/408), opened 2026-10-25 — no response received | ⛔ **Not yet accepted** — request open, no confirmation received |
-| `k-pham08` | Khoa Pham | Contributions authored under this account | §4.2 — written confirmation requested | — | Acceptance request [#409](https://github.com/vinhphan812/retailtwin-ai/issues/409), opened 2026-10-25 — no response received | ⛔ **Not yet accepted** — request open, no confirmation received |
-| `longshaww` | Trần Thanh Long | Contributions authored under this account | §4.2 — written confirmation requested | — | Acceptance request [#410](https://github.com/vinhphan812/retailtwin-ai/issues/410), opened 2026-10-25 — no response received | ⛔ **Not yet accepted** — request open, no confirmation received |
+| `anh-nguyen-3103` | Anh Nguyen | Contributions authored under this account | §4.1 — signature, or §4.2 — written confirmation (both routes offered) | — | Acceptance request [#408](https://github.com/vinhphan812/retailtwin-ai/issues/408), opened 2026-10-25 — no response received (re-verified 2026-10-25) | ⛔ **Not yet accepted** — request open, no confirmation received |
+| `k-pham08` | Khoa Pham | Contributions authored under this account | §4.1 — signature, or §4.2 — written confirmation (both routes offered) | — | Acceptance request [#409](https://github.com/vinhphan812/retailtwin-ai/issues/409), opened 2026-10-25 — no response received (re-verified 2026-10-25) | ⛔ **Not yet accepted** — request open, no confirmation received |
+| `longshaww` | Trần Thanh Long | Contributions authored under this account | §4.1 — signature, or §4.2 — written confirmation (both routes offered) | — | Acceptance request [#410](https://github.com/vinhphan812/retailtwin-ai/issues/410), opened 2026-10-25 — no response received (re-verified 2026-10-25) | ⛔ **Not yet accepted** — request open, no confirmation received |
 
 ### 5.1 Project owner signature
 
@@ -176,6 +176,7 @@ result either way.
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | 2026-10-25 | Initial adoption. Register opened for `anh-nguyen-3103`, `k-pham08` and `longshaww`. |
+| 1.1 | 2026-10-25 | Register rows re-verified as outstanding; acceptance-form column corrected to list both admissible forms (§4.1 signature and §4.2 written confirmation). No acceptance was recorded — the three rows remain outstanding. |
 
 ---
 
