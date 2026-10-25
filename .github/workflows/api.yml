@@ -215,7 +215,7 @@ jobs:
         # `gcloud auth configure-docker` below fails with exit 127 on runners
         # without it. Install it into the runner tool cache so the deploy step
         # is deterministic regardless of runner provisioning.
-        uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
+        uses: google-github-actions/setup-gcloud@v3.0.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2.1.7  # 6fc4af4b145ae7821d527454aa9bd537d1f2dc5f
@@ -228,7 +228,7 @@ jobs:
         # path needs it for `gcloud auth configure-docker` (gcr.io push auth).
         # setup-gcloud provisions the SDK into the runner tool cache, so the
         # job no longer depends on whatever happens to be installed on the box.
-        uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
+        uses: google-github-actions/setup-gcloud@v3.0.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
 
       - name: Configure Docker for GCR
         run: gcloud auth configure-docker gcr.io --quiet

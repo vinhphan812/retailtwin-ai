@@ -217,7 +217,7 @@ jobs:
         # The self-hosted runner does not ship the Cloud SDK. setup-gcloud
         # provisions it into the runner tool cache so every gcloud/bq call in
         # this job resolves, independent of what the runner image ships.
-        uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
+        uses: google-github-actions/setup-gcloud@v3.0.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
 
       - name: Verify deployed artifacts exist for the SHA
         if: github.event_name == 'workflow_dispatch'
@@ -340,7 +340,7 @@ jobs:
         # The self-hosted runner does not ship the Cloud SDK. setup-gcloud
         # provisions it into the runner tool cache so every gcloud/bq call in
         # this job resolves, independent of what the runner image ships.
-        uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
+        uses: google-github-actions/setup-gcloud@v3.0.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
       - name: Resolve backend URL
         id: backend
         run: |
@@ -598,7 +598,7 @@ jobs:
         # The self-hosted runner does not ship the Cloud SDK. setup-gcloud
         # provisions it into the runner tool cache so every gcloud/bq call in
         # this job resolves, independent of what the runner image ships.
-        uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
+        uses: google-github-actions/setup-gcloud@v3.0.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
       - name: Verify LIVE_TWIN_BACKEND contract on deployed Cloud Run
         id: backend_contract
         run: |
@@ -794,7 +794,7 @@ jobs:
         # The self-hosted runner does not ship the Cloud SDK. setup-gcloud
         # provisions it into the runner tool cache so every gcloud/bq call in
         # this job resolves, independent of what the runner image ships.
-        uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
+        uses: google-github-actions/setup-gcloud@v3.0.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
       - name: Verify sales_events table exists
         run: |
           set -e
@@ -849,7 +849,7 @@ jobs:
         # The self-hosted runner does not ship the Cloud SDK. setup-gcloud
         # provisions it into the runner tool cache so every gcloud/bq call in
         # this job resolves, independent of what the runner image ships.
-        uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
+        uses: google-github-actions/setup-gcloud@v3.0.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
       - name: Verify Pub/Sub topic exists
         run: |
           set -e
@@ -977,7 +977,7 @@ jobs:
         # The self-hosted runner does not ship the Cloud SDK. setup-gcloud
         # provisions it into the runner tool cache so every gcloud/bq call in
         # this job resolves, independent of what the runner image ships.
-        uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
+        uses: google-github-actions/setup-gcloud@v3.0.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
       - name: Live Vertex Gemini generateContent call
         run: |
           set -e
@@ -1085,7 +1085,7 @@ jobs:
         # The self-hosted runner does not ship the Cloud SDK. setup-gcloud
         # provisions it into the runner tool cache so every gcloud/bq call in
         # this job resolves, independent of what the runner image ships.
-        uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
+        uses: google-github-actions/setup-gcloud@v3.0.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
       - name: Scan every captured endpoint for credentials
         run: |
           set -e
@@ -1144,7 +1144,7 @@ jobs:
         # The self-hosted runner does not ship the Cloud SDK. setup-gcloud
         # provisions it into the runner tool cache so every gcloud/bq call in
         # this job resolves, independent of what the runner image ships.
-        uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
+        uses: google-github-actions/setup-gcloud@v3.0.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
       - name: Confirm Firebase Hosting has a live release
         run: |
           set -e
@@ -1484,7 +1484,7 @@ jobs:
         # The self-hosted runner does not ship the Cloud SDK. setup-gcloud
         # provisions it into the runner tool cache so every gcloud/bq call in
         # this job resolves, independent of what the runner image ships.
-        uses: google-github-actions/setup-gcloud@v2.2.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
+        uses: google-github-actions/setup-gcloud@v3.0.1  # e427ad8a34f8676edf47cf7d7925499adf3eb74f
       - name: List the last five ready revisions
         run: |
           echo "::group::Last 5 revisions of ${{ env.CLOUD_RUN_SERVICE }}"
