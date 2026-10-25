@@ -83,6 +83,7 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol, Self
 from pydantic import BaseModel, Field
 
 from retailtwin_api.errors import ApiError
+from retailtwin_api.http_headers import CaseInsensitiveHeaders
 
 if TYPE_CHECKING:
     pass
@@ -882,7 +883,12 @@ class FirestoreLiveTwinRepository(LiveTwinRepository):
 class _UrllibAuthResponse:
     def __init__(self, status: int, headers: Mapping[str, str], data: bytes) -> None:
         self.status = status
-        self.headers = headers
+        # google-auth reads response headers case-insensitively (for example
+        # ``response.headers["content-type"]`` on the compute-engine metadata
+        # transport). A plain ``dict`` is case-sensitive, so the canonical
+        # ``Content-Type`` casing returned by the metadata server raised
+        # ``KeyError`` and the ADC refresh failed.
+        self.headers = CaseInsensitiveHeaders(headers)
         self.data = data
 
 

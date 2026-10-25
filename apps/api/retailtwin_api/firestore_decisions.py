@@ -42,6 +42,7 @@ from retailtwin_api.firestore_twin import (
     TwinUnavailable,
     UrllibTransport,
 )
+from retailtwin_api.http_headers import CaseInsensitiveHeaders
 
 log = logging.getLogger(__name__)
 
@@ -113,7 +114,13 @@ class _UrllibAuthResponse:
 
     def __init__(self, status: int, headers: Mapping[str, str], data: bytes) -> None:
         self.status = status
-        self.headers = headers
+        # google-auth reads response headers case-insensitively (for example
+        # ``response.headers["content-type"]`` on the compute-engine metadata
+        # transport). The stdlib ``dict`` returned by ``dict(response.headers)``
+        # is case-sensitive, so the canonical ``Content-Type`` casing returned
+        # by the metadata server raised ``KeyError`` and every ADC refresh
+        # failed. Normalising the keys keeps the google-auth transport contract.
+        self.headers = CaseInsensitiveHeaders(headers)
         self.data = data
 
 
