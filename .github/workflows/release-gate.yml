@@ -1356,7 +1356,7 @@ jobs:
           jq -r '.checks[] | "| \(.name) | \(.status) |"' release-manifest/manifest.json >> $GITHUB_STEP_SUMMARY
       - name: Upload release manifest artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7  # cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: release-manifest-${{ needs.metadata.outputs.smoke_run_id }}
           path: release-manifest/
@@ -1452,7 +1452,7 @@ jobs:
           cat release-failure/manifest.json
       - name: Upload failure artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7  # cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: release-failure-${{ env.SMOKE_RUN_ID }}
           path: release-failure/
