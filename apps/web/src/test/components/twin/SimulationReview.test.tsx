@@ -205,12 +205,12 @@ describe("the simulation banner beside the Agent Activity panel", () => {
     const { rerender } = render(<SimulationBanner reviewer={vi.fn()} />);
     const banner = screen.getByRole("status", { name: "Simulation view" });
     expect(banner.dataset.panel).toBe("open");
-    expect(banner.style.maxWidth).toBe(`min(600px, calc(100% - ${PANEL_WIDTH + 56}px))`);
+    expect(["min(600px, calc(100% - " + (PANEL_WIDTH + 56) + "px))", "min(600px, 100% - " + (PANEL_WIDTH + 56) + "px)"]).toContain(banner.style.maxWidth);
 
     act(() => usePanelStore.getState().setOpen(false));
     rerender(<SimulationBanner reviewer={vi.fn()} />);
     expect(banner.dataset.panel).toBeUndefined();
-    expect(banner.style.maxWidth).toBe("min(600px, calc(100% - 32px))");
+    expect(["min(600px, calc(100% - 32px))", "min(600px, 100% - 32px)"]).toContain(banner.style.maxWidth);
   });
 });
 
