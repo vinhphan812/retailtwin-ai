@@ -172,13 +172,13 @@ jobs:
   deploy-cloudrun:
     name: Deploy to Cloud Run (production)
     runs-on: [self-hosted, Linux, X64]
-    # Drop security from needs as it is currently hard-disabled in security.yml (ADR-0026).
-    # build-test and e2e-smoke remain mandatory deployment gates.
-    needs: [build-test, e2e-smoke]
-    # Only deploy when this is a main push and both blocking API checks passed.
+    # Include security in needs as ADR-0026 security gate is re-enabled.
+    # build-test, e2e-smoke, and security are mandatory deployment gates.
+    needs: [build-test, e2e-smoke, security]
+    # Only deploy when this is a main push and all blocking checks passed.
     if: >-
       github.ref == 'refs/heads/main' && github.event_name == 'push' &&
-      needs.build-test.result == 'success' && needs.e2e-smoke.result == 'success'
+      needs.build-test.result == 'success' && needs.e2e-smoke.result == 'success' && needs.security.result == 'success'
     # Verify the workflow was actually triggered for this SHA before deploying.
     # Without this, workflow_dispatch with force_build=false would still deploy.
     # The needs.build-test.outputs check is safe here because the needs chain
@@ -194,7 +194,7 @@ jobs:
       - name: Record ADR-0026 security gate outcome
         run: |
           echo "## ADR-0026 security gate" >> "$GITHUB_STEP_SUMMARY"
-          echo "The ADR-0026 reusable security gate is currently non-functional (hard-disabled in security.yml); this deployment proceeded with build-test and e2e-smoke gates passing." >> "$GITHUB_STEP_SUMMARY"
+          echo "The ADR-0026 reusable security gate passed successfully; this deployment proceeded with build-test, e2e-smoke, and security gates passing." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Verify API CI ran for this SHA before deploying
         run: |
